@@ -160,13 +160,13 @@ class S3(object):
 
         Any existing object of the same name will be replaced.
         """
-        return self.makeRequest('PUT', bucket, objectName, data, contentType, metadata)
+        return self.makeRequest('PUT', bucket, objectName, data, contentType, metadata).submit()
 
     def getObject(self, bucket, objectName):
         """
         Get an object from a bucket.
         """
-        return self.makeRequest('GET', bucket, objectName)
+        return self.makeRequest('GET', bucket, objectName).submit()
 
     def headObject(self, bucket, objectName):
         """
@@ -176,7 +176,7 @@ class S3(object):
         Currently the metadata is not returned to the caller either, so this
         method is mostly useless, and only provided for completeness.
         """
-        return self.makeRequest('HEAD', bucket, objectName)
+        return self.makeRequest('HEAD', bucket, objectName).submit()
 
     def deleteObject(self, bucket, objectName):
         """
@@ -184,4 +184,4 @@ class S3(object):
 
         Once deleted, there is no method to restore or undelete an object.
         """
-        return self.makeRequest('DELETE', bucket, objectName)
+        return self.makeRequest('DELETE', bucket, objectName).submit()

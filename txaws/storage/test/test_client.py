@@ -5,7 +5,7 @@ from epsilon.extime import Time
 from twisted.trial.unittest import TestCase
 from twisted.internet.defer import succeed
 
-from aws.s3.client import S3, S3Request, calculateMD5, hmac_sha1
+from txaws.storage.client import S3, S3Request, calculateMD5, hmac_sha1
 
 class StubbedS3Request(S3Request):
     def getPage(self, url, method, postdata, headers):
@@ -90,6 +90,8 @@ class InertRequest(S3Request):
 
     The submission action is stubbed out to return the provided response.
     """
+    submitted = False
+
     def __init__(self, *a, **kw):
         self.response = kw.pop('response')
         super(InertRequest, self).__init__(*a, **kw)
@@ -98,6 +100,7 @@ class InertRequest(S3Request):
         """
         Return the canned result instead of performing a network operation.
         """
+        self.submitted = True
         return succeed(self.response)
 
 
@@ -162,6 +165,7 @@ class WrapperTests(TestCase):
         d = self.s3.listBuckets()
 
         req = self.s3._lastRequest
+        self.assertTrue(req.submitted)
         self.assertEqual(req.verb, 'GET')
         self.assertEqual(req.bucket, None)
         self.assertEqual(req.objectName, None)
@@ -177,6 +181,7 @@ class WrapperTests(TestCase):
     def test_createBucket(self):
         self.s3.createBucket('foo')
         req = self.s3._lastRequest
+        self.assertTrue(req.submitted)
         self.assertEqual(req.verb, 'PUT')
         self.assertEqual(req.bucket, 'foo')
         self.assertEqual(req.objectName, None)
@@ -184,6 +189,7 @@ class WrapperTests(TestCase):
     def test_deleteBucket(self):
         self.s3.deleteBucket('foo')
         req = self.s3._lastRequest
+        self.assertTrue(req.submitted)
         self.assertEqual(req.verb, 'DELETE')
         self.assertEqual(req.bucket, 'foo')
         self.assertEqual(req.objectName, None)
@@ -191,6 +197,7 @@ class WrapperTests(TestCase):
     def test_putObject(self):
         self.s3.putObject('foobucket', 'foo', 'data', 'text/plain', {'foo': 'bar'})
         req = self.s3._lastRequest
+        self.assertTrue(req.submitted)
         self.assertEqual(req.verb, 'PUT')
         self.assertEqual(req.bucket, 'foobucket')
         self.assertEqual(req.objectName, 'foo')
@@ -201,6 +208,7 @@ class WrapperTests(TestCase):
     def test_getObject(self):
         self.s3.getObject('foobucket', 'foo')
         req = self.s3._lastRequest
+        self.assertTrue(req.submitted)
         self.assertEqual(req.verb, 'GET')
         self.assertEqual(req.bucket, 'foobucket')
         self.assertEqual(req.objectName, 'foo')
@@ -208,6 +216,7 @@ class WrapperTests(TestCase):
     def test_headObject(self):
         self.s3.headObject('foobucket', 'foo')
         req = self.s3._lastRequest
+        self.assertTrue(req.submitted)
         self.assertEqual(req.verb, 'HEAD')
         self.assertEqual(req.bucket, 'foobucket')
         self.assertEqual(req.objectName, 'foo')
@@ -215,6 +224,7 @@ class WrapperTests(TestCase):
     def test_deleteObject(self):
         self.s3.deleteObject('foobucket', 'foo')
         req = self.s3._lastRequest
+        self.assertTrue(req.submitted)
         self.assertEqual(req.verb, 'DELETE')
         self.assertEqual(req.bucket, 'foobucket')
         self.assertEqual(req.objectName, 'foo')
