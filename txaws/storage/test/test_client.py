@@ -2,10 +2,11 @@ from datetime import datetime
 
 from epsilon.extime import Time
 
-from twisted.trial.unittest import TestCase
 from twisted.internet.defer import succeed
 
-from txaws.storage.client import S3, S3Request, calculateMD5, hmac_sha1
+from txaws.credentials import AWSCredentials
+from txaws.tests import TXAWSTestCase
+from txaws.storage.client import S3, S3Request, calculateMD5
 
 class StubbedS3Request(S3Request):
     def getPage(self, url, method, postdata, headers):
@@ -13,9 +14,9 @@ class StubbedS3Request(S3Request):
         return succeed('')
 
 
-class RequestTests(TestCase):
-    accessKey = '0PN5J17HBGZHT7JJ3X82'
-    secretKey = 'uV3F3YluFJax1cknvbcGwgjvx4QpvB+leU8dUj2o'
+class RequestTests(TXAWSTestCase):
+    creds = AWSCredentials(access_key='0PN5J17HBGZHT7JJ3X82',
+        secret_key='uV3F3YluFJax1cknvbcGwgjvx4QpvB+leU8dUj2o')
 
     def test_objectRequest(self):
         """
@@ -69,15 +70,8 @@ class RequestTests(TestCase):
 
         return request.submit().addCallback(_postCheck)
 
-    def test_invalidAuthenticatedRequest(self):
-        """
-        An authenticated request must be supplied both private and public keys.
-        """
-        self.assertRaises(ValueError, S3Request, 'GET', accessKey='foo')
-        self.assertRaises(ValueError, S3Request, 'GET', secretKey='foo')
-
     def test_authenticationTestCases(self):
-        req = S3Request('GET', accessKey=self.accessKey, secretKey=self.secretKey)
+        req = S3Request('GET', creds=self.creds)
         req.date = 'Wed, 28 Mar 2007 01:29:59 +0000'
 
         headers = req.getHeaders()
@@ -142,9 +136,12 @@ samples = {
     }
 
 
-class WrapperTests(TestCase):
+class WrapperTests(TXAWSTestCase):
+
     def setUp(self):
-        self.s3 = TestableS3(accessKey='accessKey', secretKey='secretKey')
+        TXAWSTestCase.setUp(self)
+        self.creds = AWSCredentials(access_key='accessKey', secret_key='secretKey')
+        self.s3 = TestableS3(creds=self.creds)
 
     def test_makeRequest(self):
         """
@@ -153,8 +150,7 @@ class WrapperTests(TestCase):
         marker = object()
 
         def _cb(*a, **kw):
-            self.assertEqual(kw['accessKey'], 'accessKey')
-            self.assertEqual(kw['secretKey'], 'secretKey')
+            self.assertEqual(kw['creds'], self.creds)
             return marker
 
         self.s3.requestFactory = _cb
@@ -230,16 +226,6 @@ class WrapperTests(TestCase):
         self.assertEqual(req.objectName, 'foo')
 
 
-class MiscellaneousTests(TestCase):
+class MiscellaneousTests(TXAWSTestCase):
     def test_contentMD5(self):
         self.assertEqual(calculateMD5('somedata'), 'rvr3UC1SmUw7AZV2NqPN0g==')
-
-    def test_hmac_sha1(self):
-        cases = [
-            ('0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b'.decode('hex'), 'Hi There', 'thcxhlUFcmTii8C2+zeMjvFGvgA='),
-            ('Jefe', 'what do ya want for nothing?', '7/zfauXrL6LSdBbV8YTfnCWafHk='),
-            ('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'.decode('hex'), '\xdd' * 50, 'El1zQrmsEc2Ro5r0iqF7T2PxddM='),
-            ]
-
-        for key, data, expected in cases:
-            self.assertEqual(hmac_sha1(key, data), expected)

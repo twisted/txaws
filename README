@@ -1,0 +1,15 @@
+Dependencies
+------------
+
+* Python
+
+* The twisted python package (python-twisted on Debian or similar systems)
+
+* The epsilon python package (python-epsilon on Debian or similar systems)
+
+Things present here
+-------------------
+
+* The txaws python package. (No installer at the moment)
+
+* bin/aws-status, a GUI status program for aws resources.
