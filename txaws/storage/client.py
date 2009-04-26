@@ -8,7 +8,8 @@ functionality in this wrapper.
 """
 
 
-import md5, hmac, sha
+from hashlib import md5, sha1
+import hmac
 from base64 import b64encode
 
 try:
@@ -23,12 +24,12 @@ from twisted.web.http import datetimeToString
 
 
 def calculateMD5(data):
-    digest = md5.new(data).digest()
+    digest = md5(data).digest()
     return b64encode(digest)
 
 
 def hmac_sha1(secret, data):
-    digest = hmac.new(secret, data, sha).digest()
+    digest = hmac.new(secret, data, sha1).digest()
     return b64encode(digest)
 
 
