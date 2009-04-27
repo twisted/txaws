@@ -8,34 +8,28 @@ functionality in this wrapper.
 """
 
 
-import md5, hmac, sha
+from hashlib import md5
 from base64 import b64encode
 
-try:
-    from xml.etree.ElementTree import XML
-except ImportError:
-    from elementtree.ElementTree import XML
 
 from epsilon.extime import Time
 
 from twisted.web.client import getPage
 from twisted.web.http import datetimeToString
 
+from txaws.credentials import AWSCredentials
+from txaws.util import XML
+
 
 def calculateMD5(data):
-    digest = md5.new(data).digest()
-    return b64encode(digest)
-
-
-def hmac_sha1(secret, data):
-    digest = hmac.new(secret, data, sha).digest()
+    digest = md5(data).digest()
     return b64encode(digest)
 
 
 class S3Request(object):
     def __init__(self, verb, bucket=None, objectName=None, data='',
             contentType=None, metadata={}, rootURI='https://s3.amazonaws.com',
-            accessKey=None, secretKey=None):
+            creds=None):
         self.verb = verb
         self.bucket = bucket
         self.objectName = objectName
@@ -43,12 +37,8 @@ class S3Request(object):
         self.contentType = contentType
         self.metadata = metadata
         self.rootURI = rootURI
-        self.accessKey = accessKey
-        self.secretKey = secretKey
+        self.creds = creds
         self.date = datetimeToString()
-
-        if (accessKey is not None and secretKey is None) or (accessKey is None and secretKey is not None):
-            raise ValueError('Must provide both accessKey and secretKey, or neither')
 
     def getURIPath(self):
         path = '/'
@@ -72,9 +62,9 @@ class S3Request(object):
         if self.contentType is not None:
             headers['Content-Type'] = self.contentType
 
-        if self.accessKey is not None:
+        if self.creds is not None:
             signature = self.getSignature(headers)
-            headers['Authorization'] = 'AWS %s:%s' % (self.accessKey, signature)
+            headers['Authorization'] = 'AWS %s:%s' % (self.creds.access_key, signature)
 
         return headers
 
@@ -94,7 +84,7 @@ class S3Request(object):
         text += headers.get('Date', '') + '\n'
         text += self.getCanonicalizedAmzHeaders(headers)
         text += self.getCanonicalizedResource()
-        return hmac_sha1(self.secretKey, text)
+        return self.creds.sign(text)
 
     def submit(self):
         return self.getPage(url=self.getURI(), method=self.verb, postdata=self.data, headers=self.getHeaders())
@@ -109,9 +99,8 @@ class S3(object):
     rootURI = 'https://s3.amazonaws.com/'
     requestFactory = S3Request
 
-    def __init__(self, accessKey, secretKey):
-        self.accessKey = accessKey
-        self.secretKey = secretKey
+    def __init__(self, creds):
+        self.creds = creds
 
     def makeRequest(self, *a, **kw):
         """
@@ -120,7 +109,7 @@ class S3(object):
         This uses the requestFactory attribute, adding the credentials to the
         arguments passed in.
         """
-        return self.requestFactory(accessKey=self.accessKey, secretKey=self.secretKey, *a, **kw)
+        return self.requestFactory(creds=self.creds, *a, **kw)
 
     def _parseBucketList(self, response):
         """
