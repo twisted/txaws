@@ -13,13 +13,11 @@ class TestCredentials(TXAWSTestCase):
 
     def test_no_access_errors(self):
         # Without anything in os.environ, AWSCredentials() blows up
-        self.stash_environ
         os.environ['AWS_SECRET_ACCESS_KEY'] = 'foo'
         self.assertRaises(Exception, AWSCredentials)
 
     def test_no_secret_errors(self):
         # Without anything in os.environ, AWSCredentials() blows up
-        self.stash_environ
         os.environ['AWS_ACCESS_KEY_ID'] = 'bar'
         self.assertRaises(Exception, AWSCredentials)
 
