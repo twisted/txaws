@@ -15,7 +15,7 @@ class AWSCredentials(object):
         """Create an AWSCredentials object.
 
         :param access_key: The access key to use. If None the environment
-            variable AWS_ACCESS_KEY is consulted.
+            variable AWS_ACCESS_KEY_ID is consulted.
         :param secret_key: The secret key to use. If None the environment
             variable AWS_SECRET_ACCESS_KEY is consulted.
         """
@@ -26,9 +26,9 @@ class AWSCredentials(object):
             raise ValueError('Could not find AWS_SECRET_ACCESS_KEY')
         self.access_key = access_key
         if self.access_key is None:
-            self.access_key = os.environ.get('AWS_ACCESS_KEY')
+            self.access_key = os.environ.get('AWS_ACCESS_KEY_ID')
         if self.access_key is None:
-            raise ValueError('Could not find AWS_ACCESS_KEY')
+            raise ValueError('Could not find AWS_ACCESS_KEY_ID')
 
     def sign(self, bytes):
         """Sign some bytes."""

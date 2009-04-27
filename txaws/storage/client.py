@@ -11,10 +11,6 @@ functionality in this wrapper.
 from hashlib import md5
 from base64 import b64encode
 
-try:
-    from xml.etree.ElementTree import XML
-except ImportError:
-    from elementtree.ElementTree import XML
 
 from epsilon.extime import Time
 
@@ -22,6 +18,7 @@ from twisted.web.client import getPage
 from twisted.web.http import datetimeToString
 
 from txaws.credentials import AWSCredentials
+from txaws.util import XML
 
 
 def calculateMD5(data):

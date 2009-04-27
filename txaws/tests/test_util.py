@@ -16,3 +16,7 @@ class MiscellaneousTests(TestCase):
 
         for key, data, expected in cases:
             self.assertEqual(hmac_sha1(key, data), expected)
+
+    def test_iso8601time(self):
+        self.assertEqual("2006-07-07T15:04:56Z", iso8601time((2006,7,7,15,4,56,
+            0, 0, 0)))

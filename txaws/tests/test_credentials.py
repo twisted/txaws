@@ -20,12 +20,12 @@ class TestCredentials(TXAWSTestCase):
     def test_no_secret_errors(self):
         # Without anything in os.environ, AWSCredentials() blows up
         self.stash_environ
-        os.environ['AWS_ACCESS_KEY'] = 'bar'
+        os.environ['AWS_ACCESS_KEY_ID'] = 'bar'
         self.assertRaises(Exception, AWSCredentials)
 
     def test_found_values_used(self):
         os.environ['AWS_SECRET_ACCESS_KEY'] = 'foo'
-        os.environ['AWS_ACCESS_KEY'] = 'bar'
+        os.environ['AWS_ACCESS_KEY_ID'] = 'bar'
         creds = AWSCredentials()
         self.assertEqual('foo', creds.secret_key)
         self.assertEqual('bar', creds.access_key)
@@ -37,7 +37,7 @@ class TestCredentials(TXAWSTestCase):
         self.assertEqual('bar', creds.access_key)
 
     def test_explicit_secret_key(self):
-        os.environ['AWS_ACCESS_KEY'] = 'bar'
+        os.environ['AWS_ACCESS_KEY_ID'] = 'bar'
         creds = AWSCredentials(secret_key='foo')
         self.assertEqual('foo', creds.secret_key)
         self.assertEqual('bar', creds.access_key)
