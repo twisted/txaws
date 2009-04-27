@@ -14,7 +14,6 @@ class AWSStatusIcon(gtk.StatusIcon):
 
     def __init__(self, reactor):
         gtk.StatusIcon.__init__(self)
-        self.set_tooltip('AWS Status - ? instances')
         self.set_from_stock(gtk.STOCK_NETWORK)
         self.set_visible(True)
         self.reactor = reactor
@@ -33,10 +32,12 @@ class AWSStatusIcon(gtk.StatusIcon):
         self.client.describe_instances().addCallbacks(self.showhide, self.errorit)
 
     def showhide(self, reservation):
-        if len(reservation) == 0:
-            self.set_visible(False)
-        else:
-            self.set_visible(True)
+        active = 0
+        for instance in reservation:
+            if instance.instanceState == 'running':
+                active += 1
+        self.set_tooltip('AWS Status - %d instances' % active)
+        self.set_visible(active != 0)
         self.queue_check()
 
     def queue_check(self):

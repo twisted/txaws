@@ -18,10 +18,12 @@ class Instance(object):
     """An Amazon EC2 Instance.
 
     :attrib instanceId: The instance ID of this instance.
+    :attrib instanceState: The state of this instance.
     """
 
-    def __init__(self, instanceId):
+    def __init__(self, instanceId, instanceState):
         self.instanceId = instanceId
+        self.instanceState = instanceState
 
 
 class EC2Client(object):
@@ -56,7 +58,10 @@ class EC2Client(object):
         # May be a more elegant way to do this:
         for reservation in root.find(self.NS + 'reservationSet'):
             for instance in reservation.find(self.NS + 'instancesSet'):
-                result.append(Instance(instance.findtext(self.NS + 'instanceId')))
+                instanceId = instance.findtext(self.NS + 'instanceId')
+                instanceState = instance.find(
+                    self.NS + 'instanceState').findtext(self.NS + 'name')
+                result.append(Instance(instanceId, instanceState))
         return result
 
 

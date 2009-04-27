@@ -78,6 +78,7 @@ class TestEC2Client(TXAWSTestCase):
         def check_instances(reservation):
             self.assertEqual(1, len(reservation))
             self.assertEqual('i-abcdef01', reservation[0].instanceId)
+            self.assertEqual('running', reservation[0].instanceState)
         d.addCallback(check_instances)
         return d
 
