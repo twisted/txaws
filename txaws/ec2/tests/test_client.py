@@ -49,6 +49,35 @@ sample_describe_instances_result = """<?xml version="1.0"?>
 </DescribeInstancesResponse>
 """
 
+sample_terminate_instances_result = """<?xml version="1.0"?>
+<TerminateInstancesResponse xmlns="http://ec2.amazonaws.com/doc/2008-12-01/">
+  <instancesSet>
+    <item>
+      <instanceId>i-1234</instanceId>
+      <shutdownState>
+        <code>32</code>
+        <name>shutting-down</name>
+      </shutdownState>
+      <previousState>
+        <code>16</code>
+        <name>running</name>
+      </previousState>
+    </item>
+    <item>
+      <instanceId>i-5678</instanceId>
+      <shutdownState>
+        <code>32</code>
+        <name>shutting-down</name>
+      </shutdownState>
+      <previousState>
+        <code>32</code>
+        <name>shutting-down</name>
+      </previousState>
+    </item>
+  </instancesSet>
+</TerminateInstancesResponse>
+"""
+
 
 class TestEC2Client(TXAWSTestCase):
     
@@ -80,6 +109,23 @@ class TestEC2Client(TXAWSTestCase):
             self.assertEqual('i-abcdef01', reservation[0].instanceId)
             self.assertEqual('running', reservation[0].instanceState)
         d.addCallback(check_instances)
+        return d
+
+    def test_terminate_instances(self):
+        class StubQuery(object):
+            def __init__(stub, action, creds, other_params):
+                self.assertEqual(action, 'TerminateInstances')
+                self.assertEqual('foo', creds)
+                self.assertEqual(
+                    {'InstanceId.1': 'i-1234', 'InstanceId.2': 'i-5678'},
+                    other_params)
+            def submit(self):
+                return succeed(sample_terminate_instances_result)
+        ec2 = client.EC2Client(creds='foo', query_factory=StubQuery)
+        d = ec2.terminate_instances('i-1234', 'i-5678')
+        def check_transition(changes):
+            self.assertEqual([('i-1234', 'running', 'shutting-down'),
+                ('i-5678', 'shutting-down', 'shutting-down')], sorted(changes))
         return d
 
 
@@ -148,9 +194,11 @@ class TestQuery(TXAWSTestCase):
 
     def test_canonical_query(self):
         query = client.Query('DescribeInstances', self.creds,
-            {'fu n': 'g/ames', 'argwithnovalue':''},
+            {'fu n': 'g/ames', 'argwithnovalue':'',
+             'InstanceId.1': 'i-1234'},
             time_tuple=(2007,11,12,13,14,15,0,0,0))
         expected_query = ('AWSAccessKeyId=foo&Action=DescribeInstances'
+            '&InstanceId.1=i-1234'
             '&SignatureMethod=HmacSHA1&SignatureVersion=2&'
             'Timestamp=2007-11-12T13%3A14%3A15Z&Version=2008-12-01&'
             'argwithnovalue=&fu%20n=g%2Fames')
