@@ -23,6 +23,27 @@ class AWSStatusIcon(gtk.StatusIcon):
         from txaws.ec2.client import EC2Client
         self.client = EC2Client()
         self.on_activate(None)
+        menu = '''
+            <ui>
+             <menubar name="Menubar">
+              <menu action="Menu">
+               <menuitem action="Stop instances"/>
+              </menu>
+             </menubar>
+            </ui>
+        '''
+        actions = [
+            ('Menu',  None, 'Menu'),
+            ('Stop instances', gtk.STOCK_STOP, '_Stop instances...', None,
+                'Stop instances', self.on_stop_instances),
+            ]
+        ag = gtk.ActionGroup('Actions')
+        ag.add_actions(actions)
+        self.manager = gtk.UIManager()
+        self.manager.insert_action_group(ag, 0)
+        self.manager.add_ui_from_string(menu)
+        self.menu = self.manager.get_widget('/Menubar/Menu/Stop instances').props.parent
+        self.connect('popup-menu', self.on_popup_menu)
 
     def on_activate(self, data):
         if self.probing:
@@ -30,6 +51,14 @@ class AWSStatusIcon(gtk.StatusIcon):
             return
         self.probing = True
         self.client.describe_instances().addCallbacks(self.showhide, self.errorit)
+
+    def on_popup_menu(self, status, button, time):
+        self.menu.popup(None, None, None, button, time)
+
+    def on_stop_instances(self, data):
+        # It would be nice to popup a window to select instances.. TODO.
+        self.client.describe_instances().addCallbacks(self.shutdown_instances,
+            self.errorit)
 
     def showhide(self, reservation):
         active = 0
@@ -39,6 +68,11 @@ class AWSStatusIcon(gtk.StatusIcon):
         self.set_tooltip('AWS Status - %d instances' % active)
         self.set_visible(active != 0)
         self.queue_check()
+
+    def shutdown_instances(self, reservation):
+        d = self.client.terminate_instances(
+            *[instance.instanceId for instance in reservation])
+        d.addCallbacks(self.on_activate, self.errorit)
 
     def queue_check(self):
         self.probing = False

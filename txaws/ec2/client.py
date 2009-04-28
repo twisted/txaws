@@ -64,6 +64,33 @@ class EC2Client(object):
                 result.append(Instance(instanceId, instanceState))
         return result
 
+    def terminate_instances(self, *instance_ids):
+        """Terminate some instances.
+        
+        :param instance_ids: The ids of the instances to terminate.
+        :return: A deferred which on success gives an iterable of
+            (id, old-state, new-state) tuples.
+        """
+        instanceset = {}
+        for pos, instance_id in enumerate(instance_ids):
+            instanceset["InstanceId.%d" % (pos+1)] = instance_id
+        q = self.query_factory('TerminateInstances', self.creds, instanceset)
+        d = q.submit()
+        return d.addCallback(self._parse_terminate_instances)
+
+    def _parse_terminate_instances(self, xml_bytes):
+        root = XML(xml_bytes)
+        result = []
+        # May be a more elegant way to do this:
+        for instance in root.find(self.NS + 'instancesSet'):
+            instanceId = instance.findtext(self.NS + 'instanceId')
+            previousState = instance.find(
+                self.NS + 'previousState').findtext(self.NS + 'name')
+            shutdownState = instance.find(
+                self.NS + 'shutdownState').findtext(self.NS + 'name')
+            result.append((instanceId, previousState, shutdownState))
+        return result
+
 
 class Query(object):
     """A query that may be submitted to EC2."""
