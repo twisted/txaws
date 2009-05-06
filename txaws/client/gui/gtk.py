@@ -108,7 +108,7 @@ class AWSStatusIcon(gtk.StatusIcon):
             # credentials.
             return
         self.probing = True
-        self.client.describe_instances().addCallbacks(self.showhide, self.errorit)
+        self.client.describe_instances().addCallbacks(self.showhide, self.describe_error)
 
     def on_popup_menu(self, status, button, time):
         self.menu.popup(None, None, None, button, time)
@@ -116,7 +116,7 @@ class AWSStatusIcon(gtk.StatusIcon):
     def on_stop_instances(self, data):
         # It would be nice to popup a window to select instances.. TODO.
         self.client.describe_instances().addCallbacks(self.shutdown_instances,
-            self.errorit)
+            self.show_error)
 
     def save_key(self, response_id, data):
         # handle the dialog
@@ -153,15 +153,28 @@ class AWSStatusIcon(gtk.StatusIcon):
     def shutdown_instances(self, reservation):
         d = self.client.terminate_instances(
             *[instance.instanceId for instance in reservation])
-        d.addCallbacks(self.on_activate, self.errorit)
+        d.addCallbacks(self.on_activate, self.show_error)
 
     def queue_check(self):
         self.probing = False
         self.reactor.callLater(60, self.on_activate, None)
 
-    def errorit(self, error):
+    def show_error(self, error):
         # debugging output for now.
-        print error.value, error.value.response
+        print error.value
+        try:
+            print error.value.response
+        except:
+            pass
+
+    def describe_error(self, error):
+        if isinstance(error.value, twisted.internet.defer.TimeoutError):
+            # timeout errors can be ignored - transient network issue or some
+            # such.
+            pass
+        else:
+            # debugging output for now.
+            self.show_error(error)
         self.queue_check()
 
 
