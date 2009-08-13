@@ -142,3 +142,21 @@ class EC2ErrorTestCase(TestCase):
         xml = "<Response>%s<RequestID /></Response>" % errors
         error = EC2Error(xml)
         self.assertEquals(error.errors, [])
+
+    def test_singleErrorStr(self):
+        error = EC2Error(ERROR_EXAMPLE_SINGLE)
+        self.assertEquals(str(error), "Error Message: Message for Error.Code")
+
+    def test_singleErrorRepr(self):
+        error = EC2Error(ERROR_EXAMPLE_SINGLE)
+        self.assertEquals(
+            repr(error),
+            "<EC2Error object with Error code: Error.Code>")
+
+    def test_multipleErrorsStr(self):
+        error = EC2Error(ERROR_EXAMPLE_MULTIPLE)
+        self.assertEquals(str(error), "Multiple EC2 Errors.")
+
+    def test_multipleErrorsRepr(self):
+        error = EC2Error(ERROR_EXAMPLE_MULTIPLE)
+        self.assertEquals(repr(error), "<EC2Error object with Error count: 2>")
