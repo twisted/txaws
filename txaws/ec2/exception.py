@@ -18,11 +18,29 @@ class EC2Error(AWSError):
         self.requestID = ""
         self.parse()
 
-    def __repr__(self):
-        pass
-
     def __str__(self):
-        pass
+        return self._getErrorMessageString()
+
+    def __repr__(self):
+        return "<%s object with %s>" % (
+            self.__class__.__name__, self._getErrorCodeString())
+
+    def _getErrorCodeString(self):
+        count = len(self.errors)
+        if count > 1:
+            codeString = "Error count: %s" % count
+        else:
+            # what if no errors? what if no code?
+            codeString = "Error code: %s" % self.errors[0]["Code"]
+        return codeString
+
+    def _getErrorMessageString(self):
+        count = len(self.errors)
+        if count > 1:
+            messageString = "Multiple EC2 Errors."
+        else:
+            messageString = "Error Message: %s" % self.errors[0]["Message"]
+        return messageString
 
     def _nodeToDict(self, node):
         data = {}
