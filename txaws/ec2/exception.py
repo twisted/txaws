@@ -44,17 +44,17 @@ class EC2Error(AWSError):
         count = len(self.errors)
         error_code = self.get_error_codes()
         if count > 1:
-            error_code = "Error count: %s" % error_code
+            return "Error count: %s" % error_code
         else:
-            error_code = "Error code: %s" % error_code
-        return error_code
+            return "Error code: %s" % error_code
 
     def _get_error_message_string(self):
         count = len(self.errors)
         error_message = self.get_error_messages()
-        if count <= 1:
-            error_message = "Error Message: %s" % error_message
-        return error_message
+        if count > 1:
+            return "%s." % error_message
+        else:
+            return "Error Message: %s" % error_message
 
     def _node_to_dict(self, node):
         data = {}
@@ -79,19 +79,17 @@ class EC2Error(AWSError):
     def get_error_codes(self):
         count = len(self.errors)
         if count > 1:
-            code = count
+            return count
         elif count == 0:
-            pass
+            return
         else:
-            code = self.errors[0]["Code"]
-        return code
+            return self.errors[0]["Code"]
 
     def get_error_messages(self):
         count = len(self.errors)
         if count > 1:
-            message = "Multiple EC2 Errors."
+            return "Multiple EC2 Errors"
         elif count == 0:
-            pass
+            return "Empty error list"
         else:
-            message = self.errors[0]["Message"]
-        return message
+            return self.errors[0]["Message"]
