@@ -5,8 +5,9 @@ import os
 
 from twisted.internet.defer import succeed
 
-from txaws.credentials import AWSCredentials
 from txaws.ec2 import client
+from txaws.ec2.exception import EC2Error
+from txaws.credentials import AWSCredentials
 from txaws.tests import TXAWSTestCase
 
 sample_describe_instances_result = """<?xml version="1.0"?>
@@ -219,3 +220,15 @@ class TestQuery(TXAWSTestCase):
         query.sign()
         self.assertEqual('4hEtLuZo9i6kuG3TOXvRQNOrE/U=',
             query.params['Signature'])
+
+    def test_submit_400(self):
+        """A 4xx response status from EC2 should raise a txAWS EC2Error."""
+        query = client.Query(
+            'BadQuery', self.creds, time_tuple=(2009,8,15,13,14,15,0,0,0))
+        return self.assertFailure(query.submit(), EC2Error)
+
+    def test_submit_500(self):
+        """
+        A 5xx response status from EC2 should raise the original Twisted
+        exception.
+        """
