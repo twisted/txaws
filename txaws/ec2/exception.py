@@ -25,6 +25,21 @@ class EC2Error(AWSError):
         return "<%s object with %s>" % (
             self.__class__.__name__, self._get_error_code_string())
 
+    def _set_request_id(self, tree):
+        requestIDNode = tree.find(".//RequestID")
+        if hasattr(requestIDNode, "text"):
+            text = requestIDNode.text
+            if text:
+                self.requestID = text
+
+    def _set_errors(self, tree):
+        errorsNode = tree.find(".//Errors")
+        if errorsNode:
+            for error in errorsNode:
+                data = self._node_to_dict(error)
+                if data:
+                    self.errors.append(data)
+
     def _get_error_code_string(self):
         count = len(self.errors)
         if count > 1:
@@ -43,12 +58,6 @@ class EC2Error(AWSError):
             messageString = "Error Message: %s" % self.errors[0]["Message"]
         return messageString
 
-    def get_error_message(self):
-        pass
-
-    def get_error_messages(self):
-        pass
-
     def _node_to_dict(self, node):
         data = {}
         for child in node:
@@ -56,30 +65,21 @@ class EC2Error(AWSError):
                 data[child.tag] = child.text
         return data
 
-    def set_request_id(self, tree):
-        requestIDNode = tree.find(".//RequestID")
-        if hasattr(requestIDNode, "text"):
-            text = requestIDNode.text
-            if text:
-                self.requestID = text
-
-    def set_errors(self, tree):
-        errorsNode = tree.find(".//Errors")
-        if errorsNode:
-            for error in errorsNode:
-                data = self._node_to_dict(error)
-                if data:
-                    self.errors.append(data)
-
     def parse(self, xml=""):
         if not xml:
             xml = self.original
         tree = ElementTree.fromstring(xml.strip())
-        self.set_request_id(tree)
-        self.set_errors(tree)
+        self._set_request_id(tree)
+        self._set_errors(tree)
 
     def has_error(self, errorString):
         for error in self.errors:
             if errorString in error.values():
                 return True
         return False
+
+    def get_error_message(self):
+        pass
+
+    def get_error_messages(self):
+        pass

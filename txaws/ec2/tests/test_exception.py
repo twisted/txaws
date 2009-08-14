@@ -56,27 +56,27 @@ class EC2ErrorTestCase(TestCase):
     def test_set_request_id(self):
         xml = "<a><b /><RequestID>%s</RequestID></a>" % REQUEST_ID
         error = EC2Error("<dummy />")
-        error.set_request_id(ElementTree.fromstring(xml))
+        error._set_request_id(ElementTree.fromstring(xml))
         self.assertEquals(error.requestID, REQUEST_ID)
 
     def test_set_errors(self):
         errorsXML = "<Error><Code>1</Code><Message>2</Message></Error>"
         xml = "<a><Errors>%s</Errors><b /></a>" % errorsXML
         error = EC2Error("<dummy />")
-        error.set_errors(ElementTree.fromstring(xml))
+        error._set_errors(ElementTree.fromstring(xml))
         self.assertEquals(error.errors[0]["Code"], "1")
         self.assertEquals(error.errors[0]["Message"], "2")
 
     def test_set_empty_errors(self):
         xml = "<a><Errors /><b /></a>"
         error = EC2Error("<dummy />")
-        error.set_errors(ElementTree.fromstring(xml))
+        error._set_errors(ElementTree.fromstring(xml))
         self.assertEquals(error.errors, [])
 
     def test_set_empty_error(self):
         xml = "<a><Errors><Error /><Error /></Errors><b /></a>"
         error = EC2Error("<dummy />")
-        error.set_errors(ElementTree.fromstring(xml))
+        error._set_errors(ElementTree.fromstring(xml))
         self.assertEquals(error.errors, [])
 
     def test_parse_without_xml(self):
