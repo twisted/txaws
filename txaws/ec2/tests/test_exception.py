@@ -143,19 +143,45 @@ class EC2ErrorTestCase(TestCase):
         error = EC2Error(xml)
         self.assertEquals(error.errors, [])
 
+    def test_single_get_error_codes(self):
+        error = EC2Error(ERROR_EXAMPLE_SINGLE)
+        self.assertEquals(error.get_error_codes(), "Error.Code")
+
+    def test_multiple_get_error_codes(self):
+        error = EC2Error(ERROR_EXAMPLE_MULTIPLE)
+        self.assertEquals(error.get_error_codes(), 2)
+
+    def test_zero_get_error_codes(self):
+        xml = "<Response><RequestID /></Response>"
+        error = EC2Error(xml)
+        self.assertEquals(error.get_error_codes(), None)
+
+    def test_single_get_error_messages(self):
+        error = EC2Error(ERROR_EXAMPLE_SINGLE)
+        self.assertEquals(error.get_error_messages(), "Message for Error.Code")
+
+    def test_multiple_get_error_messages(self):
+        error = EC2Error(ERROR_EXAMPLE_MULTIPLE)
+        self.assertEquals(error.get_error_messages(), "Multiple EC2 Errors")
+
+    def test_zero_get_error_messages(self):
+        xml = "<Response><RequestID /></Response>"
+        error = EC2Error(xml)
+        self.assertEquals(error.get_error_messages(), "Empty error list")
+
     def test_single_error_str(self):
         error = EC2Error(ERROR_EXAMPLE_SINGLE)
         self.assertEquals(str(error), "Error Message: Message for Error.Code")
+
+    def test_multiple_errors_str(self):
+        error = EC2Error(ERROR_EXAMPLE_MULTIPLE)
+        self.assertEquals(str(error), "Multiple EC2 Errors.")
 
     def test_single_error_repr(self):
         error = EC2Error(ERROR_EXAMPLE_SINGLE)
         self.assertEquals(
             repr(error),
             "<EC2Error object with Error code: Error.Code>")
-
-    def test_multiple_errors_str(self):
-        error = EC2Error(ERROR_EXAMPLE_MULTIPLE)
-        self.assertEquals(str(error), "Multiple EC2 Errors.")
 
     def test_multiple_errors_repr(self):
         error = EC2Error(ERROR_EXAMPLE_MULTIPLE)
