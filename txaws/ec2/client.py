@@ -8,11 +8,21 @@ __all__ = ['EC2Client']
 from base64 import b64encode
 from urllib import quote
 
-from twisted.web.client import getPage
+from twisted.web.client import _makeGetterFactory, HTTPClientFactory
 
 from txaws import credentials
 from txaws.util import iso8601time, XML
+from txaws.ec2.exception import EC2Error
 
+
+def ec2ErrorWrapper(error):
+    xmlPayload = error.value.response
+    httpStatus = int(error.value.status)
+    if httpStatus >= 500:
+        # raise the original Twisted exception
+        error.raiseException()
+    elif httpStatus >= 400:
+        raise EC2Error(xmlPayload)
 
 class Instance(object):
     """An Amazon EC2 Instance.
@@ -95,7 +105,8 @@ class EC2Client(object):
 class Query(object):
     """A query that may be submitted to EC2."""
 
-    def __init__(self, action, creds, other_params=None, time_tuple=None):
+    def __init__(self, action, creds, other_params=None, time_tuple=None,
+                 factory=HTTPClientFactory):
         """Create a Query to submit to EC2."""
         # Require params (2008-12-01 API):
         # Version, SignatureVersion, SignatureMethod, Action, AWSAccessKeyId,
@@ -113,6 +124,7 @@ class Query(object):
         self.host = 'ec2.amazonaws.com'
         self.uri = '/'
         self.creds = creds
+        self.factory = factory
 
     def canonical_query_params(self):
         """Return the canonical query params (used in signing)."""
@@ -148,12 +160,21 @@ class Query(object):
         """Return the query params sorted appropriately for signing."""
         return sorted(self.params.items())
 
+    def getPage(self, url, *args, **kwds):
+        """
+        Define our own getPage method so that we can easily override the
+        factory when we need to.
+        """
+        return _makeGetterFactory(url, self.factory, *args, **kwds).deferred
+
     def submit(self):
         """Submit this query.
 
-        :return: A deferred from twisted.web.client.getPage
+        @return: A deferred from getPage
         """
         self.sign()
         url = 'http://%s%s?%s' % (self.host, self.uri,
             self.canonical_query_params())
-        return getPage(url, method=self.method)
+        deferred = self.getPage(url, method=self.method)
+        deferred.addErrback(ec2ErrorWrapper)
+        return deferred
