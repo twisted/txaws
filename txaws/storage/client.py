@@ -6,8 +6,6 @@ API stability: unstable.
 Various API-incompatible changes are planned in order to expose missing
 functionality in this wrapper.
 """
-
-
 from hashlib import md5
 from base64 import b64encode
 
@@ -64,7 +62,8 @@ class S3Request(object):
 
         if self.creds is not None:
             signature = self.getSignature(headers)
-            headers['Authorization'] = 'AWS %s:%s' % (self.creds.access_key, signature)
+            headers['Authorization'] = 'AWS %s:%s' % (
+                self.creds.access_key, signature)
 
         return headers
 
@@ -73,7 +72,8 @@ class S3Request(object):
 
     def getCanonicalizedAmzHeaders(self, headers):
         result = ''
-        headers = [(name.lower(), value) for name, value in headers.iteritems() if name.lower().startswith('x-amz-')]
+        headers = [(name.lower(), value) for name, value in headers.iteritems()
+            if name.lower().startswith('x-amz-')]
         headers.sort()
         return ''.join('%s:%s\n' % (name, value) for name, value in headers)
 
@@ -87,13 +87,16 @@ class S3Request(object):
         return self.creds.sign(text)
 
     def submit(self):
-        return self.getPage(url=self.getURI(), method=self.verb, postdata=self.data, headers=self.getHeaders())
+        return self.getPage(
+            url=self.getURI(), method=self.verb, postdata=self.data,
+            headers=self.getHeaders())
 
     def getPage(self, *a, **kw):
         return getPage(*a, **kw)
 
 
 NS = '{http://s3.amazonaws.com/doc/2006-03-01/}'
+
 
 class S3(object):
     rootURI = 'https://s3.amazonaws.com/'
@@ -117,8 +120,11 @@ class S3(object):
         """
         root = XML(response)
         for bucket in root.find(NS + 'Buckets'):
-            yield {'name': bucket.findtext(NS + 'Name'),
-                   'created': Time.fromISO8601TimeAndDate(bucket.findtext(NS + 'CreationDate'))}
+            timeText = bucket.findtext(NS + 'CreationDate')
+            yield {
+                'name': bucket.findtext(NS + 'Name'),
+                'created': Time.fromISO8601TimeAndDate(timeText),
+                }
 
     def listBuckets(self):
         """
@@ -127,7 +133,9 @@ class S3(object):
         Returns a list of all the buckets owned by the authenticated sender of
         the request.
         """
-        return self.makeRequest('GET').submit().addCallback(self._parseBucketList)
+        d = self.makeRequest('GET').submit()
+        d.addCallback(self._parseBucketList)
+        return d
 
     def createBucket(self, bucket):
         """
@@ -143,13 +151,15 @@ class S3(object):
         """
         return self.makeRequest('DELETE', bucket).submit()
 
-    def putObject(self, bucket, objectName, data, contentType=None, metadata={}):
+    def putObject(self, bucket, objectName, data, contentType=None,
+                  metadata={}):
         """
         Put an object in a bucket.
 
         Any existing object of the same name will be replaced.
         """
-        return self.makeRequest('PUT', bucket, objectName, data, contentType, metadata).submit()
+        return self.makeRequest(
+            'PUT', bucket, objectName, data, contentType, metadata).submit()
 
     def getObject(self, bucket, objectName):
         """
