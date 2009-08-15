@@ -24,6 +24,7 @@ def ec2ErrorWrapper(error):
     elif httpStatus >= 400:
         raise EC2Error(xmlPayload)
 
+
 class Instance(object):
     """An Amazon EC2 Instance.
 

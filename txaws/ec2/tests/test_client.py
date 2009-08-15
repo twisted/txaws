@@ -1,14 +1,14 @@
 # Copyright (C) 2009 Robert Collins <robertc@robertcollins.net>
 # Licenced under the txaws licence available at /LICENSE in the txaws source.
-
 import os
 
 from twisted.internet.defer import succeed
-
+from twisted.web.client import HTTPPageGetter, HTTPClientFactory
 from txaws.ec2 import client
 from txaws.ec2.exception import EC2Error
 from txaws.credentials import AWSCredentials
 from txaws.tests import TXAWSTestCase
+
 
 sample_describe_instances_result = """<?xml version="1.0"?>
 <DescribeInstancesResponse xmlns="http://ec2.amazonaws.com/doc/2008-12-01/">
@@ -50,6 +50,7 @@ sample_describe_instances_result = """<?xml version="1.0"?>
 </DescribeInstancesResponse>
 """
 
+
 sample_terminate_instances_result = """<?xml version="1.0"?>
 <TerminateInstancesResponse xmlns="http://ec2.amazonaws.com/doc/2008-12-01/">
   <instancesSet>
@@ -78,6 +79,17 @@ sample_terminate_instances_result = """<?xml version="1.0"?>
   </instancesSet>
 </TerminateInstancesResponse>
 """
+
+
+class FakeHTTPPageGetter(HTTPPageGetter):
+
+    def connectionLost(self, reason):
+        import pdb;pdb.set_trace()
+
+
+class FakeHTTPFactory(HTTPClientFactory):
+
+    protocol = FakeHTTPPageGetter
 
 
 class TestEC2Client(TXAWSTestCase):
@@ -224,7 +236,8 @@ class TestQuery(TXAWSTestCase):
     def test_submit_400(self):
         """A 4xx response status from EC2 should raise a txAWS EC2Error."""
         query = client.Query(
-            'BadQuery', self.creds, time_tuple=(2009,8,15,13,14,15,0,0,0))
+            'BadQuery', self.creds, time_tuple=(2009,8,15,13,14,15,0,0,0),
+            factory=FakeHTTPFactory)
         return self.assertFailure(query.submit(), EC2Error)
 
     def test_submit_500(self):
