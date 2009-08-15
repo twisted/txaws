@@ -1,6 +1,5 @@
 # Copyright (C) 2009 Robert Collins <robertc@robertcollins.net>
 # Licenced under the txaws licence available at /LICENSE in the txaws source.
-
 import os
 
 from twisted.internet.defer import succeed
@@ -8,6 +7,7 @@ from twisted.internet.defer import succeed
 from txaws.credentials import AWSCredentials
 from txaws.ec2 import client
 from txaws.tests import TXAWSTestCase
+
 
 sample_describe_instances_result = """<?xml version="1.0"?>
 <DescribeInstancesResponse xmlns="http://ec2.amazonaws.com/doc/2008-12-01/">
@@ -48,6 +48,7 @@ sample_describe_instances_result = """<?xml version="1.0"?>
     </reservationSet>
 </DescribeInstancesResponse>
 """
+
 
 sample_terminate_instances_result = """<?xml version="1.0"?>
 <TerminateInstancesResponse xmlns="http://ec2.amazonaws.com/doc/2008-12-01/">

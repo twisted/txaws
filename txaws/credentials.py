@@ -1,13 +1,14 @@
 # Copyright (C) 2009 Robert Collins <robertc@robertcollins.net>
 # Licenced under the txaws licence available at /LICENSE in the txaws source.
-
 """Credentials for accessing AWS services."""
-
-__all__ = ['AWSCredentials']
 
 import os
 
 from txaws.util import *
+
+
+__all__ = ['AWSCredentials']
+
 
 class AWSCredentials(object):
 
