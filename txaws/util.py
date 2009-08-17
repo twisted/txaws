@@ -6,15 +6,22 @@ services.
 
 __all__ = ['hmac_sha1', 'iso8601time']
 
-from base64 import b64encode
-from hashlib import sha1
-import hmac
 import time
+import hmac
+from hashlib import sha1, md5
+from base64 import b64encode
+
 # Import XML from somwhere; here in one place to prevent duplication.
 try:
     from xml.etree.ElementTree import XML
 except ImportError:
     from elementtree.ElementTree import XML
+
+
+def calculate_md5(data):
+    digest = md5(data).digest()
+    return b64encode(digest)
+
 
 def hmac_sha1(secret, data):
     digest = hmac.new(secret, data, sha1).digest()

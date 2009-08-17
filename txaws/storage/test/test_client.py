@@ -4,17 +4,21 @@ from epsilon.extime import Time
 
 from twisted.internet.defer import succeed
 
-from txaws.credentials import AWSCredentials
+from txaws.util import calculate_md5
 from txaws.tests import TXAWSTestCase
-from txaws.storage.client import S3, S3Request, calculateMD5
+from txaws.credentials import AWSCredentials
+from txaws.storage.client import S3, S3Request
+
 
 class StubbedS3Request(S3Request):
-    def getPage(self, url, method, postdata, headers):
+
+    def get_page(self, url, method, postdata, headers):
         self.getPageArgs = (url, method, postdata, headers)
         return succeed('')
 
 
 class RequestTests(TXAWSTestCase):
+
     creds = AWSCredentials(access_key='0PN5J17HBGZHT7JJ3X82',
         secret_key='uV3F3YluFJax1cknvbcGwgjvx4QpvB+leU8dUj2o')
 
@@ -25,10 +29,10 @@ class RequestTests(TXAWSTestCase):
         DATA = 'objectData'
         DIGEST = 'zhdB6gwvocWv/ourYUWMxA=='
 
-        request = S3Request('PUT', 'somebucket', 'object/name/here', DATA, contentType='text/plain', metadata={'foo': 'bar'})
+        request = S3Request('PUT', 'somebucket', 'object/name/here', DATA, content_type='text/plain', metadata={'foo': 'bar'})
         self.assertEqual(request.verb, 'PUT')
-        self.assertEqual(request.getURI(), 'https://s3.amazonaws.com/somebucket/object/name/here')
-        headers = request.getHeaders()
+        self.assertEqual(request.get_uri(), 'https://s3.amazonaws.com/somebucket/object/name/here')
+        headers = request.get_headers()
         self.assertNotEqual(headers.pop('Date'), '')
         self.assertEqual(headers,
                          {'Content-Type': 'text/plain',
@@ -45,8 +49,8 @@ class RequestTests(TXAWSTestCase):
 
         request = S3Request('GET', 'somebucket')
         self.assertEqual(request.verb, 'GET')
-        self.assertEqual(request.getURI(), 'https://s3.amazonaws.com/somebucket')
-        headers = request.getHeaders()
+        self.assertEqual(request.get_uri(), 'https://s3.amazonaws.com/somebucket')
+        headers = request.get_headers()
         self.assertNotEqual(headers.pop('Date'), '')
         self.assertEqual(headers,
                          {'Content-Length': 0,
@@ -63,10 +67,10 @@ class RequestTests(TXAWSTestCase):
             self.assertEqual(result, '')
 
             url, method, postdata, headers = request.getPageArgs
-            self.assertEqual(url, request.getURI())
+            self.assertEqual(url, request.get_uri())
             self.assertEqual(method, request.verb)
             self.assertEqual(postdata, request.data)
-            self.assertEqual(headers, request.getHeaders())
+            self.assertEqual(headers, request.get_headers())
 
         return request.submit().addCallback(_postCheck)
 
@@ -74,7 +78,7 @@ class RequestTests(TXAWSTestCase):
         req = S3Request('GET', creds=self.creds)
         req.date = 'Wed, 28 Mar 2007 01:29:59 +0000'
 
-        headers = req.getHeaders()
+        headers = req.get_headers()
         self.assertEqual(headers['Authorization'], 'AWS 0PN5J17HBGZHT7JJ3X82:jF7L3z/FTV47vagZzhKupJ9oNig=')
 
 
@@ -102,13 +106,13 @@ class TestableS3(S3):
     """
     Testable version of S3.
 
-    This subclass stubs requestFactory to use InertRequest, making it easy to
+    This subclass stubs request_factory to use InertRequest, making it easy to
     assert things about the requests that are created in response to various
     operations.
     """
     response = None
 
-    def requestFactory(self, *a, **kw):
+    def request_factory(self, *a, **kw):
         req = InertRequest(response=self.response, *a, **kw)
         self._lastRequest = req
         return req
@@ -143,9 +147,9 @@ class WrapperTests(TXAWSTestCase):
         self.creds = AWSCredentials(access_key='accessKey', secret_key='secretKey')
         self.s3 = TestableS3(creds=self.creds)
 
-    def test_makeRequest(self):
+    def test_make_request(self):
         """
-        Test that makeRequest passes in the service credentials.
+        Test that make_request passes in the service credentials.
         """
         marker = object()
 
@@ -153,79 +157,79 @@ class WrapperTests(TXAWSTestCase):
             self.assertEqual(kw['creds'], self.creds)
             return marker
 
-        self.s3.requestFactory = _cb
-        self.assertIdentical(self.s3.makeRequest('GET'), marker)
+        self.s3.request_factory = _cb
+        self.assertIdentical(self.s3.make_request('GET'), marker)
 
-    def test_listBuckets(self):
+    def test_list_buckets(self):
         self.s3.response = samples['ListAllMyBucketsResult']
-        d = self.s3.listBuckets()
+        d = self.s3.list_buckets()
 
         req = self.s3._lastRequest
         self.assertTrue(req.submitted)
         self.assertEqual(req.verb, 'GET')
         self.assertEqual(req.bucket, None)
-        self.assertEqual(req.objectName, None)
+        self.assertEqual(req.object_name, None)
 
-        def _checkResult(buckets):
+        def _check_result(buckets):
             self.assertEqual(list(buckets),
                              [{'name': u'quotes',
                                'created': Time.fromDatetime(datetime(2006, 2, 3, 16, 45, 9))},
                               {'name': u'samples',
                                'created': Time.fromDatetime(datetime(2006, 2, 3, 16, 41, 58))}])
-        return d.addCallback(_checkResult)
+        return d.addCallback(_check_result)
 
-    def test_createBucket(self):
-        self.s3.createBucket('foo')
+    def test_create_bucket(self):
+        self.s3.create_bucket('foo')
         req = self.s3._lastRequest
         self.assertTrue(req.submitted)
         self.assertEqual(req.verb, 'PUT')
         self.assertEqual(req.bucket, 'foo')
-        self.assertEqual(req.objectName, None)
+        self.assertEqual(req.object_name, None)
 
-    def test_deleteBucket(self):
-        self.s3.deleteBucket('foo')
+    def test_delete_bucket(self):
+        self.s3.delete_bucket('foo')
         req = self.s3._lastRequest
         self.assertTrue(req.submitted)
         self.assertEqual(req.verb, 'DELETE')
         self.assertEqual(req.bucket, 'foo')
-        self.assertEqual(req.objectName, None)
+        self.assertEqual(req.object_name, None)
 
-    def test_putObject(self):
-        self.s3.putObject('foobucket', 'foo', 'data', 'text/plain', {'foo': 'bar'})
+    def test_put_object(self):
+        self.s3.put_object('foobucket', 'foo', 'data', 'text/plain', {'foo': 'bar'})
         req = self.s3._lastRequest
         self.assertTrue(req.submitted)
         self.assertEqual(req.verb, 'PUT')
         self.assertEqual(req.bucket, 'foobucket')
-        self.assertEqual(req.objectName, 'foo')
+        self.assertEqual(req.object_name, 'foo')
         self.assertEqual(req.data, 'data')
-        self.assertEqual(req.contentType, 'text/plain')
+        self.assertEqual(req.content_type, 'text/plain')
         self.assertEqual(req.metadata, {'foo': 'bar'})
 
-    def test_getObject(self):
-        self.s3.getObject('foobucket', 'foo')
+    def test_get_object(self):
+        self.s3.get_object('foobucket', 'foo')
         req = self.s3._lastRequest
         self.assertTrue(req.submitted)
         self.assertEqual(req.verb, 'GET')
         self.assertEqual(req.bucket, 'foobucket')
-        self.assertEqual(req.objectName, 'foo')
+        self.assertEqual(req.object_name, 'foo')
 
-    def test_headObject(self):
-        self.s3.headObject('foobucket', 'foo')
+    def test_head_object(self):
+        self.s3.head_object('foobucket', 'foo')
         req = self.s3._lastRequest
         self.assertTrue(req.submitted)
         self.assertEqual(req.verb, 'HEAD')
         self.assertEqual(req.bucket, 'foobucket')
-        self.assertEqual(req.objectName, 'foo')
+        self.assertEqual(req.object_name, 'foo')
 
-    def test_deleteObject(self):
-        self.s3.deleteObject('foobucket', 'foo')
+    def test_delete_object(self):
+        self.s3.delete_object('foobucket', 'foo')
         req = self.s3._lastRequest
         self.assertTrue(req.submitted)
         self.assertEqual(req.verb, 'DELETE')
         self.assertEqual(req.bucket, 'foobucket')
-        self.assertEqual(req.objectName, 'foo')
+        self.assertEqual(req.object_name, 'foo')
 
 
 class MiscellaneousTests(TXAWSTestCase):
     def test_contentMD5(self):
-        self.assertEqual(calculateMD5('somedata'), 'rvr3UC1SmUw7AZV2NqPN0g==')
+        self.assertEqual(calculate_md5('somedata'), 'rvr3UC1SmUw7AZV2NqPN0g==')
