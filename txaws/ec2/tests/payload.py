@@ -75,3 +75,18 @@ sample_terminate_instances_result = """<?xml version="1.0"?>
   </instancesSet>
 </TerminateInstancesResponse>
 """
+
+
+sample_ec2_error_message = """<?xml version="1.0"?>
+<Response>
+    <Errors>
+        <Error>
+            <Code>FakeRequestCode</Code>
+            <Message>
+                Request has fakely erred.
+            </Message><
+        /Error>
+    </Errors>
+    <RequestID>0ef9fc37-6230-4d81-b2e6-1b36277d4247</RequestID>
+</Response>
+"""

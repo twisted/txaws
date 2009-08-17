@@ -6,24 +6,25 @@
 from base64 import b64encode
 from urllib import quote
 
-from twisted.web.client import _makeGetterFactory, HTTPClientFactory
+from twisted.internet import reactor
+from twisted.web.client import _parse, HTTPClientFactory
 
 from txaws import credentials
 from txaws.util import iso8601time, XML
 from txaws.ec2.exception import EC2Error
 
 
+__all__ = ['EC2Client']
+
+
 def ec2_error_wrapper(error):
-    xmlPayload = error.value.response
-    httpStatus = int(error.value.status)
-    if httpStatus >= 500:
+    xml_payload = error.value.response
+    http_status = int(error.value.status)
+    if http_status >= 500:
         # raise the original Twisted exception
         error.raiseException()
-    elif httpStatus >= 400:
-        raise EC2Error(xmlPayload)
-
-
-__all__ = ['EC2Client']
+    elif http_status >= 400:
+        raise EC2Error(xml_payload)
 
 
 class Instance(object):
@@ -78,7 +79,7 @@ class EC2Client(object):
 
     def terminate_instances(self, *instance_ids):
         """Terminate some instances.
-        
+
         @param instance_ids: The ids of the instances to terminate.
         @return: A deferred which on success gives an iterable of
             (id, old-state, new-state) tuples.
@@ -112,7 +113,7 @@ class Query(object):
         """Create a Query to submit to EC2."""
         # Require params (2008-12-01 API):
         # Version, SignatureVersion, SignatureMethod, Action, AWSAccessKeyId,
-        # Timestamp || Expires, Signature, 
+        # Timestamp || Expires, Signature,
         self.params = {'Version': '2008-12-01',
             'SignatureVersion': '2',
             'SignatureMethod': 'HmacSHA1',
@@ -151,7 +152,7 @@ class Query(object):
 
     def sign(self):
         """Sign this query using its built in credentials.
-        
+
         This prepares it to be sent, and should be done as the last step before
         submitting the query. Signing is done automatically - this is a public
         method to facilitate testing.
@@ -165,9 +166,20 @@ class Query(object):
     def get_page(self, url, *args, **kwds):
         """
         Define our own get_page method so that we can easily override the
-        factory when we need to.
+        factory when we need to. This was copied from the following:
+            * twisted.web.client.getPage
+            * twisted.web.client._makeGetterFactory
         """
-        return _makeGetterFactory(url, self.factory, *args, **kwds).deferred
+        contextFactory = None
+        scheme, host, port, path = _parse(url)
+        factory = self.factory(url, *args, **kwds)
+        if scheme == 'https':
+            from twisted.internet import ssl
+            contextFactory = ssl.ClientContextFactory()
+            reactor.connectSSL(host, port, factory, contextFactory)
+        else:
+            reactor.connectTCP(host, port, factory)
+        return factory.deferred
 
     def submit(self):
         """Submit this query.
