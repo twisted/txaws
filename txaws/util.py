@@ -4,10 +4,10 @@ New things in this module should be of relevance to more than one of amazon's
 services.
 """
 
-from base64 import b64encode
-from hashlib import sha1
-import hmac
 import time
+import hmac
+from base64 import b64encode
+from hashlib import sha1, md5
 
 # Import XML from somwhere; here in one place to prevent duplication.
 try:
@@ -16,7 +16,12 @@ except ImportError:
     from elementtree.ElementTree import XML
 
 
-__all__ = ['hmac_sha1', 'iso8601time']
+__all__ = ['hmac_sha1', 'iso8601time', 'calculate_md5']
+
+
+def calculate_md5(data):
+    digest = md5(data).digest()
+    return b64encode(digest)
 
 
 def hmac_sha1(secret, data):
