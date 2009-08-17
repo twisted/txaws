@@ -6,6 +6,7 @@ API stability: unstable.
 Various API-incompatible changes are planned in order to expose missing
 functionality in this wrapper.
 """
+
 from hashlib import md5
 from base64 import b64encode
 
