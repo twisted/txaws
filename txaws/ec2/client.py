@@ -15,7 +15,7 @@ from txaws.util import iso8601time, XML
 from txaws.ec2.exception import EC2Error
 
 
-def ec2ErrorWrapper(error):
+def ec2_error_wrapper(error):
     xmlPayload = error.value.response
     httpStatus = int(error.value.status)
     if httpStatus >= 500:
@@ -28,13 +28,13 @@ def ec2ErrorWrapper(error):
 class Instance(object):
     """An Amazon EC2 Instance.
 
-    :attrib instanceId: The instance ID of this instance.
-    :attrib instanceState: The state of this instance.
+    :attrib instance_id: The instance ID of this instance.
+    :attrib instance_state: The state of this instance.
     """
 
-    def __init__(self, instanceId, instanceState):
-        self.instanceId = instanceId
-        self.instanceState = instanceState
+    def __init__(self, instance_id, instance_state):
+        self.instance_id = instance_id
+        self.instance_state = instance_state
 
 
 class EC2Client(object):
@@ -45,7 +45,7 @@ class EC2Client(object):
     def __init__(self, creds=None, query_factory=None):
         """Create an EC2Client.
 
-        :param creds: Explicit credentials to use. If None, credentials are
+        @param creds: Explicit credentials to use. If None, credentials are
             inferred as per txaws.credentials.AWSCredentials.
         """
         if creds is None:
@@ -61,18 +61,18 @@ class EC2Client(object):
         """Describe current instances."""
         q = self.query_factory('DescribeInstances', self.creds)
         d = q.submit()
-        return d.addCallback(self._parse_Reservation)
+        return d.addCallback(self._parse_reservation)
 
-    def _parse_Reservation(self, xml_bytes):
+    def _parse_reservation(self, xml_bytes):
         root = XML(xml_bytes)
         result = []
         # May be a more elegant way to do this:
         for reservation in root.find(self.NS + 'reservationSet'):
             for instance in reservation.find(self.NS + 'instancesSet'):
-                instanceId = instance.findtext(self.NS + 'instanceId')
-                instanceState = instance.find(
-                    self.NS + 'instanceState').findtext(self.NS + 'name')
-                result.append(Instance(instanceId, instanceState))
+                instance_id = instance.findtext(self.NS + 'instance_id')
+                instance_state = instance.find(
+                    self.NS + 'instance_state').findtext(self.NS + 'name')
+                result.append(Instance(instance_id, instance_state))
         return result
 
     def terminate_instances(self, *instance_ids):
@@ -94,12 +94,12 @@ class EC2Client(object):
         result = []
         # May be a more elegant way to do this:
         for instance in root.find(self.NS + 'instancesSet'):
-            instanceId = instance.findtext(self.NS + 'instanceId')
+            instance_id = instance.findtext(self.NS + 'instance_id')
             previousState = instance.find(
                 self.NS + 'previousState').findtext(self.NS + 'name')
             shutdownState = instance.find(
                 self.NS + 'shutdownState').findtext(self.NS + 'name')
-            result.append((instanceId, previousState, shutdownState))
+            result.append((instance_id, previousState, shutdownState))
         return result
 
 
@@ -161,9 +161,9 @@ class Query(object):
         """Return the query params sorted appropriately for signing."""
         return sorted(self.params.items())
 
-    def getPage(self, url, *args, **kwds):
+    def get_page(self, url, *args, **kwds):
         """
-        Define our own getPage method so that we can easily override the
+        Define our own get_page method so that we can easily override the
         factory when we need to.
         """
         return _makeGetterFactory(url, self.factory, *args, **kwds).deferred
@@ -171,11 +171,11 @@ class Query(object):
     def submit(self):
         """Submit this query.
 
-        @return: A deferred from getPage
+        @return: A deferred from get_page
         """
         self.sign()
         url = 'http://%s%s?%s' % (self.host, self.uri,
             self.canonical_query_params())
-        deferred = self.getPage(url, method=self.method)
-        deferred.addErrback(ec2ErrorWrapper)
+        deferred = self.get_page(url, method=self.method)
+        deferred.addErrback(ec2_error_wrapper)
         return deferred

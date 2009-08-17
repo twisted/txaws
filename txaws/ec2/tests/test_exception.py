@@ -1,5 +1,6 @@
 # Copyright (c) 2009 Canonical Ltd <duncan.mcgreggor@canonical.com>
 # Licenced under the txaws licence available at /LICENSE in the txaws source.
+
 try:
     from xml.etree import ElementTree
 except ImportError:
