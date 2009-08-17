@@ -3,8 +3,6 @@
 
 """EC2 client support."""
 
-__all__ = ['EC2Client']
-
 from base64 import b64encode
 from urllib import quote
 
@@ -25,11 +23,14 @@ def ec2_error_wrapper(error):
         raise EC2Error(xmlPayload)
 
 
+__all__ = ['EC2Client']
+
+
 class Instance(object):
     """An Amazon EC2 Instance.
 
-    :attrib instance_id: The instance ID of this instance.
-    :attrib instance_state: The state of this instance.
+    @attrib instance_id: The instance ID of this instance.
+    @attrib instance_state: The state of this instance.
     """
 
     def __init__(self, instance_id, instance_state):
@@ -69,17 +70,17 @@ class EC2Client(object):
         # May be a more elegant way to do this:
         for reservation in root.find(self.NS + 'reservationSet'):
             for instance in reservation.find(self.NS + 'instancesSet'):
-                instance_id = instance.findtext(self.NS + 'instance_id')
+                instance_id = instance.findtext(self.NS + 'instanceId')
                 instance_state = instance.find(
-                    self.NS + 'instance_state').findtext(self.NS + 'name')
+                    self.NS + 'instanceState').findtext(self.NS + 'name')
                 result.append(Instance(instance_id, instance_state))
         return result
 
     def terminate_instances(self, *instance_ids):
         """Terminate some instances.
         
-        :param instance_ids: The ids of the instances to terminate.
-        :return: A deferred which on success gives an iterable of
+        @param instance_ids: The ids of the instances to terminate.
+        @return: A deferred which on success gives an iterable of
             (id, old-state, new-state) tuples.
         """
         instanceset = {}

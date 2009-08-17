@@ -84,8 +84,9 @@ sample_terminate_instances_result = """<?xml version="1.0"?>
 
 class FakeHTTPPageGetter(HTTPPageGetter):
 
-    def connectionLost(self, reason):
-        import pdb;pdb.set_trace()
+    def x_connectionLost(self, reason):
+        #import pdb;pdb.set_trace()
+        pass
 
 
 class FakeHTTPFactory(HTTPClientFactory):
@@ -120,8 +121,8 @@ class TestEC2Client(TXAWSTestCase):
         d = ec2.describe_instances()
         def check_instances(reservation):
             self.assertEqual(1, len(reservation))
-            self.assertEqual('i-abcdef01', reservation[0].instanceId)
-            self.assertEqual('running', reservation[0].instanceState)
+            self.assertEqual('i-abcdef01', reservation[0].instance_id)
+            self.assertEqual('running', reservation[0].instance_state)
         d.addCallback(check_instances)
         return d
 
@@ -237,8 +238,9 @@ class TestQuery(TXAWSTestCase):
     def test_submit_400(self):
         """A 4xx response status from EC2 should raise a txAWS EC2Error."""
         query = client.Query(
-            'BadQuery', self.creds, time_tuple=(2009,8,15,13,14,15,0,0,0),
-            factory=FakeHTTPFactory)
+            'BadQuery', self.creds, time_tuple=(2009,8,15,13,14,15,0,0,0))
+            #'BadQuery', self.creds, time_tuple=(2009,8,15,13,14,15,0,0,0),
+            #factory=FakeHTTPFactory)
         return self.assertFailure(query.submit(), EC2Error)
 
     def test_submit_500(self):
