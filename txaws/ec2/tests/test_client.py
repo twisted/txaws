@@ -3,29 +3,57 @@
 
 import os
 
+from twisted.internet import reactor
 from twisted.internet.defer import succeed
+from twisted.python.filepath import FilePath
+from twisted.web import server, static, util
 from twisted.web.client import HTTPPageGetter, HTTPClientFactory
+from twisted.protocols.policies import WrappingFactory
+from twisted.test.proto_helpers import StringTransport
+
+from txaws.tests import TXAWSTestCase
+from txaws.credentials import AWSCredentials
 from txaws.ec2 import client
 from txaws.ec2.exception import EC2Error
-from txaws.credentials import AWSCredentials
-from txaws.tests import TXAWSTestCase
 from txaws.ec2.tests.payload import (
-    sample_describe_instances_result, sample_terminate_instances_result)
+    sample_describe_instances_result, sample_terminate_instances_result,
+    sample_ec2_error_message)
+
 
 class FakeHTTPPageGetter(HTTPPageGetter):
 
-    def x_connectionLost(self, reason):
+    transport = StringTransport
+
+    def connectionLost(self, reason):
+        HTTPPageGetter.connectionLost(self, reason)
         #import pdb;pdb.set_trace()
-        pass
 
 
 class FakeHTTPFactory(HTTPClientFactory):
 
     protocol = FakeHTTPPageGetter
+    test_payload = ""
+
+    def connectionMade(self):
+        content_length = len(self.test_payload)
+        self.dataReceived(
+            "GET /dummy HTTP/1.0\r\nHost: example.net\r\n"
+            "Content-Length: %s\r\n\r\n%s" % (
+                content_length, self.test_payload))
+
+
+class FactoryWrapper(object):
+
+    def __init__(self, payload):
+        self.payload = payload
+
+    def __call__(self, url, *args, **kwds):
+        FakeHTTPFactory.test_payload = self.payload
+        return FakeHTTPFactory(url, *args, **kwds)
 
 
 class TestEC2Client(TXAWSTestCase):
-    
+
     def test_init_no_creds(self):
         os.environ['AWS_SECRET_ACCESS_KEY'] = 'foo'
         os.environ['AWS_ACCESS_KEY_ID'] = 'bar'
@@ -79,6 +107,42 @@ class TestQuery(TXAWSTestCase):
     def setUp(self):
         TXAWSTestCase.setUp(self)
         self.creds = AWSCredentials('foo', 'bar')
+        self.twisted_client_test_setup()
+        self.cleanupServerConnections = 0
+
+    def tearDown(self):
+        """Copied from twisted.web.test.test_webclient."""
+        # If the test indicated it might leave some server-side connections
+        # around, clean them up.
+        connections = self.wrapper.protocols.keys()
+        # If there are fewer server-side connections than requested,
+        # that's okay.  Some might have noticed that the client closed                                               
+        # the connection and cleaned up after themselves.
+        for n in range(min(len(connections), self.cleanupServerConnections)):
+            proto = connections.pop()
+            msg("Closing %r" % (proto,))
+            proto.transport.loseConnection()
+        if connections:
+            msg("Some left-over connections; this test is probably buggy.")
+        return self.port.stopListening()
+
+    def _listen(self, site):
+        return reactor.listenTCP(0, site, interface="127.0.0.1")
+
+    def twisted_client_test_setup(self):
+        name = self.mktemp()
+        os.mkdir(name)
+        FilePath(name).child("file").setContent("0123456789")
+        resource = static.File(name)
+        resource.putChild("redirect", util.Redirect("/file"))
+        self.site = server.Site(resource, timeout=None)
+        self.wrapper = WrappingFactory(self.site)
+        self.port = self._listen(self.wrapper)
+        self.portno = self.port.getHost().port
+
+
+    def get_url(self, path):
+        return "http://127.0.0.1:%d/%s" % (self.portno, path)
 
     def test_init_minimum(self):
         query = client.Query('DescribeInstances', self.creds)
@@ -165,13 +229,47 @@ class TestQuery(TXAWSTestCase):
         self.assertEqual('4hEtLuZo9i6kuG3TOXvRQNOrE/U=',
             query.params['Signature'])
 
-    def test_submit_400(self):
-        """A 4xx response status from EC2 should raise a txAWS EC2Error."""
+    def test_get_page(self):
+        """Copied from twisted.web.test.test_webclient."""
+        factory_wrapper = FactoryWrapper(sample_ec2_error_message)
         query = client.Query(
-            'BadQuery', self.creds, time_tuple=(2009,8,15,13,14,15,0,0,0))
-            #'BadQuery', self.creds, time_tuple=(2009,8,15,13,14,15,0,0,0),
-            #factory=FakeHTTPFactory)
+            'DummyQuery', self.creds, time_tuple=(2009,8,17,13,14,15,0,0,0),
+            factory=factory_wrapper)
+        deferred = query.get_page(self.get_url("file"))
+        deferred.addCallback(self.assertEquals, "0123456789")
+        return deferred
+
+    def test_submit_400_raise_error(self):
+        """A 4xx response status from EC2 should raise a txAWS EC2Error."""
+        factory_wrapper = FactoryWrapper(sample_ec2_error_message)
+
+        def _checkError(x):
+            import pdb;pdb.set_trace()
+
+        query = client.Query(
+            'BadQuery', self.creds, time_tuple=(2009,8,15,13,14,15,0,0,0),
+            factory=factory_wrapper)
         return self.assertFailure(query.submit(), EC2Error)
+
+    def test_submit_400_check_payload_and_status(self):
+        """
+        """
+        factory_wrapper = FactoryWrapper(sample_ec2_error_message)
+
+        def _checkError(error):
+            error_data = error.value.errors[0]
+            self.assertEquals(error_data["Code"], "FakeRequestCode")
+            self.assertEquals(error_data["Message"],
+                              "Request has fakely erred."
+            # XXX add check for HTTP status
+            import pdb;pdb.set_trace()
+
+        query = client.Query(
+            'BadQuery', self.creds, time_tuple=(2009,8,15,13,14,15,0,0,0),
+            factory=factory_wrapper)
+        deferred = query.submit()
+        deferred.addErrback(_checkError)
+        return deferred
 
     def test_submit_500(self):
         """
