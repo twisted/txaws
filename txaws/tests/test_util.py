@@ -2,6 +2,7 @@ from twisted.trial.unittest import TestCase
 
 from txaws.util import *
 
+
 class MiscellaneousTests(TestCase):
 
     def test_hmac_sha1(self):
