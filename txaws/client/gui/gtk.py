@@ -106,30 +106,13 @@ class AWSStatusIcon(gtk.StatusIcon):
         self.password_dialog.connect('response', self.save_key)
         self.password_dialog.run()
 
-    def describe_instances(self):
-        """This is a convenience wrapper for getting all reservation instances.
-
-        The API in the txAWS EC2 client code changed to where
-        describe_instances returns objects that more closely mirror the XML
-        return value from Amazon. This wrapper preserves the original behaviour
-        by returning just the list of instances, not the reservations.
-        """
-        def _cb_get_all_instances(reservations):
-            instances = []
-            for reservation in reservations:
-                instances.extend(reservation.instances)
-            return instances
-        deferred = self.client.describe_instances()
-        deferred.addCallback(_cb_get_all_instances)
-        return deferred
-                
     def on_activate(self, data):
         if self.probing or not self.client:
             # don't ask multiple times, and don't ask until we have
             # credentials.
             return
         self.probing = True
-        deferred = self.describe_instances()
+        deferred = self.client.describe_instances()
         deferred.addCallbacks(self.showhide, self.describe_error)
 
     def on_popup_menu(self, status, button, time):
@@ -137,8 +120,8 @@ class AWSStatusIcon(gtk.StatusIcon):
 
     def on_stop_instances(self, data):
         # It would be nice to popup a window to select instances.. TODO.
-        self.describe_instances().addCallbacks(self.shutdown_instances,
-            self.show_error)
+        deferred = self.client.describe_instances()
+        deferred.addCallbacks(self.shutdown_instances, self.show_error)
 
     def save_key(self, response_id, data):
         # handle the dialog
