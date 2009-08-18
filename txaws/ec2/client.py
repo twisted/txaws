@@ -29,7 +29,7 @@ class Instance(object):
 class EC2Client(object):
     """A client for EC2."""
 
-    NS = '{http://ec2.amazonaws.com/doc/2008-12-01/}'
+    name_space = '{http://ec2.amazonaws.com/doc/2008-12-01/}'
 
     def __init__(self, creds=None, query_factory=None):
         """Create an EC2Client.
@@ -56,11 +56,12 @@ class EC2Client(object):
         root = XML(xml_bytes)
         result = []
         # May be a more elegant way to do this:
-        for reservation in root.find(self.NS + 'reservationSet'):
-            for instance in reservation.find(self.NS + 'instancesSet'):
-                instanceId = instance.findtext(self.NS + 'instanceId')
+        for reservation in root.find(self.name_space + 'reservationSet'):
+            for instance in reservation.find(self.name_space + 'instancesSet'):
+                instanceId = instance.findtext(self.name_space + 'instanceId')
                 instanceState = instance.find(
-                    self.NS + 'instanceState').findtext(self.NS + 'name')
+                    self.name_space + 'instanceState'
+                        ).findtext(self.name_space + 'name')
                 result.append(Instance(instanceId, instanceState))
         return result
 
@@ -82,12 +83,14 @@ class EC2Client(object):
         root = XML(xml_bytes)
         result = []
         # May be a more elegant way to do this:
-        for instance in root.find(self.NS + 'instancesSet'):
-            instanceId = instance.findtext(self.NS + 'instanceId')
+        for instance in root.find(self.name_space + 'instancesSet'):
+            instanceId = instance.findtext(self.name_space + 'instanceId')
             previousState = instance.find(
-                self.NS + 'previousState').findtext(self.NS + 'name')
+                self.name_space + 'previousState').findtext(
+                    self.name_space + 'name')
             shutdownState = instance.find(
-                self.NS + 'shutdownState').findtext(self.NS + 'name')
+                self.name_space + 'shutdownState').findtext(
+                    self.name_space + 'name')
             result.append((instanceId, previousState, shutdownState))
         return result
 
