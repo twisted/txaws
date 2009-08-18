@@ -65,9 +65,9 @@ class EC2Client(object):
         """Describe current instances."""
         q = self.query_factory('DescribeInstances', self.creds)
         d = q.submit()
-        return d.addCallback(self._parse_reservation)
+        return d.addCallback(self._parse_instances)
 
-    def _parse_reservation(self, xml_bytes):
+    def _parse_instances(self, xml_bytes):
         """
         Parse the reservations XML payload that is returned from an AWS
         describeInstances API call.
