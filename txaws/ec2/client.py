@@ -3,8 +3,6 @@
 
 """EC2 client support."""
 
-__all__ = ['EC2Client']
-
 from base64 import b64encode
 from urllib import quote
 
@@ -14,13 +12,15 @@ from txaws import credentials
 from txaws.util import iso8601time, XML
 
 
+__all__ = ['EC2Client']
+
+
 class Instance(object):
     """An Amazon EC2 Instance.
 
-    :attrib instanceId: The instance ID of this instance.
-    :attrib instanceState: The state of this instance.
+    @attrib instanceId: The instance ID of this instance.
+    @attrib instanceState: The state of this instance.
     """
-
     def __init__(self, instanceId, instanceState):
         self.instanceId = instanceId
         self.instanceState = instanceState
@@ -34,7 +34,7 @@ class EC2Client(object):
     def __init__(self, creds=None, query_factory=None):
         """Create an EC2Client.
 
-        :param creds: Explicit credentials to use. If None, credentials are
+        @param creds: Explicit credentials to use. If None, credentials are
             inferred as per txaws.credentials.AWSCredentials.
         """
         if creds is None:
@@ -68,8 +68,8 @@ class EC2Client(object):
     def terminate_instances(self, *instance_ids):
         """Terminate some instances.
         
-        :param instance_ids: The ids of the instances to terminate.
-        :return: A deferred which on success gives an iterable of
+        @param instance_ids: The ids of the instances to terminate.
+        @return: A deferred which on success gives an iterable of
             (id, old-state, new-state) tuples.
         """
         instanceset = {}
