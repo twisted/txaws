@@ -19,7 +19,7 @@ from txaws.util import XML, calculate_md5
 from txaws.credentials import AWSCredentials
 
 
-NS = '{http://s3.amazonaws.com/doc/2006-03-01/}'
+name_space = '{http://s3.amazonaws.com/doc/2006-03-01/}'
 
 
 class S3Request(object):
@@ -114,10 +114,10 @@ class S3(object):
         Parse XML bucket list response.
         """
         root = XML(response)
-        for bucket in root.find(NS + 'Buckets'):
-            timeText = bucket.findtext(NS + 'CreationDate')
+        for bucket in root.find(name_space + 'Buckets'):
+            timeText = bucket.findtext(name_space + 'CreationDate')
             yield {
-                'name': bucket.findtext(NS + 'Name'),
+                'name': bucket.findtext(name_space + 'Name'),
                 'created': Time.fromISO8601TimeAndDate(timeText),
                 }
 
