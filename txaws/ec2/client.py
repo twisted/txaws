@@ -26,8 +26,8 @@ class Reservation(object):
     def __init__(self, reservation_id, owner_id, groups=None, instances=None):
         self.reservation_id = reservation_id
         self.owner_id = owner_id
-        self.groups = []
-        self.instances = []
+        self.groups = groups or []
+        self.instances = instances or []
 
 
 class Instance(object):
