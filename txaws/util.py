@@ -4,8 +4,6 @@ New things in this module should be of relevance to more than one of amazon's
 services.
 """
 
-__all__ = ['hmac_sha1', 'iso8601time']
-
 import time
 import hmac
 from hashlib import sha1, md5
@@ -16,6 +14,9 @@ try:
     from xml.etree.ElementTree import XML
 except ImportError:
     from elementtree.ElementTree import XML
+
+
+__all__ = ['hmac_sha1', 'iso8601time']
 
 
 def calculate_md5(data):

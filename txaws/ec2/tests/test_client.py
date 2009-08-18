@@ -9,6 +9,7 @@ from txaws.credentials import AWSCredentials
 from txaws.ec2 import client
 from txaws.tests import TXAWSTestCase
 
+
 sample_describe_instances_result = """<?xml version="1.0"?>
 <DescribeInstancesResponse xmlns="http://ec2.amazonaws.com/doc/2008-12-01/">
     <requestId>52b4c730-f29f-498d-94c1-91efb75994cc</requestId>
@@ -48,6 +49,7 @@ sample_describe_instances_result = """<?xml version="1.0"?>
     </reservationSet>
 </DescribeInstancesResponse>
 """
+
 
 sample_terminate_instances_result = """<?xml version="1.0"?>
 <TerminateInstancesResponse xmlns="http://ec2.amazonaws.com/doc/2008-12-01/">

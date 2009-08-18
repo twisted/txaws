@@ -61,8 +61,8 @@ class S3Request(object):
 
         if self.creds is not None:
             signature = self.get_signature(headers)
-            headers['Authorization'] = 'AWS %s:%s' % (self.creds.access_key, signature)
-
+            headers['Authorization'] = 'AWS %s:%s' % (
+                self.creds.access_key, signature)
         return headers
 
     def get_canonicalized_resource(self):
@@ -70,7 +70,8 @@ class S3Request(object):
 
     def get_canonicalized_amz_headers(self, headers):
         result = ''
-        headers = [(name.lower(), value) for name, value in headers.iteritems() if name.lower().startswith('x-amz-')]
+        headers = [(name.lower(), value) for name, value in headers.iteritems()
+            if name.lower().startswith('x-amz-')]
         headers.sort()
         return ''.join('%s:%s\n' % (name, value) for name, value in headers)
 
@@ -84,7 +85,8 @@ class S3Request(object):
         return self.creds.sign(text)
 
     def submit(self):
-        return self.get_page(url=self.get_uri(), method=self.verb, postdata=self.data, headers=self.get_headers())
+        return self.get_page(url=self.get_uri(), method=self.verb,
+                             postdata=self.data, headers=self.get_headers())
 
     def get_page(self, *a, **kw):
         return getPage(*a, **kw)
@@ -113,8 +115,11 @@ class S3(object):
         """
         root = XML(response)
         for bucket in root.find(NS + 'Buckets'):
-            yield {'name': bucket.findtext(NS + 'Name'),
-                   'created': Time.fromISO8601TimeAndDate(bucket.findtext(NS + 'CreationDate'))}
+            timeText = bucket.findtext(NS + 'CreationDate')
+            yield {
+                'name': bucket.findtext(NS + 'Name'),
+                'created': Time.fromISO8601TimeAndDate(timeText),
+                }
 
     def list_buckets(self):
         """
@@ -123,7 +128,9 @@ class S3(object):
         Returns a list of all the buckets owned by the authenticated sender of
         the request.
         """
-        return self.make_request('GET').submit().addCallback(self._parse_bucket_list)
+        deferred = self.make_request('GET').submit()
+        deferred.addCallback(self._parse_bucket_list)
+        return deferred
 
     def create_bucket(self, bucket):
         """
@@ -139,13 +146,15 @@ class S3(object):
         """
         return self.make_request('DELETE', bucket).submit()
 
-    def put_object(self, bucket, object_name, data, content_type=None, metadata={}):
+    def put_object(self, bucket, object_name, data, content_type=None,
+                   metadata={}):
         """
         Put an object in a bucket.
 
         Any existing object of the same name will be replaced.
         """
-        return self.make_request('PUT', bucket, object_name, data, content_type, metadata).submit()
+        return self.make_request('PUT', bucket, object_name, data,
+                                 content_type, metadata).submit()
 
     def get_object(self, bucket, object_name):
         """
