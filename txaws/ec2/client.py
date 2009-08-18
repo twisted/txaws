@@ -21,13 +21,11 @@ class Reservation(object):
     @attrib reservation_id: Unique ID of the reservation.
     @attrib owner_id: AWS Access Key ID of the user who owns the reservation. 
     @attrib groups: A list of security groups.
-    @attrib instances: A list of C{Instance}s.
     """
-    def __init__(self, reservation_id, owner_id, groups=None, instances=None):
+    def __init__(self, reservation_id, owner_id, groups=None):
         self.reservation_id = reservation_id
         self.owner_id = owner_id
         self.groups = groups or []
-        self.instances = instances or []
 
 
 class Instance(object):
@@ -37,9 +35,10 @@ class Instance(object):
     @attrib instance_state: The state of this instance.
     """
 
-    def __init__(self, instance_id, instance_state):
+    def __init__(self, instance_id, instance_state, reservation=None):
         self.instance_id = instance_id
         self.instance_state = instance_state
+        self.reservation = reservation
 
 
 class EC2Client(object):
@@ -69,6 +68,15 @@ class EC2Client(object):
         return d.addCallback(self._parse_reservation)
 
     def _parse_reservation(self, xml_bytes):
+        """
+        Parse the reservations XML payload that is returned from an AWS
+        describeInstances API call.
+       
+        Instead of returning the reservations as the "top-most" object, we
+        return the object that most developers and their code will be
+        interested in: the instances. In instances reservation is available on
+        the instance object.
+        """
         root = XML(xml_bytes)
         results = []
         # May be a more elegant way to do this:
@@ -79,6 +87,13 @@ class EC2Client(object):
                 self.name_space + 'groupSet'):
                 group_id = group_data.findtext(self.name_space + 'groupId')
                 groups.append(group_id)
+            # Create a reservation object with the parsed data.
+            reservation = Reservation(
+                reservation_id=reservation_data.findtext(
+                    self.name_space + 'reservationId'),
+                owner_id=reservation_data.findtext(
+                    self.name_space + 'ownerId'),
+                groups=groups)
             # Get the list of instances.
             instances = []
             for instance_data in reservation_data.find(
@@ -88,15 +103,10 @@ class EC2Client(object):
                 instance_state = instance_data.find(
                     self.name_space + 'instanceState').findtext(
                         self.name_space + 'name')
-                instances.append(Instance(instance_id, instance_state))
-            # Create a reservation object with the parsed data.
-            reservation = Reservation(
-                reservation_id=reservation_data.findtext(
-                    self.name_space + 'reservationId'),
-                owner_id=reservation_data.findtext(
-                    self.name_space + 'ownerId'),
-                groups=groups, instances=instances)
-            results.append(reservation)
+                instance = Instance(instance_id, instance_state,
+                                    reservation=reservation)
+                instances.append(instance)
+            results.extend(instances)
         return results
 
     def terminate_instances(self, *instance_ids):
