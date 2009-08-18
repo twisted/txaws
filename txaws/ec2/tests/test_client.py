@@ -79,6 +79,20 @@ sample_terminate_instances_result = """<?xml version="1.0"?>
 """
 
 
+class ReservationTestCase(TXAWSTestCase):
+
+    def test_reservation_creation(self):
+        reservation = client.Reservation(
+            "id1", "owner", groups=["one", "two"],
+            instances=[client.Instance("id2", "state")])
+        self.assertEquals(reservation.reservation_id, "id1")
+        self.assertEquals(reservation.owner_id, "owner")
+        self.assertEquals(reservation.groups, ["one", "two"])
+        instance = reservation.instances[0]
+        self.assertEquals(instance.instance_id, "id2")
+        self.assertEquals(instance.instance_state, "state")
+
+
 class TestEC2Client(TXAWSTestCase):
     
     def test_init_no_creds(self):
@@ -127,20 +141,6 @@ class TestEC2Client(TXAWSTestCase):
             self.assertEqual([('i-1234', 'running', 'shutting-down'),
                 ('i-5678', 'shutting-down', 'shutting-down')], sorted(changes))
         return d
-
-
-class ReservationTestCase(TXAWSTestCase):
-
-    def test_reservation_creation(self):
-        reservation = client.Reservation(
-            "id1", "owner", groups=["one", "two"],
-            instances=[client.Instance("id2", "state")])
-        self.assertEquals(reservation.reservation_id, "id1")
-        self.assertEquals(reservation.owner_id, "owner")
-        self.assertEquals(reservation.groups, ["one", "two"])
-        instance = reservation.instances[0]
-        self.assertEquals(instance.instance_id, "id2")
-        self.assertEquals(instance.instance_state, "state")
 
 
 class TestQuery(TXAWSTestCase):
