@@ -2,6 +2,7 @@ import os
 
 from twisted.trial.unittest import TestCase
 
+
 class TXAWSTestCase(TestCase):
     """Support for isolation of txaws tests."""
 
