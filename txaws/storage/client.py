@@ -24,8 +24,8 @@ NS = '{http://s3.amazonaws.com/doc/2006-03-01/}'
 
 class S3Request(object):
 
-    def __init__(
-        self, verb, bucket=None, object_name=None, data='', content_type=None,
+    def __init__(self, verb, bucket=None, object_name=None, data='',
+                 content_type=None,
         metadata={}, root_uri='https://s3.amazonaws.com',  creds=None):
         self.verb = verb
         self.bucket = bucket
