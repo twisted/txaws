@@ -23,11 +23,11 @@ class Reservation(object):
     @attrib groups: A list of security groups.
     @attrib instances: A list of C{Instance}s.
     """
-    def __init__(self, reservation_id, owner_id, groups=[], instances=[]):
+    def __init__(self, reservation_id, owner_id, groups=None, instances=None):
         self.reservation_id = reservation_id
         self.owner_id = owner_id
-        self.groups = groups
-        self.instances = instances
+        self.groups = []
+        self.instances = []
 
 
 class Instance(object):
