@@ -9,6 +9,7 @@ from txaws.credentials import AWSCredentials
 from txaws.ec2 import client
 from txaws.tests import TXAWSTestCase
 
+
 sample_describe_instances_result = """<?xml version="1.0"?>
 <DescribeInstancesResponse xmlns="http://ec2.amazonaws.com/doc/2008-12-01/">
     <requestId>52b4c730-f29f-498d-94c1-91efb75994cc</requestId>
@@ -48,6 +49,7 @@ sample_describe_instances_result = """<?xml version="1.0"?>
     </reservationSet>
 </DescribeInstancesResponse>
 """
+
 
 sample_terminate_instances_result = """<?xml version="1.0"?>
 <TerminateInstancesResponse xmlns="http://ec2.amazonaws.com/doc/2008-12-01/">
@@ -109,6 +111,21 @@ class TestEC2Client(TXAWSTestCase):
         ec2 = client.EC2Client(creds=creds)
         self.assertEqual(creds, ec2.creds)
 
+    def check_parsed_reservations(self, results):
+        reservation = results[0]
+        self.assertEquals(reservation.reservation_id, "r-cf24b1a6")
+        self.assertEquals(reservation.owner_id, "123456789012")
+        instance = reservation.instances[0]
+        self.assertEquals(instance.instance_id, "i-abcdef01")
+        self.assertEquals(instance.instance_state, "running")
+        group = reservation.groups[0]
+        self.assertEquals(group, "default")
+
+    def test_parse_reservation(self):
+        ec2 = client.EC2Client(creds='foo')
+        results = ec2._parse_reservation(sample_describe_instances_result)
+        self.check_parsed_reservations(results)
+
     def test_describe_instances(self):
         class StubQuery(object):
             def __init__(stub, action, creds):
@@ -118,11 +135,7 @@ class TestEC2Client(TXAWSTestCase):
                 return succeed(sample_describe_instances_result)
         ec2 = client.EC2Client(creds='foo', query_factory=StubQuery)
         d = ec2.describe_instances()
-        def check_instances(reservation):
-            self.assertEqual(1, len(reservation))
-            self.assertEqual('i-abcdef01', reservation[0].instance_id)
-            self.assertEqual('running', reservation[0].instance_state)
-        d.addCallback(check_instances)
+        d.addCallback(self.check_parsed_reservations)
         return d
 
     def test_terminate_instances(self):
