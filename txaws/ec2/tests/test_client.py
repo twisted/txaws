@@ -95,6 +95,27 @@ class ReservationTestCase(TXAWSTestCase):
         self.assertEquals(instance.instance_state, "state")
 
 
+class InstanceTestCase(TXAWSTestCase):
+
+    def test_instance_creation(self):
+        instance = client.Instance(
+            "id1", "running", "type", "id2", "dns1", "dns2", "key", "ami",
+            "time", "placement", ["prod1", "prod2"], "id3", "id4")
+        self.assertEquals(instance.instance_id, "id1")
+        self.assertEquals(instance.instance_state, "running")
+        self.assertEquals(instance.instance_type, "type")
+        self.assertEquals(instance.image_id, "id2")
+        self.assertEquals(instance.private_dns_name, "dns1")
+        self.assertEquals(instance.dns_name, "dns2")
+        self.assertEquals(instance.key_name, "key")
+        self.assertEquals(instance.ami_launch_index, "ami")
+        self.assertEquals(instance.launch_time, "time")
+        self.assertEquals(instance.placement, "placement")
+        self.assertEquals(instance.product_codes, ["prod1", "prod2"])
+        self.assertEquals(instance.kernel_id, "id3")
+        self.assertEquals(instance.ramdisk_id, "id4")
+
+
 class TestEC2Client(TXAWSTestCase):
     
     def test_init_no_creds(self):
