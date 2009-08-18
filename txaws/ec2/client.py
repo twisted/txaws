@@ -44,7 +44,7 @@ class Instance(object):
 class EC2Client(object):
     """A client for EC2."""
 
-    NS = '{http://ec2.amazonaws.com/doc/2008-12-01/}'
+    name_space = '{http://ec2.amazonaws.com/doc/2008-12-01/}'
 
     def __init__(self, creds=None, query_factory=None):
         """Create an EC2Client.
@@ -65,19 +65,38 @@ class EC2Client(object):
         """Describe current instances."""
         q = self.query_factory('DescribeInstances', self.creds)
         d = q.submit()
-        return d.addCallback(self._parse_Reservation)
+        return d.addCallback(self._parse_reservation)
 
-    def _parse_Reservation(self, xml_bytes):
+    def _parse_reservation(self, xml_bytes):
         root = XML(xml_bytes)
-        result = []
+        results = []
         # May be a more elegant way to do this:
-        for reservation in root.find(self.NS + 'reservationSet'):
-            for instance in reservation.find(self.NS + 'instancesSet'):
-                instanceId = instance.findtext(self.NS + 'instanceId')
-                instanceState = instance.find(
-                    self.NS + 'instanceState').findtext(self.NS + 'name')
-                result.append(Instance(instanceId, instanceState))
-        return result
+        for reservation_data in root.find(self.name_space + 'reservationSet'):
+            # Get the security group information.
+            groups = []
+            for group_data in reservation_data.find(
+                self.name_space + 'groupSet'):
+                group_id = group_data.findtext(self.name_space + 'groupId')
+                groups.append(group_id)
+            # Get the list of instances.
+            instances = []
+            for instance_data in reservation_data.find(
+                self.name_space + 'instancesSet'):
+                instance_id = instance_data.findtext(
+                    self.name_space + 'instanceId')
+                instance_state = instance_data.find(
+                    self.name_space + 'instanceState').findtext(
+                        self.name_space + 'name')
+                instances.append(Instance(instance_id, instance_state))
+            # Create a reservation object with the parsed data.
+            reservation = Reservation(
+                reservation_id=reservation_data.findtext(
+                    self.name_space + 'reservationId'),
+                owner_id=reservation_data.findtext(
+                    self.name_space + 'ownerId'),
+                groups=groups, instances=instances)
+            results.append(reservation)
+        return results
 
     def terminate_instances(self, *instance_ids):
         """Terminate some instances.
@@ -97,12 +116,14 @@ class EC2Client(object):
         root = XML(xml_bytes)
         result = []
         # May be a more elegant way to do this:
-        for instance in root.find(self.NS + 'instancesSet'):
-            instanceId = instance.findtext(self.NS + 'instanceId')
+        for instance in root.find(self.name_space + 'instancesSet'):
+            instanceId = instance.findtext(self.name_space + 'instanceId')
             previousState = instance.find(
-                self.NS + 'previousState').findtext(self.NS + 'name')
+                self.name_space + 'previousState').findtext(
+                    self.name_space + 'name')
             shutdownState = instance.find(
-                self.NS + 'shutdownState').findtext(self.NS + 'name')
+                self.name_space + 'shutdownState').findtext(
+                    self.name_space + 'name')
             result.append((instanceId, previousState, shutdownState))
         return result
 
