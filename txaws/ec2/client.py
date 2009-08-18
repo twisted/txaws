@@ -14,16 +14,31 @@ from txaws import credentials
 from txaws.util import iso8601time, XML
 
 
+class Reservation(object):
+    """An Amazon EC2 Reservation.
+
+    @attrib reservation_id: Unique ID of the reservation.
+    @attrib owner_id: AWS Access Key ID of the user who owns the reservation. 
+    @attrib groups: A list of security groups.
+    @attrib instances: A list of C{Instance}s.
+    """
+    def __init__(self, reservation_id, owner_id, groups=[], instances=[]):
+        self.reservation_id = reservation_id
+        self.owner_id = owner_id
+        self.groups = groups
+        self.instances = instances
+
+
 class Instance(object):
     """An Amazon EC2 Instance.
 
-    :attrib instanceId: The instance ID of this instance.
-    :attrib instanceState: The state of this instance.
+    @attrib instance_id: The instance ID of this instance.
+    @attrib instance_state: The state of this instance.
     """
 
-    def __init__(self, instanceId, instanceState):
-        self.instanceId = instanceId
-        self.instanceState = instanceState
+    def __init__(self, instance_id, instance_state):
+        self.instance_id = instance_id
+        self.instance_state = instance_state
 
 
 class EC2Client(object):
