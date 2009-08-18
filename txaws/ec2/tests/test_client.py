@@ -107,7 +107,7 @@ class TestEC2Client(TXAWSTestCase):
         ec2 = client.EC2Client(creds=creds)
         self.assertEqual(creds, ec2.creds)
 
-    def check_parsed_reservations(self, results):
+    def check_parsed_instances(self, results):
         instance = results[0]
         self.assertEquals(instance.instance_id, "i-abcdef01")
         self.assertEquals(instance.instance_state, "running")
@@ -119,8 +119,8 @@ class TestEC2Client(TXAWSTestCase):
 
     def test_parse_reservation(self):
         ec2 = client.EC2Client(creds='foo')
-        results = ec2._parse_reservation(sample_describe_instances_result)
-        self.check_parsed_reservations(results)
+        results = ec2._parse_instances(sample_describe_instances_result)
+        self.check_parsed_instances(results)
 
     def test_describe_instances(self):
         class StubQuery(object):
@@ -131,7 +131,7 @@ class TestEC2Client(TXAWSTestCase):
                 return succeed(sample_describe_instances_result)
         ec2 = client.EC2Client(creds='foo', query_factory=StubQuery)
         d = ec2.describe_instances()
-        d.addCallback(self.check_parsed_reservations)
+        d.addCallback(self.check_parsed_instances)
         return d
 
     def test_terminate_instances(self):
