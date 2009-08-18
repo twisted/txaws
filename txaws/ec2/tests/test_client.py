@@ -85,14 +85,10 @@ class ReservationTestCase(TXAWSTestCase):
 
     def test_reservation_creation(self):
         reservation = client.Reservation(
-            "id1", "owner", groups=["one", "two"],
-            instances=[client.Instance("id2", "state")])
+            "id1", "owner", groups=["one", "two"])
         self.assertEquals(reservation.reservation_id, "id1")
         self.assertEquals(reservation.owner_id, "owner")
         self.assertEquals(reservation.groups, ["one", "two"])
-        instance = reservation.instances[0]
-        self.assertEquals(instance.instance_id, "id2")
-        self.assertEquals(instance.instance_state, "state")
 
 
 class TestEC2Client(TXAWSTestCase):
@@ -112,12 +108,12 @@ class TestEC2Client(TXAWSTestCase):
         self.assertEqual(creds, ec2.creds)
 
     def check_parsed_reservations(self, results):
-        reservation = results[0]
-        self.assertEquals(reservation.reservation_id, "r-cf24b1a6")
-        self.assertEquals(reservation.owner_id, "123456789012")
-        instance = reservation.instances[0]
+        instance = results[0]
         self.assertEquals(instance.instance_id, "i-abcdef01")
         self.assertEquals(instance.instance_state, "running")
+        reservation = instance.reservation
+        self.assertEquals(reservation.reservation_id, "r-cf24b1a6")
+        self.assertEquals(reservation.owner_id, "123456789012")
         group = reservation.groups[0]
         self.assertEquals(group, "default")
 
