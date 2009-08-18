@@ -3,11 +3,13 @@
 
 """Credentials for accessing AWS services."""
 
-__all__ = ['AWSCredentials']
-
 import os
 
 from txaws.util import *
+
+
+__all__ = ['AWSCredentials']
+
 
 class AWSCredentials(object):
 

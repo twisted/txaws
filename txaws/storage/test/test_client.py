@@ -8,6 +8,7 @@ from txaws.credentials import AWSCredentials
 from txaws.tests import TXAWSTestCase
 from txaws.storage.client import S3, S3Request, calculateMD5
 
+
 class StubbedS3Request(S3Request):
     def getPage(self, url, method, postdata, headers):
         self.getPageArgs = (url, method, postdata, headers)
@@ -25,9 +26,13 @@ class RequestTests(TXAWSTestCase):
         DATA = 'objectData'
         DIGEST = 'zhdB6gwvocWv/ourYUWMxA=='
 
-        request = S3Request('PUT', 'somebucket', 'object/name/here', DATA, contentType='text/plain', metadata={'foo': 'bar'})
+        request = S3Request(
+            'PUT', 'somebucket', 'object/name/here', DATA, 
+            contentType='text/plain', metadata={'foo': 'bar'})
         self.assertEqual(request.verb, 'PUT')
-        self.assertEqual(request.getURI(), 'https://s3.amazonaws.com/somebucket/object/name/here')
+        self.assertEqual(
+            request.getURI(),
+            'https://s3.amazonaws.com/somebucket/object/name/here')
         headers = request.getHeaders()
         self.assertNotEqual(headers.pop('Date'), '')
         self.assertEqual(headers,
@@ -45,7 +50,8 @@ class RequestTests(TXAWSTestCase):
 
         request = S3Request('GET', 'somebucket')
         self.assertEqual(request.verb, 'GET')
-        self.assertEqual(request.getURI(), 'https://s3.amazonaws.com/somebucket')
+        self.assertEqual(
+            request.getURI(), 'https://s3.amazonaws.com/somebucket')
         headers = request.getHeaders()
         self.assertNotEqual(headers.pop('Date'), '')
         self.assertEqual(headers,
@@ -75,7 +81,9 @@ class RequestTests(TXAWSTestCase):
         req.date = 'Wed, 28 Mar 2007 01:29:59 +0000'
 
         headers = req.getHeaders()
-        self.assertEqual(headers['Authorization'], 'AWS 0PN5J17HBGZHT7JJ3X82:jF7L3z/FTV47vagZzhKupJ9oNig=')
+        self.assertEqual(
+            headers['Authorization'],
+            'AWS 0PN5J17HBGZHT7JJ3X82:jF7L3z/FTV47vagZzhKupJ9oNig=')
 
 
 class InertRequest(S3Request):
@@ -140,7 +148,8 @@ class WrapperTests(TXAWSTestCase):
 
     def setUp(self):
         TXAWSTestCase.setUp(self)
-        self.creds = AWSCredentials(access_key='accessKey', secret_key='secretKey')
+        self.creds = AWSCredentials(
+            access_key='accessKey', secret_key='secretKey')
         self.s3 = TestableS3(creds=self.creds)
 
     def test_makeRequest(self):
@@ -167,11 +176,14 @@ class WrapperTests(TXAWSTestCase):
         self.assertEqual(req.objectName, None)
 
         def _checkResult(buckets):
-            self.assertEqual(list(buckets),
-                             [{'name': u'quotes',
-                               'created': Time.fromDatetime(datetime(2006, 2, 3, 16, 45, 9))},
-                              {'name': u'samples',
-                               'created': Time.fromDatetime(datetime(2006, 2, 3, 16, 41, 58))}])
+            self.assertEqual(
+                list(buckets),
+                [{'name': u'quotes',
+                  'created': Time.fromDatetime(
+                    datetime(2006, 2, 3, 16, 45, 9))},
+                 {'name': u'samples',
+                  'created': Time.fromDatetime(
+                    datetime(2006, 2, 3, 16, 41, 58))}])
         return d.addCallback(_checkResult)
 
     def test_createBucket(self):
@@ -191,7 +203,8 @@ class WrapperTests(TXAWSTestCase):
         self.assertEqual(req.objectName, None)
 
     def test_putObject(self):
-        self.s3.putObject('foobucket', 'foo', 'data', 'text/plain', {'foo': 'bar'})
+        self.s3.putObject(
+            'foobucket', 'foo', 'data', 'text/plain', {'foo': 'bar'})
         req = self.s3._lastRequest
         self.assertTrue(req.submitted)
         self.assertEqual(req.verb, 'PUT')
