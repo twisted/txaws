@@ -112,16 +112,16 @@ class AWSStatusIcon(gtk.StatusIcon):
             # credentials.
             return
         self.probing = True
-        d = self.client.describe_instances()
-        d.addCallbacks(self.showhide, self.describe_error)
+        deferred = self.client.describe_instances()
+        deferred.addCallbacks(self.showhide, self.describe_error)
 
     def on_popup_menu(self, status, button, time):
         self.menu.popup(None, None, None, button, time)
 
     def on_stop_instances(self, data):
         # It would be nice to popup a window to select instances.. TODO.
-        self.client.describe_instances().addCallbacks(self.shutdown_instances,
-            self.show_error)
+        deferred = self.client.describe_instances()
+        deferred.addCallbacks(self.shutdown_instances, self.show_error)
 
     def save_key(self, response_id, data):
         # handle the dialog

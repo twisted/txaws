@@ -19,13 +19,13 @@ from txaws.util import XML, calculate_md5
 from txaws.credentials import AWSCredentials
 
 
-NS = '{http://s3.amazonaws.com/doc/2006-03-01/}'
+name_space = '{http://s3.amazonaws.com/doc/2006-03-01/}'
 
 
 class S3Request(object):
 
-    def __init__(
-        self, verb, bucket=None, object_name=None, data='', content_type=None,
+    def __init__(self, verb, bucket=None, object_name=None, data='',
+                 content_type=None,
         metadata={}, root_uri='https://s3.amazonaws.com',  creds=None):
         self.verb = verb
         self.bucket = bucket
@@ -85,9 +85,8 @@ class S3Request(object):
         return self.creds.sign(text)
 
     def submit(self):
-        return self.get_page(
-            url=self.get_uri(), method=self.verb, postdata=self.data,
-            headers=self.get_headers())
+        return self.get_page(url=self.get_uri(), method=self.verb,
+                             postdata=self.data, headers=self.get_headers())
 
     def get_page(self, *a, **kw):
         return getPage(*a, **kw)
@@ -115,10 +114,10 @@ class S3(object):
         Parse XML bucket list response.
         """
         root = XML(response)
-        for bucket in root.find(NS + 'Buckets'):
-            timeText = bucket.findtext(NS + 'CreationDate')
+        for bucket in root.find(name_space + 'Buckets'):
+            timeText = bucket.findtext(name_space + 'CreationDate')
             yield {
-                'name': bucket.findtext(NS + 'Name'),
+                'name': bucket.findtext(name_space + 'Name'),
                 'created': Time.fromISO8601TimeAndDate(timeText),
                 }
 
@@ -154,8 +153,8 @@ class S3(object):
 
         Any existing object of the same name will be replaced.
         """
-        return self.make_request(
-            'PUT', bucket, object_name, data, content_type, metadata).submit()
+        return self.make_request('PUT', bucket, object_name, data,
+                                 content_type, metadata).submit()
 
     def get_object(self, bucket, object_name):
         """
