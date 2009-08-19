@@ -30,9 +30,8 @@ class RequestTests(TXAWSTestCase):
         DATA = 'objectData'
         DIGEST = 'zhdB6gwvocWv/ourYUWMxA=='
 
-        request = S3Request(
-            'PUT', 'somebucket', 'object/name/here', DATA,
-            content_type='text/plain', metadata={'foo': 'bar'})
+        request = S3Request('PUT', 'somebucket', 'object/name/here', DATA,
+                            content_type='text/plain', metadata={'foo': 'bar'})
         self.assertEqual(request.verb, 'PUT')
         self.assertEqual(
             request.get_uri(),
@@ -86,7 +85,7 @@ class RequestTests(TXAWSTestCase):
 
         headers = req.get_headers()
         self.assertEqual(
-            headers['Authorization'],
+            headers['Authorization'], 
             'AWS 0PN5J17HBGZHT7JJ3X82:jF7L3z/FTV47vagZzhKupJ9oNig=')
 
 

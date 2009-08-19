@@ -27,6 +27,22 @@ def ec2_error_wrapper(error):
         raise EC2Error(xml_payload)
 
 
+__all__ = ['EC2Client']
+
+
+class Reservation(object):
+    """An Amazon EC2 Reservation.
+
+    @attrib reservation_id: Unique ID of the reservation.
+    @attrib owner_id: AWS Access Key ID of the user who owns the reservation. 
+    @attrib groups: A list of security groups.
+    """
+    def __init__(self, reservation_id, owner_id, groups=None):
+        self.reservation_id = reservation_id
+        self.owner_id = owner_id
+        self.groups = groups or []
+
+
 class Instance(object):
     """An Amazon EC2 Instance.
 
@@ -34,15 +50,16 @@ class Instance(object):
     @attrib instance_state: The state of this instance.
     """
 
-    def __init__(self, instance_id, instance_state):
+    def __init__(self, instance_id, instance_state, reservation=None):
         self.instance_id = instance_id
         self.instance_state = instance_state
+        self.reservation = reservation
 
 
 class EC2Client(object):
     """A client for EC2."""
 
-    NS = '{http://ec2.amazonaws.com/doc/2008-12-01/}'
+    name_space = '{http://ec2.amazonaws.com/doc/2008-12-01/}'
 
     def __init__(self, creds=None, query_factory=None):
         """Create an EC2Client.
@@ -63,23 +80,53 @@ class EC2Client(object):
         """Describe current instances."""
         q = self.query_factory('DescribeInstances', self.creds)
         d = q.submit()
-        return d.addCallback(self._parse_reservation)
+        return d.addCallback(self._parse_instances)
 
-    def _parse_reservation(self, xml_bytes):
+    def _parse_instances(self, xml_bytes):
+        """
+        Parse the reservations XML payload that is returned from an AWS
+        describeInstances API call.
+       
+        Instead of returning the reservations as the "top-most" object, we
+        return the object that most developers and their code will be
+        interested in: the instances. In instances reservation is available on
+        the instance object.
+        """
         root = XML(xml_bytes)
-        result = []
+        results = []
         # May be a more elegant way to do this:
-        for reservation in root.find(self.NS + 'reservationSet'):
-            for instance in reservation.find(self.NS + 'instancesSet'):
-                instance_id = instance.findtext(self.NS + 'instanceId')
-                instance_state = instance.find(
-                    self.NS + 'instanceState').findtext(self.NS + 'name')
-                result.append(Instance(instance_id, instance_state))
-        return result
+        for reservation_data in root.find(self.name_space + 'reservationSet'):
+            # Get the security group information.
+            groups = []
+            for group_data in reservation_data.find(
+                self.name_space + 'groupSet'):
+                group_id = group_data.findtext(self.name_space + 'groupId')
+                groups.append(group_id)
+            # Create a reservation object with the parsed data.
+            reservation = Reservation(
+                reservation_id=reservation_data.findtext(
+                    self.name_space + 'reservationId'),
+                owner_id=reservation_data.findtext(
+                    self.name_space + 'ownerId'),
+                groups=groups)
+            # Get the list of instances.
+            instances = []
+            for instance_data in reservation_data.find(
+                self.name_space + 'instancesSet'):
+                instance_id = instance_data.findtext(
+                    self.name_space + 'instanceId')
+                instance_state = instance_data.find(
+                    self.name_space + 'instanceState').findtext(
+                        self.name_space + 'name')
+                instance = Instance(instance_id, instance_state,
+                                    reservation=reservation)
+                instances.append(instance)
+            results.extend(instances)
+        return results
 
     def terminate_instances(self, *instance_ids):
         """Terminate some instances.
-
+        
         @param instance_ids: The ids of the instances to terminate.
         @return: A deferred which on success gives an iterable of
             (id, old-state, new-state) tuples.
@@ -95,13 +142,15 @@ class EC2Client(object):
         root = XML(xml_bytes)
         result = []
         # May be a more elegant way to do this:
-        for instance in root.find(self.NS + 'instancesSet'):
-            instance_id = instance.findtext(self.NS + 'instance_id')
+        for instance in root.find(self.name_space + 'instancesSet'):
+            instanceId = instance.findtext(self.name_space + 'instanceId')
             previousState = instance.find(
-                self.NS + 'previousState').findtext(self.NS + 'name')
+                self.name_space + 'previousState').findtext(
+                    self.name_space + 'name')
             shutdownState = instance.find(
-                self.NS + 'shutdownState').findtext(self.NS + 'name')
-            result.append((instance_id, previousState, shutdownState))
+                self.name_space + 'shutdownState').findtext(
+                    self.name_space + 'name')
+            result.append((instanceId, previousState, shutdownState))
         return result
 
 
