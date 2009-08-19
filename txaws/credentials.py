@@ -16,9 +16,9 @@ class AWSCredentials(object):
     def __init__(self, access_key=None, secret_key=None):
         """Create an AWSCredentials object.
 
-        :param access_key: The access key to use. If None the environment
+        @param access_key: The access key to use. If None the environment
             variable AWS_ACCESS_KEY_ID is consulted.
-        :param secret_key: The secret key to use. If None the environment
+        @param secret_key: The secret key to use. If None the environment
             variable AWS_SECRET_ACCESS_KEY is consulted.
         """
         self.secret_key = secret_key
