@@ -8,7 +8,9 @@ from twisted.internet.defer import succeed
 from twisted.python.filepath import FilePath
 from twisted.web import server, static, util
 from twisted.web.client import HTTPPageGetter, HTTPClientFactory
+from twisted.web.http import Request, HTTPChannel, HTTPClient
 from twisted.protocols.policies import WrappingFactory
+from twisted.protocols.loopback import loopbackAsync
 from twisted.test.proto_helpers import StringTransport
 
 from txaws.tests import TXAWSTestCase
@@ -22,26 +24,50 @@ from txaws.ec2.tests.payload import (
     sample_ec2_error_message)
 
 
+class FakeHTTPHandler(Request):
+    status = 200
+
+    def process(self):
+        self.content.seek(0, 0)
+        data = self.content.read()
+        length = self.getHeader('Content-Length')
+        request = "'''\n"+str(length)+"\n"+data+"'''\n"
+        self.setResponseCode(self.status)
+        self.setHeader("Request", self.uri)
+        self.setHeader("Command", self.method)
+        self.setHeader("Version", self.clientproto)
+        self.setHeader("Content-Length", len(request))
+        self.write(request)
+        self.finish()
+
+
+class FourOhHTTPHandler(FakeHTTPHandler):
+    status = 400
+
+
+class FiveOhHTTPHandler(FakeHTTPHandler):
+    status = 500
+
+
 class FakeHTTPPageGetter(HTTPPageGetter):
 
     transport = StringTransport
 
-    def connectionLost(self, reason):
-        HTTPPageGetter.connectionLost(self, reason)
-        #import pdb;pdb.set_trace()
 
+#class FakeHTTPFactory(HTTPClientFactory):
+class FakeHTTPFactory(HTTPClient):
 
-class FakeHTTPFactory(HTTPClientFactory):
-
-    protocol = FakeHTTPPageGetter
-    test_payload = ""
+    #protocol = FakeHTTPPageGetter
+    #test_payload = ""
+    def __init__(self, test_payload):
+        self.test_payload = test_payload
 
     def connectionMade(self):
         content_length = len(self.test_payload)
-        self.dataReceived(
-            "GET /dummy HTTP/1.0\r\nHost: example.net\r\n"
-            "Content-Length: %s\r\n\r\n%s" % (
-                content_length, self.test_payload))
+        self.sendCommand("GET", "/dummy")
+        self.sendHeader("Content-Length", content_length)
+        self.endHeaders()
+        self.transport.write(self.test_payload)
 
 
 class FactoryWrapper(object):
@@ -144,14 +170,15 @@ class TestQuery(TXAWSTestCase):
         # around, clean them up.
         connections = self.wrapper.protocols.keys()
         # If there are fewer server-side connections than requested,
-        # that's okay.  Some might have noticed that the client closed                                               
+        # that's okay.  Some might have noticed that the client closed
         # the connection and cleaned up after themselves.
         for n in range(min(len(connections), self.cleanupServerConnections)):
             proto = connections.pop()
-            msg("Closing %r" % (proto,))
+            #msg("Closing %r" % (proto,))
             proto.transport.loseConnection()
         if connections:
-            msg("Some left-over connections; this test is probably buggy.")
+            #msg("Some left-over connections; this test is probably buggy.")
+            pass
         return self.port.stopListening()
 
     def _listen(self, site):
@@ -302,3 +329,20 @@ class TestQuery(TXAWSTestCase):
         A 5xx response status from EC2 should raise the original Twisted
         exception.
         """
+
+class ClientTestCaseBase(TXAWSTestCase):
+
+    def test_400_payload(self):
+        def check_status(version, status, message):
+            self.assertEquals(status, "400")
+
+        def check_payload(data):
+            expected = "'''\n%s\n%s'''\n" % (
+                len(sample_ec2_error_message), sample_ec2_error_message)
+            self.assertEquals(data, expected)
+        server = HTTPChannel()
+        server.requestFactory = FourOhHTTPHandler
+        client = FakeHTTPFactory(sample_ec2_error_message)
+        client.handleResponse = check_payload
+        client.handleStatus = check_status
+        return loopbackAsync(server, client)
