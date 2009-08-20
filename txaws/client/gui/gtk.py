@@ -8,7 +8,7 @@ import gnomekeyring
 import gobject
 import gtk
 
-from txaws.credentials import AWSCredentials
+from txaws.ec2.service import EC2Service
 
 
 __all__ = ['main']
@@ -27,10 +27,10 @@ class AWSStatusIcon(gtk.StatusIcon):
         # Nested import because otherwise we get 'reactor already installed'.
         self.password_dialog = None
         try:
-            creds = AWSCredentials()
+            service = AWSService()
         except ValueError:
-            creds = self.from_gnomekeyring()
-        self.create_client(creds)
+            service = self.from_gnomekeyring()
+        self.create_client(service)
         menu = '''
             <ui>
              <menubar name="Menubar">
@@ -54,10 +54,10 @@ class AWSStatusIcon(gtk.StatusIcon):
             '/Menubar/Menu/Stop instances').props.parent
         self.connect('popup-menu', self.on_popup_menu)
 
-    def create_client(self, creds):
+    def create_client(self, service):
         from txaws.ec2.client import EC2Client
-        if creds is not None:
-            self.client = EC2Client(creds=creds)
+        if service is not None:
+            self.client = EC2Client(service=service)
             self.on_activate(None)
         else:
             # waiting on user entered credentials.
@@ -65,7 +65,7 @@ class AWSStatusIcon(gtk.StatusIcon):
 
     def from_gnomekeyring(self):
         # Try for gtk gui specific credentials.
-        creds = None
+        service = None
         try:
             items = gnomekeyring.find_items_sync(
                 gnomekeyring.ITEM_GENERIC_SECRET,
@@ -78,7 +78,7 @@ class AWSStatusIcon(gtk.StatusIcon):
             return None
         else:
             key_id, secret_key = items[0].secret.split(':')
-            return AWSCredentials(access_key=key_id, secret_key=secret_key)
+            return EC2Service(access_key=key_id, secret_key=secret_key)
 
     def show_a_password_dialog(self):
         self.password_dialog = gtk.Dialog(
@@ -133,8 +133,8 @@ class AWSStatusIcon(gtk.StatusIcon):
             content = self.password_dialog.get_content_area()
             key_id = content.get_children()[0].get_children()[1].get_text()
             secret_key = content.get_children()[1].get_children()[1].get_text()
-            creds = AWSCredentials(access_key=key_id, secret_key=secret_key)
-            self.create_client(creds)
+            service = EC2Service(access_key=key_id, secret_key=secret_key)
+            self.create_client(service)
             gnomekeyring.item_create_sync(
                 None,
                 gnomekeyring.ITEM_GENERIC_SECRET,
