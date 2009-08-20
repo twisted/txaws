@@ -6,7 +6,7 @@ from twisted.internet.defer import succeed
 
 from txaws.util import calculate_md5
 from txaws.tests import TXAWSTestCase
-from txaws.service import AWSService
+from txaws.storage.service import S3Service
 from txaws.storage.client import S3, S3Request
 
 
@@ -18,11 +18,9 @@ class StubbedS3Request(S3Request):
         return succeed('')
 
 
-class RequestTests(TXAWSTestCase):
+class RequestTestCase(TXAWSTestCase):
 
-    service = AWSService(
-        access_key='0PN5J17HBGZHT7JJ3X82',
-        secret_key='uV3F3YluFJax1cknvbcGwgjvx4QpvB+leU8dUj2o')
+    service = S3Service(access_key='fookeyid', secret_key='barsecretkey')
 
     def test_objectRequest(self):
         """
@@ -32,18 +30,22 @@ class RequestTests(TXAWSTestCase):
         DIGEST = 'zhdB6gwvocWv/ourYUWMxA=='
 
         request = S3Request('PUT', 'somebucket', 'object/name/here', DATA,
-                            content_type='text/plain', metadata={'foo': 'bar'})
+                            content_type='text/plain', metadata={'foo': 'bar'},
+                            service=self.service)
+        request.get_signature = lambda headers: "TESTINGSIG="
         self.assertEqual(request.verb, 'PUT')
         self.assertEqual(
             request.get_uri(),
             'https://s3.amazonaws.com/somebucket/object/name/here')
         headers = request.get_headers()
         self.assertNotEqual(headers.pop('Date'), '')
-        self.assertEqual(headers,
-                         {'Content-Type': 'text/plain',
-                          'Content-Length': len(DATA),
-                          'Content-MD5': DIGEST,
-                          'x-amz-meta-foo': 'bar'})
+        self.assertEqual(
+            headers, {
+                'Authorization': 'AWS fookeyid:TESTINGSIG=',
+                'Content-Type': 'text/plain',
+                'Content-Length': len(DATA),
+                'Content-MD5': DIGEST,
+                'x-amz-meta-foo': 'bar'})
         self.assertEqual(request.data, 'objectData')
 
     def test_bucketRequest(self):
@@ -52,22 +54,25 @@ class RequestTests(TXAWSTestCase):
         """
         DIGEST = '1B2M2Y8AsgTpgAmY7PhCfg=='
 
-        request = S3Request('GET', 'somebucket')
+        request = S3Request('GET', 'somebucket', service=self.service)
+        request.get_signature = lambda headers: "TESTINGSIG="
         self.assertEqual(request.verb, 'GET')
         self.assertEqual(
             request.get_uri(), 'https://s3.amazonaws.com/somebucket')
         headers = request.get_headers()
         self.assertNotEqual(headers.pop('Date'), '')
-        self.assertEqual(headers,
-                         {'Content-Length': 0,
-                          'Content-MD5': DIGEST})
+        self.assertEqual(
+            headers, {
+            'Authorization': 'AWS fookeyid:TESTINGSIG=',
+            'Content-Length': 0,
+            'Content-MD5': DIGEST})
         self.assertEqual(request.data, '')
 
     def test_submit(self):
         """
         Submitting the request should invoke getPage correctly.
         """
-        request = StubbedS3Request('GET', 'somebucket')
+        request = StubbedS3Request('GET', 'somebucket', service=self.service)
 
         def _postCheck(result):
             self.assertEqual(result, '')
@@ -81,13 +86,14 @@ class RequestTests(TXAWSTestCase):
         return request.submit().addCallback(_postCheck)
 
     def test_authenticationTestCases(self):
-        req = S3Request('GET', service=self.service)
-        req.date = 'Wed, 28 Mar 2007 01:29:59 +0000'
+        request = S3Request('GET', service=self.service)
+        request.get_signature = lambda headers: "TESTINGSIG="
+        request.date = 'Wed, 28 Mar 2007 01:29:59 +0000'
 
-        headers = req.get_headers()
+        headers = request.get_headers()
         self.assertEqual(
             headers['Authorization'], 
-            'AWS 0PN5J17HBGZHT7JJ3X82:jF7L3z/FTV47vagZzhKupJ9oNig=')
+            'AWS fookeyid:TESTINGSIG=')
 
 
 class InertRequest(S3Request):
@@ -152,7 +158,7 @@ class WrapperTests(TXAWSTestCase):
 
     def setUp(self):
         TXAWSTestCase.setUp(self)
-        self.service = AWSService(
+        self.service = S3Service(
             access_key='accessKey', secret_key='secretKey')
         self.s3 = TestableS3(service=self.service)
 

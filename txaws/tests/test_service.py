@@ -24,7 +24,7 @@ class AWSServiceTestCase(TXAWSTestCase):
         service = AWSService("fookeyid", "barsecretkey")
         self.assertEquals(service.access_key, "fookeyid")
         self.assertEquals(service.secret_key, "barsecretkey")
-        self.assertEquals(service.schema, "")
+        self.assertEquals(service.schema, "https")
         self.assertEquals(service.host, "")
         self.assertEquals(service.port, 80)
         self.assertEquals(service.endpoint, "/")
@@ -60,13 +60,13 @@ class AWSServiceTestCase(TXAWSTestCase):
         self.assertEqual("foo", service.secret_key)
         self.assertEqual("bar", service.access_key)
 
-    def test_parse_url(self):
+    def test_parse_uri(self):
         self.assertEquals(self.service.schema, "http")
         self.assertEquals(self.service.host, "my.service")
         self.assertEquals(self.service.port, 80)
         self.assertEquals(self.service.endpoint, "/da_endpoint")
 
-    def test_parse_url_https_and_custom_port(self):
+    def test_parse_uri_https_and_custom_port(self):
         service = AWSService("foo", "bar", "https://my.service:8080/endpoint")
         self.assertEquals(service.schema, "https")
         self.assertEquals(service.host, "my.service")
@@ -77,12 +77,12 @@ class AWSServiceTestCase(TXAWSTestCase):
         service = AWSService("foo", "bar", "http://service/endpoint", "PUT")
         self.assertEquals(service.method, "PUT")
 
-    def test_get_url(self):
-        url = self.service.get_url()
-        self.assertEquals(url, "http://my.service/da_endpoint")
+    def test_get_uri(self):
+        uri = self.service.get_uri()
+        self.assertEquals(uri, "http://my.service/da_endpoint")
 
-    def test_get_url_custom_port(self):
-        url = "https://my.service:8080/endpoint"
-        service = AWSService("foo", "bar", url)
-        new_url = service.get_url()
-        self.assertEquals(new_url, url)
+    def test_get_uri_custom_port(self):
+        uri = "https://my.service:8080/endpoint"
+        service = AWSService("foo", "bar", uri)
+        new_uri = service.get_uri()
+        self.assertEquals(new_uri, uri)
