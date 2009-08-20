@@ -16,7 +16,7 @@ from twisted.web.client import getPage
 from twisted.web.http import datetimeToString
 
 from txaws.util import XML, calculate_md5
-from txaws.credentials import AWSCredentials
+from txaws.service import AWSService
 
 
 name_space = '{http://s3.amazonaws.com/doc/2006-03-01/}'
@@ -26,7 +26,7 @@ class S3Request(object):
 
     def __init__(self, verb, bucket=None, object_name=None, data='',
                  content_type=None,
-        metadata={}, root_uri='https://s3.amazonaws.com',  creds=None):
+        metadata={}, root_uri='https://s3.amazonaws.com',  service=None):
         self.verb = verb
         self.bucket = bucket
         self.object_name = object_name
@@ -34,7 +34,7 @@ class S3Request(object):
         self.content_type = content_type
         self.metadata = metadata
         self.root_uri = root_uri
-        self.creds = creds
+        self.service = service
         self.date = datetimeToString()
 
     def get_uri_path(self):
@@ -59,10 +59,10 @@ class S3Request(object):
         if self.content_type is not None:
             headers['Content-Type'] = self.content_type
 
-        if self.creds is not None:
+        if self.service is not None:
             signature = self.get_signature(headers)
             headers['Authorization'] = 'AWS %s:%s' % (
-                self.creds.access_key, signature)
+                self.service.access_key, signature)
         return headers
 
     def get_canonicalized_resource(self):
@@ -82,7 +82,7 @@ class S3Request(object):
         text += headers.get('Date', '') + '\n'
         text += self.get_canonicalized_amz_headers(headers)
         text += self.get_canonicalized_resource()
-        return self.creds.sign(text)
+        return self.service.sign(text)
 
     def submit(self):
         return self.get_page(url=self.get_uri(), method=self.verb,
@@ -97,17 +97,17 @@ class S3(object):
     root_uri = 'https://s3.amazonaws.com/'
     request_factory = S3Request
 
-    def __init__(self, creds):
-        self.creds = creds
+    def __init__(self, service):
+        self.service = service
 
     def make_request(self, *a, **kw):
         """
         Create a request with the arguments passed in.
 
-        This uses the request_factory attribute, adding the credentials to the
+        This uses the request_factory attribute, adding the service to the
         arguments passed in.
         """
-        return self.request_factory(creds=self.creds, *a, **kw)
+        return self.request_factory(service=self.service, *a, **kw)
 
     def _parse_bucket_list(self, response):
         """

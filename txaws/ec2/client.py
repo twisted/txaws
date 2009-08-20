@@ -8,7 +8,7 @@ from urllib import quote
 
 from twisted.web.client import getPage
 
-from txaws import credentials
+from txaws.service import AWSService
 from txaws.util import iso8601time, XML
 
 
@@ -46,16 +46,15 @@ class EC2Client(object):
 
     name_space = '{http://ec2.amazonaws.com/doc/2008-12-01/}'
 
-    def __init__(self, creds=None, query_factory=None):
+    def __init__(self, service=None, query_factory=None):
         """Create an EC2Client.
 
-        @param creds: Explicit credentials to use. If None, credentials are
-            inferred as per txaws.credentials.AWSCredentials.
+        @param service: Explicit service to use.
         """
-        if creds is None:
-            self.creds = credentials.AWSCredentials()
+        if service is None:
+            self.service = AWSService()
         else:
-            self.creds = creds
+            self.service = service
         if query_factory is None:
             self.query_factory = Query
         else:
@@ -63,7 +62,7 @@ class EC2Client(object):
 
     def describe_instances(self):
         """Describe current instances."""
-        q = self.query_factory('DescribeInstances', self.creds)
+        q = self.query_factory('DescribeInstances', self.service)
         d = q.submit()
         return d.addCallback(self._parse_instances)
 
@@ -119,7 +118,7 @@ class EC2Client(object):
         instanceset = {}
         for pos, instance_id in enumerate(instance_ids):
             instanceset["InstanceId.%d" % (pos+1)] = instance_id
-        q = self.query_factory('TerminateInstances', self.creds, instanceset)
+        q = self.query_factory('TerminateInstances', self.service, instanceset)
         d = q.submit()
         return d.addCallback(self._parse_terminate_instances)
 
@@ -142,7 +141,7 @@ class EC2Client(object):
 class Query(object):
     """A query that may be submitted to EC2."""
 
-    def __init__(self, action, creds, other_params=None, time_tuple=None):
+    def __init__(self, action, service, other_params=None, time_tuple=None):
         """Create a Query to submit to EC2."""
         # Require params (2008-12-01 API):
         # Version, SignatureVersion, SignatureMethod, Action, AWSAccessKeyId,
@@ -151,7 +150,7 @@ class Query(object):
             'SignatureVersion': '2',
             'SignatureMethod': 'HmacSHA1',
             'Action': action,
-            'AWSAccessKeyId': creds.access_key,
+            'AWSAccessKeyId': service.access_key,
             'Timestamp': iso8601time(time_tuple),
             }
         if other_params:
@@ -159,7 +158,7 @@ class Query(object):
         self.method = 'GET'
         self.host = 'ec2.amazonaws.com'
         self.uri = '/'
-        self.creds = creds
+        self.service = service
 
     def canonical_query_params(self):
         """Return the canonical query params (used in signing)."""
@@ -183,13 +182,13 @@ class Query(object):
         return result
 
     def sign(self):
-        """Sign this query using its built in credentials.
+        """Sign this query using its built in service.
         
         This prepares it to be sent, and should be done as the last step before
         submitting the query. Signing is done automatically - this is a public
         method to facilitate testing.
         """
-        self.params['Signature'] = self.creds.sign(self.signing_text())
+        self.params['Signature'] = self.service.sign(self.signing_text())
 
     def sorted_params(self):
         """Return the query params sorted appropriately for signing."""

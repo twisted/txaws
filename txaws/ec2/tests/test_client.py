@@ -5,7 +5,7 @@ import os
 
 from twisted.internet.defer import succeed
 
-from txaws.credentials import AWSCredentials
+from txaws.service import AWSService
 from txaws.ec2 import client
 from txaws.tests import TXAWSTestCase
 
@@ -97,15 +97,15 @@ class TestEC2Client(TXAWSTestCase):
         os.environ['AWS_SECRET_ACCESS_KEY'] = 'foo'
         os.environ['AWS_ACCESS_KEY_ID'] = 'bar'
         ec2 = client.EC2Client()
-        self.assertNotEqual(None, ec2.creds)
+        self.assertNotEqual(None, ec2.service)
 
     def test_init_no_creds_non_available_errors(self):
         self.assertRaises(ValueError, client.EC2Client)
 
-    def test_init_explicit_creds(self):
-        creds = 'foo'
-        ec2 = client.EC2Client(creds=creds)
-        self.assertEqual(creds, ec2.creds)
+    def test_init_explicit_service(self):
+        service = AWSService("foo", "bar")
+        ec2 = client.EC2Client(service=service)
+        self.assertEqual(service, ec2.service)
 
     def check_parsed_instances(self, results):
         instance = results[0]
@@ -118,33 +118,38 @@ class TestEC2Client(TXAWSTestCase):
         self.assertEquals(group, "default")
 
     def test_parse_reservation(self):
-        ec2 = client.EC2Client(creds='foo')
+        service = AWSService("foo", "bar")
+        ec2 = client.EC2Client(service=service)
         results = ec2._parse_instances(sample_describe_instances_result)
         self.check_parsed_instances(results)
 
     def test_describe_instances(self):
         class StubQuery(object):
-            def __init__(stub, action, creds):
+            def __init__(stub, action, service):
                 self.assertEqual(action, 'DescribeInstances')
-                self.assertEqual('foo', creds)
+                self.assertEqual(service.access_key, "foo")
+                self.assertEqual(service.secret_key, "bar")
             def submit(self):
                 return succeed(sample_describe_instances_result)
-        ec2 = client.EC2Client(creds='foo', query_factory=StubQuery)
+        service = AWSService("foo", "bar")
+        ec2 = client.EC2Client(service, query_factory=StubQuery)
         d = ec2.describe_instances()
         d.addCallback(self.check_parsed_instances)
         return d
 
     def test_terminate_instances(self):
         class StubQuery(object):
-            def __init__(stub, action, creds, other_params):
+            def __init__(stub, action, service, other_params):
                 self.assertEqual(action, 'TerminateInstances')
-                self.assertEqual('foo', creds)
+                self.assertEqual(service.access_key, "foo")
+                self.assertEqual(service.secret_key, "bar")
                 self.assertEqual(
                     {'InstanceId.1': 'i-1234', 'InstanceId.2': 'i-5678'},
                     other_params)
             def submit(self):
                 return succeed(sample_terminate_instances_result)
-        ec2 = client.EC2Client(creds='foo', query_factory=StubQuery)
+        service = AWSService("foo", "bar")
+        ec2 = client.EC2Client(service=service, query_factory=StubQuery)
         d = ec2.terminate_instances('i-1234', 'i-5678')
         def check_transition(changes):
             self.assertEqual([('i-1234', 'running', 'shutting-down'),
@@ -156,10 +161,10 @@ class TestQuery(TXAWSTestCase):
 
     def setUp(self):
         TXAWSTestCase.setUp(self)
-        self.creds = AWSCredentials('foo', 'bar')
+        self.service = AWSService('foo', 'bar')
 
     def test_init_minimum(self):
-        query = client.Query('DescribeInstances', self.creds)
+        query = client.Query('DescribeInstances', self.service)
         self.assertTrue('Timestamp' in query.params)
         del query.params['Timestamp']
         self.assertEqual(
@@ -173,11 +178,11 @@ class TestQuery(TXAWSTestCase):
     def test_init_requires_action(self):
         self.assertRaises(TypeError, client.Query)
 
-    def test_init_requires_creds(self):
+    def test_init_requires_service_with_creds(self):
         self.assertRaises(TypeError, client.Query, None)
 
     def test_init_other_args_are_params(self):
-        query = client.Query('DescribeInstances', self.creds,
+        query = client.Query('DescribeInstances', self.service,
             {'InstanceId.0': '12345'},
             time_tuple=(2007,11,12,13,14,15,0,0,0))
         self.assertEqual(
@@ -191,7 +196,7 @@ class TestQuery(TXAWSTestCase):
             query.params)
 
     def test_sorted_params(self):
-        query = client.Query('DescribeInstances', self.creds,
+        query = client.Query('DescribeInstances', self.service,
             {'fun': 'games'},
             time_tuple=(2007,11,12,13,14,15,0,0,0))
         self.assertEqual([
@@ -207,16 +212,16 @@ class TestQuery(TXAWSTestCase):
     def test_encode_unreserved(self):
         all_unreserved = ('ABCDEFGHIJKLMNOPQRSTUVWXYZ'
             'abcdefghijklmnopqrstuvwxyz0123456789-_.~')
-        query = client.Query('DescribeInstances', self.creds)
+        query = client.Query('DescribeInstances', self.service)
         self.assertEqual(all_unreserved, query.encode(all_unreserved))
 
     def test_encode_space(self):
         """This may be just 'url encode', but the AWS manual isn't clear."""
-        query = client.Query('DescribeInstances', self.creds)
+        query = client.Query('DescribeInstances', self.service)
         self.assertEqual('a%20space', query.encode('a space'))
 
     def test_canonical_query(self):
-        query = client.Query('DescribeInstances', self.creds,
+        query = client.Query('DescribeInstances', self.service,
             {'fu n': 'g/ames', 'argwithnovalue':'',
              'InstanceId.1': 'i-1234'},
             time_tuple=(2007,11,12,13,14,15,0,0,0))
@@ -228,7 +233,7 @@ class TestQuery(TXAWSTestCase):
         self.assertEqual(expected_query, query.canonical_query_params())
 
     def test_signing_text(self):
-        query = client.Query('DescribeInstances', self.creds,
+        query = client.Query('DescribeInstances', self.service,
             time_tuple=(2007,11,12,13,14,15,0,0,0))
         signing_text = ('GET\nec2.amazonaws.com\n/\n'
             'AWSAccessKeyId=foo&Action=DescribeInstances&'
@@ -237,7 +242,7 @@ class TestQuery(TXAWSTestCase):
         self.assertEqual(signing_text, query.signing_text())
 
     def test_sign(self):
-        query = client.Query('DescribeInstances', self.creds,
+        query = client.Query('DescribeInstances', self.service,
             time_tuple=(2007,11,12,13,14,15,0,0,0))
         query.sign()
         self.assertEqual('4hEtLuZo9i6kuG3TOXvRQNOrE/U=',
