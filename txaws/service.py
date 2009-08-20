@@ -18,14 +18,16 @@ class AWSService(object):
     @param secret_key: The secret key to use. If None the environment
         variable AWS_SECRET_ACCESS_KEY is consulted.
     @param url: The URL for the service.
+    @param method: The HTTP method used when accessing a service.
     """
-    def __init__(self, access_key="", secret_key="", url=""):
+    def __init__(self, access_key="", secret_key="", url="", method="GET"):
         self.access_key = access_key
         self.secret_key = secret_key
         self.schema = ""
         self.host = ""
         self.port = DEFAULT_PORT
         self.endpoint = "/"
+        self.method = method
         self._process_creds()
         self._parse_url(url)
 

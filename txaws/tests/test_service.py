@@ -28,6 +28,7 @@ class AWSServiceTestCase(TXAWSTestCase):
         self.assertEquals(service.host, "")
         self.assertEquals(service.port, 80)
         self.assertEquals(service.endpoint, "/")
+        self.assertEquals(service.method, "GET")
 
     def test_no_access_errors(self):
         # Without anything in os.environ, AWSService() blows up
@@ -71,6 +72,10 @@ class AWSServiceTestCase(TXAWSTestCase):
         self.assertEquals(service.host, "my.service")
         self.assertEquals(service.port, 8080)
         self.assertEquals(service.endpoint, "/endpoint")
+
+    def test_custom_method(self):
+        service = AWSService("foo", "bar", "http://service/endpoint", "PUT")
+        self.assertEquals(service.method, "PUT")
 
     def test_get_url(self):
         url = self.service.get_url()
