@@ -25,19 +25,18 @@ name_space = '{http://s3.amazonaws.com/doc/2006-03-01/}'
 class S3Request(object):
 
     def __init__(self, verb, bucket=None, object_name=None, data='',
-                 content_type=None,
-        metadata={}, root_uri='https://s3.amazonaws.com',  service=None):
+                 content_type=None, metadata={}, service=None):
         self.verb = verb
         self.bucket = bucket
         self.object_name = object_name
         self.data = data
         self.content_type = content_type
         self.metadata = metadata
-        self.root_uri = root_uri
         self.service = service
+        self.service.endpoint = self.get_path()
         self.date = datetimeToString()
 
-    def get_uri_path(self):
+    def get_path(self):
         path = '/'
         if self.bucket is not None:
             path += self.bucket
@@ -46,7 +45,7 @@ class S3Request(object):
         return path
 
     def get_uri(self):
-        return self.root_uri + self.get_uri_path()
+        return self.service.get_uri()
 
     def get_headers(self):
         headers = {'Content-Length': len(self.data),
@@ -66,7 +65,7 @@ class S3Request(object):
         return headers
 
     def get_canonicalized_resource(self):
-        return self.get_uri_path()
+        return self.get_path()
 
     def get_canonicalized_amz_headers(self, headers):
         result = ''
@@ -76,12 +75,12 @@ class S3Request(object):
         return ''.join('%s:%s\n' % (name, value) for name, value in headers)
 
     def get_signature(self, headers):
-        text = self.verb + '\n'
-        text += headers.get('Content-MD5', '') + '\n'
-        text += headers.get('Content-Type', '') + '\n'
-        text += headers.get('Date', '') + '\n'
-        text += self.get_canonicalized_amz_headers(headers)
-        text += self.get_canonicalized_resource()
+        text = (self.verb + '\n' + 
+                headers.get('Content-MD5', '') + '\n' +
+                headers.get('Content-Type', '') + '\n' +
+                headers.get('Date', '') + '\n' +
+                self.get_canonicalized_amz_headers(headers) +
+                self.get_canonicalized_resource())
         return self.service.sign(text)
 
     def submit(self):
@@ -94,7 +93,6 @@ class S3Request(object):
 
 class S3(object):
 
-    root_uri = 'https://s3.amazonaws.com/'
     request_factory = S3Request
 
     def __init__(self, service):
