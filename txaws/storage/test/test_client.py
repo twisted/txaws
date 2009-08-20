@@ -6,7 +6,7 @@ from twisted.internet.defer import succeed
 
 from txaws.util import calculate_md5
 from txaws.tests import TXAWSTestCase
-from txaws.credentials import AWSCredentials
+from txaws.service import AWSService
 from txaws.storage.client import S3, S3Request
 
 
@@ -20,7 +20,8 @@ class StubbedS3Request(S3Request):
 
 class RequestTests(TXAWSTestCase):
 
-    creds = AWSCredentials(access_key='0PN5J17HBGZHT7JJ3X82',
+    service = AWSService(
+        access_key='0PN5J17HBGZHT7JJ3X82',
         secret_key='uV3F3YluFJax1cknvbcGwgjvx4QpvB+leU8dUj2o')
 
     def test_objectRequest(self):
@@ -80,7 +81,7 @@ class RequestTests(TXAWSTestCase):
         return request.submit().addCallback(_postCheck)
 
     def test_authenticationTestCases(self):
-        req = S3Request('GET', creds=self.creds)
+        req = S3Request('GET', service=self.service)
         req.date = 'Wed, 28 Mar 2007 01:29:59 +0000'
 
         headers = req.get_headers()
@@ -151,18 +152,18 @@ class WrapperTests(TXAWSTestCase):
 
     def setUp(self):
         TXAWSTestCase.setUp(self)
-        self.creds = AWSCredentials(
+        self.service = AWSService(
             access_key='accessKey', secret_key='secretKey')
-        self.s3 = TestableS3(creds=self.creds)
+        self.s3 = TestableS3(service=self.service)
 
     def test_make_request(self):
         """
-        Test that make_request passes in the service credentials.
+        Test that make_request passes in the service object.
         """
         marker = object()
 
         def _cb(*a, **kw):
-            self.assertEqual(kw['creds'], self.creds)
+            self.assertEqual(kw['service'], self.service)
             return marker
 
         self.s3.request_factory = _cb
