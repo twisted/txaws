@@ -1,4 +1,5 @@
 # Copyright (C) 2009 Duncan McGreggor <duncan@canonical.com>
+# Copyright (C) 2009 Robert Collins <robertc@robertcollins.net>
 # Licenced under the txaws licence available at /LICENSE in the txaws source.
 
 import os
@@ -20,6 +21,8 @@ class AWSService(object):
     @param url: The URL for the service.
     @param method: The HTTP method used when accessing a service.
     """
+    default_host = ""
+
     def __init__(self, access_key="", secret_key="", url="", method="GET"):
         self.access_key = access_key
         self.secret_key = secret_key
@@ -30,6 +33,8 @@ class AWSService(object):
         self.method = method
         self._process_creds()
         self._parse_url(url)
+        if not self.host:
+            self.host = self.default_host
 
     def _process_creds(self):
         # perform checks for access key

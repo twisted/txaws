@@ -8,7 +8,7 @@ from urllib import quote
 
 from twisted.web.client import getPage
 
-from txaws.service import AWSService
+from txaws.ec2.service import EC2Service
 from txaws.util import iso8601time, XML
 
 
@@ -52,7 +52,7 @@ class EC2Client(object):
         @param service: Explicit service to use.
         """
         if service is None:
-            self.service = AWSService()
+            self.service = EC2Service()
         else:
             self.service = service
         if query_factory is None:
@@ -155,9 +155,6 @@ class Query(object):
             }
         if other_params:
             self.params.update(other_params)
-        self.method = 'GET'
-        self.host = 'ec2.amazonaws.com'
-        self.uri = '/'
         self.service = service
 
     def canonical_query_params(self):
@@ -177,8 +174,9 @@ class Query(object):
 
     def signing_text(self):
         """Return the text to be signed when signing the query."""
-        result = "%s\n%s\n%s\n%s" % (self.method, self.host, self.uri,
-            self.canonical_query_params())
+        result = "%s\n%s\n%s\n%s" % (self.service.method, self.service.host,
+                                     self.service.endpoint,
+                                     self.canonical_query_params())
         return result
 
     def sign(self):
@@ -197,9 +195,8 @@ class Query(object):
     def submit(self):
         """Submit this query.
 
-        :return: A deferred from twisted.web.client.getPage
+        @return: A deferred from twisted.web.client.getPage
         """
         self.sign()
-        url = 'http://%s%s?%s' % (self.host, self.uri,
-            self.canonical_query_params())
-        return getPage(url, method=self.method)
+        url = "%s?%s" % (self.service.get_url(), self.canonical_query_params())
+        return getPage(url, method=self.service.method)
