@@ -5,8 +5,8 @@ import os
 
 from twisted.internet.defer import succeed
 
-from txaws.service import AWSService
 from txaws.ec2 import client
+from txaws.ec2.service import EC2Service, US_EC2_HOST
 from txaws.tests import TXAWSTestCase
 
 
@@ -91,7 +91,7 @@ class ReservationTestCase(TXAWSTestCase):
         self.assertEquals(reservation.groups, ["one", "two"])
 
 
-class TestEC2Client(TXAWSTestCase):
+class EC2ClientTestCase(TXAWSTestCase):
     
     def test_init_no_creds(self):
         os.environ['AWS_SECRET_ACCESS_KEY'] = 'foo'
@@ -103,7 +103,7 @@ class TestEC2Client(TXAWSTestCase):
         self.assertRaises(ValueError, client.EC2Client)
 
     def test_init_explicit_service(self):
-        service = AWSService("foo", "bar")
+        service = EC2Service("foo", "bar")
         ec2 = client.EC2Client(service=service)
         self.assertEqual(service, ec2.service)
 
@@ -118,7 +118,7 @@ class TestEC2Client(TXAWSTestCase):
         self.assertEquals(group, "default")
 
     def test_parse_reservation(self):
-        service = AWSService("foo", "bar")
+        service = EC2Service("foo", "bar")
         ec2 = client.EC2Client(service=service)
         results = ec2._parse_instances(sample_describe_instances_result)
         self.check_parsed_instances(results)
@@ -131,7 +131,7 @@ class TestEC2Client(TXAWSTestCase):
                 self.assertEqual(service.secret_key, "bar")
             def submit(self):
                 return succeed(sample_describe_instances_result)
-        service = AWSService("foo", "bar")
+        service = EC2Service("foo", "bar")
         ec2 = client.EC2Client(service, query_factory=StubQuery)
         d = ec2.describe_instances()
         d.addCallback(self.check_parsed_instances)
@@ -148,7 +148,7 @@ class TestEC2Client(TXAWSTestCase):
                     other_params)
             def submit(self):
                 return succeed(sample_terminate_instances_result)
-        service = AWSService("foo", "bar")
+        service = EC2Service("foo", "bar")
         ec2 = client.EC2Client(service=service, query_factory=StubQuery)
         d = ec2.terminate_instances('i-1234', 'i-5678')
         def check_transition(changes):
@@ -157,11 +157,11 @@ class TestEC2Client(TXAWSTestCase):
         return d
 
 
-class TestQuery(TXAWSTestCase):
+class QueryTestCase(TXAWSTestCase):
 
     def setUp(self):
         TXAWSTestCase.setUp(self)
-        self.service = AWSService('foo', 'bar')
+        self.service = EC2Service('foo', 'bar')
 
     def test_init_minimum(self):
         query = client.Query('DescribeInstances', self.service)
@@ -235,7 +235,7 @@ class TestQuery(TXAWSTestCase):
     def test_signing_text(self):
         query = client.Query('DescribeInstances', self.service,
             time_tuple=(2007,11,12,13,14,15,0,0,0))
-        signing_text = ('GET\nec2.amazonaws.com\n/\n'
+        signing_text = ('GET\n%s\n/\n' % US_EC2_HOST + 
             'AWSAccessKeyId=foo&Action=DescribeInstances&'
             'SignatureMethod=HmacSHA1&SignatureVersion=2&'
             'Timestamp=2007-11-12T13%3A14%3A15Z&Version=2008-12-01')
@@ -245,5 +245,5 @@ class TestQuery(TXAWSTestCase):
         query = client.Query('DescribeInstances', self.service,
             time_tuple=(2007,11,12,13,14,15,0,0,0))
         query.sign()
-        self.assertEqual('4hEtLuZo9i6kuG3TOXvRQNOrE/U=',
+        self.assertEqual('JuCpwFA2H4OVF3Ql/lAQs+V6iMc=',
             query.params['Signature'])
