@@ -47,3 +47,10 @@ class AWSServiceEndpointTestCase(TXAWSTestCase):
         endpoint = AWSServiceEndpoint(uri=uri)
         new_uri = endpoint.get_uri()
         self.assertEquals(new_uri, uri)
+
+    def test_set_path(self):
+        original_path = self.endpoint.path
+        self.endpoint.set_path("/newpath")
+        self.assertEquals(
+            self.endpoint.get_uri(),
+            "http://my.service/newpath")

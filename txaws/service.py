@@ -42,7 +42,6 @@ class AWSServiceEndpoint(object):
         self.path = path
 
     def set_path(self, path):
-        # XXX needs test!
         self.path = path
 
     def get_uri(self):
