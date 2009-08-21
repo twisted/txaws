@@ -7,9 +7,8 @@ Various API-incompatible changes are planned in order to expose missing
 functionality in this wrapper.
 """
 
-from hashlib import md5
 from base64 import b64encode
-
+from hashlib import md5
 
 from epsilon.extime import Time
 
@@ -17,171 +16,166 @@ from twisted.web.client import getPage
 from twisted.web.http import datetimeToString
 
 from txaws.credentials import AWSCredentials
-from txaws.util import XML
+from txaws.util import XML, calculate_md5
 
 
-def calculateMD5(data):
-    digest = md5(data).digest()
-    return b64encode(digest)
+name_space = '{http://s3.amazonaws.com/doc/2006-03-01/}'
 
 
 class S3Request(object):
-    def __init__(self, verb, bucket=None, objectName=None, data='',
-            contentType=None, metadata={}, rootURI='https://s3.amazonaws.com',
-            creds=None):
+
+    def __init__(self, verb, bucket=None, object_name=None, data='',
+                 content_type=None,
+        metadata={}, root_uri='https://s3.amazonaws.com',  creds=None):
         self.verb = verb
         self.bucket = bucket
-        self.objectName = objectName
+        self.object_name = object_name
         self.data = data
-        self.contentType = contentType
+        self.content_type = content_type
         self.metadata = metadata
-        self.rootURI = rootURI
+        self.root_uri = root_uri
         self.creds = creds
         self.date = datetimeToString()
 
-    def getURIPath(self):
+    def get_uri_path(self):
         path = '/'
         if self.bucket is not None:
             path += self.bucket
-            if self.objectName is not None:
-                path += '/' + self.objectName
+            if self.object_name is not None:
+                path += '/' + self.object_name
         return path
 
-    def getURI(self):
-        return self.rootURI + self.getURIPath()
+    def get_uri(self):
+        return self.root_uri + self.get_uri_path()
 
-    def getHeaders(self):
+    def get_headers(self):
         headers = {'Content-Length': len(self.data),
-                   'Content-MD5': calculateMD5(self.data),
+                   'Content-MD5': calculate_md5(self.data),
                    'Date': self.date}
 
         for key, value in self.metadata.iteritems():
             headers['x-amz-meta-' + key] = value
 
-        if self.contentType is not None:
-            headers['Content-Type'] = self.contentType
+        if self.content_type is not None:
+            headers['Content-Type'] = self.content_type
 
         if self.creds is not None:
-            signature = self.getSignature(headers)
+            signature = self.get_signature(headers)
             headers['Authorization'] = 'AWS %s:%s' % (
                 self.creds.access_key, signature)
-
         return headers
 
-    def getCanonicalizedResource(self):
-        return self.getURIPath()
+    def get_canonicalized_resource(self):
+        return self.get_uri_path()
 
-    def getCanonicalizedAmzHeaders(self, headers):
+    def get_canonicalized_amz_headers(self, headers):
         result = ''
         headers = [(name.lower(), value) for name, value in headers.iteritems()
             if name.lower().startswith('x-amz-')]
         headers.sort()
         return ''.join('%s:%s\n' % (name, value) for name, value in headers)
 
-    def getSignature(self, headers):
+    def get_signature(self, headers):
         text = self.verb + '\n'
         text += headers.get('Content-MD5', '') + '\n'
         text += headers.get('Content-Type', '') + '\n'
         text += headers.get('Date', '') + '\n'
-        text += self.getCanonicalizedAmzHeaders(headers)
-        text += self.getCanonicalizedResource()
+        text += self.get_canonicalized_amz_headers(headers)
+        text += self.get_canonicalized_resource()
         return self.creds.sign(text)
 
     def submit(self):
-        return self.getPage(
-            url=self.getURI(), method=self.verb, postdata=self.data,
-            headers=self.getHeaders())
+        return self.get_page(url=self.get_uri(), method=self.verb,
+                             postdata=self.data, headers=self.get_headers())
 
-    def getPage(self, *a, **kw):
+    def get_page(self, *a, **kw):
         return getPage(*a, **kw)
 
 
-NS = '{http://s3.amazonaws.com/doc/2006-03-01/}'
-
-
 class S3(object):
-    rootURI = 'https://s3.amazonaws.com/'
-    requestFactory = S3Request
+
+    root_uri = 'https://s3.amazonaws.com/'
+    request_factory = S3Request
 
     def __init__(self, creds):
         self.creds = creds
 
-    def makeRequest(self, *a, **kw):
+    def make_request(self, *a, **kw):
         """
         Create a request with the arguments passed in.
 
-        This uses the requestFactory attribute, adding the credentials to the
+        This uses the request_factory attribute, adding the credentials to the
         arguments passed in.
         """
-        return self.requestFactory(creds=self.creds, *a, **kw)
+        return self.request_factory(creds=self.creds, *a, **kw)
 
-    def _parseBucketList(self, response):
+    def _parse_bucket_list(self, response):
         """
         Parse XML bucket list response.
         """
         root = XML(response)
-        for bucket in root.find(NS + 'Buckets'):
-            timeText = bucket.findtext(NS + 'CreationDate')
+        for bucket in root.find(name_space + 'Buckets'):
+            timeText = bucket.findtext(name_space + 'CreationDate')
             yield {
-                'name': bucket.findtext(NS + 'Name'),
+                'name': bucket.findtext(name_space + 'Name'),
                 'created': Time.fromISO8601TimeAndDate(timeText),
                 }
 
-    def listBuckets(self):
+    def list_buckets(self):
         """
         List all buckets.
 
         Returns a list of all the buckets owned by the authenticated sender of
         the request.
         """
-        d = self.makeRequest('GET').submit()
-        d.addCallback(self._parseBucketList)
-        return d
+        deferred = self.make_request('GET').submit()
+        deferred.addCallback(self._parse_bucket_list)
+        return deferred
 
-    def createBucket(self, bucket):
+    def create_bucket(self, bucket):
         """
         Create a new bucket.
         """
-        return self.makeRequest('PUT', bucket).submit()
+        return self.make_request('PUT', bucket).submit()
 
-    def deleteBucket(self, bucket):
+    def delete_bucket(self, bucket):
         """
         Delete a bucket.
 
         The bucket must be empty before it can be deleted.
         """
-        return self.makeRequest('DELETE', bucket).submit()
+        return self.make_request('DELETE', bucket).submit()
 
-    def putObject(self, bucket, objectName, data, contentType=None,
-                  metadata={}):
+    def put_object(self, bucket, object_name, data, content_type=None,
+                   metadata={}):
         """
         Put an object in a bucket.
 
         Any existing object of the same name will be replaced.
         """
-        return self.makeRequest(
-            'PUT', bucket, objectName, data, contentType, metadata).submit()
+        return self.make_request('PUT', bucket, object_name, data,
+                                 content_type, metadata).submit()
 
-    def getObject(self, bucket, objectName):
+    def get_object(self, bucket, object_name):
         """
         Get an object from a bucket.
         """
-        return self.makeRequest('GET', bucket, objectName).submit()
+        return self.make_request('GET', bucket, object_name).submit()
 
-    def headObject(self, bucket, objectName):
+    def head_object(self, bucket, object_name):
         """
         Retrieve object metadata only.
 
-        This is like getObject, but the object's content is not retrieved.
+        This is like get_object, but the object's content is not retrieved.
         Currently the metadata is not returned to the caller either, so this
         method is mostly useless, and only provided for completeness.
         """
-        return self.makeRequest('HEAD', bucket, objectName).submit()
+        return self.make_request('HEAD', bucket, object_name).submit()
 
-    def deleteObject(self, bucket, objectName):
+    def delete_object(self, bucket, object_name):
         """
         Delete an object from a bucket.
 
         Once deleted, there is no method to restore or undelete an object.
         """
-        return self.makeRequest('DELETE', bucket, objectName).submit()
+        return self.make_request('DELETE', bucket, object_name).submit()

@@ -4,9 +4,9 @@
 import os
 
 from twisted.trial.unittest import TestCase
-from txaws.tests import TXAWSTestCase
 
 from txaws.credentials import AWSCredentials
+from txaws.tests import TXAWSTestCase
 
 
 class TestCredentials(TXAWSTestCase):
