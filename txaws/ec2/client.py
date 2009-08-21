@@ -3,8 +3,6 @@
 
 """EC2 client support."""
 
-__all__ = ['EC2Client']
-
 from base64 import b64encode
 from urllib import quote
 
@@ -14,19 +12,20 @@ from txaws import credentials
 from txaws.util import iso8601time, XML
 
 
+__all__ = ['EC2Client']
+
+
 class Reservation(object):
     """An Amazon EC2 Reservation.
 
     @attrib reservation_id: Unique ID of the reservation.
     @attrib owner_id: AWS Access Key ID of the user who owns the reservation. 
     @attrib groups: A list of security groups.
-    @attrib instances: A list of C{Instance}s.
     """
-    def __init__(self, reservation_id, owner_id, groups=[], instances=[]):
+    def __init__(self, reservation_id, owner_id, groups=None):
         self.reservation_id = reservation_id
         self.owner_id = owner_id
-        self.groups = groups
-        self.instances = instances
+        self.groups = groups or []
 
 
 class Instance(object):
@@ -55,7 +54,8 @@ class Instance(object):
     def __init__(self, instance_id, instance_state, instance_type="",
                  image_id="", private_dns_name="", dns_name="", key_name="",
                  ami_launch_index="", launch_time="", placement="",
-                 product_codes=[], kernel_id=None, ramdisk_id=None):
+                 product_codes=[], kernel_id=None, ramdisk_id=None,
+                 reservation=None):
         self.instance_id = instance_id
         self.instance_state = instance_state
         self.instance_type = instance_type
@@ -69,6 +69,7 @@ class Instance(object):
         self.product_codes = product_codes
         self.kernel_id = kernel_id
         self.ramdisk_id = ramdisk_id
+        self.reservation = reservation
 
 
 class EC2Client(object):
@@ -79,7 +80,7 @@ class EC2Client(object):
     def __init__(self, creds=None, query_factory=None):
         """Create an EC2Client.
 
-        :param creds: Explicit credentials to use. If None, credentials are
+        @param creds: Explicit credentials to use. If None, credentials are
             inferred as per txaws.credentials.AWSCredentials.
         """
         if creds is None:
@@ -95,9 +96,18 @@ class EC2Client(object):
         """Describe current instances."""
         q = self.query_factory('DescribeInstances', self.creds)
         d = q.submit()
-        return d.addCallback(self._parse_reservation)
+        return d.addCallback(self._parse_instances)
 
-    def _parse_reservation(self, xml_bytes):
+    def _parse_instances(self, xml_bytes):
+        """
+        Parse the reservations XML payload that is returned from an AWS
+        describeInstances API call.
+       
+        Instead of returning the reservations as the "top-most" object, we
+        return the object that most developers and their code will be
+        interested in: the instances. In instances reservation is available on
+        the instance object.
+        """
         root = XML(xml_bytes)
         results = []
         # May be a more elegant way to do this:
@@ -108,6 +118,13 @@ class EC2Client(object):
                 self.name_space + 'groupSet'):
                 group_id = group_data.findtext(self.name_space + 'groupId')
                 groups.append(group_id)
+            # Create a reservation object with the parsed data.
+            reservation = Reservation(
+                reservation_id=reservation_data.findtext(
+                    self.name_space + 'reservationId'),
+                owner_id=reservation_data.findtext(
+                    self.name_space + 'ownerId'),
+                groups=groups)
             # Get the list of instances.
             instances = []
             for instance_data in reservation_data.find(
@@ -144,23 +161,17 @@ class EC2Client(object):
                 instance = Instance(
                     instance_id, instance_state, instance_type, image_id,
                     private_dns_name, dns_name, key_name, ami_launch_index,
-                    launch_time, placement, products, kernel_id, ramdisk_id)
+                    launch_time, placement, products, kernel_id, ramdisk_id,
+                    reservation=reservation)
                 instances.append(instance)
-            # Create a reservation object with the parsed data.
-            reservation = Reservation(
-                reservation_id=reservation_data.findtext(
-                    self.name_space + 'reservationId'),
-                owner_id=reservation_data.findtext(
-                    self.name_space + 'ownerId'),
-                groups=groups, instances=instances)
-            results.append(reservation)
+            results.extend(instances)
         return results
 
     def terminate_instances(self, *instance_ids):
         """Terminate some instances.
         
-        :param instance_ids: The ids of the instances to terminate.
-        :return: A deferred which on success gives an iterable of
+        @param instance_ids: The ids of the instances to terminate.
+        @return: A deferred which on success gives an iterable of
             (id, old-state, new-state) tuples.
         """
         instanceset = {}
