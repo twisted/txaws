@@ -52,7 +52,7 @@ class AWSServiceEndpoint(object):
             uri = "%s:%s" % (uri, self.port)
         return uri + self.path
 
-
+# XXX needs tests!
 class AWSServiceRegion(object):
     """
     This object represents a collection of client factories that use the same
