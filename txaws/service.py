@@ -51,14 +51,14 @@ class AWSServiceEndpoint(object):
             uri = "%s:%s" % (uri, self.port)
         return uri + self.path
 
-# XXX needs tests!
+
 class AWSServiceRegion(object):
     """
     This object represents a collection of client factories that use the same
     credentials. With Amazon, this collection is associated with a region
     (e.g., US or EU).
     """
-    def __init__(self, creds=None, location=REGION_US):
+    def __init__(self, creds=None, region=REGION_US):
         self.creds = creds
         self._clients = {}
         if region == REGION_US:
