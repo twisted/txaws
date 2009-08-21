@@ -4,10 +4,10 @@ New things in this module should be of relevance to more than one of amazon's
 services.
 """
 
-import time
-import hmac
 from base64 import b64encode
 from hashlib import sha1, md5
+import hmac
+import time
 
 # Import XML from somwhere; here in one place to prevent duplication.
 try:
