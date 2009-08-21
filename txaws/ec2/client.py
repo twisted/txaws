@@ -32,12 +32,43 @@ class Instance(object):
     """An Amazon EC2 Instance.
 
     @attrib instance_id: The instance ID of this instance.
-    @attrib instance_state: The state of this instance.
+    @attrib instance_state: The current state of this instance.
+    @attrib instance_type: The instance type.
+    @attrib image_id: Image ID of the AMI used to launch the instance.
+    @attrib private_dns_name: The private DNS name assigned to the instance.
+        This DNS name can only be used inside the Amazon EC2 network. This
+        element remains empty until the instance enters a running state.
+    @attrib dns_name: The public DNS name assigned to the instance. This DNS
+        name is contactable from outside the Amazon EC2 network. This element
+        remains empty until the instance enters a running state.
+    @attrib key_name: If this instance was launched with an associated key
+        pair, this displays the key pair name.
+    @attrib ami_launch_index: The AMI launch index, which can be used to find
+        this instance within the launch group.
+    @attrib product_codes: Product codes attached to this instance.
+    @attrib launch_time: The time the instance launched.
+    @attrib placement: The location where the instance launched.
+    @attrib kernel_id: Optional. Kernel associated with this instance.
+    @attrib ramdisk_id: Optional. RAM disk associated with this instance.
     """
-
-    def __init__(self, instance_id, instance_state, reservation=None):
+    def __init__(self, instance_id, instance_state, instance_type="",
+                 image_id="", private_dns_name="", dns_name="", key_name="",
+                 ami_launch_index="", launch_time="", placement="",
+                 product_codes=[], kernel_id=None, ramdisk_id=None,
+                 reservation=None):
         self.instance_id = instance_id
         self.instance_state = instance_state
+        self.instance_type = instance_type
+        self.image_id = image_id
+        self.private_dns_name = private_dns_name
+        self.dns_name = dns_name
+        self.key_name = key_name
+        self.ami_launch_index = ami_launch_index
+        self.launch_time = launch_time
+        self.placement = placement
+        self.product_codes = product_codes
+        self.kernel_id = kernel_id
+        self.ramdisk_id = ramdisk_id
         self.reservation = reservation
 
 
@@ -102,8 +133,35 @@ class EC2Client(object):
                 instance_state = instance_data.find(
                     self.name_space + 'instanceState').findtext(
                         self.name_space + 'name')
-                instance = Instance(instance_id, instance_state,
-                                    reservation=reservation)
+                instance_type = instance_data.findtext(
+                    self.name_space + 'instanceType')
+                image_id = instance_data.findtext(self.name_space + 'imageId')
+                private_dns_name = instance_data.findtext(
+                    self.name_space + 'privateDnsName')
+                dns_name = instance_data.findtext(self.name_space + 'dnsName')
+                key_name = instance_data.findtext(self.name_space + 'keyName')
+                ami_launch_index = instance_data.findtext(
+                    self.name_space + 'amiLaunchIndex')
+                launch_time = instance_data.findtext(
+                    self.name_space + 'launchTime')
+                placement = instance_data.find(
+                    self.name_space + 'placement').findtext(
+                        self.name_space + 'availabilityZone')
+                products = []
+                for product_data in instance_data.find(
+                    self.name_space + 'productCodesSet'):
+                    product_code = product_data.findtext(
+                        self.name_space + 'productCode')
+                    products.append(product_code)
+                kernel_id = instance_data.findtext(
+                    self.name_space + 'kernelId')
+                ramdisk_id = instance_data.findtext(
+                    self.name_space + 'ramdiskId')
+                instance = Instance(
+                    instance_id, instance_state, instance_type, image_id,
+                    private_dns_name, dns_name, key_name, ami_launch_index,
+                    launch_time, placement, products, kernel_id, ramdisk_id,
+                    reservation=reservation)
                 instances.append(instance)
             results.extend(instances)
         return results
