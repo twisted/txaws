@@ -1,17 +1,18 @@
 # Copyright (C) 2009 Robert Collins <robertc@robertcollins.net>
 # Licenced under the txaws licence available at /LICENSE in the txaws source.
-
 """A GTK client for working with aws."""
 
 from __future__ import absolute_import
-
-__all__ = ['main']
 
 import gnomekeyring
 import gobject
 import gtk
 
 from txaws.credentials import AWSCredentials
+
+
+__all__ = ['main']
+
 
 class AWSStatusIcon(gtk.StatusIcon):
     """A status icon shown when instances are running."""
@@ -49,7 +50,8 @@ class AWSStatusIcon(gtk.StatusIcon):
         self.manager = gtk.UIManager()
         self.manager.insert_action_group(ag, 0)
         self.manager.add_ui_from_string(menu)
-        self.menu = self.manager.get_widget('/Menubar/Menu/Stop instances').props.parent
+        self.menu = self.manager.get_widget(
+            '/Menubar/Menu/Stop instances').props.parent
         self.connect('popup-menu', self.on_popup_menu)
 
     def create_client(self, creds):
@@ -79,7 +81,8 @@ class AWSStatusIcon(gtk.StatusIcon):
             return AWSCredentials(access_key=key_id, secret_key=secret_key)
 
     def show_a_password_dialog(self):
-        self.password_dialog = gtk.Dialog("Enter your AWS credentals", None, gtk.DIALOG_MODAL,
+        self.password_dialog = gtk.Dialog(
+            "Enter your AWS credentals", None, gtk.DIALOG_MODAL,
             (gtk.STOCK_OK, gtk.RESPONSE_ACCEPT,
             gtk.STOCK_CANCEL,
             gtk.RESPONSE_REJECT))
@@ -103,38 +106,22 @@ class AWSStatusIcon(gtk.StatusIcon):
         self.password_dialog.connect('response', self.save_key)
         self.password_dialog.run()
 
-    def describe_instances(self):
-        """This is a convenience wrapper for getting all reservation instances.
-
-        The API in the txAWS EC2 client code changed to where
-        describe_instances returns objects that more closely mirror the XML
-        return value from Amazon. This wrapper preserves the original behaviour
-        by returning just the list of instances, not the reservations.
-        """
-        def _cb_get_all_instances(reservations):
-            instances = []
-            for reservation in reservations:
-                instances.extend(reservation.instances)
-            return instances
-        deferred = self.client.describe_instances()
-        deferred.addCallback(_cb_get_all_instances)
-        return deferred
-                
     def on_activate(self, data):
         if self.probing or not self.client:
             # don't ask multiple times, and don't ask until we have
             # credentials.
             return
         self.probing = True
-        self.describe_instances().addCallbacks(self.showhide, self.describe_error)
+        deferred = self.client.describe_instances()
+        deferred.addCallbacks(self.showhide, self.describe_error)
 
     def on_popup_menu(self, status, button, time):
         self.menu.popup(None, None, None, button, time)
 
     def on_stop_instances(self, data):
         # It would be nice to popup a window to select instances.. TODO.
-        self.describe_instances().addCallbacks(self.shutdown_instances,
-            self.show_error)
+        deferred = self.client.describe_instances()
+        deferred.addCallbacks(self.shutdown_instances, self.show_error)
 
     def save_key(self, response_id, data):
         # handle the dialog
