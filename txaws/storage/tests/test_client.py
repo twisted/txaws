@@ -5,6 +5,7 @@ from epsilon.extime import Time
 from twisted.internet.defer import succeed
 
 from txaws.credentials import AWSCredentials
+from txaws.service import AWSServiceEndpoint
 from txaws.storage.client import S3, S3Request
 from txaws.tests import TXAWSTestCase
 from txaws.util import calculate_md5
@@ -20,7 +21,8 @@ class StubbedS3Request(S3Request):
 
 class RequestTestCase(TXAWSTestCase):
 
-    service = S3Service(access_key='fookeyid', secret_key='barsecretkey')
+    creds = AWSCredentials(access_key='fookeyid', secret_key='barsecretkey')
+    endpoint = AWSServiceEndpoint("https://s3.amazonaws.com/")
 
     def test_objectRequest(self):
         """
@@ -31,7 +33,7 @@ class RequestTestCase(TXAWSTestCase):
 
         request = S3Request('PUT', 'somebucket', 'object/name/here', DATA,
                             content_type='text/plain', metadata={'foo': 'bar'},
-                            service=self.service)
+                            creds=self.creds, endpoint=self.endpoint)
         request.get_signature = lambda headers: "TESTINGSIG="
         self.assertEqual(request.verb, 'PUT')
         self.assertEqual(
@@ -54,7 +56,8 @@ class RequestTestCase(TXAWSTestCase):
         """
         DIGEST = '1B2M2Y8AsgTpgAmY7PhCfg=='
 
-        request = S3Request('GET', 'somebucket', service=self.service)
+        request = S3Request('GET', 'somebucket', creds=self.creds,
+                            endpoint=self.endpoint)
         request.get_signature = lambda headers: "TESTINGSIG="
         self.assertEqual(request.verb, 'GET')
         self.assertEqual(
@@ -72,7 +75,8 @@ class RequestTestCase(TXAWSTestCase):
         """
         Submitting the request should invoke getPage correctly.
         """
-        request = StubbedS3Request('GET', 'somebucket', service=self.service)
+        request = StubbedS3Request('GET', 'somebucket', creds=self.creds,
+                                   endpoint=self.endpoint)
 
         def _postCheck(result):
             self.assertEqual(result, '')
@@ -86,7 +90,7 @@ class RequestTestCase(TXAWSTestCase):
         return request.submit().addCallback(_postCheck)
 
     def test_authenticationTestCases(self):
-        request = S3Request('GET', service=self.service)
+        request = S3Request('GET', creds=self.creds, endpoint=self.endpoint)
         request.get_signature = lambda headers: "TESTINGSIG="
         request.date = 'Wed, 28 Mar 2007 01:29:59 +0000'
 
@@ -158,18 +162,20 @@ class WrapperTests(TXAWSTestCase):
 
     def setUp(self):
         TXAWSTestCase.setUp(self)
-        self.service = S3Service(
+        self.creds = AWSCredentials(
             access_key='accessKey', secret_key='secretKey')
-        self.s3 = TestableS3(service=self.service)
+        self.endpoint = AWSServiceEndpoint()
+        self.s3 = TestableS3(creds=self.creds, endpoint=self.endpoint)
 
     def test_make_request(self):
         """
-        Test that make_request passes in the service object.
+        Test that make_request passes in the credentials object.
         """
         marker = object()
 
         def _cb(*a, **kw):
-            self.assertEqual(kw['service'], self.service)
+            self.assertEqual(kw['creds'], self.creds)
+            self.assertEqual(kw['endpoint'], self.endpoint)
             return marker
 
         self.s3.request_factory = _cb
