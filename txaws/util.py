@@ -5,7 +5,7 @@ services.
 """
 
 from base64 import b64encode
-from hashlib import sha1
+from hashlib import sha1, md5
 import hmac
 import time
 
@@ -17,6 +17,11 @@ except ImportError:
 
 
 __all__ = ['hmac_sha1', 'iso8601time']
+
+
+def calculate_md5(data):
+    digest = md5(data).digest()
+    return b64encode(digest)
 
 
 def hmac_sha1(secret, data):
