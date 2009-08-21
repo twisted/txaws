@@ -198,5 +198,5 @@ class Query(object):
         @return: A deferred from twisted.web.client.getPage
         """
         self.sign()
-        url = "%s?%s" % (self.service.get_url(), self.canonical_query_params())
+        url = "%s?%s" % (self.service.get_uri(), self.canonical_query_params())
         return getPage(url, method=self.service.method)
