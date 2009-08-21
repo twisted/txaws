@@ -3,86 +3,47 @@
 
 import os
 
-from txaws.service import AWSService, ENV_ACCESS_KEY, ENV_SECRET_KEY
+from txaws.credentials import AWSCredentials
+from txaws.service import AWSServiceEndpoint, AWSServiceRegion
 from txaws.tests import TXAWSTestCase
 
-
-class AWSServiceTestCase(TXAWSTestCase):
+class AWSServiceEndpointTestCase(TXAWSTestCase):
 
     def setUp(self):
-        self.service = AWSService("fookeyid", "barsecretkey",
-                                  "http://my.service/da_endpoint")
-        self.addCleanup(self.clean_environment)
-
-    def clean_environment(self):
-        if os.environ.has_key(ENV_ACCESS_KEY):
-            del os.environ[ENV_ACCESS_KEY]
-        if os.environ.has_key(ENV_SECRET_KEY):
-            del os.environ[ENV_SECRET_KEY]
+        self.endpoint = AWSServiceEndpoint(uri="http://my.service/da_endpoint")
 
     def test_simple_creation(self):
-        service = AWSService("fookeyid", "barsecretkey")
-        self.assertEquals(service.access_key, "fookeyid")
-        self.assertEquals(service.secret_key, "barsecretkey")
-        self.assertEquals(service.schema, "https")
-        self.assertEquals(service.host, "")
-        self.assertEquals(service.port, 80)
-        self.assertEquals(service.endpoint, "/")
-        self.assertEquals(service.method, "GET")
-
-    def test_no_access_errors(self):
-        # Without anything in os.environ, AWSService() blows up
-        os.environ[ENV_SECRET_KEY] = "bar"
-        self.assertRaises(ValueError, AWSService)
-
-    def test_no_secret_errors(self):
-        # Without anything in os.environ, AWSService() blows up
-        os.environ[ENV_ACCESS_KEY] = "foo"
-        self.assertRaises(ValueError, AWSService)
-
-    def test_found_values_used(self):
-        os.environ[ENV_ACCESS_KEY] = "foo"
-        os.environ[ENV_SECRET_KEY] = "bar"
-        service = AWSService()
-        self.assertEqual("foo", service.access_key)
-        self.assertEqual("bar", service.secret_key)
-        self.clean_environment()
-
-    def test_explicit_access_key(self):
-        os.environ[ENV_SECRET_KEY] = "foo"
-        service = AWSService(access_key="bar")
-        self.assertEqual("foo", service.secret_key)
-        self.assertEqual("bar", service.access_key)
-
-    def test_explicit_secret_key(self):
-        os.environ[ENV_ACCESS_KEY] = "bar"
-        service = AWSService(secret_key="foo")
-        self.assertEqual("foo", service.secret_key)
-        self.assertEqual("bar", service.access_key)
+        endpoint = AWSServiceEndpoint()
+        self.assertEquals(endpoint.scheme, "http")
+        self.assertEquals(endpoint.host, "")
+        self.assertEquals(endpoint.port, 80)
+        self.assertEquals(endpoint.path, "/")
+        self.assertEquals(endpoint.method, "GET")
 
     def test_parse_uri(self):
-        self.assertEquals(self.service.schema, "http")
-        self.assertEquals(self.service.host, "my.service")
-        self.assertEquals(self.service.port, 80)
-        self.assertEquals(self.service.endpoint, "/da_endpoint")
+        self.assertEquals(self.endpoint.scheme, "http")
+        self.assertEquals(self.endpoint.host, "my.service")
+        self.assertEquals(self.endpoint.port, 80)
+        self.assertEquals(self.endpoint.path, "/da_endpoint")
 
     def test_parse_uri_https_and_custom_port(self):
-        service = AWSService("foo", "bar", "https://my.service:8080/endpoint")
-        self.assertEquals(service.schema, "https")
-        self.assertEquals(service.host, "my.service")
-        self.assertEquals(service.port, 8080)
-        self.assertEquals(service.endpoint, "/endpoint")
+        endpoint = AWSServiceEndpoint(uri="https://my.service:8080/endpoint")
+        self.assertEquals(endpoint.scheme, "https")
+        self.assertEquals(endpoint.host, "my.service")
+        self.assertEquals(endpoint.port, 8080)
+        self.assertEquals(endpoint.path, "/endpoint")
 
     def test_custom_method(self):
-        service = AWSService("foo", "bar", "http://service/endpoint", "PUT")
-        self.assertEquals(service.method, "PUT")
+        endpoint = AWSServiceEndpoint(uri="http://service/endpoint",
+                                      method="PUT")
+        self.assertEquals(endpoint.method, "PUT")
 
     def test_get_uri(self):
-        uri = self.service.get_uri()
+        uri = self.endpoint.get_uri()
         self.assertEquals(uri, "http://my.service/da_endpoint")
 
     def test_get_uri_custom_port(self):
         uri = "https://my.service:8080/endpoint"
-        service = AWSService("foo", "bar", uri)
-        new_uri = service.get_uri()
+        endpoint = AWSServiceEndpoint(uri=uri)
+        new_uri = endpoint.get_uri()
         self.assertEquals(new_uri, uri)

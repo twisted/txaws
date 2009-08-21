@@ -16,7 +16,6 @@ from twisted.web.client import getPage
 from twisted.web.http import datetimeToString
 
 from txaws.credentials import AWSCredentials
-from txaws.service import AWSService
 from txaws.util import XML, calculate_md5
 
 
@@ -26,15 +25,15 @@ name_space = '{http://s3.amazonaws.com/doc/2006-03-01/}'
 class S3Request(object):
 
     def __init__(self, verb, bucket=None, object_name=None, data='',
-                 content_type=None, metadata={}, service=None):
+                 content_type=None, metadata={}, creds=None, endpoint=None):
         self.verb = verb
         self.bucket = bucket
         self.object_name = object_name
         self.data = data
         self.content_type = content_type
         self.metadata = metadata
-        self.service = service
-        self.service.endpoint = self.get_path()
+        self.creds = creds
+        self.endpoint = endpoint or self.get_uri()
         self.date = datetimeToString()
 
     def get_path(self):
@@ -46,7 +45,8 @@ class S3Request(object):
         return path
 
     def get_uri(self):
-        return self.service.get_uri()
+        self.endpoint.set_path(self.get_path())
+        return self.endpoint.get_uri()
 
     def get_headers(self):
         headers = {'Content-Length': len(self.data),
@@ -59,10 +59,10 @@ class S3Request(object):
         if self.content_type is not None:
             headers['Content-Type'] = self.content_type
 
-        if self.service is not None:
+        if self.creds is not None:
             signature = self.get_signature(headers)
             headers['Authorization'] = 'AWS %s:%s' % (
-                self.service.access_key, signature)
+                self.creds.access_key, signature)
         return headers
 
     def get_canonicalized_resource(self):
@@ -82,7 +82,7 @@ class S3Request(object):
                 headers.get('Date', '') + '\n' +
                 self.get_canonicalized_amz_headers(headers) +
                 self.get_canonicalized_resource())
-        return self.service.sign(text)
+        return self.creds.sign(text)
 
     def submit(self):
         return self.get_page(url=self.get_uri(), method=self.verb,
@@ -96,17 +96,19 @@ class S3(object):
 
     request_factory = S3Request
 
-    def __init__(self, service):
-        self.service = service
+    def __init__(self, creds, endpoint):
+        self.creds = creds
+        self.endpoint = endpoint
 
     def make_request(self, *a, **kw):
         """
         Create a request with the arguments passed in.
 
-        This uses the request_factory attribute, adding the service to the
-        arguments passed in.
+        This uses the request_factory attribute, adding the creds and endpoint
+        to the arguments passed in.
         """
-        return self.request_factory(service=self.service, *a, **kw)
+        return self.request_factory(creds=self.creds, endpoint=self.endpoint,
+                                    *a, **kw)
 
     def _parse_bucket_list(self, response):
         """
