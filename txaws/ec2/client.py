@@ -117,7 +117,35 @@ class EC2Client(object):
                 instance_state = instance_data.find(
                     self.name_space + 'instanceState').findtext(
                         self.name_space + 'name')
-                instances.append(Instance(instance_id, instance_state))
+                instance_type = instance_data.findtext(
+                    self.name_space + 'instanceType')
+                image_id = instance_data.findtext(self.name_space + 'imageId')
+                private_dns_name = instance_data.findtext(
+                    self.name_space + 'privateDnsName')
+                dns_name = instance_data.findtext(self.name_space + 'dnsName')
+                key_name = instance_data.findtext(self.name_space + 'keyName')
+                ami_launch_index = instance_data.findtext(
+                    self.name_space + 'amiLaunchIndex')
+                launch_time = instance_data.findtext(
+                    self.name_space + 'launchTime')
+                placement = instance_data.find(
+                    self.name_space + 'placement').findtext(
+                        self.name_space + 'availabilityZone')
+                products = []
+                for product_data in instance_data.find(
+                    self.name_space + 'productCodesSet'):
+                    product_code = product_data.findtext(
+                        self.name_space + 'productCode')
+                    products.append(product_code)
+                kernel_id = instance_data.findtext(
+                    self.name_space + 'kernelId')
+                ramdisk_id = instance_data.findtext(
+                    self.name_space + 'ramdiskId')
+                instance = Instance(
+                    instance_id, instance_state, instance_type, image_id,
+                    private_dns_name, dns_name, key_name, ami_launch_index,
+                    launch_time, placement, products, kernel_id, ramdisk_id)
+                instances.append(instance)
             # Create a reservation object with the parsed data.
             reservation = Reservation(
                 reservation_id=reservation_data.findtext(
