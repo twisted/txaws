@@ -52,7 +52,8 @@ class AWSService(object):
             raise ValueError("Could not find %s" % ENV_SECRET_KEY)
 
     def _parse_uri(self, uri):
-        scheme, host, port, endpoint = _parse(uri, defaultPort=DEFAULT_PORT)
+        scheme, host, port, endpoint = _parse(
+            str(uri), defaultPort=DEFAULT_PORT)
         self.schema = scheme
         self.host = host
         self.port = port
