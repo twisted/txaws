@@ -4,10 +4,10 @@ from epsilon.extime import Time
 
 from twisted.internet.defer import succeed
 
-from txaws.util import calculate_md5
-from txaws.tests import TXAWSTestCase
-from txaws.storage.service import S3Service
+from txaws.credentials import AWSCredentials
 from txaws.storage.client import S3, S3Request
+from txaws.tests import TXAWSTestCase
+from txaws.util import calculate_md5
 
 
 

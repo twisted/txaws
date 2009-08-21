@@ -7,16 +7,17 @@ Various API-incompatible changes are planned in order to expose missing
 functionality in this wrapper.
 """
 
-from hashlib import md5
 from base64 import b64encode
+from hashlib import md5
 
 from epsilon.extime import Time
 
 from twisted.web.client import getPage
 from twisted.web.http import datetimeToString
 
-from txaws.util import XML, calculate_md5
+from txaws.credentials import AWSCredentials
 from txaws.service import AWSService
+from txaws.util import XML, calculate_md5
 
 
 name_space = '{http://s3.amazonaws.com/doc/2006-03-01/}'
