@@ -89,9 +89,11 @@ class AWSServiceRegionTestCase(TXAWSTestCase):
     def test_get_ec2_client_from_cache(self):
         client1 = self.region.get_ec2_client(self.creds)
         client2 = self.region.get_ec2_client(self.creds)
+        self.assertEquals(self.creds, self.region.creds)
         self.assertTrue(isinstance(client1, EC2Client))
         self.assertTrue(isinstance(client2, EC2Client))
         self.assertEquals(client2, client2)
+
 
     def test_get_s3_client(self):
         self.assertRaises(NotImplementedError, self.region.get_s3_client)
