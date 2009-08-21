@@ -20,22 +20,20 @@ sample_describe_instances_result = """<?xml version="1.0"?>
                         <code>16</code>
                         <name>running</name>
                     </instanceState>
-                    <privateDnsName>
-                        domU-12-31-39-03-15-11.compute-1.internal
-                    </privateDnsName>
-                    <dnsName>
-                        ec2-75-101-245-65.compute-1.amazonaws.com
-                    </dnsName>
+                    <privateDnsName>domU-12-31-39-03-15-11.compute-1.internal</privateDnsName>
+                    <dnsName>ec2-75-101-245-65.compute-1.amazonaws.com</dnsName>
                     <reason/>
                     <keyName>keyname</keyName>
                     <amiLaunchIndex>0</amiLaunchIndex>
-                    <productCodes/>
+                    <productCodesSet>
+                        <item>
+                            <productCode>774F4FF8</productCode>
+                        </item>
+                    </productCodesSet>
                     <instanceType>c1.xlarge</instanceType>
                     <launchTime>2009-04-27T02:23:18.000Z</launchTime>
                     <placement>
-                        <availabilityZone>
-                            us-east-1c
-                        </availabilityZone>
+                        <availabilityZone>us-east-1c</availabilityZone>
                     </placement>
                     <kernelId>aki-b51cf9dc</kernelId>
                     <ramdiskId>ari-b31cf9da</ramdiskId>
