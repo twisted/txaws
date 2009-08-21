@@ -35,7 +35,12 @@ sample_describe_instances_result = """<?xml version="1.0"?>
                     <reason/>
                     <keyName>keyname</keyName>
                     <amiLaunchIndex>0</amiLaunchIndex>
-                    <productCodes/>
+                    <productCodesSet>
+                        <item>
+                            <productCode>774F4FF8</productCode>
+                        </item>
+                    </productCodesSet>
+
                     <instanceType>c1.xlarge</instanceType>
                     <launchTime>2009-04-27T02:23:18.000Z</launchTime>
                     <placement>
@@ -91,6 +96,27 @@ class ReservationTestCase(TXAWSTestCase):
         self.assertEquals(reservation.groups, ["one", "two"])
 
 
+class InstanceTestCase(TXAWSTestCase):
+
+    def test_instance_creation(self):
+        instance = client.Instance(
+            "id1", "running", "type", "id2", "dns1", "dns2", "key", "ami",
+            "time", "placement", ["prod1", "prod2"], "id3", "id4")
+        self.assertEquals(instance.instance_id, "id1")
+        self.assertEquals(instance.instance_state, "running")
+        self.assertEquals(instance.instance_type, "type")
+        self.assertEquals(instance.image_id, "id2")
+        self.assertEquals(instance.private_dns_name, "dns1")
+        self.assertEquals(instance.dns_name, "dns2")
+        self.assertEquals(instance.key_name, "key")
+        self.assertEquals(instance.ami_launch_index, "ami")
+        self.assertEquals(instance.launch_time, "time")
+        self.assertEquals(instance.placement, "placement")
+        self.assertEquals(instance.product_codes, ["prod1", "prod2"])
+        self.assertEquals(instance.kernel_id, "id3")
+        self.assertEquals(instance.ramdisk_id, "id4")
+
+
 class TestEC2Client(TXAWSTestCase):
     
     def test_init_no_creds(self):
@@ -116,6 +142,24 @@ class TestEC2Client(TXAWSTestCase):
         self.assertEquals(reservation.owner_id, "123456789012")
         group = reservation.groups[0]
         self.assertEquals(group, "default")
+        self.assertEquals(instance.instance_id, "i-abcdef01")
+        self.assertEquals(instance.instance_state, "running")
+        self.assertEquals(instance.instance_type, "c1.xlarge")
+        self.assertEquals(instance.image_id, "ami-12345678")
+        self.assertEquals(
+            instance.private_dns_name,
+            "domU-12-31-39-03-15-11.compute-1.internal")
+        self.assertEquals(
+            instance.dns_name,
+            "ec2-75-101-245-65.compute-1.amazonaws.com")
+        self.assertEquals(instance.key_name, "keyname")
+        self.assertEquals(instance.ami_launch_index, "0")
+        self.assertEquals(instance.launch_time, "2009-04-27T02:23:18.000Z")
+        self.assertEquals(instance.placement, "us-east-1c")
+        self.assertEquals(instance.product_codes, ["774F4FF8"])
+        self.assertEquals(instance.kernel_id, "aki-b51cf9dc")
+        self.assertEquals(instance.ramdisk_id, "ari-b31cf9da")
+
 
     def test_parse_reservation(self):
         ec2 = client.EC2Client(creds='foo')
