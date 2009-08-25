@@ -6,6 +6,7 @@ import os
 
 from twisted.web.client import _parse
 
+from txaws.credentials import AWSCredentials
 
 
 __all__ = ["AWSServiceEndpoint", "AWSServiceRegion", "REGION_US", "REGION_EU"]
@@ -57,8 +58,19 @@ class AWSServiceRegion(object):
     This object represents a collection of client factories that use the same
     credentials. With Amazon, this collection is associated with a region
     (e.g., US or EU).
+
+    @param creds: an AWSCredentials instance, optional.
+    @param access_key: The access key to use. This is only checked if no creds
+        parameter was passed.
+    @param secret_key: The secret key to use. This is only checked if no creds
+        parameter was passed.
+    @param region: a string value that represents the region that the
+        associated creds will be used against a collection of services.
     """
-    def __init__(self, creds=None, region=REGION_US):
+    def __init__(self, creds=None, access_key="", secret_key="",
+                 region=REGION_US):
+        if not creds:
+            creds = AWSCredentials(access_key, secret_key)
         self.creds = creds
         self._clients = {}
         if region == REGION_US:
