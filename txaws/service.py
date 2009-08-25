@@ -66,14 +66,18 @@ class AWSServiceRegion(object):
         parameter was passed.
     @param region: a string value that represents the region that the
         associated creds will be used against a collection of services.
+    @param uri: an endpoint URI that, if provided, will override the region
+        parameter.
     """
     def __init__(self, creds=None, access_key="", secret_key="",
-                 region=REGION_US):
+                 region=REGION_US, uri=""):
         if not creds:
             creds = AWSCredentials(access_key, secret_key)
         self.creds = creds
         self._clients = {}
-        if region == REGION_US:
+        if uri:
+            ec2_endpoint = uri
+        elif region == REGION_US:
             ec2_endpoint = EC2_ENDPOINT_US
         elif region == REGION_EU:
             ec2_endpoint = EC2_ENDPOINT_EU
