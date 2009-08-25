@@ -8,7 +8,7 @@ from twisted.web.client import _parse
 
 
 
-__all__ = ["AWSServiceEndpoint", "AWSServiceRegion"]
+__all__ = ["AWSServiceEndpoint", "AWSServiceRegion", "REGION_US", "REGION_EU"]
 
 
 REGION_US = "US"
@@ -67,10 +67,16 @@ class AWSServiceRegion(object):
             ec2_endpoint = EC2_ENDPOINT_EU
         self.ec2_endpoint = AWSServiceEndpoint(uri=ec2_endpoint)
 
-    def get_client(self, cls, *args, **kwds):
+    def get_client(self, cls, purge_cache=False, *args, **kwds):
+        """
+        This is a general method for getting a client: if present, it is pulled
+        from the cache; if not, a new one is instantiated and then put into the
+        cache. This method should not be called directly, but rather by other
+        client-specific methods (e.g., get_ec2_client).
+        """
         key = str(cls) + str(args) + str(kwds)
         instance = self._clients.get(key)
-        if not instance:
+        if purge_cache or not instance:
             instance = cls(*args, **kwds)
         self._clients[key] = instance
         return instance

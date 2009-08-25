@@ -82,7 +82,7 @@ class EC2Client(object):
         """Create an EC2Client.
 
         @param creds: User authentication credentials to use.
-        @param endpoint: The service URI.
+        @param endpoint: The service endpoint URI.
         @param query_factory: The class or function that produces a query
             object for making requests to the EC2 service.
         """
@@ -95,7 +95,7 @@ class EC2Client(object):
 
     def describe_instances(self):
         """Describe current instances."""
-        q = self.query_factory('DescribeInstances', self.creds)
+        q = self.query_factory('DescribeInstances', self.creds, self.endpoint)
         d = q.submit()
         return d.addCallback(self._parse_instances)
 
@@ -244,7 +244,7 @@ class Query(object):
         return result
 
     def sign(self):
-        """Sign this query using its built in service.
+        """Sign this query using its built in creds.
         
         This prepares it to be sent, and should be done as the last step before
         submitting the query. Signing is done automatically - this is a public
@@ -264,4 +264,4 @@ class Query(object):
         self.sign()
         url = "%s?%s" % (self.endpoint.get_uri(), 
                          self.canonical_query_params())
-        return getPage(url, method=self.service.method)
+        return getPage(url, method=self.endpoint.method)

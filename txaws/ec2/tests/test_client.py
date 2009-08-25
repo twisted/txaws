@@ -170,7 +170,7 @@ class EC2ClientTestCase(TXAWSTestCase):
 
     def test_describe_instances(self):
         class StubQuery(object):
-            def __init__(stub, action, creds):
+            def __init__(stub, action, creds, endpoint):
                 self.assertEqual(action, 'DescribeInstances')
                 self.assertEqual(creds.access_key, "foo")
                 self.assertEqual(creds.secret_key, "bar")
