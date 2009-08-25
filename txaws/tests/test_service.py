@@ -8,6 +8,7 @@ from txaws.ec2.client import EC2Client
 from txaws.service import AWSServiceEndpoint, AWSServiceRegion, EC2_ENDPOINT_US
 from txaws.tests import TXAWSTestCase
 
+
 class AWSServiceEndpointTestCase(TXAWSTestCase):
 
     def setUp(self):
@@ -67,6 +68,17 @@ class AWSServiceRegionTestCase(TXAWSTestCase):
         self.assertEquals(self.creds, self.region.creds)
         self.assertEquals(self.region._clients, {})
         self.assertEquals(self.region.ec2_endpoint.get_uri(), EC2_ENDPOINT_US)
+
+    def test_creation_with_keys(self):
+        region = AWSServiceRegion(access_key="baz", secret_key="quux")
+        self.assertEquals(region.creds.access_key, "baz")
+        self.assertEquals(region.creds.secret_key, "quux")
+
+    def test_creation_with_keys_and_creds(self):
+        region = AWSServiceRegion(self.creds, access_key="baz",
+                                  secret_key="quux")
+        self.assertEquals(self.creds.access_key, "foo")
+        self.assertEquals(self.creds.secret_key, "bar")
 
     def test_get_client_with_empty_cache(self):
         key = str(EC2Client) + str(self.creds) + str(self.region.ec2_endpoint)

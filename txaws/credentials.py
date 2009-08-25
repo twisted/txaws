@@ -16,17 +16,18 @@ ENV_SECRET_KEY = "AWS_SECRET_ACCESS_KEY"
 
 
 class AWSCredentials(object):
+    """Create an AWSCredentials object.
 
+    @param access_key: The access key to use. If None the environment variable
+        AWS_ACCESS_KEY_ID is consulted.
+    @param secret_key: The secret key to use. If None the environment variable
+        AWS_SECRET_ACCESS_KEY is consulted.
+    """
+ 
     def __init__(self, access_key="", secret_key=""):
-        """Create an AWSCredentials object.
-
-        @param access_key: The access key to use. If None the environment
-            variable AWS_ACCESS_KEY_ID is consulted.
-        @param secret_key: The secret key to use. If None the environment
-            variable AWS_SECRET_ACCESS_KEY is consulted.
-        """
         self.access_key = access_key
         self.secret_key = secret_key
+        # perform checks for access key
         if not self.access_key:
             self.access_key = os.environ.get(ENV_ACCESS_KEY)
         if not self.access_key:
