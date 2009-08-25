@@ -72,19 +72,30 @@ class AWSServiceRegionTestCase(TXAWSTestCase):
         key = str(EC2Client) + str(self.creds) + str(self.region.ec2_endpoint)
         original_client = self.region._clients.get(key)
         new_client = self.region.get_client(
-            EC2Client, self.creds, self.region.ec2_endpoint)
+            EC2Client, creds=self.creds, endpoint=self.region.ec2_endpoint)
         self.assertEquals(original_client, None)
-        self.assertNotEquals(original_client, new_client)
         self.assertTrue(isinstance(new_client, EC2Client))
+        self.assertNotEquals(original_client, new_client)
 
     def test_get_client_from_cache(self):
         client1 = self.region.get_client(
-            EC2Client, self.creds, self.region.ec2_endpoint)
+            EC2Client, creds=self.creds, endpoint=self.region.ec2_endpoint)
         client2 = self.region.get_client(
-            EC2Client, self.creds, self.region.ec2_endpoint)
+            EC2Client, creds=self.creds, endpoint=self.region.ec2_endpoint)
         self.assertTrue(isinstance(client1, EC2Client))
         self.assertTrue(isinstance(client2, EC2Client))
-        self.assertEquals(client2, client2)
+        self.assertEquals(client1, client2)
+
+    def test_get_client_from_cache_with_purge(self):
+        client1 = self.region.get_client(
+            EC2Client, creds=self.creds, endpoint=self.region.ec2_endpoint,
+            purge_cache=True)
+        client2 = self.region.get_client(
+            EC2Client, creds=self.creds, endpoint=self.region.ec2_endpoint,
+            purge_cache=True)
+        self.assertTrue(isinstance(client1, EC2Client))
+        self.assertTrue(isinstance(client2, EC2Client))
+        self.assertNotEquals(client1, client2)
 
     def test_get_ec2_client_from_cache(self):
         client1 = self.region.get_ec2_client(self.creds)
@@ -92,7 +103,7 @@ class AWSServiceRegionTestCase(TXAWSTestCase):
         self.assertEquals(self.creds, self.region.creds)
         self.assertTrue(isinstance(client1, EC2Client))
         self.assertTrue(isinstance(client2, EC2Client))
-        self.assertEquals(client2, client2)
+        self.assertEquals(client1, client2)
 
 
     def test_get_s3_client(self):
