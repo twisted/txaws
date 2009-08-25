@@ -8,7 +8,8 @@ import gnomekeyring
 import gobject
 import gtk
 
-from txaws.ec2.service import EC2Service
+from txaws.credentials import AWSCredentials
+from txaws.service import AWSServiceRegion
 
 
 __all__ = ['main']
@@ -27,10 +28,11 @@ class AWSStatusIcon(gtk.StatusIcon):
         # Nested import because otherwise we get 'reactor already installed'.
         self.password_dialog = None
         try:
-            service = AWSService()
+            creds = AWSCredentials()
         except ValueError:
-            service = self.from_gnomekeyring()
-        self.create_client(service)
+            creds = self.from_gnomekeyring()
+        self.region = AWSServiceRegion(creds)
+        self.create_client(creds)
         menu = '''
             <ui>
              <menubar name="Menubar">
@@ -54,10 +56,9 @@ class AWSStatusIcon(gtk.StatusIcon):
             '/Menubar/Menu/Stop instances').props.parent
         self.connect('popup-menu', self.on_popup_menu)
 
-    def create_client(self, service):
-        from txaws.ec2.client import EC2Client
-        if service is not None:
-            self.client = EC2Client(service=service)
+    def create_client(self, creds):
+        if creds is not None:
+            self.client = self.region.get_ec2_client()
             self.on_activate(None)
         else:
             # waiting on user entered credentials.
@@ -65,7 +66,7 @@ class AWSStatusIcon(gtk.StatusIcon):
 
     def from_gnomekeyring(self):
         # Try for gtk gui specific credentials.
-        service = None
+        creds = None
         try:
             items = gnomekeyring.find_items_sync(
                 gnomekeyring.ITEM_GENERIC_SECRET,
@@ -78,7 +79,7 @@ class AWSStatusIcon(gtk.StatusIcon):
             return None
         else:
             key_id, secret_key = items[0].secret.split(':')
-            return EC2Service(access_key=key_id, secret_key=secret_key)
+            return AWSCredentials(access_key=key_id, secret_key=secret_key)
 
     def show_a_password_dialog(self):
         self.password_dialog = gtk.Dialog(
@@ -133,8 +134,9 @@ class AWSStatusIcon(gtk.StatusIcon):
             content = self.password_dialog.get_content_area()
             key_id = content.get_children()[0].get_children()[1].get_text()
             secret_key = content.get_children()[1].get_children()[1].get_text()
-            service = EC2Service(access_key=key_id, secret_key=secret_key)
-            self.create_client(service)
+            creds = AWSCredentials(access_key=key_id, secret_key=secret_key)
+            region = AWSServiceRegion(creds=creds)
+            self.create_client(creds)
             gnomekeyring.item_create_sync(
                 None,
                 gnomekeyring.ITEM_GENERIC_SECRET,
@@ -196,7 +198,10 @@ def main(argv, reactor=None):
     """
     if reactor is None:
         from twisted.internet import gtk2reactor
-        gtk2reactor.install()
+        try:
+            gtk2reactor.install()
+        except AssertionError:
+            pass
         from twisted.internet import reactor
     status = AWSStatusIcon(reactor)
     gobject.set_application_name('aws-status')
