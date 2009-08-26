@@ -9,14 +9,14 @@ from hashlib import sha1, md5
 import hmac
 import time
 
-# Import XML from somwhere; here in one place to prevent duplication.
+# Import XMLTreeBuilder from somwhere; here in one place to prevent duplication.
 try:
-    from xml.etree.ElementTree import XML
+    from xml.etree.ElementTree import XMLTreeBuilder
 except ImportError:
-    from elementtree.ElementTree import XML
+    from elementtree.ElementTree import XMLTreeBuilder
 
 
-__all__ = ['hmac_sha1', 'iso8601time']
+__all__ = ["hmac_sha1", "iso8601time", "XML"]
 
 
 def calculate_md5(data):
@@ -38,3 +38,17 @@ def iso8601time(time_tuple):
         return time.strftime("%Y-%m-%dT%H:%M:%SZ", time_tuple)
     else:
         return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+
+
+class NamespaceFixXmlTreeBuilder(XMLTreeBuilder):
+
+    def _fixname(self, key):
+        if "}" in key:
+            key = key.split("}", 1)[1]
+        return key
+
+
+def XML(text):
+    parser = NamespaceFixXmlTreeBuilder()
+    parser.feed(text)
+    return parser.close()

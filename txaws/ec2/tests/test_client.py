@@ -333,6 +333,14 @@ class TestEBS(TXAWSTestCase):
             self.assertEquals(volume.status, "in-use")
             create_time = datetime(2008, 05, 07, 11, 51, 50)
             self.assertEquals(volume.create_time, create_time)
+            self.assertEquals(len(volume.attachments), 1)
+            attachment = volume.attachments[0]
+            self.assertEquals(attachment.instance_id, "i-6058a509")
+            self.assertEquals(attachment.snapshot_id, "snap-12345678")
+            self.assertEquals(attachment.availability_zone, "us-east-1a")
+            self.assertEquals(attachment.status, "attached")
+            attach_time = datetime(2008, 05, 07, 12, 51, 50)
+            self.assertEquals(attachment.attach_time, attach_time)
             
         ec2 = client.EC2Client(creds="foo", query_factory=StubQuery)
         d = ec2.describe_volumes()
