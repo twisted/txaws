@@ -95,6 +95,17 @@ class Attachment(object):
         self.attach_time = attach_time
 
 
+class Snapshot(object):
+    """A snapshot of a L{Volume}."""
+
+    def __init__(self, id, volume_id, status, start_time, progress):
+        self.id = id
+        self.volume_id = volume_id
+        self.status = status
+        self.start_time = start_time
+        self.progress = progress
+
+
 class EC2Client(object):
     """A client for EC2."""
 
@@ -231,6 +242,29 @@ class EC2Client(object):
                     instance_id, snapshot_id, availability_zone, status,
                     attach_time)
                 volume.attachments.append(attachment)
+        return result
+
+    def describe_snapshots(self):
+        """Describe available snapshots."""
+        q = self.query_factory("DescribeSnapshots", self.creds)
+        d = q.submit()
+        return d.addCallback(self._parse_snapshots)
+
+    def _parse_snapshots(self, xml_bytes):
+        root = XML(xml_bytes)
+        result = []
+        for snapshot_data in root.find("snapshotSet"):
+            snapshot_id = snapshot_data.findtext("snapshotId")
+            volume_id = snapshot_data.findtext("volumeId")
+            status = snapshot_data.findtext("status")
+            start_time = snapshot_data.findtext("startTime")
+            start_time = datetime.strptime(
+                start_time[:19], "%Y-%m-%dT%H:%M:%S")
+            progress = snapshot_data.findtext("progress")[:-1]
+            progress = float(progress) / 100.
+            snapshot = Snapshot(
+                snapshot_id, volume_id, status, start_time, progress)
+            result.append(snapshot)
         return result
 
 
