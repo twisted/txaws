@@ -4,6 +4,7 @@
 """EC2 client support."""
 
 from base64 import b64encode
+from datetime import datetime
 from urllib import quote
 
 from twisted.web.client import getPage
@@ -71,6 +72,16 @@ class Instance(object):
         self.ramdisk_id = ramdisk_id
         self.reservation = reservation
 
+
+class Volume(object):
+    """An EBS volume instance."""
+
+    def __init__(self, id, size, status, create_time):
+        self.id = id
+        self.size = size
+        self.status = status
+        self.create_time = create_time
+    
 
 class EC2Client(object):
     """A client for EC2."""
@@ -194,6 +205,26 @@ class EC2Client(object):
                 self.name_space + 'shutdownState').findtext(
                     self.name_space + 'name')
             result.append((instanceId, previousState, shutdownState))
+        return result
+
+    def describe_volumes(self):
+        """Describe available volumes."""
+        q = self.query_factory("DescribeVolumes", self.creds)
+        d = q.submit()
+        return d.addCallback(self._parse_volumes)
+
+    def _parse_volumes(self, xml_bytes):
+        root = XML(xml_bytes)
+        result = []
+        for volume_data in root.find(self.name_space + "volumeSet"):
+            volume_id = volume_data.findtext(self.name_space + "volumeId")
+            size = int(volume_data.findtext(self.name_space + "size"))
+            status = volume_data.findtext(self.name_space + "status")
+            create_time = volume_data.findtext(self.name_space + "createTime")
+            create_time = datetime.strptime(
+                create_time[:19], "%Y-%m-%dT%H:%M:%S")
+            volume = Volume(volume_id, size, status, create_time)
+            result.append(volume)
         return result
 
 
