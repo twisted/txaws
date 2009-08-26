@@ -244,6 +244,31 @@ class EC2Client(object):
                 volume.attachments.append(attachment)
         return result
 
+    def create_volume(self, availability_zone, size=None, snapshot_id=None):
+        """Create a new volume."""
+        params = {"AvailabilityZone": availability_zone}
+        if ((snapshot_id is None and size is None) or
+            (snapshot_id is not None and size is not None)):
+            raise ValueError("Please provide either size or snapshot_id")
+        if size is not None:
+            params["Size"] = str(size)
+        if snapshot_id is not None:
+            params["SnapshotId"] = snapshot_id
+        q = self.query_factory("CreateVolume", self.creds, params)
+        d = q.submit()
+        return d.addCallback(self._parse_create_volume)
+
+    def _parse_create_volume(self, xml_bytes):
+        root = XML(xml_bytes)
+        volume_id = root.findtext("volumeId")
+        size = int(root.findtext("size"))
+        status = root.findtext("status")
+        create_time = root.findtext("createTime")
+        create_time = datetime.strptime(
+            create_time[:19], "%Y-%m-%dT%H:%M:%S")
+        volume = Volume(volume_id, size, status, create_time)
+        return volume
+
     def describe_snapshots(self):
         """Describe available snapshots."""
         q = self.query_factory("DescribeSnapshots", self.creds)

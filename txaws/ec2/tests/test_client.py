@@ -126,6 +126,19 @@ sample_describe_snapshots_result = """<?xml version="1.0"?>
 </DescribeSnapshotsResponse>
 """
 
+
+sample_create_volume_result = """<?xml version="1.0"?>
+<CreateVolumeResponse xmlns="http://ec2.amazonaws.com/doc/2008-12-01">
+  <volumeId>vol-4d826724</volumeId>
+  <size>800</size>
+  <status>creating</status>
+  <createTime>2008-05-07T11:51:50.000Z</createTime>
+  <availabilityZone>us-east-1a</availabilityZone>
+  <snapshotId></snapshotId>
+</CreateVolumeResponse>
+"""
+
+
 class ReservationTestCase(TXAWSTestCase):
 
     def test_reservation_creation(self):
@@ -385,3 +398,67 @@ class TestEBS(TXAWSTestCase):
         d = ec2.describe_snapshots()
         d.addCallback(check_parsed_snapshots)
         return d
+
+    def test_create_volume(self):
+
+        class StubQuery(object):
+            def __init__(stub, action, creds, params):
+                self.assertEqual(action, "CreateVolume")
+                self.assertEqual("foo", creds)
+                self.assertEqual(
+                    {"AvailabilityZone": "us-east-1", "Size": "800"},
+                    params)
+
+            def submit(self):
+                return succeed(sample_create_volume_result)
+
+        def check_parsed_volume(volume):
+            self.assertEquals(volume.id, "vol-4d826724")
+            self.assertEquals(volume.size, 800)
+            create_time = datetime(2008, 05, 07, 11, 51, 50)
+            self.assertEquals(volume.create_time, create_time)
+
+        ec2 = client.EC2Client(creds="foo", query_factory=StubQuery)
+        d = ec2.create_volume("us-east-1", size=800)
+        d.addCallback(check_parsed_volume)
+        return d
+
+    def test_create_volume_with_snapshot(self):
+
+        class StubQuery(object):
+            def __init__(stub, action, creds, params):
+                self.assertEqual(action, "CreateVolume")
+                self.assertEqual("foo", creds)
+                self.assertEqual(
+                    {"AvailabilityZone": "us-east-1",
+                     "SnapshotId": "snap-12345678"},
+                    params)
+
+            def submit(self):
+                return succeed(sample_create_volume_result)
+
+        def check_parsed_volume(volume):
+            self.assertEquals(volume.id, "vol-4d826724")
+            self.assertEquals(volume.size, 800)
+            create_time = datetime(2008, 05, 07, 11, 51, 50)
+            self.assertEquals(volume.create_time, create_time)
+
+        ec2 = client.EC2Client(creds="foo", query_factory=StubQuery)
+        d = ec2.create_volume("us-east-1", snapshot_id="snap-12345678")
+        d.addCallback(check_parsed_volume)
+        return d
+
+    def test_create_volume_no_params(self):
+        ec2 = client.EC2Client(creds="foo")
+        error = self.assertRaises(ValueError, ec2.create_volume, "us-east-1")
+        self.assertEquals(
+            str(error),
+            "Please provide either size or snapshot_id")
+
+    def test_create_volume_both_params(self):
+        ec2 = client.EC2Client(creds="foo")
+        error = self.assertRaises(ValueError, ec2.create_volume, "us-east-1",
+                                  size=800, snapshot_id="snap-12345678")
+        self.assertEquals(
+            str(error),
+            "Please provide either size or snapshot_id")
