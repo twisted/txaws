@@ -269,6 +269,17 @@ class EC2Client(object):
         volume = Volume(volume_id, size, status, create_time)
         return volume
 
+    def delete_volume(self, volume_id):
+        q = self.query_factory(
+            "DeleteVolume", self.creds, {"VolumeId":volume_id})
+        d = q.submit()
+        return d.addCallback(self._parse_delete_volume)
+
+    def _parse_delete_volume(self, xml_bytes):
+        root = XML(xml_bytes)
+        return root.findtext("return") == "true"
+
+
     def describe_snapshots(self):
         """Describe available snapshots."""
         q = self.query_factory("DescribeSnapshots", self.creds)
