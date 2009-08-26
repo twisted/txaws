@@ -139,6 +139,13 @@ sample_create_volume_result = """<?xml version="1.0"?>
 """
 
 
+sample_delete_volume_result = """<?xml version="1.0"?>
+<DeleteVolumeResponse xmlns="http://ec2.amazonaws.com/doc/2008-12-01">
+  <return>true</return>
+</DeleteVolumeResponse>
+"""
+
+
 class ReservationTestCase(TXAWSTestCase):
 
     def test_reservation_creation(self):
@@ -462,3 +469,21 @@ class TestEBS(TXAWSTestCase):
         self.assertEquals(
             str(error),
             "Please provide either size or snapshot_id")
+
+    def test_delete_volume(self):
+
+        class StubQuery(object):
+            def __init__(stub, action, creds, params):
+                self.assertEqual(action, "DeleteVolume")
+                self.assertEqual("foo", creds)
+                self.assertEqual(
+                    {"VolumeId": "vol-4282672b"},
+                    params)
+
+            def submit(self):
+                return succeed(sample_delete_volume_result)
+
+        ec2 = client.EC2Client(creds="foo", query_factory=StubQuery)
+        d = ec2.delete_volume("vol-4282672b")
+        d.addCallback(self.assertEquals, True)
+        return d
