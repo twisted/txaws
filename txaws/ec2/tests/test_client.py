@@ -1,6 +1,7 @@
 # Copyright (C) 2009 Robert Collins <robertc@robertcollins.net>
 # Licenced under the txaws licence available at /LICENSE in the txaws source.
 
+from datetime import datetime
 import os
 
 from twisted.internet.defer import succeed
@@ -86,6 +87,31 @@ sample_terminate_instances_result = """<?xml version="1.0"?>
 """
 
 
+sample_describe_volumes_result = """<?xml version="1.0"?>
+<DescribeVolumesResponse xmlns="http://ec2.amazonaws.com/doc/2008-12-01/">
+  <volumeSet>
+    <item>
+      <volumeId>vol-4282672b</volumeId>
+      <size>800</size>
+      <status>in-use</status>
+      <createTime>2008-05-07T11:51:50.000Z</createTime>
+      <attachmentSet>
+        <item>
+          <volumeId>vol-4282672b</volumeId>
+          <instanceId>i-6058a509</instanceId>
+          <size>800</size>
+          <snapshotId>snap-12345678</snapshotId>
+          <availabilityZone>us-east-1a</availabilityZone>
+          <status>attached</status>
+          <attachTime>2008-05-07T12:51:50.000Z</attachTime>
+        </item>
+      </attachmentSet>
+    </item>
+  </volumeSet>
+</DescribeVolumesResponse>
+"""
+
+
 class ReservationTestCase(TXAWSTestCase):
 
     def test_reservation_creation(self):
@@ -159,7 +185,6 @@ class TestEC2Client(TXAWSTestCase):
         self.assertEquals(instance.product_codes, ["774F4FF8"])
         self.assertEquals(instance.kernel_id, "aki-b51cf9dc")
         self.assertEquals(instance.ramdisk_id, "ari-b31cf9da")
-
 
     def test_parse_reservation(self):
         ec2 = client.EC2Client(creds='foo')
@@ -286,3 +311,30 @@ class TestQuery(TXAWSTestCase):
         query.sign()
         self.assertEqual('4hEtLuZo9i6kuG3TOXvRQNOrE/U=',
             query.params['Signature'])
+
+
+class TestEBS(TXAWSTestCase):
+
+    def test_describe_volumes(self):
+
+        class StubQuery(object):
+            def __init__(stub, action, creds):
+                self.assertEqual(action, "DescribeVolumes")
+                self.assertEqual("foo", creds)
+
+            def submit(self):
+                return succeed(sample_describe_volumes_result)
+
+        def check_parsed_volumes(volumes):
+            self.assertEquals(len(volumes), 1)
+            volume = volumes[0]
+            self.assertEquals(volume.id, "vol-4282672b")
+            self.assertEquals(volume.size, 800)
+            self.assertEquals(volume.status, "in-use")
+            create_time = datetime(2008, 05, 07, 11, 51, 50)
+            self.assertEquals(volume.create_time, create_time)
+            
+        ec2 = client.EC2Client(creds="foo", query_factory=StubQuery)
+        d = ec2.describe_volumes()
+        d.addCallback(check_parsed_volumes)
+        return d
