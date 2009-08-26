@@ -3,7 +3,6 @@
 
 """EC2 client support."""
 
-from base64 import b64encode
 from datetime import datetime
 from urllib import quote
 
@@ -20,7 +19,7 @@ class Reservation(object):
     """An Amazon EC2 Reservation.
 
     @attrib reservation_id: Unique ID of the reservation.
-    @attrib owner_id: AWS Access Key ID of the user who owns the reservation. 
+    @attrib owner_id: AWS Access Key ID of the user who owns the reservation.
     @attrib groups: A list of security groups.
     """
     def __init__(self, reservation_id, owner_id, groups=None):
@@ -81,12 +80,23 @@ class Volume(object):
         self.size = size
         self.status = status
         self.create_time = create_time
-    
+        self.attachments = []
+
+
+class Attachment(object):
+    """An attachment of a L{Volume}."""
+
+    def __init__(self, instance_id, snapshot_id, availability_zone, status,
+                 attach_time):
+        self.instance_id = instance_id
+        self.snapshot_id = snapshot_id
+        self.availability_zone = availability_zone
+        self.status = status
+        self.attach_time = attach_time
+
 
 class EC2Client(object):
     """A client for EC2."""
-
-    name_space = '{http://ec2.amazonaws.com/doc/2008-12-01/}'
 
     def __init__(self, creds=None, query_factory=None):
         """Create an EC2Client.
@@ -113,7 +123,7 @@ class EC2Client(object):
         """
         Parse the reservations XML payload that is returned from an AWS
         describeInstances API call.
-       
+
         Instead of returning the reservations as the "top-most" object, we
         return the object that most developers and their code will be
         interested in: the instances. In instances reservation is available on
@@ -122,53 +132,38 @@ class EC2Client(object):
         root = XML(xml_bytes)
         results = []
         # May be a more elegant way to do this:
-        for reservation_data in root.find(self.name_space + 'reservationSet'):
+        for reservation_data in root.find("reservationSet"):
             # Get the security group information.
             groups = []
-            for group_data in reservation_data.find(
-                self.name_space + 'groupSet'):
-                group_id = group_data.findtext(self.name_space + 'groupId')
+            for group_data in reservation_data.find("groupSet"):
+                group_id = group_data.findtext("groupId")
                 groups.append(group_id)
             # Create a reservation object with the parsed data.
             reservation = Reservation(
-                reservation_id=reservation_data.findtext(
-                    self.name_space + 'reservationId'),
-                owner_id=reservation_data.findtext(
-                    self.name_space + 'ownerId'),
+                reservation_id=reservation_data.findtext("reservationId"),
+                owner_id=reservation_data.findtext("ownerId"),
                 groups=groups)
             # Get the list of instances.
             instances = []
-            for instance_data in reservation_data.find(
-                self.name_space + 'instancesSet'):
-                instance_id = instance_data.findtext(
-                    self.name_space + 'instanceId')
+            for instance_data in reservation_data.find("instancesSet"):
+                instance_id = instance_data.findtext("instanceId")
                 instance_state = instance_data.find(
-                    self.name_space + 'instanceState').findtext(
-                        self.name_space + 'name')
-                instance_type = instance_data.findtext(
-                    self.name_space + 'instanceType')
-                image_id = instance_data.findtext(self.name_space + 'imageId')
-                private_dns_name = instance_data.findtext(
-                    self.name_space + 'privateDnsName')
-                dns_name = instance_data.findtext(self.name_space + 'dnsName')
-                key_name = instance_data.findtext(self.name_space + 'keyName')
-                ami_launch_index = instance_data.findtext(
-                    self.name_space + 'amiLaunchIndex')
-                launch_time = instance_data.findtext(
-                    self.name_space + 'launchTime')
-                placement = instance_data.find(
-                    self.name_space + 'placement').findtext(
-                        self.name_space + 'availabilityZone')
+                    "instanceState").findtext("name")
+                instance_type = instance_data.findtext("instanceType")
+                image_id = instance_data.findtext("imageId")
+                private_dns_name = instance_data.findtext("privateDnsName")
+                dns_name = instance_data.findtext("dnsName")
+                key_name = instance_data.findtext("keyName")
+                ami_launch_index = instance_data.findtext("amiLaunchIndex")
+                launch_time = instance_data.findtext("launchTime")
+                placement = instance_data.find("placement").findtext(
+                    "availabilityZone")
                 products = []
-                for product_data in instance_data.find(
-                    self.name_space + 'productCodesSet'):
-                    product_code = product_data.findtext(
-                        self.name_space + 'productCode')
+                for product_data in instance_data.find("productCodesSet"):
+                    product_code = product_data.findtext("productCode")
                     products.append(product_code)
-                kernel_id = instance_data.findtext(
-                    self.name_space + 'kernelId')
-                ramdisk_id = instance_data.findtext(
-                    self.name_space + 'ramdiskId')
+                kernel_id = instance_data.findtext("kernelId")
+                ramdisk_id = instance_data.findtext("ramdiskId")
                 instance = Instance(
                     instance_id, instance_state, instance_type, image_id,
                     private_dns_name, dns_name, key_name, ami_launch_index,
@@ -180,7 +175,7 @@ class EC2Client(object):
 
     def terminate_instances(self, *instance_ids):
         """Terminate some instances.
-        
+
         @param instance_ids: The ids of the instances to terminate.
         @return: A deferred which on success gives an iterable of
             (id, old-state, new-state) tuples.
@@ -196,14 +191,12 @@ class EC2Client(object):
         root = XML(xml_bytes)
         result = []
         # May be a more elegant way to do this:
-        for instance in root.find(self.name_space + 'instancesSet'):
-            instanceId = instance.findtext(self.name_space + 'instanceId')
-            previousState = instance.find(
-                self.name_space + 'previousState').findtext(
-                    self.name_space + 'name')
-            shutdownState = instance.find(
-                self.name_space + 'shutdownState').findtext(
-                    self.name_space + 'name')
+        for instance in root.find("instancesSet"):
+            instanceId = instance.findtext("instanceId")
+            previousState = instance.find("previousState").findtext(
+                "name")
+            shutdownState = instance.find("shutdownState").findtext(
+                "name")
             result.append((instanceId, previousState, shutdownState))
         return result
 
@@ -216,15 +209,28 @@ class EC2Client(object):
     def _parse_volumes(self, xml_bytes):
         root = XML(xml_bytes)
         result = []
-        for volume_data in root.find(self.name_space + "volumeSet"):
-            volume_id = volume_data.findtext(self.name_space + "volumeId")
-            size = int(volume_data.findtext(self.name_space + "size"))
-            status = volume_data.findtext(self.name_space + "status")
-            create_time = volume_data.findtext(self.name_space + "createTime")
+        for volume_data in root.find("volumeSet"):
+            volume_id = volume_data.findtext("volumeId")
+            size = int(volume_data.findtext("size"))
+            status = volume_data.findtext("status")
+            create_time = volume_data.findtext("createTime")
             create_time = datetime.strptime(
                 create_time[:19], "%Y-%m-%dT%H:%M:%S")
             volume = Volume(volume_id, size, status, create_time)
             result.append(volume)
+            for attachment_data in volume_data.find("attachmentSet"):
+                instance_id = attachment_data.findtext("instanceId")
+                snapshot_id = attachment_data.findtext("snapshotId")
+                availability_zone = attachment_data.findtext(
+                    "availabilityZone")
+                status = attachment_data.findtext("status")
+                attach_time = attachment_data.findtext("attachTime")
+                attach_time = datetime.strptime(
+                    attach_time[:19], "%Y-%m-%dT%H:%M:%S")
+                attachment = Attachment(
+                    instance_id, snapshot_id, availability_zone, status,
+                    attach_time)
+                volume.attachments.append(attachment)
         return result
 
 
@@ -235,7 +241,7 @@ class Query(object):
         """Create a Query to submit to EC2."""
         # Require params (2008-12-01 API):
         # Version, SignatureVersion, SignatureMethod, Action, AWSAccessKeyId,
-        # Timestamp || Expires, Signature, 
+        # Timestamp || Expires, Signature,
         self.params = {'Version': '2008-12-01',
             'SignatureVersion': '2',
             'SignatureMethod': 'HmacSHA1',
@@ -273,7 +279,7 @@ class Query(object):
 
     def sign(self):
         """Sign this query using its built in credentials.
-        
+
         This prepares it to be sent, and should be done as the last step before
         submitting the query. Signing is done automatically - this is a public
         method to facilitate testing.
