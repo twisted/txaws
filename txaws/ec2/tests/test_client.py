@@ -144,7 +144,7 @@ class InstanceTestCase(TXAWSTestCase):
 
 
 class TestEC2Client(TXAWSTestCase):
-    
+
     def test_init_no_creds(self):
         os.environ['AWS_SECRET_ACCESS_KEY'] = 'foo'
         os.environ['AWS_ACCESS_KEY_ID'] = 'bar'
@@ -341,7 +341,7 @@ class TestEBS(TXAWSTestCase):
             self.assertEquals(attachment.status, "attached")
             attach_time = datetime(2008, 05, 07, 12, 51, 50)
             self.assertEquals(attachment.attach_time, attach_time)
-            
+
         ec2 = client.EC2Client(creds="foo", query_factory=StubQuery)
         d = ec2.describe_volumes()
         d.addCallback(check_parsed_volumes)
