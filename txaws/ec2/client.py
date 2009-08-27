@@ -271,7 +271,7 @@ class EC2Client(object):
 
     def delete_volume(self, volume_id):
         q = self.query_factory(
-            "DeleteVolume", self.creds, {"VolumeId":volume_id})
+            "DeleteVolume", self.creds, {"VolumeId": volume_id})
         d = q.submit()
         return d.addCallback(self._parse_delete_volume)
 
@@ -320,6 +320,17 @@ class EC2Client(object):
         progress = root.findtext("progress")[:-1]
         progress = float(progress or "0") / 100.
         return Snapshot(snapshot_id, volume_id, status, start_time, progress)
+
+    def delete_snapshot(self, snapshot_id):
+        """Remove a previously created snapshot."""
+        q = self.query_factory(
+            "DeleteSnapshot", self.creds, {"SnapshotId": snapshot_id})
+        d = q.submit()
+        return d.addCallback(self._parse_delete_snapshot)
+
+    def _parse_delete_snapshot(self, xml_bytes):
+        root = XML(xml_bytes)
+        return root.findtext("return") == "true"
 
 
 class Query(object):

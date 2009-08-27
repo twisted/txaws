@@ -157,6 +157,13 @@ sample_create_snapshot_result = """<?xml version="1.0"?>
 """
 
 
+sample_delete_snapshot_result = """<?xml version="1.0"?>
+<DeleteSnapshotResponse xmlns="http://ec2.amazonaws.com/doc/2008-12-01">
+  <return>true</return>
+</DeleteSnapshotResponse>
+"""
+
+
 class ReservationTestCase(TXAWSTestCase):
 
     def test_reservation_creation(self):
@@ -523,4 +530,22 @@ class TestEBS(TXAWSTestCase):
         ec2 = client.EC2Client(creds="foo", query_factory=StubQuery)
         d = ec2.create_snapshot("vol-4d826724")
         d.addCallback(check_parsed_snapshot)
+        return d
+
+    def test_delete_snapshot(self):
+        
+        class StubQuery(object):
+            def __init__(stub, action, creds, params):
+                self.assertEqual(action, "DeleteSnapshot")
+                self.assertEqual("foo", creds)
+                self.assertEqual(
+                    {"SnapshotId": "snap-78a54011"},
+                    params)
+
+            def submit(self):
+                return succeed(sample_delete_snapshot_result)
+
+        ec2 = client.EC2Client(creds="foo", query_factory=StubQuery)
+        d = ec2.delete_snapshot("snap-78a54011")
+        d.addCallback(self.assertEquals, True)
         return d
