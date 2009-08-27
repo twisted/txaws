@@ -279,7 +279,6 @@ class EC2Client(object):
         root = XML(xml_bytes)
         return root.findtext("return") == "true"
 
-
     def describe_snapshots(self):
         """Describe available snapshots."""
         q = self.query_factory("DescribeSnapshots", self.creds)
