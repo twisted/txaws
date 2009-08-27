@@ -332,6 +332,23 @@ class EC2Client(object):
         root = XML(xml_bytes)
         return root.findtext("return") == "true"
 
+    def attach_volume(self, volume_id, instance_id, device):
+        """Attach the given volume to the specified instance at C{device}."""
+        q = self.query_factory(
+            "AttachVolume", self.creds,
+            {"VolumeId": volume_id, "InstanceId": instance_id,
+             "Device": device})
+        d = q.submit()
+        return d.addCallback(self._parse_attach_volume)
+
+    def _parse_attach_volume(self, xml_bytes):
+        root = XML(xml_bytes)
+        status = root.findtext("status")
+        attach_time = root.findtext("attachTime")
+        attach_time = datetime.strptime(
+            attach_time[:19], "%Y-%m-%dT%H:%M:%S")
+        return {"status": status, "attach_time": attach_time}
+
 
 class Query(object):
     """A query that may be submitted to EC2."""

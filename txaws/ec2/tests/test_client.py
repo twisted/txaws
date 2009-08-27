@@ -164,6 +164,17 @@ sample_delete_snapshot_result = """<?xml version="1.0"?>
 """
 
 
+sample_attach_volume_result = """<?xml version="1.0"?>
+<AttachVolumeResponse xmlns="http://ec2.amazonaws.com/doc/2008-12-01">
+  <volumeId>vol-4d826724</volumeId>
+  <instanceId>i-6058a509</instanceId>
+  <device>/dev/sdh</device>
+  <status>attaching</status>
+  <attachTime>2008-05-07T11:51:50.000Z</attachTime>
+</AttachVolumeResponse>
+"""
+
+
 class ReservationTestCase(TXAWSTestCase):
 
     def test_reservation_creation(self):
@@ -548,4 +559,29 @@ class TestEBS(TXAWSTestCase):
         ec2 = client.EC2Client(creds="foo", query_factory=StubQuery)
         d = ec2.delete_snapshot("snap-78a54011")
         d.addCallback(self.assertEquals, True)
+        return d
+
+    def test_attach_volume(self):
+
+        class StubQuery(object):
+            def __init__(stub, action, creds, params):
+                self.assertEqual(action, "AttachVolume")
+                self.assertEqual("foo", creds)
+                self.assertEqual(
+                    {"VolumeId": "vol-4d826724", "InstanceId": "i-6058a509",
+                     "Device": "/dev/sdh"},
+                    params)
+
+            def submit(self):
+                return succeed(sample_attach_volume_result)
+
+        def check_parsed_response(response):
+            self.assertEquals(
+                response,
+                {"status": "attaching",
+                 "attach_time": datetime(2008, 05, 07, 11, 51, 50)})
+
+        ec2 = client.EC2Client(creds="foo", query_factory=StubQuery)
+        d = ec2.attach_volume("vol-4d826724", "i-6058a509", "/dev/sdh")
+        d.addCallback(check_parsed_response)
         return d
