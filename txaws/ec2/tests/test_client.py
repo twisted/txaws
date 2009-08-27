@@ -442,15 +442,34 @@ class TestEBS(TXAWSTestCase):
     def test_describe_snapshots(self):
 
         class StubQuery(object):
-            def __init__(stub, action, creds):
+            def __init__(stub, action, creds, params):
                 self.assertEqual(action, "DescribeSnapshots")
                 self.assertEqual("foo", creds)
+                self.assertEquals(params, {})
 
             def submit(self):
                 return succeed(sample_describe_snapshots_result)
 
         ec2 = client.EC2Client(creds="foo", query_factory=StubQuery)
         d = ec2.describe_snapshots()
+        d.addCallback(self.check_parsed_snapshots)
+        return d
+
+    def test_describe_specified_snapshots(self):
+
+        class StubQuery(object):
+            def __init__(stub, action, creds, params):
+                self.assertEqual(action, "DescribeSnapshots")
+                self.assertEqual("foo", creds)
+                self.assertEquals(
+                    params,
+                    {"SnapshotId.1": "snap-78a54011"})
+
+            def submit(self):
+                return succeed(sample_describe_snapshots_result)
+
+        ec2 = client.EC2Client(creds="foo", query_factory=StubQuery)
+        d = ec2.describe_snapshots("snap-78a54011")
         d.addCallback(self.check_parsed_snapshots)
         return d
 

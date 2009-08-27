@@ -282,9 +282,12 @@ class EC2Client(object):
         root = XML(xml_bytes)
         return root.findtext("return") == "true"
 
-    def describe_snapshots(self):
+    def describe_snapshots(self, *snapshot_ids):
         """Describe available snapshots."""
-        q = self.query_factory("DescribeSnapshots", self.creds)
+        snapshotset = {}
+        for pos, snapshot_id in enumerate(snapshot_ids):
+            snapshotset["SnapshotId.%d" % (pos + 1)] = snapshot_id
+        q = self.query_factory("DescribeSnapshots", self.creds, snapshotset)
         d = q.submit()
         return d.addCallback(self._parse_snapshots)
 
