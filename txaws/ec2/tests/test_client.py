@@ -112,6 +112,69 @@ sample_describe_volumes_result = """<?xml version="1.0"?>
 """
 
 
+sample_describe_snapshots_result = """<?xml version="1.0"?>
+<DescribeSnapshotsResponse xmlns="http://ec2.amazonaws.com/doc/2008-12-01">
+  <snapshotSet>
+    <item>
+      <snapshotId>snap-78a54011</snapshotId>
+      <volumeId>vol-4d826724</volumeId>
+      <status>pending</status>
+      <startTime>2008-05-07T12:51:50.000Z</startTime>
+      <progress>80%</progress>
+    </item>
+  </snapshotSet>
+</DescribeSnapshotsResponse>
+"""
+
+
+sample_create_volume_result = """<?xml version="1.0"?>
+<CreateVolumeResponse xmlns="http://ec2.amazonaws.com/doc/2008-12-01">
+  <volumeId>vol-4d826724</volumeId>
+  <size>800</size>
+  <status>creating</status>
+  <createTime>2008-05-07T11:51:50.000Z</createTime>
+  <availabilityZone>us-east-1a</availabilityZone>
+  <snapshotId></snapshotId>
+</CreateVolumeResponse>
+"""
+
+
+sample_delete_volume_result = """<?xml version="1.0"?>
+<DeleteVolumeResponse xmlns="http://ec2.amazonaws.com/doc/2008-12-01">
+  <return>true</return>
+</DeleteVolumeResponse>
+"""
+
+
+sample_create_snapshot_result = """<?xml version="1.0"?>
+<CreateSnapshotResponse xmlns="http://ec2.amazonaws.com/doc/2008-12-01">
+  <snapshotId>snap-78a54011</snapshotId>
+  <volumeId>vol-4d826724</volumeId>
+  <status>pending</status>
+  <startTime>2008-05-07T12:51:50.000Z</startTime>
+  <progress></progress>
+</CreateSnapshotResponse>
+"""
+
+
+sample_delete_snapshot_result = """<?xml version="1.0"?>
+<DeleteSnapshotResponse xmlns="http://ec2.amazonaws.com/doc/2008-12-01">
+  <return>true</return>
+</DeleteSnapshotResponse>
+"""
+
+
+sample_attach_volume_result = """<?xml version="1.0"?>
+<AttachVolumeResponse xmlns="http://ec2.amazonaws.com/doc/2008-12-01">
+  <volumeId>vol-4d826724</volumeId>
+  <instanceId>i-6058a509</instanceId>
+  <device>/dev/sdh</device>
+  <status>attaching</status>
+  <attachTime>2008-05-07T11:51:50.000Z</attachTime>
+</AttachVolumeResponse>
+"""
+
+
 class ReservationTestCase(TXAWSTestCase):
 
     def test_reservation_creation(self):
@@ -345,4 +408,180 @@ class TestEBS(TXAWSTestCase):
         ec2 = client.EC2Client(creds="foo", query_factory=StubQuery)
         d = ec2.describe_volumes()
         d.addCallback(check_parsed_volumes)
+        return d
+
+    def test_describe_snapshots(self):
+
+        class StubQuery(object):
+            def __init__(stub, action, creds):
+                self.assertEqual(action, "DescribeSnapshots")
+                self.assertEqual("foo", creds)
+
+            def submit(self):
+                return succeed(sample_describe_snapshots_result)
+
+        def check_parsed_snapshots(snapshots):
+            self.assertEquals(len(snapshots), 1)
+            snapshot = snapshots[0]
+            self.assertEquals(snapshot.id, "snap-78a54011")
+            self.assertEquals(snapshot.volume_id, "vol-4d826724")
+            self.assertEquals(snapshot.status, "pending")
+            start_time = datetime(2008, 05, 07, 12, 51, 50)
+            self.assertEquals(snapshot.start_time, start_time)
+            self.assertEquals(snapshot.progress, 0.8)
+
+        ec2 = client.EC2Client(creds="foo", query_factory=StubQuery)
+        d = ec2.describe_snapshots()
+        d.addCallback(check_parsed_snapshots)
+        return d
+
+    def test_create_volume(self):
+
+        class StubQuery(object):
+            def __init__(stub, action, creds, params):
+                self.assertEqual(action, "CreateVolume")
+                self.assertEqual("foo", creds)
+                self.assertEqual(
+                    {"AvailabilityZone": "us-east-1", "Size": "800"},
+                    params)
+
+            def submit(self):
+                return succeed(sample_create_volume_result)
+
+        def check_parsed_volume(volume):
+            self.assertEquals(volume.id, "vol-4d826724")
+            self.assertEquals(volume.size, 800)
+            create_time = datetime(2008, 05, 07, 11, 51, 50)
+            self.assertEquals(volume.create_time, create_time)
+
+        ec2 = client.EC2Client(creds="foo", query_factory=StubQuery)
+        d = ec2.create_volume("us-east-1", size=800)
+        d.addCallback(check_parsed_volume)
+        return d
+
+    def test_create_volume_with_snapshot(self):
+
+        class StubQuery(object):
+            def __init__(stub, action, creds, params):
+                self.assertEqual(action, "CreateVolume")
+                self.assertEqual("foo", creds)
+                self.assertEqual(
+                    {"AvailabilityZone": "us-east-1",
+                     "SnapshotId": "snap-12345678"},
+                    params)
+
+            def submit(self):
+                return succeed(sample_create_volume_result)
+
+        def check_parsed_volume(volume):
+            self.assertEquals(volume.id, "vol-4d826724")
+            self.assertEquals(volume.size, 800)
+            create_time = datetime(2008, 05, 07, 11, 51, 50)
+            self.assertEquals(volume.create_time, create_time)
+
+        ec2 = client.EC2Client(creds="foo", query_factory=StubQuery)
+        d = ec2.create_volume("us-east-1", snapshot_id="snap-12345678")
+        d.addCallback(check_parsed_volume)
+        return d
+
+    def test_create_volume_no_params(self):
+        ec2 = client.EC2Client(creds="foo")
+        error = self.assertRaises(ValueError, ec2.create_volume, "us-east-1")
+        self.assertEquals(
+            str(error),
+            "Please provide either size or snapshot_id")
+
+    def test_create_volume_both_params(self):
+        ec2 = client.EC2Client(creds="foo")
+        error = self.assertRaises(ValueError, ec2.create_volume, "us-east-1",
+                                  size=800, snapshot_id="snap-12345678")
+        self.assertEquals(
+            str(error),
+            "Please provide either size or snapshot_id")
+
+    def test_delete_volume(self):
+
+        class StubQuery(object):
+            def __init__(stub, action, creds, params):
+                self.assertEqual(action, "DeleteVolume")
+                self.assertEqual("foo", creds)
+                self.assertEqual(
+                    {"VolumeId": "vol-4282672b"},
+                    params)
+
+            def submit(self):
+                return succeed(sample_delete_volume_result)
+
+        ec2 = client.EC2Client(creds="foo", query_factory=StubQuery)
+        d = ec2.delete_volume("vol-4282672b")
+        d.addCallback(self.assertEquals, True)
+        return d
+
+    def test_create_snapshot(self):
+
+        class StubQuery(object):
+            def __init__(stub, action, creds, params):
+                self.assertEqual(action, "CreateSnapshot")
+                self.assertEqual("foo", creds)
+                self.assertEqual(
+                    {"VolumeId": "vol-4d826724"},
+                    params)
+
+            def submit(self):
+                return succeed(sample_create_snapshot_result)
+
+        def check_parsed_snapshot(snapshot):
+            self.assertEquals(snapshot.id, "snap-78a54011")
+            self.assertEquals(snapshot.volume_id, "vol-4d826724")
+            self.assertEquals(snapshot.status, "pending")
+            start_time = datetime(2008, 05, 07, 12, 51, 50)
+            self.assertEquals(snapshot.start_time, start_time)
+            self.assertEquals(snapshot.progress, 0)
+
+        ec2 = client.EC2Client(creds="foo", query_factory=StubQuery)
+        d = ec2.create_snapshot("vol-4d826724")
+        d.addCallback(check_parsed_snapshot)
+        return d
+
+    def test_delete_snapshot(self):
+
+        class StubQuery(object):
+            def __init__(stub, action, creds, params):
+                self.assertEqual(action, "DeleteSnapshot")
+                self.assertEqual("foo", creds)
+                self.assertEqual(
+                    {"SnapshotId": "snap-78a54011"},
+                    params)
+
+            def submit(self):
+                return succeed(sample_delete_snapshot_result)
+
+        ec2 = client.EC2Client(creds="foo", query_factory=StubQuery)
+        d = ec2.delete_snapshot("snap-78a54011")
+        d.addCallback(self.assertEquals, True)
+        return d
+
+    def test_attach_volume(self):
+
+        class StubQuery(object):
+            def __init__(stub, action, creds, params):
+                self.assertEqual(action, "AttachVolume")
+                self.assertEqual("foo", creds)
+                self.assertEqual(
+                    {"VolumeId": "vol-4d826724", "InstanceId": "i-6058a509",
+                     "Device": "/dev/sdh"},
+                    params)
+
+            def submit(self):
+                return succeed(sample_attach_volume_result)
+
+        def check_parsed_response(response):
+            self.assertEquals(
+                response,
+                {"status": "attaching",
+                 "attach_time": datetime(2008, 05, 07, 11, 51, 50)})
+
+        ec2 = client.EC2Client(creds="foo", query_factory=StubQuery)
+        d = ec2.attach_volume("vol-4d826724", "i-6058a509", "/dev/sdh")
+        d.addCallback(check_parsed_response)
         return d

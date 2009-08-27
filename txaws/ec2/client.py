@@ -95,6 +95,17 @@ class Attachment(object):
         self.attach_time = attach_time
 
 
+class Snapshot(object):
+    """A snapshot of a L{Volume}."""
+
+    def __init__(self, id, volume_id, status, start_time, progress):
+        self.id = id
+        self.volume_id = volume_id
+        self.status = status
+        self.start_time = start_time
+        self.progress = progress
+
+
 class EC2Client(object):
     """A client for EC2."""
 
@@ -232,6 +243,111 @@ class EC2Client(object):
                     attach_time)
                 volume.attachments.append(attachment)
         return result
+
+    def create_volume(self, availability_zone, size=None, snapshot_id=None):
+        """Create a new volume."""
+        params = {"AvailabilityZone": availability_zone}
+        if ((snapshot_id is None and size is None) or
+            (snapshot_id is not None and size is not None)):
+            raise ValueError("Please provide either size or snapshot_id")
+        if size is not None:
+            params["Size"] = str(size)
+        if snapshot_id is not None:
+            params["SnapshotId"] = snapshot_id
+        q = self.query_factory("CreateVolume", self.creds, params)
+        d = q.submit()
+        return d.addCallback(self._parse_create_volume)
+
+    def _parse_create_volume(self, xml_bytes):
+        root = XML(xml_bytes)
+        volume_id = root.findtext("volumeId")
+        size = int(root.findtext("size"))
+        status = root.findtext("status")
+        create_time = root.findtext("createTime")
+        create_time = datetime.strptime(
+            create_time[:19], "%Y-%m-%dT%H:%M:%S")
+        volume = Volume(volume_id, size, status, create_time)
+        return volume
+
+    def delete_volume(self, volume_id):
+        q = self.query_factory(
+            "DeleteVolume", self.creds, {"VolumeId": volume_id})
+        d = q.submit()
+        return d.addCallback(self._parse_delete_volume)
+
+    def _parse_delete_volume(self, xml_bytes):
+        root = XML(xml_bytes)
+        return root.findtext("return") == "true"
+
+    def describe_snapshots(self):
+        """Describe available snapshots."""
+        q = self.query_factory("DescribeSnapshots", self.creds)
+        d = q.submit()
+        return d.addCallback(self._parse_snapshots)
+
+    def _parse_snapshots(self, xml_bytes):
+        root = XML(xml_bytes)
+        result = []
+        for snapshot_data in root.find("snapshotSet"):
+            snapshot_id = snapshot_data.findtext("snapshotId")
+            volume_id = snapshot_data.findtext("volumeId")
+            status = snapshot_data.findtext("status")
+            start_time = snapshot_data.findtext("startTime")
+            start_time = datetime.strptime(
+                start_time[:19], "%Y-%m-%dT%H:%M:%S")
+            progress = snapshot_data.findtext("progress")[:-1]
+            progress = float(progress or "0") / 100.
+            snapshot = Snapshot(
+                snapshot_id, volume_id, status, start_time, progress)
+            result.append(snapshot)
+        return result
+
+    def create_snapshot(self, volume_id):
+        """Create a new snapshot of an existing volume."""
+        q = self.query_factory(
+            "CreateSnapshot", self.creds, {"VolumeId": volume_id})
+        d = q.submit()
+        return d.addCallback(self._parse_create_snapshot)
+
+    def _parse_create_snapshot(self, xml_bytes):
+        root = XML(xml_bytes)
+        snapshot_id = root.findtext("snapshotId")
+        volume_id = root.findtext("volumeId")
+        status = root.findtext("status")
+        start_time = root.findtext("startTime")
+        start_time = datetime.strptime(
+            start_time[:19], "%Y-%m-%dT%H:%M:%S")
+        progress = root.findtext("progress")[:-1]
+        progress = float(progress or "0") / 100.
+        return Snapshot(snapshot_id, volume_id, status, start_time, progress)
+
+    def delete_snapshot(self, snapshot_id):
+        """Remove a previously created snapshot."""
+        q = self.query_factory(
+            "DeleteSnapshot", self.creds, {"SnapshotId": snapshot_id})
+        d = q.submit()
+        return d.addCallback(self._parse_delete_snapshot)
+
+    def _parse_delete_snapshot(self, xml_bytes):
+        root = XML(xml_bytes)
+        return root.findtext("return") == "true"
+
+    def attach_volume(self, volume_id, instance_id, device):
+        """Attach the given volume to the specified instance at C{device}."""
+        q = self.query_factory(
+            "AttachVolume", self.creds,
+            {"VolumeId": volume_id, "InstanceId": instance_id,
+             "Device": device})
+        d = q.submit()
+        return d.addCallback(self._parse_attach_volume)
+
+    def _parse_attach_volume(self, xml_bytes):
+        root = XML(xml_bytes)
+        status = root.findtext("status")
+        attach_time = root.findtext("attachTime")
+        attach_time = datetime.strptime(
+            attach_time[:19], "%Y-%m-%dT%H:%M:%S")
+        return {"status": status, "attach_time": attach_time}
 
 
 class Query(object):
