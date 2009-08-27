@@ -211,9 +211,12 @@ class EC2Client(object):
             result.append((instanceId, previousState, shutdownState))
         return result
 
-    def describe_volumes(self):
+    def describe_volumes(self, *volume_ids):
         """Describe available volumes."""
-        q = self.query_factory("DescribeVolumes", self.creds)
+        volumeset = {}
+        for pos, volume_id in enumerate(volume_ids):
+            volumeset["VolumeId.%d" % (pos + 1)] = volume_id
+        q = self.query_factory("DescribeVolumes", self.creds, volumeset)
         d = q.submit()
         return d.addCallback(self._parse_volumes)
 

@@ -378,37 +378,66 @@ class TestQuery(TXAWSTestCase):
 
 class TestEBS(TXAWSTestCase):
 
+    def check_parsed_volumes(self, volumes):
+        self.assertEquals(len(volumes), 1)
+        volume = volumes[0]
+        self.assertEquals(volume.id, "vol-4282672b")
+        self.assertEquals(volume.size, 800)
+        self.assertEquals(volume.status, "in-use")
+        create_time = datetime(2008, 05, 07, 11, 51, 50)
+        self.assertEquals(volume.create_time, create_time)
+        self.assertEquals(len(volume.attachments), 1)
+        attachment = volume.attachments[0]
+        self.assertEquals(attachment.instance_id, "i-6058a509")
+        self.assertEquals(attachment.snapshot_id, "snap-12345678")
+        self.assertEquals(attachment.availability_zone, "us-east-1a")
+        self.assertEquals(attachment.status, "attached")
+        attach_time = datetime(2008, 05, 07, 12, 51, 50)
+        self.assertEquals(attachment.attach_time, attach_time)
+
     def test_describe_volumes(self):
 
         class StubQuery(object):
-            def __init__(stub, action, creds):
+            def __init__(stub, action, creds, params):
                 self.assertEqual(action, "DescribeVolumes")
                 self.assertEqual("foo", creds)
+                self.assertEquals(params, {})
 
             def submit(self):
                 return succeed(sample_describe_volumes_result)
 
-        def check_parsed_volumes(volumes):
-            self.assertEquals(len(volumes), 1)
-            volume = volumes[0]
-            self.assertEquals(volume.id, "vol-4282672b")
-            self.assertEquals(volume.size, 800)
-            self.assertEquals(volume.status, "in-use")
-            create_time = datetime(2008, 05, 07, 11, 51, 50)
-            self.assertEquals(volume.create_time, create_time)
-            self.assertEquals(len(volume.attachments), 1)
-            attachment = volume.attachments[0]
-            self.assertEquals(attachment.instance_id, "i-6058a509")
-            self.assertEquals(attachment.snapshot_id, "snap-12345678")
-            self.assertEquals(attachment.availability_zone, "us-east-1a")
-            self.assertEquals(attachment.status, "attached")
-            attach_time = datetime(2008, 05, 07, 12, 51, 50)
-            self.assertEquals(attachment.attach_time, attach_time)
-
         ec2 = client.EC2Client(creds="foo", query_factory=StubQuery)
         d = ec2.describe_volumes()
-        d.addCallback(check_parsed_volumes)
+        d.addCallback(self.check_parsed_volumes)
         return d
+
+    def test_describe_specified_volumes(self):
+
+        class StubQuery(object):
+            def __init__(stub, action, creds, params):
+                self.assertEqual(action, "DescribeVolumes")
+                self.assertEqual("foo", creds)
+                self.assertEquals(
+                    params,
+                    {"VolumeId.1": "vol-4282672b"})
+
+            def submit(self):
+                return succeed(sample_describe_volumes_result)
+
+        ec2 = client.EC2Client(creds="foo", query_factory=StubQuery)
+        d = ec2.describe_volumes("vol-4282672b")
+        d.addCallback(self.check_parsed_volumes)
+        return d
+
+    def check_parsed_snapshots(self, snapshots):
+        self.assertEquals(len(snapshots), 1)
+        snapshot = snapshots[0]
+        self.assertEquals(snapshot.id, "snap-78a54011")
+        self.assertEquals(snapshot.volume_id, "vol-4d826724")
+        self.assertEquals(snapshot.status, "pending")
+        start_time = datetime(2008, 05, 07, 12, 51, 50)
+        self.assertEquals(snapshot.start_time, start_time)
+        self.assertEquals(snapshot.progress, 0.8)
 
     def test_describe_snapshots(self):
 
@@ -420,19 +449,9 @@ class TestEBS(TXAWSTestCase):
             def submit(self):
                 return succeed(sample_describe_snapshots_result)
 
-        def check_parsed_snapshots(snapshots):
-            self.assertEquals(len(snapshots), 1)
-            snapshot = snapshots[0]
-            self.assertEquals(snapshot.id, "snap-78a54011")
-            self.assertEquals(snapshot.volume_id, "vol-4d826724")
-            self.assertEquals(snapshot.status, "pending")
-            start_time = datetime(2008, 05, 07, 12, 51, 50)
-            self.assertEquals(snapshot.start_time, start_time)
-            self.assertEquals(snapshot.progress, 0.8)
-
         ec2 = client.EC2Client(creds="foo", query_factory=StubQuery)
         d = ec2.describe_snapshots()
-        d.addCallback(check_parsed_snapshots)
+        d.addCallback(self.check_parsed_snapshots)
         return d
 
     def test_create_volume(self):
