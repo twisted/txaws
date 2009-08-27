@@ -296,11 +296,30 @@ class EC2Client(object):
             start_time = datetime.strptime(
                 start_time[:19], "%Y-%m-%dT%H:%M:%S")
             progress = snapshot_data.findtext("progress")[:-1]
-            progress = float(progress) / 100.
+            progress = float(progress or "0") / 100.
             snapshot = Snapshot(
                 snapshot_id, volume_id, status, start_time, progress)
             result.append(snapshot)
         return result
+
+    def create_snapshot(self, volume_id):
+        """Create a new snapshot of an existing volume."""
+        q = self.query_factory(
+            "CreateSnapshot", self.creds, {"VolumeId": volume_id})
+        d = q.submit()
+        return d.addCallback(self._parse_create_snapshot)
+
+    def _parse_create_snapshot(self, xml_bytes):
+        root = XML(xml_bytes)
+        snapshot_id = root.findtext("snapshotId")
+        volume_id = root.findtext("volumeId")
+        status = root.findtext("status")
+        start_time = root.findtext("startTime")
+        start_time = datetime.strptime(
+            start_time[:19], "%Y-%m-%dT%H:%M:%S")
+        progress = root.findtext("progress")[:-1]
+        progress = float(progress or "0") / 100.
+        return Snapshot(snapshot_id, volume_id, status, start_time, progress)
 
 
 class Query(object):

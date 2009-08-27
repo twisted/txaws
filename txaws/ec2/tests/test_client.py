@@ -146,6 +146,17 @@ sample_delete_volume_result = """<?xml version="1.0"?>
 """
 
 
+sample_create_snapshot_result = """<?xml version="1.0"?>
+<CreateSnapshotResponse xmlns="http://ec2.amazonaws.com/doc/2008-12-01">
+  <snapshotId>snap-78a54011</snapshotId>
+  <volumeId>vol-4d826724</volumeId>
+  <status>pending</status>
+  <startTime>2008-05-07T12:51:50.000Z</startTime>
+  <progress></progress>
+</CreateSnapshotResponse>
+"""
+
+
 class ReservationTestCase(TXAWSTestCase):
 
     def test_reservation_creation(self):
@@ -486,4 +497,30 @@ class TestEBS(TXAWSTestCase):
         ec2 = client.EC2Client(creds="foo", query_factory=StubQuery)
         d = ec2.delete_volume("vol-4282672b")
         d.addCallback(self.assertEquals, True)
+        return d
+
+    def test_create_snapshot(self):
+
+        class StubQuery(object):
+            def __init__(stub, action, creds, params):
+                self.assertEqual(action, "CreateSnapshot")
+                self.assertEqual("foo", creds)
+                self.assertEqual(
+                    {"VolumeId": "vol-4d826724"},
+                    params)
+
+            def submit(self):
+                return succeed(sample_create_snapshot_result)
+
+        def check_parsed_snapshot(snapshot):
+            self.assertEquals(snapshot.id, "snap-78a54011")
+            self.assertEquals(snapshot.volume_id, "vol-4d826724")
+            self.assertEquals(snapshot.status, "pending")
+            start_time = datetime(2008, 05, 07, 12, 51, 50)
+            self.assertEquals(snapshot.start_time, start_time)
+            self.assertEquals(snapshot.progress, 0)
+
+        ec2 = client.EC2Client(creds="foo", query_factory=StubQuery)
+        d = ec2.create_snapshot("vol-4d826724")
+        d.addCallback(check_parsed_snapshot)
         return d
