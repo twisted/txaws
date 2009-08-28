@@ -7,7 +7,7 @@ from txaws.credentials import AWSCredentials
 from txaws.ec2.client import EC2Client
 from txaws.service import (AWSServiceEndpoint, AWSServiceRegion,
                            EC2_ENDPOINT_EU, EC2_ENDPOINT_US, REGION_EU)
-from txaws.tests import TXAWSTestCase
+from txaws.testing.base import TXAWSTestCase
 
 
 class AWSServiceEndpointTestCase(TXAWSTestCase):
