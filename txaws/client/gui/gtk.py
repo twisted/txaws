@@ -199,10 +199,7 @@ def main(argv, reactor=None):
     """
     if reactor is None:
         from twisted.internet import gtk2reactor
-        try:
-            gtk2reactor.install()
-        except AssertionError:
-            pass
+        gtk2reactor.install()
         from twisted.internet import reactor
     status = AWSStatusIcon(reactor)
     gobject.set_application_name('aws-status')
