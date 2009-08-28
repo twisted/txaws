@@ -3,7 +3,6 @@
 
 """EC2 client support."""
 
-from base64 import b64encode
 from urllib import quote
 
 from twisted.web.client import getPage

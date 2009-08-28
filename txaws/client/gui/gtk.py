@@ -8,6 +8,8 @@ import gnomekeyring
 import gobject
 import gtk
 
+from twisted.internet.defer import TimeoutError 
+
 from txaws.credentials import AWSCredentials
 from txaws.service import AWSServiceRegion
 
@@ -174,7 +176,7 @@ class AWSStatusIcon(gtk.StatusIcon):
             pass
 
     def describe_error(self, error):
-        if isinstance(error.value, twisted.internet.defer.TimeoutError):
+        if isinstance(error.value, TimeoutError):
             # timeout errors can be ignored - transient network issue or some
             # such.
             pass

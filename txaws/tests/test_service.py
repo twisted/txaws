@@ -1,8 +1,6 @@
 # Copyright (C) 2009 Duncan McGreggor <duncan@canonical.com>
 # Licenced under the txaws licence available at /LICENSE in the txaws source.
 
-import os
-
 from txaws.credentials import AWSCredentials
 from txaws.ec2.client import EC2Client
 from txaws.service import (AWSServiceEndpoint, AWSServiceRegion,
