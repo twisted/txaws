@@ -11,15 +11,6 @@ from txaws.testing.base import TXAWSTestCase
 
 class TestCredentials(TXAWSTestCase):
 
-    def setUp(self):
-        self.addCleanup(self.clean_environment)
-
-    def clean_environment(self):
-        if os.environ.has_key(ENV_ACCESS_KEY):
-            del os.environ[ENV_ACCESS_KEY]
-        if os.environ.has_key(ENV_SECRET_KEY):
-            del os.environ[ENV_SECRET_KEY]
-
     def test_no_access_errors(self):
         # Without anything in os.environ, AWSService() blows up
         os.environ[ENV_SECRET_KEY] = "bar"
@@ -36,7 +27,6 @@ class TestCredentials(TXAWSTestCase):
         service = AWSCredentials()
         self.assertEqual("foo", service.access_key)
         self.assertEqual("bar", service.secret_key)
-        self.clean_environment()
 
     def test_explicit_access_key(self):
         os.environ[ENV_SECRET_KEY] = "foo"

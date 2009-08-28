@@ -130,13 +130,3 @@ class AWSServiceRegionTestCase(TXAWSTestCase):
         self.assertTrue(isinstance(client1, EC2Client))
         self.assertTrue(isinstance(client2, EC2Client))
         self.assertEquals(client1, client2)
-
-
-    def test_get_s3_client(self):
-        self.assertRaises(NotImplementedError, self.region.get_s3_client)
-
-    def test_get_simpledb_client(self):
-        self.assertRaises(NotImplementedError, self.region.get_simpledb_client)
-
-    def test_get_sqs_client(self):
-        self.assertRaises(NotImplementedError, self.region.get_sqs_client)
