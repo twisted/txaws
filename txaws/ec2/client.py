@@ -3,12 +3,12 @@
 
 """EC2 client support."""
 
-from base64 import b64encode
 from urllib import quote
 
 from twisted.web.client import getPage
 
-from txaws import credentials
+from txaws.credentials import AWSCredentials
+from txaws.service import AWSServiceEndpoint
 from txaws.util import iso8601time, XML
 
 
@@ -77,16 +77,16 @@ class EC2Client(object):
 
     name_space = '{http://ec2.amazonaws.com/doc/2008-12-01/}'
 
-    def __init__(self, creds=None, query_factory=None):
+    def __init__(self, creds=None, endpoint=None, query_factory=None):
         """Create an EC2Client.
 
-        @param creds: Explicit credentials to use. If None, credentials are
-            inferred as per txaws.credentials.AWSCredentials.
+        @param creds: User authentication credentials to use.
+        @param endpoint: The service endpoint URI.
+        @param query_factory: The class or function that produces a query
+            object for making requests to the EC2 service.
         """
-        if creds is None:
-            self.creds = credentials.AWSCredentials()
-        else:
-            self.creds = creds
+        self.creds = creds or AWSCredentials()
+        self.endpoint = endpoint or AWSServiceEndpoint()
         if query_factory is None:
             self.query_factory = Query
         else:
@@ -94,7 +94,7 @@ class EC2Client(object):
 
     def describe_instances(self):
         """Describe current instances."""
-        q = self.query_factory('DescribeInstances', self.creds)
+        q = self.query_factory('DescribeInstances', self.creds, self.endpoint)
         d = q.submit()
         return d.addCallback(self._parse_instances)
 
@@ -177,7 +177,8 @@ class EC2Client(object):
         instanceset = {}
         for pos, instance_id in enumerate(instance_ids):
             instanceset["InstanceId.%d" % (pos+1)] = instance_id
-        q = self.query_factory('TerminateInstances', self.creds, instanceset)
+        q = self.query_factory('TerminateInstances', self.creds, self.endpoint,
+                               instanceset)
         d = q.submit()
         return d.addCallback(self._parse_terminate_instances)
 
@@ -200,24 +201,24 @@ class EC2Client(object):
 class Query(object):
     """A query that may be submitted to EC2."""
 
-    def __init__(self, action, creds, other_params=None, time_tuple=None):
+    def __init__(self, action, creds, endpoint, other_params=None,
+                 time_tuple=None):
         """Create a Query to submit to EC2."""
+        self.creds = creds
+        self.endpoint = endpoint
         # Require params (2008-12-01 API):
         # Version, SignatureVersion, SignatureMethod, Action, AWSAccessKeyId,
         # Timestamp || Expires, Signature, 
-        self.params = {'Version': '2008-12-01',
+        self.params = {
+            'Version': '2008-12-01',
             'SignatureVersion': '2',
             'SignatureMethod': 'HmacSHA1',
             'Action': action,
-            'AWSAccessKeyId': creds.access_key,
+            'AWSAccessKeyId': self.creds.access_key,
             'Timestamp': iso8601time(time_tuple),
             }
         if other_params:
             self.params.update(other_params)
-        self.method = 'GET'
-        self.host = 'ec2.amazonaws.com'
-        self.uri = '/'
-        self.creds = creds
 
     def canonical_query_params(self):
         """Return the canonical query params (used in signing)."""
@@ -230,18 +231,19 @@ class Query(object):
         """Encode a_string as per the canonicalisation encoding rules.
 
         See the AWS dev reference page 90 (2008-12-01 version).
-        :return: a_string encoded.
+        @return: a_string encoded.
         """
         return quote(a_string, safe='~')
 
     def signing_text(self):
         """Return the text to be signed when signing the query."""
-        result = "%s\n%s\n%s\n%s" % (self.method, self.host, self.uri,
-            self.canonical_query_params())
+        result = "%s\n%s\n%s\n%s" % (self.endpoint.method, self.endpoint.host,
+                                     self.endpoint.path,
+                                     self.canonical_query_params())
         return result
 
     def sign(self):
-        """Sign this query using its built in credentials.
+        """Sign this query using its built in creds.
         
         This prepares it to be sent, and should be done as the last step before
         submitting the query. Signing is done automatically - this is a public
@@ -256,9 +258,9 @@ class Query(object):
     def submit(self):
         """Submit this query.
 
-        :return: A deferred from twisted.web.client.getPage
+        @return: A deferred from twisted.web.client.getPage
         """
         self.sign()
-        url = 'http://%s%s?%s' % (self.host, self.uri,
-            self.canonical_query_params())
-        return getPage(url, method=self.method)
+        url = "%s?%s" % (self.endpoint.get_uri(), 
+                         self.canonical_query_params())
+        return getPage(url, method=self.endpoint.method)
