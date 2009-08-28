@@ -135,7 +135,6 @@ class AWSStatusIcon(gtk.StatusIcon):
             key_id = content.get_children()[0].get_children()[1].get_text()
             secret_key = content.get_children()[1].get_children()[1].get_text()
             creds = AWSCredentials(access_key=key_id, secret_key=secret_key)
-            region = AWSServiceRegion(creds=creds)
             self.create_client(creds)
             gnomekeyring.item_create_sync(
                 None,
