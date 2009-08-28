@@ -24,6 +24,33 @@ class RequestTestCase(TXAWSTestCase):
     creds = AWSCredentials(access_key='fookeyid', secret_key='barsecretkey')
     endpoint = AWSServiceEndpoint("https://s3.amazonaws.com/")
 
+    def test_get_uri_with_endpoint(self):
+        endpoint = AWSServiceEndpoint("http://localhost/")
+        request = S3Request('PUT', endpoint=endpoint)
+        self.assertEquals(request.endpoint.get_uri(), "http://localhost/")
+        self.assertEquals(request.get_uri(), "http://localhost/")
+
+    def test_get_uri_with_endpoint_bucket_and_object(self):
+        endpoint = AWSServiceEndpoint("http://localhost/")
+        request = S3Request('PUT', bucket="mybucket", object_name="myobject",
+                            endpoint=endpoint)
+        self.assertEquals(
+            request.get_uri(),
+            "http://localhost/mybucket/myobject")
+
+    def test_get_uri_with_no_endpoint(self):
+        request = S3Request('PUT')
+        self.assertEquals(request.endpoint, None)
+        self.assertEquals(request.get_uri(), "http:///")
+
+    def test_get_path_with_bucket_and_object(self):
+        request = S3Request('PUT', bucket="mybucket", object_name="myobject")
+        self.assertEquals(request.get_path(), "/mybucket/myobject")
+
+    def test_get_path_with_no_bucket_or_object(self):
+        request = S3Request('PUT')
+        self.assertEquals(request.get_path(), "/")
+
     def test_objectRequest(self):
         """
         Test that a request addressing an object is created correctly.
@@ -256,5 +283,6 @@ class WrapperTests(TXAWSTestCase):
 
 
 class MiscellaneousTests(TXAWSTestCase):
+
     def test_contentMD5(self):
         self.assertEqual(calculate_md5('somedata'), 'rvr3UC1SmUw7AZV2NqPN0g==')
