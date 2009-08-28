@@ -16,6 +16,7 @@ from twisted.web.client import getPage
 from twisted.web.http import datetimeToString
 
 from txaws.credentials import AWSCredentials
+from txaws.service import AWSServiceEndpoint
 from txaws.util import XML, calculate_md5
 
 
@@ -33,7 +34,7 @@ class S3Request(object):
         self.content_type = content_type
         self.metadata = metadata
         self.creds = creds
-        self.endpoint = endpoint or self.get_uri()
+        self.endpoint = endpoint
         self.date = datetimeToString()
 
     def get_path(self):
@@ -45,6 +46,8 @@ class S3Request(object):
         return path
 
     def get_uri(self):
+        if self.endpoint is None:
+            self.endpoint = AWSServiceEndpoint()
         self.endpoint.set_path(self.get_path())
         return self.endpoint.get_uri()
 
