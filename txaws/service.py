@@ -102,7 +102,7 @@ class AWSServiceRegion(object):
 
         if creds:
             self.creds = creds
-        return self.get_client(EC2Client, creds=creds,
+        return self.get_client(EC2Client, creds=self.creds,
                                endpoint=self.ec2_endpoint, query_factory=None)
 
     def get_s3_client(self):

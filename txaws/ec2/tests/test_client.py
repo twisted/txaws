@@ -8,7 +8,7 @@ from twisted.internet.defer import succeed
 from txaws.credentials import AWSCredentials
 from txaws.ec2 import client
 from txaws.service import AWSServiceEndpoint, EC2_ENDPOINT_US
-from txaws.tests import TXAWSTestCase
+from txaws.testing.base import TXAWSTestCase
 
 
 sample_describe_instances_result = """<?xml version="1.0"?>
@@ -136,13 +136,14 @@ class EC2ClientTestCase(TXAWSTestCase):
 
     def check_parsed_instances(self, results):
         instance = results[0]
-        self.assertEquals(instance.instance_id, "i-abcdef01")
-        self.assertEquals(instance.instance_state, "running")
+        # check reservations
         reservation = instance.reservation
         self.assertEquals(reservation.reservation_id, "r-cf24b1a6")
         self.assertEquals(reservation.owner_id, "123456789012")
+        # check groups
         group = reservation.groups[0]
         self.assertEquals(group, "default")
+        # check instance
         self.assertEquals(instance.instance_id, "i-abcdef01")
         self.assertEquals(instance.instance_state, "running")
         self.assertEquals(instance.instance_type, "c1.xlarge")
@@ -160,7 +161,6 @@ class EC2ClientTestCase(TXAWSTestCase):
         self.assertEquals(instance.product_codes, ["774F4FF8"])
         self.assertEquals(instance.kernel_id, "aki-b51cf9dc")
         self.assertEquals(instance.ramdisk_id, "ari-b31cf9da")
-
 
     def test_parse_reservation(self):
         creds = AWSCredentials("foo", "bar")

@@ -7,7 +7,7 @@ from twisted.internet.defer import succeed
 from txaws.credentials import AWSCredentials
 from txaws.service import AWSServiceEndpoint
 from txaws.storage.client import S3, S3Request
-from txaws.tests import TXAWSTestCase
+from txaws.testing.base import TXAWSTestCase
 from txaws.util import calculate_md5
 
 
