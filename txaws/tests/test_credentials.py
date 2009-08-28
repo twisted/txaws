@@ -3,8 +3,6 @@
 
 import os
 
-from twisted.trial.unittest import TestCase
-
 from txaws.credentials import AWSCredentials, ENV_ACCESS_KEY, ENV_SECRET_KEY
 from txaws.testing.base import TXAWSTestCase
 
