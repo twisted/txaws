@@ -7,34 +7,30 @@ Various API-incompatible changes are planned in order to expose missing
 functionality in this wrapper.
 """
 
-from base64 import b64encode
-from hashlib import md5
-
 from epsilon.extime import Time
 
 from twisted.web.client import getPage
 from twisted.web.http import datetimeToString
 
-from txaws.credentials import AWSCredentials
+from txaws.service import AWSServiceEndpoint
 from txaws.util import XML, calculate_md5
 
 
 class S3Request(object):
 
     def __init__(self, verb, bucket=None, object_name=None, data='',
-                 content_type=None,
-        metadata={}, root_uri='https://s3.amazonaws.com',  creds=None):
+                 content_type=None, metadata={}, creds=None, endpoint=None):
         self.verb = verb
         self.bucket = bucket
         self.object_name = object_name
         self.data = data
         self.content_type = content_type
         self.metadata = metadata
-        self.root_uri = root_uri
         self.creds = creds
+        self.endpoint = endpoint
         self.date = datetimeToString()
 
-    def get_uri_path(self):
+    def get_path(self):
         path = '/'
         if self.bucket is not None:
             path += self.bucket
@@ -43,7 +39,10 @@ class S3Request(object):
         return path
 
     def get_uri(self):
-        return self.root_uri + self.get_uri_path()
+        if self.endpoint is None:
+            self.endpoint = AWSServiceEndpoint()
+        self.endpoint.set_path(self.get_path())
+        return self.endpoint.get_uri()
 
     def get_headers(self):
         headers = {'Content-Length': len(self.data),
@@ -63,7 +62,7 @@ class S3Request(object):
         return headers
 
     def get_canonicalized_resource(self):
-        return self.get_uri_path()
+        return self.get_path()
 
     def get_canonicalized_amz_headers(self, headers):
         result = ''
@@ -73,12 +72,12 @@ class S3Request(object):
         return ''.join('%s:%s\n' % (name, value) for name, value in headers)
 
     def get_signature(self, headers):
-        text = self.verb + '\n'
-        text += headers.get('Content-MD5', '') + '\n'
-        text += headers.get('Content-Type', '') + '\n'
-        text += headers.get('Date', '') + '\n'
-        text += self.get_canonicalized_amz_headers(headers)
-        text += self.get_canonicalized_resource()
+        text = (self.verb + '\n' + 
+                headers.get('Content-MD5', '') + '\n' +
+                headers.get('Content-Type', '') + '\n' +
+                headers.get('Date', '') + '\n' +
+                self.get_canonicalized_amz_headers(headers) +
+                self.get_canonicalized_resource())
         return self.creds.sign(text)
 
     def submit(self):
@@ -91,20 +90,21 @@ class S3Request(object):
 
 class S3(object):
 
-    root_uri = 'https://s3.amazonaws.com/'
     request_factory = S3Request
 
-    def __init__(self, creds):
+    def __init__(self, creds, endpoint):
         self.creds = creds
+        self.endpoint = endpoint
 
     def make_request(self, *a, **kw):
         """
         Create a request with the arguments passed in.
 
-        This uses the request_factory attribute, adding the credentials to the
-        arguments passed in.
+        This uses the request_factory attribute, adding the creds and endpoint
+        to the arguments passed in.
         """
-        return self.request_factory(creds=self.creds, *a, **kw)
+        return self.request_factory(creds=self.creds, endpoint=self.endpoint,
+                                    *a, **kw)
 
     def _parse_bucket_list(self, response):
         """
