@@ -1,4 +1,7 @@
+# -*- coding: utf-8 -*-
 # Copyright (C) 2009 Robert Collins <robertc@robertcollins.net>
+# Copyright (C) 2009 Duncan McGreggor <duncan@canonical.com>
+# Copyright (C) 2009 Thomas Hervé <thomas@canonical.com>
 # Licenced under the txaws licence available at /LICENSE in the txaws source.
 
 from datetime import datetime
@@ -9,171 +12,8 @@ from twisted.internet.defer import succeed
 from txaws.credentials import AWSCredentials
 from txaws.ec2 import client
 from txaws.service import AWSServiceEndpoint, EC2_ENDPOINT_US
+from txaws.testing import payload
 from txaws.testing.base import TXAWSTestCase
-
-
-sample_describe_instances_result = """<?xml version="1.0"?>
-<DescribeInstancesResponse xmlns="http://ec2.amazonaws.com/doc/2008-12-01/">
-    <requestId>52b4c730-f29f-498d-94c1-91efb75994cc</requestId>
-    <reservationSet>
-        <item>
-            <reservationId>r-cf24b1a6</reservationId>
-            <ownerId>123456789012</ownerId>
-            <groupSet>
-                <item>
-                    <groupId>default</groupId>
-                </item>
-            </groupSet>
-            <instancesSet>
-                <item>
-                    <instanceId>i-abcdef01</instanceId>
-                    <imageId>ami-12345678</imageId>
-                    <instanceState>
-                        <code>16</code>
-                        <name>running</name>
-                    </instanceState>
-                    <privateDnsName>domU-12-31-39-03-15-11.compute-1.internal</privateDnsName>
-                    <dnsName>ec2-75-101-245-65.compute-1.amazonaws.com</dnsName>
-                    <reason/>
-                    <keyName>keyname</keyName>
-                    <amiLaunchIndex>0</amiLaunchIndex>
-                    <productCodesSet>
-                        <item>
-                            <productCode>774F4FF8</productCode>
-                        </item>
-                    </productCodesSet>
-
-                    <instanceType>c1.xlarge</instanceType>
-                    <launchTime>2009-04-27T02:23:18.000Z</launchTime>
-                    <placement>
-                        <availabilityZone>us-east-1c</availabilityZone>
-                    </placement>
-                    <kernelId>aki-b51cf9dc</kernelId>
-                    <ramdiskId>ari-b31cf9da</ramdiskId>
-                </item>
-            </instancesSet>
-        </item>
-    </reservationSet>
-</DescribeInstancesResponse>
-"""
-
-
-sample_terminate_instances_result = """<?xml version="1.0"?>
-<TerminateInstancesResponse xmlns="http://ec2.amazonaws.com/doc/2008-12-01/">
-  <instancesSet>
-    <item>
-      <instanceId>i-1234</instanceId>
-      <shutdownState>
-        <code>32</code>
-        <name>shutting-down</name>
-      </shutdownState>
-      <previousState>
-        <code>16</code>
-        <name>running</name>
-      </previousState>
-    </item>
-    <item>
-      <instanceId>i-5678</instanceId>
-      <shutdownState>
-        <code>32</code>
-        <name>shutting-down</name>
-      </shutdownState>
-      <previousState>
-        <code>32</code>
-        <name>shutting-down</name>
-      </previousState>
-    </item>
-  </instancesSet>
-</TerminateInstancesResponse>
-"""
-
-
-sample_describe_volumes_result = """<?xml version="1.0"?>
-<DescribeVolumesResponse xmlns="http://ec2.amazonaws.com/doc/2008-12-01/">
-  <volumeSet>
-    <item>
-      <volumeId>vol-4282672b</volumeId>
-      <size>800</size>
-      <status>in-use</status>
-      <createTime>2008-05-07T11:51:50.000Z</createTime>
-      <attachmentSet>
-        <item>
-          <volumeId>vol-4282672b</volumeId>
-          <instanceId>i-6058a509</instanceId>
-          <size>800</size>
-          <snapshotId>snap-12345678</snapshotId>
-          <availabilityZone>us-east-1a</availabilityZone>
-          <status>attached</status>
-          <attachTime>2008-05-07T12:51:50.000Z</attachTime>
-        </item>
-      </attachmentSet>
-    </item>
-  </volumeSet>
-</DescribeVolumesResponse>
-"""
-
-
-sample_describe_snapshots_result = """<?xml version="1.0"?>
-<DescribeSnapshotsResponse xmlns="http://ec2.amazonaws.com/doc/2008-12-01">
-  <snapshotSet>
-    <item>
-      <snapshotId>snap-78a54011</snapshotId>
-      <volumeId>vol-4d826724</volumeId>
-      <status>pending</status>
-      <startTime>2008-05-07T12:51:50.000Z</startTime>
-      <progress>80%</progress>
-    </item>
-  </snapshotSet>
-</DescribeSnapshotsResponse>
-"""
-
-
-sample_create_volume_result = """<?xml version="1.0"?>
-<CreateVolumeResponse xmlns="http://ec2.amazonaws.com/doc/2008-12-01">
-  <volumeId>vol-4d826724</volumeId>
-  <size>800</size>
-  <status>creating</status>
-  <createTime>2008-05-07T11:51:50.000Z</createTime>
-  <availabilityZone>us-east-1a</availabilityZone>
-  <snapshotId></snapshotId>
-</CreateVolumeResponse>
-"""
-
-
-sample_delete_volume_result = """<?xml version="1.0"?>
-<DeleteVolumeResponse xmlns="http://ec2.amazonaws.com/doc/2008-12-01">
-  <return>true</return>
-</DeleteVolumeResponse>
-"""
-
-
-sample_create_snapshot_result = """<?xml version="1.0"?>
-<CreateSnapshotResponse xmlns="http://ec2.amazonaws.com/doc/2008-12-01">
-  <snapshotId>snap-78a54011</snapshotId>
-  <volumeId>vol-4d826724</volumeId>
-  <status>pending</status>
-  <startTime>2008-05-07T12:51:50.000Z</startTime>
-  <progress></progress>
-</CreateSnapshotResponse>
-"""
-
-
-sample_delete_snapshot_result = """<?xml version="1.0"?>
-<DeleteSnapshotResponse xmlns="http://ec2.amazonaws.com/doc/2008-12-01">
-  <return>true</return>
-</DeleteSnapshotResponse>
-"""
-
-
-sample_attach_volume_result = """<?xml version="1.0"?>
-<AttachVolumeResponse xmlns="http://ec2.amazonaws.com/doc/2008-12-01">
-  <volumeId>vol-4d826724</volumeId>
-  <instanceId>i-6058a509</instanceId>
-  <device>/dev/sdh</device>
-  <status>attaching</status>
-  <attachTime>2008-05-07T11:51:50.000Z</attachTime>
-</AttachVolumeResponse>
-"""
 
 
 class ReservationTestCase(TXAWSTestCase):
@@ -251,10 +91,39 @@ class EC2ClientTestCase(TXAWSTestCase):
         self.assertEquals(instance.kernel_id, "aki-b51cf9dc")
         self.assertEquals(instance.ramdisk_id, "ari-b31cf9da")
 
+    def check_parsed_instances_required(self, results):
+        instance = results[0]
+        # check reservations
+        reservation = instance.reservation
+        self.assertEquals(reservation.reservation_id, "r-cf24b1a6")
+        self.assertEquals(reservation.owner_id, "123456789012")
+        # check groups
+        group = reservation.groups[0]
+        self.assertEquals(group, "default")
+        # check instance
+        self.assertEquals(instance.instance_id, "i-abcdef01")
+        self.assertEquals(instance.instance_state, "running")
+        self.assertEquals(instance.instance_type, "c1.xlarge")
+        self.assertEquals(instance.image_id, "ami-12345678")
+        self.assertEquals(
+            instance.private_dns_name,
+            "domU-12-31-39-03-15-11.compute-1.internal")
+        self.assertEquals(
+            instance.dns_name,
+            "ec2-75-101-245-65.compute-1.amazonaws.com")
+        self.assertEquals(instance.key_name, None)
+        self.assertEquals(instance.ami_launch_index, None)
+        self.assertEquals(instance.launch_time, "2009-04-27T02:23:18.000Z")
+        self.assertEquals(instance.placement, "us-east-1c")
+        self.assertEquals(instance.product_codes, [])
+        self.assertEquals(instance.kernel_id, None)
+        self.assertEquals(instance.ramdisk_id, None)
+
     def test_parse_reservation(self):
         creds = AWSCredentials("foo", "bar")
         ec2 = client.EC2Client(creds=creds)
-        results = ec2._parse_instances(sample_describe_instances_result)
+        results = ec2._parse_instances(
+            payload.sample_describe_instances_result)
         self.check_parsed_instances(results)
 
     def test_describe_instances(self):
@@ -264,11 +133,26 @@ class EC2ClientTestCase(TXAWSTestCase):
                 self.assertEqual(creds.access_key, "foo")
                 self.assertEqual(creds.secret_key, "bar")
             def submit(self):
-                return succeed(sample_describe_instances_result)
+                return succeed(payload.sample_describe_instances_result)
         creds = AWSCredentials("foo", "bar")
         ec2 = client.EC2Client(creds, query_factory=StubQuery)
         d = ec2.describe_instances()
         d.addCallback(self.check_parsed_instances)
+        return d
+
+    def test_describe_instances_required(self):
+        class StubQuery(object):
+            def __init__(stub, action, creds, endpoint):
+                self.assertEqual(action, 'DescribeInstances')
+                self.assertEqual(creds.access_key, "foo")
+                self.assertEqual(creds.secret_key, "bar")
+            def submit(self):
+                return succeed(
+                    payload.sample_required_describe_instances_result)
+        creds = AWSCredentials("foo", "bar")
+        ec2 = client.EC2Client(creds, query_factory=StubQuery)
+        d = ec2.describe_instances()
+        d.addCallback(self.check_parsed_instances_required)
         return d
 
     def test_terminate_instances(self):
@@ -281,7 +165,7 @@ class EC2ClientTestCase(TXAWSTestCase):
                     {'InstanceId.1': 'i-1234', 'InstanceId.2': 'i-5678'},
                     other_params)
             def submit(self):
-                return succeed(sample_terminate_instances_result)
+                return succeed(payload.sample_terminate_instances_result)
         creds = AWSCredentials("foo", "bar")
         endpoint = AWSServiceEndpoint(uri=EC2_ENDPOINT_US)
         ec2 = client.EC2Client(creds=creds, endpoint=endpoint,
@@ -414,7 +298,7 @@ class TestEBS(TXAWSTestCase):
                 self.assertEquals(params, {})
 
             def submit(self):
-                return succeed(sample_describe_volumes_result)
+                return succeed(payload.sample_describe_volumes_result)
 
         ec2 = client.EC2Client(creds="foo", query_factory=StubQuery)
         d = ec2.describe_volumes()
@@ -432,7 +316,7 @@ class TestEBS(TXAWSTestCase):
                     {"VolumeId.1": "vol-4282672b"})
 
             def submit(self):
-                return succeed(sample_describe_volumes_result)
+                return succeed(payload.sample_describe_volumes_result)
 
         ec2 = client.EC2Client(creds="foo", query_factory=StubQuery)
         d = ec2.describe_volumes("vol-4282672b")
@@ -458,7 +342,7 @@ class TestEBS(TXAWSTestCase):
                 self.assertEquals(params, {})
 
             def submit(self):
-                return succeed(sample_describe_snapshots_result)
+                return succeed(payload.sample_describe_snapshots_result)
 
         ec2 = client.EC2Client(creds="foo", query_factory=StubQuery)
         d = ec2.describe_snapshots()
@@ -476,7 +360,7 @@ class TestEBS(TXAWSTestCase):
                     {"SnapshotId.1": "snap-78a54011"})
 
             def submit(self):
-                return succeed(sample_describe_snapshots_result)
+                return succeed(payload.sample_describe_snapshots_result)
 
         ec2 = client.EC2Client(creds="foo", query_factory=StubQuery)
         d = ec2.describe_snapshots("snap-78a54011")
@@ -494,7 +378,7 @@ class TestEBS(TXAWSTestCase):
                     params)
 
             def submit(self):
-                return succeed(sample_create_volume_result)
+                return succeed(payload.sample_create_volume_result)
 
         def check_parsed_volume(volume):
             self.assertEquals(volume.id, "vol-4d826724")
@@ -519,7 +403,7 @@ class TestEBS(TXAWSTestCase):
                     params)
 
             def submit(self):
-                return succeed(sample_create_volume_result)
+                return succeed(payload.sample_create_volume_result)
 
         def check_parsed_volume(volume):
             self.assertEquals(volume.id, "vol-4d826724")
@@ -558,7 +442,7 @@ class TestEBS(TXAWSTestCase):
                     params)
 
             def submit(self):
-                return succeed(sample_delete_volume_result)
+                return succeed(payload.sample_delete_volume_result)
 
         ec2 = client.EC2Client(creds="foo", query_factory=StubQuery)
         d = ec2.delete_volume("vol-4282672b")
@@ -576,7 +460,7 @@ class TestEBS(TXAWSTestCase):
                     params)
 
             def submit(self):
-                return succeed(sample_create_snapshot_result)
+                return succeed(payload.sample_create_snapshot_result)
 
         def check_parsed_snapshot(snapshot):
             self.assertEquals(snapshot.id, "snap-78a54011")
@@ -602,7 +486,7 @@ class TestEBS(TXAWSTestCase):
                     params)
 
             def submit(self):
-                return succeed(sample_delete_snapshot_result)
+                return succeed(payload.sample_delete_snapshot_result)
 
         ec2 = client.EC2Client(creds="foo", query_factory=StubQuery)
         d = ec2.delete_snapshot("snap-78a54011")
@@ -621,7 +505,7 @@ class TestEBS(TXAWSTestCase):
                     params)
 
             def submit(self):
-                return succeed(sample_attach_volume_result)
+                return succeed(payload.sample_attach_volume_result)
 
         def check_parsed_response(response):
             self.assertEquals(

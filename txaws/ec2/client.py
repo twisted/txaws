@@ -1,4 +1,7 @@
+# -*- coding: utf-8 -*-
 # Copyright (C) 2009 Robert Collins <robertc@robertcollins.net>
+# Copyright (C) 2009 Duncan McGreggor <duncan@canonical.com>
+# Copyright (C) 2009 Thomas Hervé <thomas@canonical.com>
 # Licenced under the txaws licence available at /LICENSE in the txaws source.
 
 """EC2 client support."""
@@ -8,6 +11,7 @@ from urllib import quote
 
 from twisted.web.client import getPage
 
+from txaws import version
 from txaws.credentials import AWSCredentials
 from txaws.service import AWSServiceEndpoint
 from txaws.util import iso8601time, XML
@@ -140,6 +144,14 @@ class EC2Client(object):
         return the object that most developers and their code will be
         interested in: the instances. In instances reservation is available on
         the instance object.
+
+        The following instance attributes are optional:
+            * ami_launch_index
+            * key_name
+            * kernel_id
+            * product_codes
+            * ramdisk_id
+            * reason
         """
         root = XML(xml_bytes)
         results = []
@@ -171,9 +183,10 @@ class EC2Client(object):
                 placement = instance_data.find("placement").findtext(
                     "availabilityZone")
                 products = []
-                for product_data in instance_data.find("productCodesSet"):
-                    product_code = product_data.findtext("productCode")
-                    products.append(product_code)
+                product_codes = instance_data.find("productCodes")
+                if product_codes:
+                    for product_data in instance_data.find("productCodes"):
+                        products.append(product_data.text)
                 kernel_id = instance_data.findtext("kernelId")
                 ramdisk_id = instance_data.findtext("ramdiskId")
                 instance = Instance(
@@ -362,15 +375,15 @@ class Query(object):
     """A query that may be submitted to EC2."""
 
     def __init__(self, action, creds, endpoint, other_params=None,
-                 time_tuple=None):
+                 time_tuple=None, api_version=None):
         """Create a Query to submit to EC2."""
         self.creds = creds
         self.endpoint = endpoint
-        # Require params (2008-12-01 API):
-        # Version, SignatureVersion, SignatureMethod, Action, AWSAccessKeyId,
-        # Timestamp || Expires, Signature,
+        # Currently, txAWS only supports version 2008-12-01
+        if api_version is None:
+            api_version = version.aws_api
         self.params = {
-            'Version': '2008-12-01',
+            'Version': api_version,
             'SignatureVersion': '2',
             'SignatureMethod': 'HmacSHA1',
             'Action': action,
