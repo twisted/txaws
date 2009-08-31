@@ -5,8 +5,9 @@ from epsilon.extime import Time
 from twisted.internet.defer import succeed
 
 from txaws.credentials import AWSCredentials
+from txaws.service import AWSServiceEndpoint
 from txaws.storage.client import S3, S3Request
-from txaws.tests import TXAWSTestCase
+from txaws.testing.base import TXAWSTestCase
 from txaws.util import calculate_md5
 
 
@@ -18,10 +19,37 @@ class StubbedS3Request(S3Request):
         return succeed('')
 
 
-class RequestTests(TXAWSTestCase):
+class RequestTestCase(TXAWSTestCase):
 
-    creds = AWSCredentials(access_key='0PN5J17HBGZHT7JJ3X82',
-        secret_key='uV3F3YluFJax1cknvbcGwgjvx4QpvB+leU8dUj2o')
+    creds = AWSCredentials(access_key='fookeyid', secret_key='barsecretkey')
+    endpoint = AWSServiceEndpoint("https://s3.amazonaws.com/")
+
+    def test_get_uri_with_endpoint(self):
+        endpoint = AWSServiceEndpoint("http://localhost/")
+        request = S3Request('PUT', endpoint=endpoint)
+        self.assertEquals(request.endpoint.get_uri(), "http://localhost/")
+        self.assertEquals(request.get_uri(), "http://localhost/")
+
+    def test_get_uri_with_endpoint_bucket_and_object(self):
+        endpoint = AWSServiceEndpoint("http://localhost/")
+        request = S3Request('PUT', bucket="mybucket", object_name="myobject",
+                            endpoint=endpoint)
+        self.assertEquals(
+            request.get_uri(),
+            "http://localhost/mybucket/myobject")
+
+    def test_get_uri_with_no_endpoint(self):
+        request = S3Request('PUT')
+        self.assertEquals(request.endpoint, None)
+        self.assertEquals(request.get_uri(), "http:///")
+
+    def test_get_path_with_bucket_and_object(self):
+        request = S3Request('PUT', bucket="mybucket", object_name="myobject")
+        self.assertEquals(request.get_path(), "/mybucket/myobject")
+
+    def test_get_path_with_no_bucket_or_object(self):
+        request = S3Request('PUT')
+        self.assertEquals(request.get_path(), "/")
 
     def test_objectRequest(self):
         """
@@ -31,18 +59,22 @@ class RequestTests(TXAWSTestCase):
         DIGEST = 'zhdB6gwvocWv/ourYUWMxA=='
 
         request = S3Request('PUT', 'somebucket', 'object/name/here', DATA,
-                            content_type='text/plain', metadata={'foo': 'bar'})
+                            content_type='text/plain', metadata={'foo': 'bar'},
+                            creds=self.creds, endpoint=self.endpoint)
+        request.get_signature = lambda headers: "TESTINGSIG="
         self.assertEqual(request.verb, 'PUT')
         self.assertEqual(
             request.get_uri(),
             'https://s3.amazonaws.com/somebucket/object/name/here')
         headers = request.get_headers()
         self.assertNotEqual(headers.pop('Date'), '')
-        self.assertEqual(headers,
-                         {'Content-Type': 'text/plain',
-                          'Content-Length': len(DATA),
-                          'Content-MD5': DIGEST,
-                          'x-amz-meta-foo': 'bar'})
+        self.assertEqual(
+            headers, {
+                'Authorization': 'AWS fookeyid:TESTINGSIG=',
+                'Content-Type': 'text/plain',
+                'Content-Length': len(DATA),
+                'Content-MD5': DIGEST,
+                'x-amz-meta-foo': 'bar'})
         self.assertEqual(request.data, 'objectData')
 
     def test_bucketRequest(self):
@@ -51,22 +83,27 @@ class RequestTests(TXAWSTestCase):
         """
         DIGEST = '1B2M2Y8AsgTpgAmY7PhCfg=='
 
-        request = S3Request('GET', 'somebucket')
+        request = S3Request('GET', 'somebucket', creds=self.creds,
+                            endpoint=self.endpoint)
+        request.get_signature = lambda headers: "TESTINGSIG="
         self.assertEqual(request.verb, 'GET')
         self.assertEqual(
             request.get_uri(), 'https://s3.amazonaws.com/somebucket')
         headers = request.get_headers()
         self.assertNotEqual(headers.pop('Date'), '')
-        self.assertEqual(headers,
-                         {'Content-Length': 0,
-                          'Content-MD5': DIGEST})
+        self.assertEqual(
+            headers, {
+            'Authorization': 'AWS fookeyid:TESTINGSIG=',
+            'Content-Length': 0,
+            'Content-MD5': DIGEST})
         self.assertEqual(request.data, '')
 
     def test_submit(self):
         """
         Submitting the request should invoke getPage correctly.
         """
-        request = StubbedS3Request('GET', 'somebucket')
+        request = StubbedS3Request('GET', 'somebucket', creds=self.creds,
+                                   endpoint=self.endpoint)
 
         def _postCheck(result):
             self.assertEqual(result, '')
@@ -80,13 +117,14 @@ class RequestTests(TXAWSTestCase):
         return request.submit().addCallback(_postCheck)
 
     def test_authenticationTestCases(self):
-        req = S3Request('GET', creds=self.creds)
-        req.date = 'Wed, 28 Mar 2007 01:29:59 +0000'
+        request = S3Request('GET', creds=self.creds, endpoint=self.endpoint)
+        request.get_signature = lambda headers: "TESTINGSIG="
+        request.date = 'Wed, 28 Mar 2007 01:29:59 +0000'
 
-        headers = req.get_headers()
+        headers = request.get_headers()
         self.assertEqual(
             headers['Authorization'], 
-            'AWS 0PN5J17HBGZHT7JJ3X82:jF7L3z/FTV47vagZzhKupJ9oNig=')
+            'AWS fookeyid:TESTINGSIG=')
 
 
 class InertRequest(S3Request):
@@ -153,16 +191,18 @@ class WrapperTests(TXAWSTestCase):
         TXAWSTestCase.setUp(self)
         self.creds = AWSCredentials(
             access_key='accessKey', secret_key='secretKey')
-        self.s3 = TestableS3(creds=self.creds)
+        self.endpoint = AWSServiceEndpoint()
+        self.s3 = TestableS3(creds=self.creds, endpoint=self.endpoint)
 
     def test_make_request(self):
         """
-        Test that make_request passes in the service credentials.
+        Test that make_request passes in the credentials object.
         """
         marker = object()
 
         def _cb(*a, **kw):
             self.assertEqual(kw['creds'], self.creds)
+            self.assertEqual(kw['endpoint'], self.endpoint)
             return marker
 
         self.s3.request_factory = _cb
@@ -243,5 +283,6 @@ class WrapperTests(TXAWSTestCase):
 
 
 class MiscellaneousTests(TXAWSTestCase):
+
     def test_contentMD5(self):
         self.assertEqual(calculate_md5('somedata'), 'rvr3UC1SmUw7AZV2NqPN0g==')

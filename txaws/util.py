@@ -7,6 +7,7 @@ services.
 from base64 import b64encode
 from hashlib import sha1, md5
 import hmac
+from urlparse import urlparse, urlunparse
 import time
 
 # Import XMLTreeBuilder from somwhere; here in one place to prevent duplication.
@@ -52,3 +53,38 @@ def XML(text):
     parser = NamespaceFixXmlTreeBuilder()
     parser.feed(text)
     return parser.close()
+
+
+def parse(url, defaultPort=None):
+    """
+    Split the given URL into the scheme, host, port, and path.
+
+    @type url: C{str}
+    @param url: An URL to parse.
+
+    @type defaultPort: C{int} or C{None}
+    @param defaultPort: An alternate value to use as the port if the URL does
+    not include one.
+
+    @return: A four-tuple of the scheme, host, port, and path of the URL.  All
+    of these are C{str} instances except for port, which is an C{int}.
+    """
+    url = url.strip()
+    parsed = urlparse(url)
+    scheme = parsed[0]
+    path = urlunparse(('', '') + parsed[2:])
+    if defaultPort is None:
+        if scheme == 'https':
+            defaultPort = 443
+        else:
+            defaultPort = 80
+    host, port = parsed[1], defaultPort
+    if ':' in host:
+        host, port = host.split(':')
+        try:
+            port = int(port)
+        except ValueError:
+            port = defaultPort
+    if path == '':
+        path = '/'
+    return scheme, host, port, path

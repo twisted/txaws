@@ -8,7 +8,10 @@ import gnomekeyring
 import gobject
 import gtk
 
+from twisted.internet.defer import TimeoutError 
+
 from txaws.credentials import AWSCredentials
+from txaws.service import AWSServiceRegion
 
 
 __all__ = ['main']
@@ -30,6 +33,7 @@ class AWSStatusIcon(gtk.StatusIcon):
             creds = AWSCredentials()
         except ValueError:
             creds = self.from_gnomekeyring()
+        self.region = AWSServiceRegion(creds)
         self.create_client(creds)
         menu = '''
             <ui>
@@ -55,9 +59,8 @@ class AWSStatusIcon(gtk.StatusIcon):
         self.connect('popup-menu', self.on_popup_menu)
 
     def create_client(self, creds):
-        from txaws.ec2.client import EC2Client
         if creds is not None:
-            self.client = EC2Client(creds=creds)
+            self.client = self.region.get_ec2_client()
             self.on_activate(None)
         else:
             # waiting on user entered credentials.
@@ -173,7 +176,7 @@ class AWSStatusIcon(gtk.StatusIcon):
             pass
 
     def describe_error(self, error):
-        if isinstance(error.value, twisted.internet.defer.TimeoutError):
+        if isinstance(error.value, TimeoutError):
             # timeout errors can be ignored - transient network issue or some
             # such.
             pass
