@@ -1,8 +1,8 @@
-VERSION = "2009-07-15"
+from txaws.version import aws_api
 
 
 sample_required_describe_instances_result = """<?xml version="1.0"?>
-<DescribeInstancesResponse xmlns="http://ec2.amazonaws.com/doc/""" + VERSION + """/">
+<DescribeInstancesResponse xmlns="http://ec2.amazonaws.com/doc/""" + aws_api + """/">
     <requestId>52b4c730-f29f-498d-94c1-91efb75994cc</requestId>
     <reservationSet>
         <item>
@@ -23,15 +23,6 @@ sample_required_describe_instances_result = """<?xml version="1.0"?>
                     </instanceState>
                     <privateDnsName>domU-12-31-39-03-15-11.compute-1.internal</privateDnsName>
                     <dnsName>ec2-75-101-245-65.compute-1.amazonaws.com</dnsName>
-                    <reason/>
-                    <keyName>keyname</keyName>
-                    <amiLaunchIndex>0</amiLaunchIndex>
-                    <productCodesSet>
-                        <item>
-                            <productCode>774F4FF8</productCode>
-                        </item>
-                    </productCodesSet>
-
                     <instanceType>c1.xlarge</instanceType>
                     <launchTime>2009-04-27T02:23:18.000Z</launchTime>
                     <placement>
@@ -46,7 +37,7 @@ sample_required_describe_instances_result = """<?xml version="1.0"?>
 
 
 sample_describe_instances_result = """<?xml version="1.0"?>
-<DescribeInstancesResponse xmlns="http://ec2.amazonaws.com/doc/""" + VERSION + """/">
+<DescribeInstancesResponse xmlns="http://ec2.amazonaws.com/doc/""" + aws_api + """/">
     <requestId>52b4c730-f29f-498d-94c1-91efb75994cc</requestId>
     <reservationSet>
         <item>
@@ -70,11 +61,9 @@ sample_describe_instances_result = """<?xml version="1.0"?>
                     <reason/>
                     <keyName>keyname</keyName>
                     <amiLaunchIndex>0</amiLaunchIndex>
-                    <productCodesSet>
-                        <item>
-                            <productCode>774F4FF8</productCode>
-                        </item>
-                    </productCodesSet>
+                    <productCodes>
+                        <productCode>774F4FF8</productCode>
+                    </productCodes>
 
                     <instanceType>c1.xlarge</instanceType>
                     <launchTime>2009-04-27T02:23:18.000Z</launchTime>
@@ -92,7 +81,7 @@ sample_describe_instances_result = """<?xml version="1.0"?>
 
 
 sample_terminate_instances_result = """<?xml version="1.0"?>
-<TerminateInstancesResponse xmlns="http://ec2.amazonaws.com/doc/""" + VERSION + """/">
+<TerminateInstancesResponse xmlns="http://ec2.amazonaws.com/doc/""" + aws_api + """/">
   <instancesSet>
     <item>
       <instanceId>i-1234</instanceId>
@@ -122,7 +111,7 @@ sample_terminate_instances_result = """<?xml version="1.0"?>
 
 
 sample_describe_volumes_result = """<?xml version="1.0"?>
-<DescribeVolumesResponse xmlns="http://ec2.amazonaws.com/doc/""" + VERSION + """/">
+<DescribeVolumesResponse xmlns="http://ec2.amazonaws.com/doc/""" + aws_api + """/">
   <volumeSet>
     <item>
       <volumeId>vol-4282672b</volumeId>
@@ -147,7 +136,7 @@ sample_describe_volumes_result = """<?xml version="1.0"?>
 
 
 sample_describe_snapshots_result = """<?xml version="1.0"?>
-<DescribeSnapshotsResponse xmlns="http://ec2.amazonaws.com/doc/""" + VERSION + """/">
+<DescribeSnapshotsResponse xmlns="http://ec2.amazonaws.com/doc/""" + aws_api + """/">
   <snapshotSet>
     <item>
       <snapshotId>snap-78a54011</snapshotId>
@@ -162,7 +151,7 @@ sample_describe_snapshots_result = """<?xml version="1.0"?>
 
 
 sample_create_volume_result = """<?xml version="1.0"?>
-<CreateVolumeResponse xmlns="http://ec2.amazonaws.com/doc/""" + VERSION + """/">
+<CreateVolumeResponse xmlns="http://ec2.amazonaws.com/doc/""" + aws_api + """/">
   <volumeId>vol-4d826724</volumeId>
   <size>800</size>
   <status>creating</status>
@@ -174,14 +163,14 @@ sample_create_volume_result = """<?xml version="1.0"?>
 
 
 sample_delete_volume_result = """<?xml version="1.0"?>
-<DeleteVolumeResponse xmlns="http://ec2.amazonaws.com/doc/""" + VERSION + """/">
+<DeleteVolumeResponse xmlns="http://ec2.amazonaws.com/doc/""" + aws_api + """/">
   <return>true</return>
 </DeleteVolumeResponse>
 """
 
 
 sample_create_snapshot_result = """<?xml version="1.0"?>
-<CreateSnapshotResponse xmlns="http://ec2.amazonaws.com/doc/""" + VERSION + """/">
+<CreateSnapshotResponse xmlns="http://ec2.amazonaws.com/doc/""" + aws_api + """/">
   <snapshotId>snap-78a54011</snapshotId>
   <volumeId>vol-4d826724</volumeId>
   <status>pending</status>
@@ -192,14 +181,14 @@ sample_create_snapshot_result = """<?xml version="1.0"?>
 
 
 sample_delete_snapshot_result = """<?xml version="1.0"?>
-<DeleteSnapshotResponse xmlns="http://ec2.amazonaws.com/doc/""" + VERSION + """/">
+<DeleteSnapshotResponse xmlns="http://ec2.amazonaws.com/doc/""" + aws_api + """/">
   <return>true</return>
 </DeleteSnapshotResponse>
 """
 
 
 sample_attach_volume_result = """<?xml version="1.0"?>
-<AttachVolumeResponse xmlns="http://ec2.amazonaws.com/doc/""" + VERSION + """/">
+<AttachVolumeResponse xmlns="http://ec2.amazonaws.com/doc/""" + aws_api + """/">
   <volumeId>vol-4d826724</volumeId>
   <instanceId>i-6058a509</instanceId>
   <device>/dev/sdh</device>

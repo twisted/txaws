@@ -92,6 +92,34 @@ class EC2ClientTestCase(TXAWSTestCase):
         self.assertEquals(instance.kernel_id, "aki-b51cf9dc")
         self.assertEquals(instance.ramdisk_id, "ari-b31cf9da")
 
+    def check_parsed_instances_required(self, results):
+        instance = results[0]
+        # check reservations
+        reservation = instance.reservation
+        self.assertEquals(reservation.reservation_id, "r-cf24b1a6")
+        self.assertEquals(reservation.owner_id, "123456789012")
+        # check groups
+        group = reservation.groups[0]
+        self.assertEquals(group, "default")
+        # check instance
+        self.assertEquals(instance.instance_id, "i-abcdef01")
+        self.assertEquals(instance.instance_state, "running")
+        self.assertEquals(instance.instance_type, "c1.xlarge")
+        self.assertEquals(instance.image_id, "ami-12345678")
+        self.assertEquals(
+            instance.private_dns_name,
+            "domU-12-31-39-03-15-11.compute-1.internal")
+        self.assertEquals(
+            instance.dns_name,
+            "ec2-75-101-245-65.compute-1.amazonaws.com")
+        self.assertEquals(instance.key_name, None)
+        self.assertEquals(instance.ami_launch_index, None)
+        self.assertEquals(instance.launch_time, "2009-04-27T02:23:18.000Z")
+        self.assertEquals(instance.placement, "us-east-1c")
+        self.assertEquals(instance.product_codes, [])
+        self.assertEquals(instance.kernel_id, None)
+        self.assertEquals(instance.ramdisk_id, None)
+
     def test_parse_reservation(self):
         creds = AWSCredentials("foo", "bar")
         ec2 = client.EC2Client(creds=creds)
@@ -110,6 +138,20 @@ class EC2ClientTestCase(TXAWSTestCase):
         ec2 = client.EC2Client(creds, query_factory=StubQuery)
         d = ec2.describe_instances()
         d.addCallback(self.check_parsed_instances)
+        return d
+
+    def test_describe_instances_required(self):
+        class StubQuery(object):
+            def __init__(stub, action, creds, endpoint):
+                self.assertEqual(action, 'DescribeInstances')
+                self.assertEqual(creds.access_key, "foo")
+                self.assertEqual(creds.secret_key, "bar")
+            def submit(self):
+                return succeed(sample_required_describe_instances_result)
+        creds = AWSCredentials("foo", "bar")
+        ec2 = client.EC2Client(creds, query_factory=StubQuery)
+        d = ec2.describe_instances()
+        d.addCallback(self.check_parsed_instances_required)
         return d
 
     def test_terminate_instances(self):
