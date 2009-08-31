@@ -11,9 +11,8 @@ from twisted.internet.defer import succeed
 
 from txaws.credentials import AWSCredentials
 from txaws.ec2 import client
-from txaws.ec2.tests.payload import *
-
 from txaws.service import AWSServiceEndpoint, EC2_ENDPOINT_US
+from txaws.testing import payload
 from txaws.testing.base import TXAWSTestCase
 
 
@@ -123,7 +122,8 @@ class EC2ClientTestCase(TXAWSTestCase):
     def test_parse_reservation(self):
         creds = AWSCredentials("foo", "bar")
         ec2 = client.EC2Client(creds=creds)
-        results = ec2._parse_instances(sample_describe_instances_result)
+        results = ec2._parse_instances(
+            payload.sample_describe_instances_result)
         self.check_parsed_instances(results)
 
     def test_describe_instances(self):
@@ -133,7 +133,7 @@ class EC2ClientTestCase(TXAWSTestCase):
                 self.assertEqual(creds.access_key, "foo")
                 self.assertEqual(creds.secret_key, "bar")
             def submit(self):
-                return succeed(sample_describe_instances_result)
+                return succeed(payload.sample_describe_instances_result)
         creds = AWSCredentials("foo", "bar")
         ec2 = client.EC2Client(creds, query_factory=StubQuery)
         d = ec2.describe_instances()
@@ -147,7 +147,8 @@ class EC2ClientTestCase(TXAWSTestCase):
                 self.assertEqual(creds.access_key, "foo")
                 self.assertEqual(creds.secret_key, "bar")
             def submit(self):
-                return succeed(sample_required_describe_instances_result)
+                return succeed(
+                    payload.sample_required_describe_instances_result)
         creds = AWSCredentials("foo", "bar")
         ec2 = client.EC2Client(creds, query_factory=StubQuery)
         d = ec2.describe_instances()
@@ -164,7 +165,7 @@ class EC2ClientTestCase(TXAWSTestCase):
                     {'InstanceId.1': 'i-1234', 'InstanceId.2': 'i-5678'},
                     other_params)
             def submit(self):
-                return succeed(sample_terminate_instances_result)
+                return succeed(payload.sample_terminate_instances_result)
         creds = AWSCredentials("foo", "bar")
         endpoint = AWSServiceEndpoint(uri=EC2_ENDPOINT_US)
         ec2 = client.EC2Client(creds=creds, endpoint=endpoint,
@@ -297,7 +298,7 @@ class TestEBS(TXAWSTestCase):
                 self.assertEquals(params, {})
 
             def submit(self):
-                return succeed(sample_describe_volumes_result)
+                return succeed(payload.sample_describe_volumes_result)
 
         ec2 = client.EC2Client(creds="foo", query_factory=StubQuery)
         d = ec2.describe_volumes()
@@ -315,7 +316,7 @@ class TestEBS(TXAWSTestCase):
                     {"VolumeId.1": "vol-4282672b"})
 
             def submit(self):
-                return succeed(sample_describe_volumes_result)
+                return succeed(payload.sample_describe_volumes_result)
 
         ec2 = client.EC2Client(creds="foo", query_factory=StubQuery)
         d = ec2.describe_volumes("vol-4282672b")
@@ -341,7 +342,7 @@ class TestEBS(TXAWSTestCase):
                 self.assertEquals(params, {})
 
             def submit(self):
-                return succeed(sample_describe_snapshots_result)
+                return succeed(payload.sample_describe_snapshots_result)
 
         ec2 = client.EC2Client(creds="foo", query_factory=StubQuery)
         d = ec2.describe_snapshots()
@@ -359,7 +360,7 @@ class TestEBS(TXAWSTestCase):
                     {"SnapshotId.1": "snap-78a54011"})
 
             def submit(self):
-                return succeed(sample_describe_snapshots_result)
+                return succeed(payload.sample_describe_snapshots_result)
 
         ec2 = client.EC2Client(creds="foo", query_factory=StubQuery)
         d = ec2.describe_snapshots("snap-78a54011")
@@ -377,7 +378,7 @@ class TestEBS(TXAWSTestCase):
                     params)
 
             def submit(self):
-                return succeed(sample_create_volume_result)
+                return succeed(payload.sample_create_volume_result)
 
         def check_parsed_volume(volume):
             self.assertEquals(volume.id, "vol-4d826724")
@@ -402,7 +403,7 @@ class TestEBS(TXAWSTestCase):
                     params)
 
             def submit(self):
-                return succeed(sample_create_volume_result)
+                return succeed(payload.sample_create_volume_result)
 
         def check_parsed_volume(volume):
             self.assertEquals(volume.id, "vol-4d826724")
@@ -441,7 +442,7 @@ class TestEBS(TXAWSTestCase):
                     params)
 
             def submit(self):
-                return succeed(sample_delete_volume_result)
+                return succeed(payload.sample_delete_volume_result)
 
         ec2 = client.EC2Client(creds="foo", query_factory=StubQuery)
         d = ec2.delete_volume("vol-4282672b")
@@ -459,7 +460,7 @@ class TestEBS(TXAWSTestCase):
                     params)
 
             def submit(self):
-                return succeed(sample_create_snapshot_result)
+                return succeed(payload.sample_create_snapshot_result)
 
         def check_parsed_snapshot(snapshot):
             self.assertEquals(snapshot.id, "snap-78a54011")
@@ -485,7 +486,7 @@ class TestEBS(TXAWSTestCase):
                     params)
 
             def submit(self):
-                return succeed(sample_delete_snapshot_result)
+                return succeed(payload.sample_delete_snapshot_result)
 
         ec2 = client.EC2Client(creds="foo", query_factory=StubQuery)
         d = ec2.delete_snapshot("snap-78a54011")
@@ -504,7 +505,7 @@ class TestEBS(TXAWSTestCase):
                     params)
 
             def submit(self):
-                return succeed(sample_attach_volume_result)
+                return succeed(payload.sample_attach_volume_result)
 
         def check_parsed_response(response):
             self.assertEquals(
