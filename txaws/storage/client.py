@@ -16,9 +16,6 @@ from txaws.service import AWSServiceEndpoint
 from txaws.util import XML, calculate_md5
 
 
-name_space = '{http://s3.amazonaws.com/doc/2006-03-01/}'
-
-
 class S3Request(object):
 
     def __init__(self, verb, bucket=None, object_name=None, data='',
@@ -114,10 +111,10 @@ class S3(object):
         Parse XML bucket list response.
         """
         root = XML(response)
-        for bucket in root.find(name_space + 'Buckets'):
-            timeText = bucket.findtext(name_space + 'CreationDate')
+        for bucket in root.find("Buckets"):
+            timeText = bucket.findtext("CreationDate")
             yield {
-                'name': bucket.findtext(name_space + 'Name'),
+                'name': bucket.findtext("Name"),
                 'created': Time.fromISO8601TimeAndDate(timeText),
                 }
 
