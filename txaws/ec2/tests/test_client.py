@@ -519,11 +519,11 @@ class TestEBS(TXAWSTestCase):
         return d
 
     def check_parsed_keypairs(self, results):
-        NAME, FINGERPRINT = (0, 1)
         self.assertEquals(len(results), 1)
-        self.assertEquals(results[0][NAME], "gsg-keypair")
+        keypair = results[0]
+        self.assertEquals(keypair.name, "gsg-keypair")
         self.assertEquals(
-            results[0][FINGERPRINT],
+            keypair.fingerprint,
             "1f:51:ae:28:bf:89:e9:d8:1f:25:5d:37:2d:7d:b8:ca:9f:f5:f1:6f")
 
     def test_single_describe_keypairs(self):
@@ -545,15 +545,15 @@ class TestEBS(TXAWSTestCase):
     def test_multiple_describe_keypairs(self):
 
         def check_parsed_keypairs(results):
-            NAME, FINGERPRINT = (0, 1)
             self.assertEquals(len(results), 2)
-            self.assertEquals(results[0][NAME], "gsg-keypair-1")
+            keypair1, keypair2 = results
+            self.assertEquals(keypair1.name, "gsg-keypair-1")
             self.assertEquals(
-                results[0][FINGERPRINT],
+                keypair1.fingerprint,
                 "1f:51:ae:28:bf:89:e9:d8:1f:25:5d:37:2d:7d:b8:ca:9f:f5:f1:6f")
-            self.assertEquals(results[1][NAME], "gsg-keypair-2")
+            self.assertEquals(keypair2.name, "gsg-keypair-2")
             self.assertEquals(
-                results[1][FINGERPRINT],
+                keypair2.fingerprint,
                 "1f:51:ae:28:bf:89:e9:d8:1f:25:5d:37:2d:7d:b8:ca:9f:f5:f1:70")
 
         class StubQuery(object):
@@ -587,4 +587,33 @@ class TestEBS(TXAWSTestCase):
         ec2 = client.EC2Client(creds="foo", query_factory=StubQuery)
         d = ec2.describe_keypairs("gsg-keypair")
         d.addCallback(self.check_parsed_keypairs)
+        return d
+
+    def test_create_keypair(self):
+
+        def check_parsed_create_keypairs(keypair):
+            self.assertEquals(keypair.name, "example-key-name")
+            self.assertEquals(
+                keypair.fingerprint,
+                "1f:51:ae:28:bf:89:e9:d8:1f:25:5d:37:2d:7d:b8:ca:9f:f5:f1:6f")
+            self.assertTrue(keypair.material.startswith(
+                "-----BEGIN RSA PRIVATE KEY-----"))
+            self.assertTrue(keypair.material.endswith(
+                "-----END RSA PRIVATE KEY-----"))
+            self.assertEquals(len(keypair.material), 1670)
+
+        class StubQuery(object):
+            def __init__(stub, action, creds, params):
+                self.assertEqual(action, "CreateKeyPair")
+                self.assertEqual("foo", creds)
+                self.assertEquals(
+                    params,
+                    {"KeyName": "example-key-name"})
+
+            def submit(self):
+                return succeed(payload.sample_create_keypairs_result)
+
+        ec2 = client.EC2Client(creds="foo", query_factory=StubQuery)
+        d = ec2.create_keypair("example-key-name")
+        d.addCallback(check_parsed_create_keypairs)
         return d

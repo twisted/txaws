@@ -111,6 +111,15 @@ class Snapshot(object):
         self.progress = progress
 
 
+class Keypair(object):
+    """A convenience object for holding keypair data."""
+
+    def __init__(self, name, fingerprint, material=None):
+        self.name = name
+        self.fingerprint = fingerprint
+        self.material = material
+
+
 class EC2Client(object):
     """A client for EC2."""
 
@@ -377,15 +386,15 @@ class EC2Client(object):
             keypair_set["KeyPair.%d" % (pos + 1)] = keypair_name
         q = self.query_factory('DescribeKeyPairs', self.creds, keypair_set)
         d = q.submit()
-        return d.addCallback(self._parse_key_pairs)
+        return d.addCallback(self._parse_describe_keypairs)
 
-    def _parse_key_pairs(self, xml_bytes):
+    def _parse_describe_keypairs(self, xml_bytes):
         results = []
         root = XML(xml_bytes)
         for keypair_data in root.find("keySet"):
             key_name = keypair_data.findtext("keyName")
             key_fingerprint = keypair_data.findtext("keyFingerprint")
-            results.append((key_name, key_fingerprint))
+            results.append(Keypair(key_name, key_fingerprint))
         return results
 
     def create_keypair(self, keypair_name):
@@ -396,7 +405,15 @@ class EC2Client(object):
         q = self.query_factory(
             "CreateKeyPair", self.creds, {"KeyName": keypair_name})
         d = q.submit()
-        return d.addCallback(self._parse_attach_volume)
+        return d.addCallback(self._parse_create_keypair)
+
+    def _parse_create_keypair(self, xml_bytes):
+        results = []
+        keypair_data = XML(xml_bytes)
+        key_name = keypair_data.findtext("keyName")
+        key_fingerprint = keypair_data.findtext("keyFingerprint")
+        key_material = keypair_data.findtext("keyMaterial")
+        return Keypair(key_name, key_fingerprint, key_material)
 
 
 class Query(object):
