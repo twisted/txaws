@@ -198,7 +198,7 @@ sample_attach_volume_result = """<?xml version="1.0"?>
 """
 
 
-sample_describe_keypairs_single = """<?xml version="1.0"?>
+sample_single_describe_keypairs_result = """<?xml version="1.0"?>
 <DescribeKeyPairsResponse xmlns="http://ec2.amazonaws.com/doc/""" + aws_api + """/">
   <keySet>
     <item>
@@ -210,7 +210,7 @@ sample_describe_keypairs_single = """<?xml version="1.0"?>
 """
 
 
-sample_describe_keypairs_multiple = """<?xml version="1.0"?>
+sample_multiple_describe_keypairs_result = """<?xml version="1.0"?>
 <DescribeKeyPairsResponse xmlns="http://ec2.amazonaws.com/doc/""" + aws_api + """/">
   <keySet>
     <item>
