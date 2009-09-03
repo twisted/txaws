@@ -591,7 +591,7 @@ class TestEBS(TXAWSTestCase):
 
     def test_create_keypair(self):
 
-        def check_parsed_create_keypairs(keypair):
+        def check_parsed_create_keypair(keypair):
             self.assertEquals(keypair.name, "example-key-name")
             self.assertEquals(
                 keypair.fingerprint,
@@ -611,9 +611,63 @@ class TestEBS(TXAWSTestCase):
                     {"KeyName": "example-key-name"})
 
             def submit(self):
-                return succeed(payload.sample_create_keypairs_result)
+                return succeed(payload.sample_create_keypair_result)
 
         ec2 = client.EC2Client(creds="foo", query_factory=StubQuery)
         d = ec2.create_keypair("example-key-name")
-        d.addCallback(check_parsed_create_keypairs)
+        d.addCallback(check_parsed_create_keypair)
+        return d
+
+    def test_delete_keypair_true_result(self):
+
+        class StubQuery(object):
+            def __init__(stub, action, creds, params):
+                self.assertEqual(action, "DeleteKeyPair")
+                self.assertEqual("foo", creds)
+                self.assertEquals(
+                    params,
+                    {"KeyName": "example-key-name"})
+
+            def submit(self):
+                return succeed(payload.sample_delete_keypair_true_result)
+
+        ec2 = client.EC2Client(creds="foo", query_factory=StubQuery)
+        d = ec2.delete_keypair("example-key-name")
+        d.addCallback(self.assertTrue)
+        return d
+
+    def test_delete_keypair_false_result(self):
+
+        class StubQuery(object):
+            def __init__(stub, action, creds, params):
+                self.assertEqual(action, "DeleteKeyPair")
+                self.assertEqual("foo", creds)
+                self.assertEquals(
+                    params,
+                    {"KeyName": "example-key-name"})
+
+            def submit(self):
+                return succeed(payload.sample_delete_keypair_false_result)
+
+        ec2 = client.EC2Client(creds="foo", query_factory=StubQuery)
+        d = ec2.delete_keypair("example-key-name")
+        d.addCallback(self.assertFalse)
+        return d
+
+    def test_delete_keypair_no_result(self):
+
+        class StubQuery(object):
+            def __init__(stub, action, creds, params):
+                self.assertEqual(action, "DeleteKeyPair")
+                self.assertEqual("foo", creds)
+                self.assertEquals(
+                    params,
+                    {"KeyName": "example-key-name"})
+
+            def submit(self):
+                return succeed(payload.sample_delete_keypair_no_result)
+
+        ec2 = client.EC2Client(creds="foo", query_factory=StubQuery)
+        d = ec2.delete_keypair("example-key-name")
+        d.addCallback(self.assertFalse)
         return d

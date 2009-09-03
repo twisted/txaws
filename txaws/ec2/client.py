@@ -415,6 +415,25 @@ class EC2Client(object):
         key_material = keypair_data.findtext("keyMaterial")
         return Keypair(key_name, key_fingerprint, key_material)
 
+    def delete_keypair(self, keypair_name):
+        """Delete a given keypair."""
+        q = self.query_factory(
+            "DeleteKeyPair", self.creds, {"KeyName": keypair_name})
+        d = q.submit()
+        return d.addCallback(self._parse_delete_keypair)
+
+    def _parse_delete_keypair(self, xml_bytes):
+        results = []
+        keypair_data = XML(xml_bytes)
+        result = keypair_data.findtext("return")
+        if not result:
+            result = False
+        elif result.lower() == "true":
+            result = True
+        else:
+            result = False
+        return result
+
 
 class Query(object):
     """A query that may be submitted to EC2."""
