@@ -196,3 +196,31 @@ sample_attach_volume_result = """<?xml version="1.0"?>
   <attachTime>2008-05-07T11:51:50.000Z</attachTime>
 </AttachVolumeResponse>
 """
+
+
+sample_describe_keypairs_single = """<?xml version="1.0"?>
+<DescribeKeyPairsResponse xmlns="http://ec2.amazonaws.com/doc/""" + aws_api + """/">
+  <keySet>
+    <item>
+      <keyName>gsg-keypair</keyName>
+      <keyFingerprint>1f:51:ae:28:bf:89:e9:d8:1f:25:5d:37:2d:7d:b8:ca:9f:f5:f1:6f</keyFingerprint>
+    </item>
+  </keySet>
+</DescribeKeyPairsResponse>
+"""
+
+
+sample_describe_keypairs_multiple = """<?xml version="1.0"?>
+<DescribeKeyPairsResponse xmlns="http://ec2.amazonaws.com/doc/""" + aws_api + """/">
+  <keySet>
+    <item>
+      <keyName>gsg-keypair-1</keyName>
+      <keyFingerprint>1f:51:ae:28:bf:89:e9:d8:1f:25:5d:37:2d:7d:b8:ca:9f:f5:f1:6f</keyFingerprint>
+    </item>
+    <item>
+      <keyName>gsg-keypair-2</keyName>
+      <keyFingerprint>1f:51:ae:28:bf:89:e9:d8:1f:25:5d:37:2d:7d:b8:ca:9f:f5:f1:70</keyFingerprint>
+    </item>
+  </keySet>
+</DescribeKeyPairsResponse>
+"""
