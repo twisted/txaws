@@ -375,17 +375,18 @@ class EC2Client(object):
         keypair_set = {}
         for pos, keypair_name in enumerate(keypair_names):
             keypair_set["KeyPair.%d" % (pos + 1)] = keypair_name
-        q = self.query_factory('DescribeKeyPairs', self.creds, self.endpoint)
+        q = self.query_factory('DescribeKeyPairs', self.creds, keypair_set)
         d = q.submit()
         return d.addCallback(self._parse_key_pairs)
 
     def _parse_key_pairs(self, xml_bytes):
+        results = []
         root = XML(xml_bytes)
         for keypair_data in root.find("keySet"):
-            key_name = snapshot_data.findtext("keyName")
-            key_fingerprint = snapshot_data.findtext("keyFingerprint")
-            result.append((key_name, key_fingerprint)
-        return result
+            key_name = keypair_data.findtext("keyName")
+            key_fingerprint = keypair_data.findtext("keyFingerprint")
+            results.append((key_name, key_fingerprint))
+        return results
 
 
 class Query(object):

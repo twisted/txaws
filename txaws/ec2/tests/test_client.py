@@ -517,3 +517,74 @@ class TestEBS(TXAWSTestCase):
         d = ec2.attach_volume("vol-4d826724", "i-6058a509", "/dev/sdh")
         d.addCallback(check_parsed_response)
         return d
+
+    def check_parsed_keypairs(self, results):
+        NAME, FINGERPRINT = (0, 1)
+        self.assertEquals(len(results), 1)
+        self.assertEquals(results[0][NAME], "gsg-keypair")
+        self.assertEquals(
+            results[0][FINGERPRINT],
+            "1f:51:ae:28:bf:89:e9:d8:1f:25:5d:37:2d:7d:b8:ca:9f:f5:f1:6f")
+
+    def test_single_describe_keypairs(self):
+
+        class StubQuery(object):
+            def __init__(stub, action, creds, params):
+                self.assertEqual(action, "DescribeKeyPairs")
+                self.assertEqual("foo", creds)
+                self.assertEquals(params, {})
+
+            def submit(self):
+                return succeed(payload.sample_single_describe_keypairs_result)
+
+        ec2 = client.EC2Client(creds="foo", query_factory=StubQuery)
+        d = ec2.describe_keypairs()
+        d.addCallback(self.check_parsed_keypairs)
+        return d
+
+    def test_multiple_describe_keypairs(self):
+
+        def check_parsed_keypairs(results):
+            NAME, FINGERPRINT = (0, 1)
+            self.assertEquals(len(results), 2)
+            self.assertEquals(results[0][NAME], "gsg-keypair-1")
+            self.assertEquals(
+                results[0][FINGERPRINT],
+                "1f:51:ae:28:bf:89:e9:d8:1f:25:5d:37:2d:7d:b8:ca:9f:f5:f1:6f")
+            self.assertEquals(results[1][NAME], "gsg-keypair-2")
+            self.assertEquals(
+                results[1][FINGERPRINT],
+                "1f:51:ae:28:bf:89:e9:d8:1f:25:5d:37:2d:7d:b8:ca:9f:f5:f1:70")
+
+        class StubQuery(object):
+            def __init__(stub, action, creds, params):
+                self.assertEqual(action, "DescribeKeyPairs")
+                self.assertEqual("foo", creds)
+                self.assertEquals(params, {})
+
+            def submit(self):
+                return succeed(
+                    payload.sample_multiple_describe_keypairs_result)
+
+        ec2 = client.EC2Client(creds="foo", query_factory=StubQuery)
+        d = ec2.describe_keypairs()
+        d.addCallback(check_parsed_keypairs)
+        return d
+
+    def test_describe_specified_keypairs(self):
+
+        class StubQuery(object):
+            def __init__(stub, action, creds, params):
+                self.assertEqual(action, "DescribeKeyPairs")
+                self.assertEqual("foo", creds)
+                self.assertEquals(
+                    params,
+                    {"KeyPair.1": "gsg-keypair"})
+
+            def submit(self):
+                return succeed(payload.sample_single_describe_keypairs_result)
+
+        ec2 = client.EC2Client(creds="foo", query_factory=StubQuery)
+        d = ec2.describe_keypairs("gsg-keypair")
+        d.addCallback(self.check_parsed_keypairs)
+        return d
