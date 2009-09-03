@@ -388,6 +388,16 @@ class EC2Client(object):
             results.append((key_name, key_fingerprint))
         return results
 
+    def create_keypair(self, keypair_name):
+        """
+        Create a new 2048 bit RSA key pair and return a unique ID that can be
+        used to reference the created key pair when launching new instances.
+        """
+        q = self.query_factory(
+            "CreateKeyPair", self.creds, {"KeyName": keypair_name})
+        d = q.submit()
+        return d.addCallback(self._parse_attach_volume)
+
 
 class Query(object):
     """A query that may be submitted to EC2."""
