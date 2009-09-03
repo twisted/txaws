@@ -299,10 +299,10 @@ class EC2Client(object):
 
     def describe_snapshots(self, *snapshot_ids):
         """Describe available snapshots."""
-        snapshotset = {}
+        snapshot_set = {}
         for pos, snapshot_id in enumerate(snapshot_ids):
-            snapshotset["SnapshotId.%d" % (pos + 1)] = snapshot_id
-        q = self.query_factory("DescribeSnapshots", self.creds, snapshotset)
+            snapshot_set["SnapshotId.%d" % (pos + 1)] = snapshot_id
+        q = self.query_factory("DescribeSnapshots", self.creds, snapshot_set)
         d = q.submit()
         return d.addCallback(self._parse_snapshots)
 
@@ -369,6 +369,23 @@ class EC2Client(object):
         attach_time = datetime.strptime(
             attach_time[:19], "%Y-%m-%dT%H:%M:%S")
         return {"status": status, "attach_time": attach_time}
+
+    def describe_keypairs(self, *keypair_names):
+        """Returns information about key pairs available."""
+        keypair_set = {}
+        for pos, keypair_name in enumerate(keypair_names):
+            keypair_set["KeyPair.%d" % (pos + 1)] = keypair_name
+        q = self.query_factory('DescribeKeyPairs', self.creds, self.endpoint)
+        d = q.submit()
+        return d.addCallback(self._parse_key_pairs)
+
+    def _parse_key_pairs(self, xml_bytes):
+        root = XML(xml_bytes)
+        for keypair_data in root.find("keySet"):
+            key_name = snapshot_data.findtext("keyName")
+            key_fingerprint = snapshot_data.findtext("keyFingerprint")
+            result.append((key_name, key_fingerprint)
+        return result
 
 
 class Query(object):
