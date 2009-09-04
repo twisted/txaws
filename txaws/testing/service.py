@@ -18,4 +18,5 @@ class FakeAWSServiceRegion(object):
         creds = AWSCredentials(access_key=self.access_key,
                                secret_key=self.secret_key)
         endpoint = AWSServiceEndpoint(uri=self.uri)
-        return FakeEC2Client(creds, endpoint, instances=self.instances)
+        return FakeEC2Client(
+            creds, endpoint, instances=self.instances, keypairs=self.keypairs)
