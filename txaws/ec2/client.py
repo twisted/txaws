@@ -256,7 +256,7 @@ class EC2Client(object):
         other_params = None
         if names:
             other_params = dict([
-                ("GroupName.%d" % i, name) for i, name in enumerate(names)])
+                ("GroupName.%d" % (i+1), name) for i, name in enumerate(names)])
         q = self.query_factory("DescribeSecurityGroups", self.creds,
                                self.endpoint, other_params=other_params)
         d = q.submit()
@@ -271,21 +271,21 @@ class EC2Client(object):
         """
         root = XML(xml_bytes)
         result = []
-        for security_group_info in root.find("securityGroupInfo"):
-            owner_id = security_group_info.findtext("ownerId")
-            name = security_group_info.findtext("groupName")
-            description = security_group_info.findtext("groupDescription")
+        for security_group_info in root.findall("securityGroupInfo"):
+            owner_id = security_group_info.findtext("item/ownerId")
+            name = security_group_info.findtext("item/groupName")
+            description = security_group_info.findtext("item/groupDescription")
             allowed_groups = set()
             allowed_ips = []
-            for ip_permission in security_group_info.find("ipPermissions"):
+            for ip_permission in security_group_info.find("item/ipPermissions"):
                 ip_protocol = ip_permission.findtext("ipProtocol")
                 from_port = ip_permission.findtext("fromPort")
                 to_port = ip_permission.findtext("toPort")
                 cidr_ip = ip_permission.findtext("ipRanges/item/cidrIp")
                 allowed_ips.append((ip_protocol, from_port, to_port, cidr_ip))
 
-                group_name = ip_permission.findtext("group/groupName")
-                user_id = ip_permission.findtext("group/userId")
+                group_name = ip_permission.findtext("groups/item/groupName")
+                user_id = ip_permission.findtext("groups/item/userId")
                 if user_id and group_name:
                     allowed_groups.add((user_id, group_name))
 
