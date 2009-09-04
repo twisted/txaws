@@ -181,7 +181,7 @@ class EC2ClientTestCase(TXAWSTestCase):
         """
         L{EC2Client.describe_security_groups} returns a C{Deferred} that
         eventually fires with a list of L{SecurityGroup} instances created
-        with data received from the cloud.
+        using XML data received from the cloud.
         """
         class StubQuery(object):
             def __init__(stub, action, creds, endpoint, other_params=None):
