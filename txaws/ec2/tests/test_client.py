@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # Copyright (C) 2009 Robert Collins <robertc@robertcollins.net>
 # Copyright (C) 2009 Duncan McGreggor <duncan@canonical.com>
-# Copyright (C) 2009 Thomas Hervé <thomas@canonical.com>
+# Copyright (C) 2009 Thomas HervÃ© <thomas@canonical.com>
 # Licenced under the txaws licence available at /LICENSE in the txaws source.
 
 from datetime import datetime
@@ -174,7 +174,34 @@ class EC2ClientTestCase(TXAWSTestCase):
         def check_transition(changes):
             self.assertEqual([('i-1234', 'running', 'shutting-down'),
                 ('i-5678', 'shutting-down', 'shutting-down')], sorted(changes))
+        d.addCallback(check_transition)
         return d
+
+    def test_describe_security_groups(self):
+        class StubQuery(object):
+            def __init__(stub, action, creds, endpoint, other_params=None):
+                self.assertEqual(action, "DescribeSecurityGroups")
+                self.assertEqual(creds.access_key, "foo")
+                self.assertEqual(creds.secret_key, "bar")
+                self.assertEqual(other_params, None)
+            def submit(self):
+                return succeed(payload.sample_describe_security_groups_result)
+
+        def assert_parsed_security_groups(security_groups):
+            [security_group] = security_groups
+            self.assertEquals(security_group.owner_id,
+                              "UYY3TLBUXIEON5NQVUUX6OMPWBZIQNFM")
+            self.assertEquals(security_group.name, "WebServers")
+            self.assertEquals(security_group.description, "Web Servers")
+            self.assertEquals(security_group.allowed_groups, [])
+            self.assertEquals(security_group.allowed_ips,
+                              [("tcp", "80", "80", "0.0.0.0/0")])
+
+        creds = AWSCredentials("foo", "bar")
+        ec2 = client.EC2Client(creds, query_factory=StubQuery)
+        security_groups = ec2.describe_security_groups()
+        security_groups.addCallback(assert_parsed_security_groups)
+        return security_groups
 
 
 class QueryTestCase(TXAWSTestCase):
