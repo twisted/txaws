@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # Copyright (C) 2009 Robert Collins <robertc@robertcollins.net>
 # Copyright (C) 2009 Duncan McGreggor <duncan@canonical.com>
-# Copyright (C) 2009 Thomas Hervé <thomas@canonical.com>
+# Copyright (C) 2009 Thomas HervÃ© <thomas@canonical.com>
 # Licenced under the txaws licence available at /LICENSE in the txaws source.
 
 """EC2 client support."""
@@ -75,6 +75,43 @@ class Instance(object):
         self.kernel_id = kernel_id
         self.ramdisk_id = ramdisk_id
         self.reservation = reservation
+
+
+class SecurityGroup(object):
+    """An EC2 security group.
+
+    @ivar owner_id: The AWS access key ID of the owner of this security group.
+    @ivar name: The name of the security group.
+    @ivar description: The description of this security group.
+    @ivar allowed_groups: The sequence of L{UserIDGroupPair} instances for
+        this security group.
+    @ivar allowed_ips: The sequence of L{IPPermission} instances for this
+        security group.
+    """
+    def __init__(self, owner_id, name, description, groups, ips):
+        self.owner_id = owner_id
+        self.name = name
+        self.description = description
+        self.allowed_groups = groups
+        self.allowed_ips = ips
+
+
+class UserIDGroupPair(object):
+    """A user ID/group name pair associated with a L{SecurityGroup}."""
+
+    def __init__(self, user_id, name):
+        self.user_id = user_id
+        self.name = name
+
+
+class IPPermission(object):
+    """An IP permission associated with a L{SecurityGroup}."""
+
+    def __init__(self, ip_protocol, from_port, to_port, cidr_ip):
+        self.ip_protocol = ip_protocol
+        self.from_port = from_port
+        self.to_port = to_port
+        self.cidr_ip = cidr_ip
 
 
 class Volume(object):
@@ -224,6 +261,58 @@ class EC2Client(object):
             shutdownState = instance.find("shutdownState").findtext(
                 "name")
             result.append((instanceId, previousState, shutdownState))
+        return result
+
+    def describe_security_groups(self, *names):
+        """Describe security groups.
+
+        @param names: Optionally, a list of security group names to describe.
+            Defaults to all security groups in the account.
+        @return: A C{Deferred} that will fire with a list of L{SecurityGroup}s
+            retrieved from the cloud.
+        """
+        group_names = None
+        if names:
+            group_names = dict([
+                ("GroupName.%d" % (i+1), name) for i, name in enumerate(names)])
+        query = self.query_factory("DescribeSecurityGroups", self.creds,
+                                   self.endpoint, group_names)
+        d = query.submit()
+        return d.addCallback(self._parse_security_groups)
+
+    def _parse_security_groups(self, xml_bytes):
+        """Parse the XML returned by the C{DescribeSecurityGroups} function.
+
+        @param xml_bytes: XML bytes with a C{DescribeSecurityGroupsResponse}
+            root element.
+        @return: A list of L{SecurityGroup} instances.
+        """
+        root = XML(xml_bytes)
+        result = []
+        for security_group_info in root.findall("securityGroupInfo"):
+            owner_id = security_group_info.findtext("item/ownerId")
+            name = security_group_info.findtext("item/groupName")
+            description = security_group_info.findtext("item/groupDescription")
+            allowed_groups = {}
+            allowed_ips = []
+            for ip_permission in security_group_info.find("item/ipPermissions"):
+                ip_protocol = ip_permission.findtext("ipProtocol")
+                from_port = int(ip_permission.findtext("fromPort"))
+                to_port = int(ip_permission.findtext("toPort"))
+                cidr_ip = ip_permission.findtext("ipRanges/item/cidrIp")
+                allowed_ips.append(
+                    IPPermission(ip_protocol, from_port, to_port, cidr_ip))
+
+                user_id = ip_permission.findtext("groups/item/userId")
+                group_name = ip_permission.findtext("groups/item/groupName")
+                if user_id and group_name:
+                    key = (user_id, group_name)
+                    if key not in allowed_groups:
+                        allowed_groups[key] = UserIDGroupPair(user_id,
+                                                              group_name)
+
+            result.append(SecurityGroup(owner_id, name, description,
+                                        allowed_groups.values(), allowed_ips))
         return result
 
     def describe_volumes(self, *volume_ids):
