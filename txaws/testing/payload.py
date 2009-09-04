@@ -110,6 +110,33 @@ sample_terminate_instances_result = """<?xml version="1.0"?>
 """
 
 
+sample_describe_security_groups_result = """\
+<?xml version="1.0"?>
+<DescribeSecurityGroupsResponse xmlns="http://ec2.amazonaws.com/doc/%s/">
+  <securityGroupInfo>
+    <item>
+      <ownerId>UYY3TLBUXIEON5NQVUUX6OMPWBZIQNFM</ownerId>
+      <groupName>WebServers</groupName>
+      <groupDescription>Web Servers</groupDescription>
+      <ipPermissions>
+        <item>
+  	  <ipProtocol>tcp</ipProtocol>
+	  <fromPort>80</fromPort>
+	  <toPort>80</toPort>
+	  <groups/>
+	  <ipRanges>
+	    <item>
+	      <cidrIp>0.0.0.0/0</cidrIp>
+	    </item>
+	  </ipRanges>
+         </item>
+      </ipPermissions>
+    </item>
+  </securityGroupInfo>
+</DescribeSecurityGroupsResponse>
+""" % (aws_api,)
+
+
 sample_describe_volumes_result = """<?xml version="1.0"?>
 <DescribeVolumesResponse xmlns="http://ec2.amazonaws.com/doc/""" + aws_api + """/">
   <volumeSet>
