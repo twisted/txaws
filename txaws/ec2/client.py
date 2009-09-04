@@ -271,12 +271,12 @@ class EC2Client(object):
         @return: A C{Deferred} that will fire with a list of L{SecurityGroup}s
             retrieved from the cloud.
         """
-        other_params = None
+        group_names = None
         if names:
-            other_params = dict([
+            group_names = dict([
                 ("GroupName.%d" % (i+1), name) for i, name in enumerate(names)])
         query = self.query_factory("DescribeSecurityGroups", self.creds,
-                                   self.endpoint, other_params=other_params)
+                                   self.endpoint, group_names)
         d = query.submit()
         return d.addCallback(self._parse_security_groups)
 
