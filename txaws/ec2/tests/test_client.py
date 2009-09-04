@@ -199,8 +199,10 @@ class EC2ClientTestCase(TXAWSTestCase):
             self.assertEquals(security_group.name, "WebServers")
             self.assertEquals(security_group.description, "Web Servers")
             self.assertEquals(security_group.allowed_groups, [])
-            self.assertEquals(security_group.allowed_ips,
-                              [("tcp", "80", "80", "0.0.0.0/0")])
+            self.assertEquals(
+                [(ip.ip_protocol, ip.from_port, ip.to_port, ip.cidr_ip)
+                 for ip in security_group.allowed_ips],
+                [("tcp", 80, 80, "0.0.0.0/0")])
 
         creds = AWSCredentials("foo", "bar")
         ec2 = client.EC2Client(creds, query_factory=StubQuery)
@@ -233,19 +235,23 @@ class EC2ClientTestCase(TXAWSTestCase):
             self.assertEquals(security_group.name, "MessageServers")
             self.assertEquals(security_group.description, "Message Servers")
             self.assertEquals(security_group.allowed_groups, [])
-            self.assertEquals(security_group.allowed_ips,
-                              [("tcp", "80", "80", "0.0.0.0/0")])
+            self.assertEquals(
+                [(ip.ip_protocol, ip.from_port, ip.to_port, ip.cidr_ip)
+                 for ip in security_group.allowed_ips],
+                [("tcp", 80, 80, "0.0.0.0/0")])
 
             security_group = security_groups[1]
             self.assertEquals(security_group.owner_id,
                               "UYY3TLBUXIEON5NQVUUX6OMPWBZIQNFM")
             self.assertEquals(security_group.name, "WebServers")
             self.assertEquals(security_group.description, "Web Servers")
-            self.assertEquals(security_group.allowed_groups,
+            self.assertEquals([(pair.user_id, pair.name)
+                               for pair in security_group.allowed_groups],
                               [("group-user-id", "group-name")])
-            self.assertEquals(security_group.allowed_ips,
-                              [("tcp", "80", "80", "0.0.0.0/0"),
-                               ("udp", "81", "81", "0.0.0.0/16")])
+            self.assertEquals(
+                [(ip.ip_protocol, ip.from_port, ip.to_port, ip.cidr_ip)
+                 for ip in security_group.allowed_ips],
+                [("tcp", 80, 80, "0.0.0.0/0"), ("udp", 81, 81, "0.0.0.0/16")])
 
         creds = AWSCredentials("foo", "bar")
         ec2 = client.EC2Client(creds, query_factory=StubQuery)
