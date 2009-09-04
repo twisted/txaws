@@ -83,7 +83,7 @@ class SecurityGroup(object):
     @ivar owner_id: The AWS access key ID of the owner of this security group.
     @ivar name: The name of the security group.
     @ivar description: The description of this security group.
-    @ivar allowed_groups: The sequence of C{(owner_id, name)} group 2-tuples
+    @ivar allowed_groups: The sequence of C{(user_id, name)} group 2-tuples
         for this security group.
     @ivar allowed_ips: The sequence of C{(ip_protocol, from_port, to_port,
         cidr_ip)} IP range 4-tuples for this security group.
@@ -257,10 +257,10 @@ class EC2Client(object):
         if names:
             other_params = dict([
                 ("GroupName.%d" % (i+1), name) for i, name in enumerate(names)])
-        q = self.query_factory("DescribeSecurityGroups", self.creds,
-                               self.endpoint, other_params=other_params)
-        d = q.submit()
-        return d.addCallback(self._parse_security_groups)
+        query = self.query_factory("DescribeSecurityGroups", self.creds,
+                                   self.endpoint, other_params=other_params)
+        xml_response = query.submit()
+        return xml_response.addCallback(self._parse_security_groups)
 
     def _parse_security_groups(self, xml_bytes):
         """Parse the XML returned by the C{DescribeSecurityGroups} function.
@@ -284,8 +284,8 @@ class EC2Client(object):
                 cidr_ip = ip_permission.findtext("ipRanges/item/cidrIp")
                 allowed_ips.append((ip_protocol, from_port, to_port, cidr_ip))
 
-                group_name = ip_permission.findtext("groups/item/groupName")
                 user_id = ip_permission.findtext("groups/item/userId")
+                group_name = ip_permission.findtext("groups/item/groupName")
                 if user_id and group_name:
                     allowed_groups.add((user_id, group_name))
 
