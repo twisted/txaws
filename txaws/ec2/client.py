@@ -240,7 +240,8 @@ class EC2Client(object):
         volumeset = {}
         for pos, volume_id in enumerate(volume_ids):
             volumeset["VolumeId.%d" % (pos + 1)] = volume_id
-        q = self.query_factory("DescribeVolumes", self.creds, volumeset)
+        q = self.query_factory(
+            "DescribeVolumes", self.creds, self.endpoint, volumeset)
         d = q.submit()
         return d.addCallback(self._parse_volumes)
 
@@ -281,7 +282,8 @@ class EC2Client(object):
             params["Size"] = str(size)
         if snapshot_id is not None:
             params["SnapshotId"] = snapshot_id
-        q = self.query_factory("CreateVolume", self.creds, params)
+        q = self.query_factory(
+            "CreateVolume", self.creds, self.endpoint, params)
         d = q.submit()
         return d.addCallback(self._parse_create_volume)
 
@@ -298,7 +300,7 @@ class EC2Client(object):
 
     def delete_volume(self, volume_id):
         q = self.query_factory(
-            "DeleteVolume", self.creds, {"VolumeId": volume_id})
+            "DeleteVolume", self.creds, self.endpoint, {"VolumeId": volume_id})
         d = q.submit()
         return d.addCallback(self._parse_delete_volume)
 
@@ -311,7 +313,8 @@ class EC2Client(object):
         snapshot_set = {}
         for pos, snapshot_id in enumerate(snapshot_ids):
             snapshot_set["SnapshotId.%d" % (pos + 1)] = snapshot_id
-        q = self.query_factory("DescribeSnapshots", self.creds, snapshot_set)
+        q = self.query_factory(
+            "DescribeSnapshots", self.creds, self.endpoint, snapshot_set)
         d = q.submit()
         return d.addCallback(self._parse_snapshots)
 
@@ -335,7 +338,8 @@ class EC2Client(object):
     def create_snapshot(self, volume_id):
         """Create a new snapshot of an existing volume."""
         q = self.query_factory(
-            "CreateSnapshot", self.creds, {"VolumeId": volume_id})
+            "CreateSnapshot", self.creds, self.endpoint,
+            {"VolumeId": volume_id})
         d = q.submit()
         return d.addCallback(self._parse_create_snapshot)
 
@@ -354,7 +358,8 @@ class EC2Client(object):
     def delete_snapshot(self, snapshot_id):
         """Remove a previously created snapshot."""
         q = self.query_factory(
-            "DeleteSnapshot", self.creds, {"SnapshotId": snapshot_id})
+            "DeleteSnapshot", self.creds, self.endpoint,
+            {"SnapshotId": snapshot_id})
         d = q.submit()
         return d.addCallback(self._parse_delete_snapshot)
 
@@ -365,7 +370,7 @@ class EC2Client(object):
     def attach_volume(self, volume_id, instance_id, device):
         """Attach the given volume to the specified instance at C{device}."""
         q = self.query_factory(
-            "AttachVolume", self.creds,
+            "AttachVolume", self.creds, self.endpoint,
             {"VolumeId": volume_id, "InstanceId": instance_id,
              "Device": device})
         d = q.submit()
@@ -384,7 +389,8 @@ class EC2Client(object):
         keypair_set = {}
         for pos, keypair_name in enumerate(keypair_names):
             keypair_set["KeyPair.%d" % (pos + 1)] = keypair_name
-        q = self.query_factory('DescribeKeyPairs', self.creds, keypair_set)
+        q = self.query_factory('DescribeKeyPairs', self.creds, self.endpoint,
+                               keypair_set)
         d = q.submit()
         return d.addCallback(self._parse_describe_keypairs)
 
@@ -403,7 +409,8 @@ class EC2Client(object):
         used to reference the created key pair when launching new instances.
         """
         q = self.query_factory(
-            "CreateKeyPair", self.creds, {"KeyName": keypair_name})
+            "CreateKeyPair", self.creds, self.endpoint,
+            {"KeyName": keypair_name})
         d = q.submit()
         return d.addCallback(self._parse_create_keypair)
 
@@ -418,7 +425,8 @@ class EC2Client(object):
     def delete_keypair(self, keypair_name):
         """Delete a given keypair."""
         q = self.query_factory(
-            "DeleteKeyPair", self.creds, {"KeyName": keypair_name})
+            "DeleteKeyPair", self.creds, self.endpoint,
+            {"KeyName": keypair_name})
         d = q.submit()
         return d.addCallback(self._parse_delete_keypair)
 
