@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # Copyright (C) 2009 Robert Collins <robertc@robertcollins.net>
 # Copyright (C) 2009 Duncan McGreggor <duncan@canonical.com>
-# Copyright (C) 2009 Thomas Hervé <thomas@canonical.com>
+# Copyright (C) 2009 Thomas HervÃ© <thomas@canonical.com>
 # Licenced under the txaws licence available at /LICENSE in the txaws source.
 
 from datetime import datetime
@@ -174,7 +174,114 @@ class EC2ClientTestCase(TXAWSTestCase):
         def check_transition(changes):
             self.assertEqual([('i-1234', 'running', 'shutting-down'),
                 ('i-5678', 'shutting-down', 'shutting-down')], sorted(changes))
+        d.addCallback(check_transition)
         return d
+
+    def test_describe_security_groups(self):
+        """
+        L{EC2Client.describe_security_groups} returns a C{Deferred} that
+        eventually fires with a list of L{SecurityGroup} instances created
+        using XML data received from the cloud.
+        """
+        class StubQuery(object):
+            def __init__(stub, action, creds, endpoint, other_params=None):
+                self.assertEqual(action, "DescribeSecurityGroups")
+                self.assertEqual(creds.access_key, "foo")
+                self.assertEqual(creds.secret_key, "bar")
+                self.assertEqual(other_params, None)
+            def submit(self):
+                return succeed(payload.sample_describe_security_groups_result)
+
+        def assert_security_groups(security_groups):
+            [security_group] = security_groups
+            self.assertEquals(security_group.owner_id,
+                              "UYY3TLBUXIEON5NQVUUX6OMPWBZIQNFM")
+            self.assertEquals(security_group.name, "WebServers")
+            self.assertEquals(security_group.description, "Web Servers")
+            self.assertEquals(security_group.allowed_groups, [])
+            self.assertEquals(
+                [(ip.ip_protocol, ip.from_port, ip.to_port, ip.cidr_ip)
+                 for ip in security_group.allowed_ips],
+                [("tcp", 80, 80, "0.0.0.0/0")])
+
+        creds = AWSCredentials("foo", "bar")
+        ec2 = client.EC2Client(creds, query_factory=StubQuery)
+        security_groups = ec2.describe_security_groups()
+        security_groups.addCallback(assert_security_groups)
+        return security_groups
+
+    def test_describe_security_groups_with_multiple_results(self):
+        """
+        The C{DescribeSecurityGroupsResponse} XML payload retrieved when
+        L{EC2Client.describe_security_groups} is called can contain
+        information about more than one L{SecurityGroup}.
+        """
+        class StubQuery(object):
+            def __init__(stub, action, creds, endpoint, other_params=None):
+                self.assertEqual(action, "DescribeSecurityGroups")
+                self.assertEqual(creds.access_key, "foo")
+                self.assertEqual(creds.secret_key, "bar")
+                self.assertEqual(other_params, None)
+            def submit(self):
+                return succeed(
+                    payload.sample_describe_security_groups_multiple_result)
+
+        def assert_security_groups(security_groups):
+            self.assertEquals(len(security_groups), 2)
+
+            security_group = security_groups[0]
+            self.assertEquals(security_group.owner_id,
+                              "UYY3TLBUXIEON5NQVUUX6OMPWBZIQNFM")
+            self.assertEquals(security_group.name, "MessageServers")
+            self.assertEquals(security_group.description, "Message Servers")
+            self.assertEquals(security_group.allowed_groups, [])
+            self.assertEquals(
+                [(ip.ip_protocol, ip.from_port, ip.to_port, ip.cidr_ip)
+                 for ip in security_group.allowed_ips],
+                [("tcp", 80, 80, "0.0.0.0/0")])
+
+            security_group = security_groups[1]
+            self.assertEquals(security_group.owner_id,
+                              "UYY3TLBUXIEON5NQVUUX6OMPWBZIQNFM")
+            self.assertEquals(security_group.name, "WebServers")
+            self.assertEquals(security_group.description, "Web Servers")
+            self.assertEquals([(pair.user_id, pair.name)
+                               for pair in security_group.allowed_groups],
+                              [("group-user-id", "group-name")])
+            self.assertEquals(
+                [(ip.ip_protocol, ip.from_port, ip.to_port, ip.cidr_ip)
+                 for ip in security_group.allowed_ips],
+                [("tcp", 80, 80, "0.0.0.0/0"), ("udp", 81, 81, "0.0.0.0/16")])
+
+        creds = AWSCredentials("foo", "bar")
+        ec2 = client.EC2Client(creds, query_factory=StubQuery)
+        security_groups = ec2.describe_security_groups()
+        security_groups.addCallback(assert_security_groups)
+        return security_groups
+
+    def test_describe_security_groups_with_name(self):
+        """
+        L{EC2Client.describe_security_groups} optionally takes a list of
+        security group names to limit results to.
+        """
+        class StubQuery(object):
+            def __init__(stub, action, creds, endpoint, other_params=None):
+                self.assertEqual(action, "DescribeSecurityGroups")
+                self.assertEqual(creds.access_key, "foo")
+                self.assertEqual(creds.secret_key, "bar")
+                self.assertEqual(other_params, {"GroupName.1": "WebServers"})
+            def submit(self):
+                return succeed(payload.sample_describe_security_groups_result)
+
+        def assert_security_groups(security_groups):
+            [security_group] = security_groups
+            self.assertEquals(security_group.name, "WebServers")
+
+        creds = AWSCredentials("foo", "bar")
+        ec2 = client.EC2Client(creds, query_factory=StubQuery)
+        security_groups = ec2.describe_security_groups("WebServers")
+        security_groups.addCallback(assert_security_groups)
+        return security_groups
 
 
 class QueryTestCase(TXAWSTestCase):
