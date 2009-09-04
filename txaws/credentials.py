@@ -5,32 +5,38 @@
 
 import os
 
-from txaws.util import *
+from txaws.util import hmac_sha1
 
 
 __all__ = ['AWSCredentials']
 
 
+ENV_ACCESS_KEY = "AWS_ACCESS_KEY_ID"
+ENV_SECRET_KEY = "AWS_SECRET_ACCESS_KEY"
+
+
 class AWSCredentials(object):
+    """Create an AWSCredentials object.
 
-    def __init__(self, access_key=None, secret_key=None):
-        """Create an AWSCredentials object.
-
-        @param access_key: The access key to use. If None the environment
-            variable AWS_ACCESS_KEY_ID is consulted.
-        @param secret_key: The secret key to use. If None the environment
-            variable AWS_SECRET_ACCESS_KEY is consulted.
-        """
-        self.secret_key = secret_key
-        if self.secret_key is None:
-            self.secret_key = os.environ.get('AWS_SECRET_ACCESS_KEY')
-        if self.secret_key is None:
-            raise ValueError('Could not find AWS_SECRET_ACCESS_KEY')
+    @param access_key: The access key to use. If None the environment variable
+        AWS_ACCESS_KEY_ID is consulted.
+    @param secret_key: The secret key to use. If None the environment variable
+        AWS_SECRET_ACCESS_KEY is consulted.
+    """
+ 
+    def __init__(self, access_key="", secret_key=""):
         self.access_key = access_key
-        if self.access_key is None:
-            self.access_key = os.environ.get('AWS_ACCESS_KEY_ID')
-        if self.access_key is None:
-            raise ValueError('Could not find AWS_ACCESS_KEY_ID')
+        self.secret_key = secret_key
+        # perform checks for access key
+        if not self.access_key:
+            self.access_key = os.environ.get(ENV_ACCESS_KEY)
+        if not self.access_key:
+            raise ValueError("Could not find %s" % ENV_ACCESS_KEY)
+        # perform checks for secret key
+        if not self.secret_key:
+            self.secret_key = os.environ.get(ENV_SECRET_KEY)
+        if not self.secret_key:
+            raise ValueError("Could not find %s" % ENV_SECRET_KEY)
 
     def sign(self, bytes):
         """Sign some bytes."""
