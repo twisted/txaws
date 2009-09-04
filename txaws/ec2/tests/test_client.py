@@ -1,10 +1,14 @@
+# -*- coding: utf-8 -*-
 # Copyright (C) 2009 Robert Collins <robertc@robertcollins.net>
+# Copyright (C) 2009 Duncan McGreggor <duncan@canonical.com>
+# Copyright (C) 2009 Thomas Hervé <thomas@canonical.com>
 # Licenced under the txaws licence available at /LICENSE in the txaws source.
 
+from datetime import datetime
 import os
 
 from twisted.internet import reactor
-from twisted.internet.defer import succeed
+from twisted.internet.defer import succeed, Deferred
 from twisted.python.filepath import FilePath
 from twisted.web import server, static, util
 from twisted.web.client import HTTPPageGetter, HTTPClientFactory
@@ -13,15 +17,15 @@ from twisted.protocols.policies import WrappingFactory
 from twisted.protocols.loopback import loopbackAsync
 from twisted.test.proto_helpers import StringTransport
 
-from txaws.tests import TXAWSTestCase
 from txaws.credentials import AWSCredentials
 from txaws.ec2 import client
-
 from txaws.ec2.exception import EC2Error
 from txaws.ec2.tests.payload import (
     sample_describe_instances_result, sample_terminate_instances_result,
     sample_ec2_error_message)
-from txaws.tests import TXAWSTestCase
+from txaws.service import AWSServiceEndpoint, EC2_ENDPOINT_US
+from txaws.testing import payload
+from txaws.testing.base import TXAWSTestCase
 
 
 class FakeHTTPHandler(Request):
@@ -54,13 +58,18 @@ class FakeHTTPPageGetter(HTTPPageGetter):
     transport = StringTransport
 
 
-#class FakeHTTPFactory(HTTPClientFactory):
-class FakeHTTPFactory(HTTPClient):
+class FakeHTTPFactory(HTTPClientFactory):
+#class FakeHTTPFactory(HTTPClient):
 
     #protocol = FakeHTTPPageGetter
     #test_payload = ""
-    def __init__(self, test_payload):
+    def __init__(self, test_payload, method=None):
         self.test_payload = test_payload
+        self.method = method
+        self.wasStarted = None
+        self.wasStopped = None
+        self.connectionFailed = None
+        self.deferred = Deferred()
 
     def connectionMade(self):
         content_length = len(self.test_payload)
@@ -68,7 +77,21 @@ class FakeHTTPFactory(HTTPClient):
         self.sendHeader("Content-Length", content_length)
         self.endHeaders()
         self.transport.write(self.test_payload)
+        self.deferred.success("success")
+"""
+    def doStart(self):
+        self.wasStarted = True
 
+    def doStop(self):
+        self.wasStopped = True
+
+    def startedConnecting(self, *args):
+        pass
+
+    def clientConnectionFailed(self, *args):
+        self.connectionFailed = True
+        self.deferred.fail("failed")
+"""
 
 class FactoryWrapper(object):
 
@@ -111,8 +134,8 @@ class InstanceTestCase(TXAWSTestCase):
         self.assertEquals(instance.ramdisk_id, "id4")
 
 
-class TestEC2Client(TXAWSTestCase):
-
+class EC2ClientTestCase(TXAWSTestCase):
+    
     def test_init_no_creds(self):
         os.environ['AWS_SECRET_ACCESS_KEY'] = 'foo'
         os.environ['AWS_ACCESS_KEY_ID'] = 'bar'
@@ -123,19 +146,20 @@ class TestEC2Client(TXAWSTestCase):
         self.assertRaises(ValueError, client.EC2Client)
 
     def test_init_explicit_creds(self):
-        creds = 'foo'
+        creds = AWSCredentials("foo", "bar")
         ec2 = client.EC2Client(creds=creds)
         self.assertEqual(creds, ec2.creds)
 
     def check_parsed_instances(self, results):
         instance = results[0]
-        self.assertEquals(instance.instance_id, "i-abcdef01")
-        self.assertEquals(instance.instance_state, "running")
+        # check reservations
         reservation = instance.reservation
         self.assertEquals(reservation.reservation_id, "r-cf24b1a6")
         self.assertEquals(reservation.owner_id, "123456789012")
+        # check groups
         group = reservation.groups[0]
         self.assertEquals(group, "default")
+        # check instance
         self.assertEquals(instance.instance_id, "i-abcdef01")
         self.assertEquals(instance.instance_state, "running")
         self.assertEquals(instance.instance_type, "c1.xlarge")
@@ -154,20 +178,51 @@ class TestEC2Client(TXAWSTestCase):
         self.assertEquals(instance.kernel_id, "aki-b51cf9dc")
         self.assertEquals(instance.ramdisk_id, "ari-b31cf9da")
 
+    def check_parsed_instances_required(self, results):
+        instance = results[0]
+        # check reservations
+        reservation = instance.reservation
+        self.assertEquals(reservation.reservation_id, "r-cf24b1a6")
+        self.assertEquals(reservation.owner_id, "123456789012")
+        # check groups
+        group = reservation.groups[0]
+        self.assertEquals(group, "default")
+        # check instance
+        self.assertEquals(instance.instance_id, "i-abcdef01")
+        self.assertEquals(instance.instance_state, "running")
+        self.assertEquals(instance.instance_type, "c1.xlarge")
+        self.assertEquals(instance.image_id, "ami-12345678")
+        self.assertEquals(
+            instance.private_dns_name,
+            "domU-12-31-39-03-15-11.compute-1.internal")
+        self.assertEquals(
+            instance.dns_name,
+            "ec2-75-101-245-65.compute-1.amazonaws.com")
+        self.assertEquals(instance.key_name, None)
+        self.assertEquals(instance.ami_launch_index, None)
+        self.assertEquals(instance.launch_time, "2009-04-27T02:23:18.000Z")
+        self.assertEquals(instance.placement, "us-east-1c")
+        self.assertEquals(instance.product_codes, [])
+        self.assertEquals(instance.kernel_id, None)
+        self.assertEquals(instance.ramdisk_id, None)
 
     def test_parse_reservation(self):
-        ec2 = client.EC2Client(creds='foo')
-        results = ec2._parse_instances(sample_describe_instances_result)
+        creds = AWSCredentials("foo", "bar")
+        ec2 = client.EC2Client(creds=creds)
+        results = ec2._parse_instances(
+            payload.sample_describe_instances_result)
         self.check_parsed_instances(results)
 
     def test_describe_instances(self):
         class StubQuery(object):
-            def __init__(stub, action, creds):
+            def __init__(stub, action, creds, endpoint):
                 self.assertEqual(action, 'DescribeInstances')
-                self.assertEqual('foo', creds)
+                self.assertEqual(creds.access_key, "foo")
+                self.assertEqual(creds.secret_key, "bar")
             def submit(self):
-                return succeed(sample_describe_instances_result)
-        ec2 = client.EC2Client(creds='foo', query_factory=StubQuery)
+                return succeed(payload.sample_describe_instances_result)
+        creds = AWSCredentials("foo", "bar")
+        ec2 = client.EC2Client(creds, query_factory=StubQuery)
         d = ec2.describe_instances()
 
         def check_instances(reservation):
@@ -177,17 +232,36 @@ class TestEC2Client(TXAWSTestCase):
         d.addCallback(self.check_parsed_instances)
         return d
 
+    def test_describe_instances_required(self):
+        class StubQuery(object):
+            def __init__(stub, action, creds, endpoint):
+                self.assertEqual(action, 'DescribeInstances')
+                self.assertEqual(creds.access_key, "foo")
+                self.assertEqual(creds.secret_key, "bar")
+            def submit(self):
+                return succeed(
+                    payload.sample_required_describe_instances_result)
+        creds = AWSCredentials("foo", "bar")
+        ec2 = client.EC2Client(creds, query_factory=StubQuery)
+        d = ec2.describe_instances()
+        d.addCallback(self.check_parsed_instances_required)
+        return d
+
     def test_terminate_instances(self):
         class StubQuery(object):
-            def __init__(stub, action, creds, other_params):
+            def __init__(stub, action, creds, endpoint, other_params):
                 self.assertEqual(action, 'TerminateInstances')
-                self.assertEqual('foo', creds)
+                self.assertEqual(creds.access_key, "foo")
+                self.assertEqual(creds.secret_key, "bar")
                 self.assertEqual(
                     {'InstanceId.1': 'i-1234', 'InstanceId.2': 'i-5678'},
                     other_params)
             def submit(self):
-                return succeed(sample_terminate_instances_result)
-        ec2 = client.EC2Client(creds='foo', query_factory=StubQuery)
+                return succeed(payload.sample_terminate_instances_result)
+        creds = AWSCredentials("foo", "bar")
+        endpoint = AWSServiceEndpoint(uri=EC2_ENDPOINT_US)
+        ec2 = client.EC2Client(creds=creds, endpoint=endpoint,
+                               query_factory=StubQuery)
         d = ec2.terminate_instances('i-1234', 'i-5678')
         def check_transition(changes):
             self.assertEqual([('i-1234', 'running', 'shutting-down'),
@@ -195,11 +269,12 @@ class TestEC2Client(TXAWSTestCase):
         return d
 
 
-class TestQuery(TXAWSTestCase):
+class QueryTestCase(TXAWSTestCase):
 
     def setUp(self):
         TXAWSTestCase.setUp(self)
         self.creds = AWSCredentials('foo', 'bar')
+        self.endpoint = AWSServiceEndpoint(uri=EC2_ENDPOINT_US)
         self.twisted_client_test_setup()
         self.cleanupServerConnections = 0
 
@@ -239,7 +314,7 @@ class TestQuery(TXAWSTestCase):
         return "http://127.0.0.1:%d/%s" % (self.portno, path)
 
     def test_init_minimum(self):
-        query = client.Query('DescribeInstances', self.creds)
+        query = client.Query('DescribeInstances', self.creds, self.endpoint)
         self.assertTrue('Timestamp' in query.params)
         del query.params['Timestamp']
         self.assertEqual(
@@ -257,7 +332,7 @@ class TestQuery(TXAWSTestCase):
         self.assertRaises(TypeError, client.Query, None)
 
     def test_init_other_args_are_params(self):
-        query = client.Query('DescribeInstances', self.creds,
+        query = client.Query('DescribeInstances', self.creds, self.endpoint,
             {'InstanceId.0': '12345'},
             time_tuple=(2007,11,12,13,14,15,0,0,0))
         self.assertEqual(
@@ -271,7 +346,7 @@ class TestQuery(TXAWSTestCase):
             query.params)
 
     def test_sorted_params(self):
-        query = client.Query('DescribeInstances', self.creds,
+        query = client.Query('DescribeInstances', self.creds, self.endpoint,
             {'fun': 'games'},
             time_tuple=(2007,11,12,13,14,15,0,0,0))
         self.assertEqual([
@@ -287,16 +362,16 @@ class TestQuery(TXAWSTestCase):
     def test_encode_unreserved(self):
         all_unreserved = ('ABCDEFGHIJKLMNOPQRSTUVWXYZ'
             'abcdefghijklmnopqrstuvwxyz0123456789-_.~')
-        query = client.Query('DescribeInstances', self.creds)
+        query = client.Query('DescribeInstances', self.creds, self.endpoint)
         self.assertEqual(all_unreserved, query.encode(all_unreserved))
 
     def test_encode_space(self):
         """This may be just 'url encode', but the AWS manual isn't clear."""
-        query = client.Query('DescribeInstances', self.creds)
+        query = client.Query('DescribeInstances', self.creds, self.endpoint)
         self.assertEqual('a%20space', query.encode('a space'))
 
     def test_canonical_query(self):
-        query = client.Query('DescribeInstances', self.creds,
+        query = client.Query('DescribeInstances', self.creds, self.endpoint,
             {'fu n': 'g/ames', 'argwithnovalue':'',
              'InstanceId.1': 'i-1234'},
             time_tuple=(2007,11,12,13,14,15,0,0,0))
@@ -308,32 +383,33 @@ class TestQuery(TXAWSTestCase):
         self.assertEqual(expected_query, query.canonical_query_params())
 
     def test_signing_text(self):
-        query = client.Query('DescribeInstances', self.creds,
+        query = client.Query('DescribeInstances', self.creds, self.endpoint,
             time_tuple=(2007,11,12,13,14,15,0,0,0))
-        signing_text = ('GET\nec2.amazonaws.com\n/\n'
+        signing_text = ('GET\n%s\n/\n' % self.endpoint.host + 
             'AWSAccessKeyId=foo&Action=DescribeInstances&'
             'SignatureMethod=HmacSHA1&SignatureVersion=2&'
             'Timestamp=2007-11-12T13%3A14%3A15Z&Version=2008-12-01')
         self.assertEqual(signing_text, query.signing_text())
 
     def test_sign(self):
-        query = client.Query('DescribeInstances', self.creds,
+        query = client.Query('DescribeInstances', self.creds, self.endpoint,
             time_tuple=(2007,11,12,13,14,15,0,0,0))
         query.sign()
-        self.assertEqual('4hEtLuZo9i6kuG3TOXvRQNOrE/U=',
+        self.assertEqual('JuCpwFA2H4OVF3Ql/lAQs+V6iMc=',
             query.params['Signature'])
 
     def test_get_page(self):
         """Copied from twisted.web.test.test_webclient."""
         factory_wrapper = FactoryWrapper(sample_ec2_error_message)
         query = client.Query(
-            'DummyQuery', self.creds, time_tuple=(2009,8,17,13,14,15,0,0,0),
+            'DummyQuery', self.creds, self.endpoint,
+            time_tuple=(2009,8,17,13,14,15,0,0,0),
             factory=factory_wrapper)
         deferred = query.get_page(self.get_url("file"))
         deferred.addCallback(self.assertEquals, "0123456789")
         return deferred
 
-    def test_submit_400_raise_error(self):
+    def XXX_test_submit_400_raise_error(self):
         """A 4xx response status from EC2 should raise a txAWS EC2Error."""
         factory_wrapper = FactoryWrapper(sample_ec2_error_message)
 
@@ -341,7 +417,8 @@ class TestQuery(TXAWSTestCase):
             import pdb;pdb.set_trace()
 
         query = client.Query(
-            'BadQuery', self.creds, time_tuple=(2009,8,15,13,14,15,0,0,0),
+            'BadQuery', self.creds, self.endpoint,
+            time_tuple=(2009,8,15,13,14,15,0,0,0),
             factory=factory_wrapper)
         return self.assertFailure(query.submit(), EC2Error)
 
@@ -385,3 +462,251 @@ class ClientTestCaseBase(TXAWSTestCase):
         client.handleResponse = check_payload
         client.handleStatus = check_status
         return loopbackAsync(server, client)
+
+class TestEBS(TXAWSTestCase):
+
+    def check_parsed_volumes(self, volumes):
+        self.assertEquals(len(volumes), 1)
+        volume = volumes[0]
+        self.assertEquals(volume.id, "vol-4282672b")
+        self.assertEquals(volume.size, 800)
+        self.assertEquals(volume.status, "in-use")
+        create_time = datetime(2008, 05, 07, 11, 51, 50)
+        self.assertEquals(volume.create_time, create_time)
+        self.assertEquals(len(volume.attachments), 1)
+        attachment = volume.attachments[0]
+        self.assertEquals(attachment.instance_id, "i-6058a509")
+        self.assertEquals(attachment.snapshot_id, "snap-12345678")
+        self.assertEquals(attachment.availability_zone, "us-east-1a")
+        self.assertEquals(attachment.status, "attached")
+        attach_time = datetime(2008, 05, 07, 12, 51, 50)
+        self.assertEquals(attachment.attach_time, attach_time)
+
+    def test_describe_volumes(self):
+
+        class StubQuery(object):
+            def __init__(stub, action, creds, params):
+                self.assertEqual(action, "DescribeVolumes")
+                self.assertEqual("foo", creds)
+                self.assertEquals(params, {})
+
+            def submit(self):
+                return succeed(payload.sample_describe_volumes_result)
+
+        ec2 = client.EC2Client(creds="foo", query_factory=StubQuery)
+        d = ec2.describe_volumes()
+        d.addCallback(self.check_parsed_volumes)
+        return d
+
+    def test_describe_specified_volumes(self):
+
+        class StubQuery(object):
+            def __init__(stub, action, creds, params):
+                self.assertEqual(action, "DescribeVolumes")
+                self.assertEqual("foo", creds)
+                self.assertEquals(
+                    params,
+                    {"VolumeId.1": "vol-4282672b"})
+
+            def submit(self):
+                return succeed(payload.sample_describe_volumes_result)
+
+        ec2 = client.EC2Client(creds="foo", query_factory=StubQuery)
+        d = ec2.describe_volumes("vol-4282672b")
+        d.addCallback(self.check_parsed_volumes)
+        return d
+
+    def check_parsed_snapshots(self, snapshots):
+        self.assertEquals(len(snapshots), 1)
+        snapshot = snapshots[0]
+        self.assertEquals(snapshot.id, "snap-78a54011")
+        self.assertEquals(snapshot.volume_id, "vol-4d826724")
+        self.assertEquals(snapshot.status, "pending")
+        start_time = datetime(2008, 05, 07, 12, 51, 50)
+        self.assertEquals(snapshot.start_time, start_time)
+        self.assertEquals(snapshot.progress, 0.8)
+
+    def test_describe_snapshots(self):
+
+        class StubQuery(object):
+            def __init__(stub, action, creds, params):
+                self.assertEqual(action, "DescribeSnapshots")
+                self.assertEqual("foo", creds)
+                self.assertEquals(params, {})
+
+            def submit(self):
+                return succeed(payload.sample_describe_snapshots_result)
+
+        ec2 = client.EC2Client(creds="foo", query_factory=StubQuery)
+        d = ec2.describe_snapshots()
+        d.addCallback(self.check_parsed_snapshots)
+        return d
+
+    def test_describe_specified_snapshots(self):
+
+        class StubQuery(object):
+            def __init__(stub, action, creds, params):
+                self.assertEqual(action, "DescribeSnapshots")
+                self.assertEqual("foo", creds)
+                self.assertEquals(
+                    params,
+                    {"SnapshotId.1": "snap-78a54011"})
+
+            def submit(self):
+                return succeed(payload.sample_describe_snapshots_result)
+
+        ec2 = client.EC2Client(creds="foo", query_factory=StubQuery)
+        d = ec2.describe_snapshots("snap-78a54011")
+        d.addCallback(self.check_parsed_snapshots)
+        return d
+
+    def test_create_volume(self):
+
+        class StubQuery(object):
+            def __init__(stub, action, creds, params):
+                self.assertEqual(action, "CreateVolume")
+                self.assertEqual("foo", creds)
+                self.assertEqual(
+                    {"AvailabilityZone": "us-east-1", "Size": "800"},
+                    params)
+
+            def submit(self):
+                return succeed(payload.sample_create_volume_result)
+
+        def check_parsed_volume(volume):
+            self.assertEquals(volume.id, "vol-4d826724")
+            self.assertEquals(volume.size, 800)
+            create_time = datetime(2008, 05, 07, 11, 51, 50)
+            self.assertEquals(volume.create_time, create_time)
+
+        ec2 = client.EC2Client(creds="foo", query_factory=StubQuery)
+        d = ec2.create_volume("us-east-1", size=800)
+        d.addCallback(check_parsed_volume)
+        return d
+
+    def test_create_volume_with_snapshot(self):
+
+        class StubQuery(object):
+            def __init__(stub, action, creds, params):
+                self.assertEqual(action, "CreateVolume")
+                self.assertEqual("foo", creds)
+                self.assertEqual(
+                    {"AvailabilityZone": "us-east-1",
+                     "SnapshotId": "snap-12345678"},
+                    params)
+
+            def submit(self):
+                return succeed(payload.sample_create_volume_result)
+
+        def check_parsed_volume(volume):
+            self.assertEquals(volume.id, "vol-4d826724")
+            self.assertEquals(volume.size, 800)
+            create_time = datetime(2008, 05, 07, 11, 51, 50)
+            self.assertEquals(volume.create_time, create_time)
+
+        ec2 = client.EC2Client(creds="foo", query_factory=StubQuery)
+        d = ec2.create_volume("us-east-1", snapshot_id="snap-12345678")
+        d.addCallback(check_parsed_volume)
+        return d
+
+    def test_create_volume_no_params(self):
+        ec2 = client.EC2Client(creds="foo")
+        error = self.assertRaises(ValueError, ec2.create_volume, "us-east-1")
+        self.assertEquals(
+            str(error),
+            "Please provide either size or snapshot_id")
+
+    def test_create_volume_both_params(self):
+        ec2 = client.EC2Client(creds="foo")
+        error = self.assertRaises(ValueError, ec2.create_volume, "us-east-1",
+                                  size=800, snapshot_id="snap-12345678")
+        self.assertEquals(
+            str(error),
+            "Please provide either size or snapshot_id")
+
+    def test_delete_volume(self):
+
+        class StubQuery(object):
+            def __init__(stub, action, creds, params):
+                self.assertEqual(action, "DeleteVolume")
+                self.assertEqual("foo", creds)
+                self.assertEqual(
+                    {"VolumeId": "vol-4282672b"},
+                    params)
+
+            def submit(self):
+                return succeed(payload.sample_delete_volume_result)
+
+        ec2 = client.EC2Client(creds="foo", query_factory=StubQuery)
+        d = ec2.delete_volume("vol-4282672b")
+        d.addCallback(self.assertEquals, True)
+        return d
+
+    def test_create_snapshot(self):
+
+        class StubQuery(object):
+            def __init__(stub, action, creds, params):
+                self.assertEqual(action, "CreateSnapshot")
+                self.assertEqual("foo", creds)
+                self.assertEqual(
+                    {"VolumeId": "vol-4d826724"},
+                    params)
+
+            def submit(self):
+                return succeed(payload.sample_create_snapshot_result)
+
+        def check_parsed_snapshot(snapshot):
+            self.assertEquals(snapshot.id, "snap-78a54011")
+            self.assertEquals(snapshot.volume_id, "vol-4d826724")
+            self.assertEquals(snapshot.status, "pending")
+            start_time = datetime(2008, 05, 07, 12, 51, 50)
+            self.assertEquals(snapshot.start_time, start_time)
+            self.assertEquals(snapshot.progress, 0)
+
+        ec2 = client.EC2Client(creds="foo", query_factory=StubQuery)
+        d = ec2.create_snapshot("vol-4d826724")
+        d.addCallback(check_parsed_snapshot)
+        return d
+
+    def test_delete_snapshot(self):
+
+        class StubQuery(object):
+            def __init__(stub, action, creds, params):
+                self.assertEqual(action, "DeleteSnapshot")
+                self.assertEqual("foo", creds)
+                self.assertEqual(
+                    {"SnapshotId": "snap-78a54011"},
+                    params)
+
+            def submit(self):
+                return succeed(payload.sample_delete_snapshot_result)
+
+        ec2 = client.EC2Client(creds="foo", query_factory=StubQuery)
+        d = ec2.delete_snapshot("snap-78a54011")
+        d.addCallback(self.assertEquals, True)
+        return d
+
+    def test_attach_volume(self):
+
+        class StubQuery(object):
+            def __init__(stub, action, creds, params):
+                self.assertEqual(action, "AttachVolume")
+                self.assertEqual("foo", creds)
+                self.assertEqual(
+                    {"VolumeId": "vol-4d826724", "InstanceId": "i-6058a509",
+                     "Device": "/dev/sdh"},
+                    params)
+
+            def submit(self):
+                return succeed(payload.sample_attach_volume_result)
+
+        def check_parsed_response(response):
+            self.assertEquals(
+                response,
+                {"status": "attaching",
+                 "attach_time": datetime(2008, 05, 07, 11, 51, 50)})
+
+        ec2 = client.EC2Client(creds="foo", query_factory=StubQuery)
+        d = ec2.attach_volume("vol-4d826724", "i-6058a509", "/dev/sdh")
+        d.addCallback(check_parsed_response)
+        return d

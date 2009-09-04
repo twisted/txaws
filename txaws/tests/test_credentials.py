@@ -3,39 +3,37 @@
 
 import os
 
-from twisted.trial.unittest import TestCase
-
-from txaws.credentials import AWSCredentials
-from txaws.tests import TXAWSTestCase
+from txaws.credentials import AWSCredentials, ENV_ACCESS_KEY, ENV_SECRET_KEY
+from txaws.testing.base import TXAWSTestCase
 
 
 class TestCredentials(TXAWSTestCase):
 
     def test_no_access_errors(self):
-        # Without anything in os.environ, AWSCredentials() blows up
-        os.environ['AWS_SECRET_ACCESS_KEY'] = 'foo'
-        self.assertRaises(Exception, AWSCredentials)
+        # Without anything in os.environ, AWSService() blows up
+        os.environ[ENV_SECRET_KEY] = "bar"
+        self.assertRaises(ValueError, AWSCredentials)
 
     def test_no_secret_errors(self):
-        # Without anything in os.environ, AWSCredentials() blows up
-        os.environ['AWS_ACCESS_KEY_ID'] = 'bar'
-        self.assertRaises(Exception, AWSCredentials)
+        # Without anything in os.environ, AWSService() blows up
+        os.environ[ENV_ACCESS_KEY] = "foo"
+        self.assertRaises(ValueError, AWSCredentials)
 
     def test_found_values_used(self):
-        os.environ['AWS_SECRET_ACCESS_KEY'] = 'foo'
-        os.environ['AWS_ACCESS_KEY_ID'] = 'bar'
-        creds = AWSCredentials()
-        self.assertEqual('foo', creds.secret_key)
-        self.assertEqual('bar', creds.access_key)
+        os.environ[ENV_ACCESS_KEY] = "foo"
+        os.environ[ENV_SECRET_KEY] = "bar"
+        service = AWSCredentials()
+        self.assertEqual("foo", service.access_key)
+        self.assertEqual("bar", service.secret_key)
 
     def test_explicit_access_key(self):
-        os.environ['AWS_SECRET_ACCESS_KEY'] = 'foo'
-        creds = AWSCredentials(access_key='bar')
-        self.assertEqual('foo', creds.secret_key)
-        self.assertEqual('bar', creds.access_key)
+        os.environ[ENV_SECRET_KEY] = "foo"
+        service = AWSCredentials(access_key="bar")
+        self.assertEqual("foo", service.secret_key)
+        self.assertEqual("bar", service.access_key)
 
     def test_explicit_secret_key(self):
-        os.environ['AWS_ACCESS_KEY_ID'] = 'bar'
-        creds = AWSCredentials(secret_key='foo')
-        self.assertEqual('foo', creds.secret_key)
-        self.assertEqual('bar', creds.access_key)
+        os.environ[ENV_ACCESS_KEY] = "bar"
+        service = AWSCredentials(secret_key="foo")
+        self.assertEqual("foo", service.secret_key)
+        self.assertEqual("bar", service.access_key)
