@@ -1,8 +1,9 @@
 from txaws.version import aws_api
 
 
-sample_required_describe_instances_result = """<?xml version="1.0"?>
-<DescribeInstancesResponse xmlns="http://ec2.amazonaws.com/doc/""" + aws_api + """/">
+sample_required_describe_instances_result = """\
+<?xml version="1.0"?>
+<DescribeInstancesResponse xmlns="http://ec2.amazonaws.com/doc/%s/">
     <requestId>52b4c730-f29f-498d-94c1-91efb75994cc</requestId>
     <reservationSet>
         <item>
@@ -33,11 +34,12 @@ sample_required_describe_instances_result = """<?xml version="1.0"?>
         </item>
     </reservationSet>
 </DescribeInstancesResponse>
-"""
+""" % (aws_api,)
 
 
-sample_describe_instances_result = """<?xml version="1.0"?>
-<DescribeInstancesResponse xmlns="http://ec2.amazonaws.com/doc/""" + aws_api + """/">
+sample_describe_instances_result = """\
+<?xml version="1.0"?>
+<DescribeInstancesResponse xmlns="http://ec2.amazonaws.com/doc/%s/">
     <requestId>52b4c730-f29f-498d-94c1-91efb75994cc</requestId>
     <reservationSet>
         <item>
@@ -77,11 +79,12 @@ sample_describe_instances_result = """<?xml version="1.0"?>
         </item>
     </reservationSet>
 </DescribeInstancesResponse>
-"""
+""" % (aws_api,)
 
 
-sample_terminate_instances_result = """<?xml version="1.0"?>
-<TerminateInstancesResponse xmlns="http://ec2.amazonaws.com/doc/""" + aws_api + """/">
+sample_terminate_instances_result = """\
+<?xml version="1.0"?>
+<TerminateInstancesResponse xmlns="http://ec2.amazonaws.com/doc/%s/">
   <instancesSet>
     <item>
       <instanceId>i-1234</instanceId>
@@ -107,11 +110,104 @@ sample_terminate_instances_result = """<?xml version="1.0"?>
     </item>
   </instancesSet>
 </TerminateInstancesResponse>
-"""
+""" % (aws_api,)
 
 
-sample_describe_volumes_result = """<?xml version="1.0"?>
-<DescribeVolumesResponse xmlns="http://ec2.amazonaws.com/doc/""" + aws_api + """/">
+sample_describe_security_groups_result = """\
+<?xml version="1.0"?>
+<DescribeSecurityGroupsResponse xmlns="http://ec2.amazonaws.com/doc/%s/">
+  <requestId>52b4c730-f29f-498d-94c1-91efb75994cc</requestId>
+  <securityGroupInfo>
+    <item>
+      <ownerId>UYY3TLBUXIEON5NQVUUX6OMPWBZIQNFM</ownerId>
+      <groupName>WebServers</groupName>
+      <groupDescription>Web Servers</groupDescription>
+      <ipPermissions>
+        <item>
+  	  <ipProtocol>tcp</ipProtocol>
+	  <fromPort>80</fromPort>
+	  <toPort>80</toPort>
+	  <groups/>
+	  <ipRanges>
+	    <item>
+	      <cidrIp>0.0.0.0/0</cidrIp>
+	    </item>
+	  </ipRanges>
+        </item>
+      </ipPermissions>
+    </item>
+  </securityGroupInfo>
+</DescribeSecurityGroupsResponse>
+""" % (aws_api,)
+
+
+sample_describe_security_groups_multiple_result = """\
+<?xml version="1.0"?>
+<DescribeSecurityGroupsResponse xmlns="http://ec2.amazonaws.com/doc/%s/">
+  <requestId>52b4c730-f29f-498d-94c1-91efb75994cc</requestId>
+  <securityGroupInfo>
+    <item>
+      <ownerId>UYY3TLBUXIEON5NQVUUX6OMPWBZIQNFM</ownerId>
+      <groupName>MessageServers</groupName>
+      <groupDescription>Message Servers</groupDescription>
+      <ipPermissions>
+        <item>
+  	  <ipProtocol>tcp</ipProtocol>
+	  <fromPort>80</fromPort>
+	  <toPort>80</toPort>
+	  <groups/>
+	  <ipRanges>
+	    <item>
+	      <cidrIp>0.0.0.0/0</cidrIp>
+	    </item>
+	  </ipRanges>
+        </item>
+      </ipPermissions>
+    </item>
+  </securityGroupInfo>
+  <securityGroupInfo>
+    <item>
+      <ownerId>UYY3TLBUXIEON5NQVUUX6OMPWBZIQNFM</ownerId>
+      <groupName>WebServers</groupName>
+      <groupDescription>Web Servers</groupDescription>
+      <ipPermissions>
+        <item>
+  	  <ipProtocol>tcp</ipProtocol>
+	  <fromPort>80</fromPort>
+	  <toPort>80</toPort>
+	  <groups/>
+	  <ipRanges>
+	    <item>
+	      <cidrIp>0.0.0.0/0</cidrIp>
+	    </item>
+	  </ipRanges>
+        </item>
+        <item>
+  	  <ipProtocol>udp</ipProtocol>
+	  <fromPort>81</fromPort>
+	  <toPort>81</toPort>
+	  <groups>
+            <item>
+              <userId>group-user-id</userId>
+              <groupName>group-name</groupName>
+            </item>
+          </groups>
+	  <ipRanges>
+	    <item>
+	      <cidrIp>0.0.0.0/16</cidrIp>
+	    </item>
+	  </ipRanges>
+        </item>
+      </ipPermissions>
+    </item>
+  </securityGroupInfo>
+</DescribeSecurityGroupsResponse>
+""" % (aws_api,)
+
+
+sample_describe_volumes_result = """\
+<?xml version="1.0"?>
+<DescribeVolumesResponse xmlns="http://ec2.amazonaws.com/doc/%s/">
   <volumeSet>
     <item>
       <volumeId>vol-4282672b</volumeId>
@@ -132,26 +228,28 @@ sample_describe_volumes_result = """<?xml version="1.0"?>
     </item>
   </volumeSet>
 </DescribeVolumesResponse>
-"""
+""" % (aws_api,)
 
 
-sample_describe_snapshots_result = """<?xml version="1.0"?>
-<DescribeSnapshotsResponse xmlns="http://ec2.amazonaws.com/doc/""" + aws_api + """/">
+sample_describe_snapshots_result = """\
+<?xml version="1.0"?>
+<DescribeSnapshotsResponse xmlns="http://ec2.amazonaws.com/doc/%s/">
   <snapshotSet>
     <item>
       <snapshotId>snap-78a54011</snapshotId>
       <volumeId>vol-4d826724</volumeId>
       <status>pending</status>
       <startTime>2008-05-07T12:51:50.000Z</startTime>
-      <progress>80%</progress>
+      <progress>80%%</progress>
     </item>
   </snapshotSet>
 </DescribeSnapshotsResponse>
-"""
+""" % (aws_api,)
 
 
-sample_create_volume_result = """<?xml version="1.0"?>
-<CreateVolumeResponse xmlns="http://ec2.amazonaws.com/doc/""" + aws_api + """/">
+sample_create_volume_result = """\
+<?xml version="1.0"?>
+<CreateVolumeResponse xmlns="http://ec2.amazonaws.com/doc/%s/">
   <volumeId>vol-4d826724</volumeId>
   <size>800</size>
   <status>creating</status>
@@ -159,40 +257,44 @@ sample_create_volume_result = """<?xml version="1.0"?>
   <availabilityZone>us-east-1a</availabilityZone>
   <snapshotId></snapshotId>
 </CreateVolumeResponse>
-"""
+""" % (aws_api,)
 
 
-sample_delete_volume_result = """<?xml version="1.0"?>
-<DeleteVolumeResponse xmlns="http://ec2.amazonaws.com/doc/""" + aws_api + """/">
+sample_delete_volume_result = """\
+<?xml version="1.0"?>
+<DeleteVolumeResponse xmlns="http://ec2.amazonaws.com/doc/%s/">
   <return>true</return>
 </DeleteVolumeResponse>
-"""
+""" % (aws_api,)
 
 
-sample_create_snapshot_result = """<?xml version="1.0"?>
-<CreateSnapshotResponse xmlns="http://ec2.amazonaws.com/doc/""" + aws_api + """/">
+sample_create_snapshot_result = """\
+<?xml version="1.0"?>
+<CreateSnapshotResponse xmlns="http://ec2.amazonaws.com/doc/%s/">
   <snapshotId>snap-78a54011</snapshotId>
   <volumeId>vol-4d826724</volumeId>
   <status>pending</status>
   <startTime>2008-05-07T12:51:50.000Z</startTime>
   <progress></progress>
 </CreateSnapshotResponse>
-"""
+""" % (aws_api,)
 
 
-sample_delete_snapshot_result = """<?xml version="1.0"?>
-<DeleteSnapshotResponse xmlns="http://ec2.amazonaws.com/doc/""" + aws_api + """/">
+sample_delete_snapshot_result = """\
+<?xml version="1.0"?>
+<DeleteSnapshotResponse xmlns="http://ec2.amazonaws.com/doc/%s/">
   <return>true</return>
 </DeleteSnapshotResponse>
-"""
+""" % (aws_api,)
 
 
-sample_attach_volume_result = """<?xml version="1.0"?>
-<AttachVolumeResponse xmlns="http://ec2.amazonaws.com/doc/""" + aws_api + """/">
+sample_attach_volume_result = """\
+<?xml version="1.0"?>
+<AttachVolumeResponse xmlns="http://ec2.amazonaws.com/doc/%s/">
   <volumeId>vol-4d826724</volumeId>
   <instanceId>i-6058a509</instanceId>
   <device>/dev/sdh</device>
   <status>attaching</status>
   <attachTime>2008-05-07T11:51:50.000Z</attachTime>
 </AttachVolumeResponse>
-"""
+""" % (aws_api,)
