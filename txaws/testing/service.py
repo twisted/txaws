@@ -6,6 +6,7 @@ from txaws.testing.ec2 import FakeEC2Client
 class FakeAWSServiceRegion(object):
 
     instances = []
+    keypairs = []
 
     def __init__(self, access_key="", secret_key="", uri=""):
         self.access_key = access_key
