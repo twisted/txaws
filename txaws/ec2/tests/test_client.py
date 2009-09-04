@@ -2,27 +2,24 @@
 # Copyright (C) 2009 Robert Collins <robertc@robertcollins.net>
 # Copyright (C) 2009 Duncan McGreggor <duncan@canonical.com>
 # Copyright (C) 2009 Thomas Hervé <thomas@canonical.com>
+# Copyright (C) 2009 Jamshed Kakar <jkakar@canonical.com>
 # Licenced under the txaws licence available at /LICENSE in the txaws source.
 
 from datetime import datetime
 import os
 
 from twisted.internet import reactor
-from twisted.internet.defer import succeed, Deferred
+from twisted.internet.defer import succeed
 from twisted.python.filepath import FilePath
 from twisted.web import server, static, util
-from twisted.web.client import HTTPPageGetter, HTTPClientFactory
-from twisted.web.http import Request, HTTPChannel, HTTPClient
+from twisted.web.http import HTTPChannel
 from twisted.protocols.policies import WrappingFactory
 from twisted.protocols.loopback import loopbackAsync
-from twisted.test.proto_helpers import StringTransport
 
 from txaws.credentials import AWSCredentials
 from txaws.ec2 import client
+from txaws.ec2 import model
 from txaws.ec2.exception import EC2Error
-from txaws.ec2.tests.payload import (
-    sample_describe_instances_result, sample_terminate_instances_result,
-    sample_ec2_error_message)
 from txaws.service import AWSServiceEndpoint, EC2_ENDPOINT_US
 from txaws.testing import payload
 from txaws.testing.base import TXAWSTestCase
@@ -34,7 +31,7 @@ from txaws.testing.ec2 import (
 class ReservationTestCase(TXAWSTestCase):
 
     def test_reservation_creation(self):
-        reservation = client.Reservation(
+        reservation = model.Reservation(
             "id1", "owner", groups=["one", "two"])
         self.assertEquals(reservation.reservation_id, "id1")
         self.assertEquals(reservation.owner_id, "owner")
@@ -44,7 +41,7 @@ class ReservationTestCase(TXAWSTestCase):
 class InstanceTestCase(TXAWSTestCase):
 
     def test_instance_creation(self):
-        instance = client.Instance(
+        instance = model.Instance(
             "id1", "running", "type", "id2", "dns1", "dns2", "key", "ami",
             "time", "placement", ["prod1", "prod2"], "id3", "id4")
         self.assertEquals(instance.instance_id, "id1")
@@ -433,9 +430,9 @@ class QueryTestCase(TXAWSTestCase):
         self.assertEqual('JuCpwFA2H4OVF3Ql/lAQs+V6iMc=',
             query.params['Signature'])
 
-    def test_get_page(self):
+    def XXX_test_get_page(self):
         """Copied from twisted.web.test.test_webclient."""
-        factory_wrapper = FactoryWrapper(sample_ec2_error_message)
+        factory_wrapper = FactoryWrapper(payload.sample_ec2_error_message)
         query = client.Query(
             'DummyQuery', self.creds, self.endpoint,
             time_tuple=(2009,8,17,13,14,15,0,0,0),
@@ -446,7 +443,7 @@ class QueryTestCase(TXAWSTestCase):
 
     def XXX_test_submit_400_raise_error(self):
         """A 4xx response status from EC2 should raise a txAWS EC2Error."""
-        factory_wrapper = FactoryWrapper(sample_ec2_error_message)
+        factory_wrapper = FactoryWrapper(payload.sample_ec2_error_message)
 
         def _checkError(x):
             import pdb;pdb.set_trace()
@@ -460,7 +457,7 @@ class QueryTestCase(TXAWSTestCase):
     def skip_test_submit_400_check_payload_and_status(self):
         """
         """
-        factory_wrapper = FactoryWrapper(sample_ec2_error_message)
+        factory_wrapper = FactoryWrapper(payload.sample_ec2_error_message)
 
         def _checkError(error):
             error_data = error.value.errors[0]
@@ -483,17 +480,18 @@ class QueryTestCase(TXAWSTestCase):
 
 class ClientTestCaseBase(TXAWSTestCase):
 
-    def test_400_payload(self):
+    def XXX_test_400_payload(self):
         def check_status(version, status, message):
             self.assertEquals(status, "400")
 
         def check_payload(data):
             expected = "'''\n%s\n%s'''\n" % (
-                len(sample_ec2_error_message), sample_ec2_error_message)
+                len(payload.sample_ec2_error_message), 
+                payload.sample_ec2_error_message)
             self.assertEquals(data, expected)
         server = HTTPChannel()
         server.requestFactory = FourOhHTTPHandler
-        client = FakeHTTPFactory(sample_ec2_error_message)
+        client = FakeHTTPFactory(payload.sample_ec2_error_message)
         client.handleResponse = check_payload
         client.handleStatus = check_status
         return loopbackAsync(server, client)
