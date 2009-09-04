@@ -263,7 +263,7 @@ class EC2Client(object):
             result.append((instanceId, previousState, shutdownState))
         return result
 
-    def describe_security_groups(self, names=None):
+    def describe_security_groups(self, *names):
         """Describe security groups.
 
         @param names: Optionally, a list of security group names to describe.
