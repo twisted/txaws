@@ -159,8 +159,8 @@ class EC2Client(object):
         """
         group_names = None
         if names:
-            group_names = dict([
-                ("GroupName.%d" % (i+1), name) for i, name in enumerate(names)])
+            group_names = dict([("GroupName.%d" % (i+1), name)
+                                for i, name in enumerate(names)])
         query = self.query_factory("DescribeSecurityGroups", self.creds,
                                    self.endpoint, group_names)
         d = query.submit()
@@ -181,7 +181,8 @@ class EC2Client(object):
             description = security_group_info.findtext("item/groupDescription")
             allowed_groups = {}
             allowed_ips = []
-            for ip_permission in security_group_info.find("item/ipPermissions"):
+            ip_permissions = security_group_info.find("item/ipPermissions")
+            for ip_permission in ip_permissions:
                 ip_protocol = ip_permission.findtext("ipProtocol")
                 from_port = int(ip_permission.findtext("fromPort"))
                 to_port = int(ip_permission.findtext("toPort"))
