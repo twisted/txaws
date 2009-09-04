@@ -279,7 +279,7 @@ class EC2ClientTestCase(TXAWSTestCase):
 
         creds = AWSCredentials("foo", "bar")
         ec2 = client.EC2Client(creds, query_factory=StubQuery)
-        security_groups = ec2.describe_security_groups(names=["WebServers"])
+        security_groups = ec2.describe_security_groups("WebServers")
         security_groups.addCallback(assert_security_groups)
         return security_groups
 
