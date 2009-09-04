@@ -124,15 +124,15 @@ sample_describe_security_groups_result = """\
       <groupDescription>Web Servers</groupDescription>
       <ipPermissions>
         <item>
-  	  <ipProtocol>tcp</ipProtocol>
-	  <fromPort>80</fromPort>
-	  <toPort>80</toPort>
-	  <groups/>
-	  <ipRanges>
-	    <item>
-	      <cidrIp>0.0.0.0/0</cidrIp>
-	    </item>
-	  </ipRanges>
+        <ipProtocol>tcp</ipProtocol>
+      <fromPort>80</fromPort>
+      <toPort>80</toPort>
+      <groups/>
+      <ipRanges>
+        <item>
+          <cidrIp>0.0.0.0/0</cidrIp>
+        </item>
+      </ipRanges>
         </item>
       </ipPermissions>
     </item>
@@ -152,15 +152,15 @@ sample_describe_security_groups_multiple_result = """\
       <groupDescription>Message Servers</groupDescription>
       <ipPermissions>
         <item>
-  	  <ipProtocol>tcp</ipProtocol>
-	  <fromPort>80</fromPort>
-	  <toPort>80</toPort>
-	  <groups/>
-	  <ipRanges>
-	    <item>
-	      <cidrIp>0.0.0.0/0</cidrIp>
-	    </item>
-	  </ipRanges>
+        <ipProtocol>tcp</ipProtocol>
+      <fromPort>80</fromPort>
+      <toPort>80</toPort>
+      <groups/>
+      <ipRanges>
+        <item>
+          <cidrIp>0.0.0.0/0</cidrIp>
+        </item>
+      </ipRanges>
         </item>
       </ipPermissions>
     </item>
@@ -172,31 +172,31 @@ sample_describe_security_groups_multiple_result = """\
       <groupDescription>Web Servers</groupDescription>
       <ipPermissions>
         <item>
-  	  <ipProtocol>tcp</ipProtocol>
-	  <fromPort>80</fromPort>
-	  <toPort>80</toPort>
-	  <groups/>
-	  <ipRanges>
-	    <item>
-	      <cidrIp>0.0.0.0/0</cidrIp>
-	    </item>
-	  </ipRanges>
+        <ipProtocol>tcp</ipProtocol>
+      <fromPort>80</fromPort>
+      <toPort>80</toPort>
+      <groups/>
+      <ipRanges>
+        <item>
+          <cidrIp>0.0.0.0/0</cidrIp>
+        </item>
+      </ipRanges>
         </item>
         <item>
-  	  <ipProtocol>udp</ipProtocol>
-	  <fromPort>81</fromPort>
-	  <toPort>81</toPort>
-	  <groups>
+        <ipProtocol>udp</ipProtocol>
+      <fromPort>81</fromPort>
+      <toPort>81</toPort>
+      <groups>
             <item>
               <userId>group-user-id</userId>
               <groupName>group-name</groupName>
             </item>
           </groups>
-	  <ipRanges>
-	    <item>
-	      <cidrIp>0.0.0.0/16</cidrIp>
-	    </item>
-	  </ipRanges>
+      <ipRanges>
+        <item>
+          <cidrIp>0.0.0.0/16</cidrIp>
+        </item>
+      </ipRanges>
         </item>
       </ipPermissions>
     </item>
@@ -298,3 +298,19 @@ sample_attach_volume_result = """\
   <attachTime>2008-05-07T11:51:50.000Z</attachTime>
 </AttachVolumeResponse>
 """ % (aws_api,)
+
+
+sample_ec2_error_message = """\
+<?xml version="1.0"?>
+<Response>
+    <Errors>
+        <Error>
+            <Code>FakeRequestCode</Code>
+            <Message>
+                Request has fakely erred.
+            </Message><
+        /Error>
+    </Errors>
+    <RequestID>0ef9fc37-6230-4d81-b2e6-1b36277d4247</RequestID>
+</Response>
+"""
