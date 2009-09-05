@@ -14,7 +14,7 @@ from txaws.credentials import AWSCredentials
 from txaws.service import AWSServiceRegion
 
 
-__all__ = ['main']
+__all__ = ["main"]
 
 
 class AWSStatusIcon(gtk.StatusIcon):
@@ -25,9 +25,9 @@ class AWSStatusIcon(gtk.StatusIcon):
         self.set_from_stock(gtk.STOCK_NETWORK)
         self.set_visible(True)
         self.reactor = reactor
-        self.connect('activate', self.on_activate)
+        self.connect("activate", self.on_activate)
         self.probing = False
-        # Nested import because otherwise we get 'reactor already installed'.
+        # Nested import because otherwise we get "reactor already installed".
         self.password_dialog = None
         try:
             creds = AWSCredentials()
@@ -35,7 +35,7 @@ class AWSStatusIcon(gtk.StatusIcon):
             creds = self.from_gnomekeyring()
         self.region = AWSServiceRegion(creds)
         self.create_client(creds)
-        menu = '''
+        menu = """
             <ui>
              <menubar name="Menubar">
               <menu action="Menu">
@@ -43,20 +43,20 @@ class AWSStatusIcon(gtk.StatusIcon):
               </menu>
              </menubar>
             </ui>
-        '''
+        """
         actions = [
-            ('Menu',  None, 'Menu'),
-            ('Stop instances', gtk.STOCK_STOP, '_Stop instances...', None,
-                'Stop instances', self.on_stop_instances),
+            ("Menu",  None, "Menu"),
+            ("Stop instances", gtk.STOCK_STOP, "_Stop instances...", None,
+                "Stop instances", self.on_stop_instances),
             ]
-        ag = gtk.ActionGroup('Actions')
+        ag = gtk.ActionGroup("Actions")
         ag.add_actions(actions)
         self.manager = gtk.UIManager()
         self.manager.insert_action_group(ag, 0)
         self.manager.add_ui_from_string(menu)
         self.menu = self.manager.get_widget(
-            '/Menubar/Menu/Stop instances').props.parent
-        self.connect('popup-menu', self.on_popup_menu)
+            "/Menubar/Menu/Stop instances").props.parent
+        self.connect("popup-menu", self.on_popup_menu)
 
     def create_client(self, creds):
         if creds is not None:
@@ -73,14 +73,14 @@ class AWSStatusIcon(gtk.StatusIcon):
             items = gnomekeyring.find_items_sync(
                 gnomekeyring.ITEM_GENERIC_SECRET,
                 {
-                    'aws-host': 'aws.amazon.com',
+                    "aws-host": "aws.amazon.com",
                 })
         except (gnomekeyring.NoMatchError,
             gnomekeyring.DeniedError):
             self.show_a_password_dialog()
             return None
         else:
-            key_id, secret_key = items[0].secret.split(':')
+            key_id, secret_key = items[0].secret.split(":")
             return AWSCredentials(access_key=key_id, secret_key=secret_key)
 
     def show_a_password_dialog(self):
@@ -106,7 +106,7 @@ class AWSStatusIcon(gtk.StatusIcon):
         add_entry("AWS _Secret Key")
 
         self.password_dialog.show()
-        self.password_dialog.connect('response', self.save_key)
+        self.password_dialog.connect("response", self.save_key)
         self.password_dialog.run()
 
     def on_activate(self, data):
@@ -141,8 +141,8 @@ class AWSStatusIcon(gtk.StatusIcon):
             gnomekeyring.item_create_sync(
                 None,
                 gnomekeyring.ITEM_GENERIC_SECRET,
-                'AWS access credentials',
-                    {'aws-host': 'aws.amazon.com'},
+                "AWS access credentials",
+                    {"aws-host": "aws.amazon.com"},
                     "%s:%s" % (key_id, secret_key), True)
         finally:
             self.password_dialog.hide()
@@ -152,9 +152,9 @@ class AWSStatusIcon(gtk.StatusIcon):
     def showhide(self, reservation):
         active = 0
         for instance in reservation:
-            if instance.instanceState == 'running':
+            if instance.instanceState == "running":
                 active += 1
-        self.set_tooltip('AWS Status - %d instances' % active)
+        self.set_tooltip("AWS Status - %d instances" % active)
         self.set_visible(active != 0)
         self.queue_check()
 
@@ -192,15 +192,15 @@ def main(argv, reactor=None):
     Typical use:
     >>> sys.exit(main(sys.argv))
 
-    :param argv: The arguments to run it with, e.g. sys.argv.
-    :param reactor: The reactor to use. Must be compatible with gtk as this
-        module uses gtk API's.
-    :return exitcode: The exit code it returned, as per sys.exit.
+    @param argv: The arguments to run it with, e.g. sys.argv.
+    @param reactor: The reactor to use. Must be compatible with gtk as this
+        module uses gtk API"s.
+    @return exitcode: The exit code it returned, as per sys.exit.
     """
     if reactor is None:
         from twisted.internet import gtk2reactor
         gtk2reactor.install()
         from twisted.internet import reactor
     status = AWSStatusIcon(reactor)
-    gobject.set_application_name('aws-status')
+    gobject.set_application_name("aws-status")
     reactor.run()
