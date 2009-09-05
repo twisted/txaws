@@ -8,7 +8,7 @@ import os
 from txaws.util import hmac_sha1
 
 
-__all__ = ['AWSCredentials']
+__all__ = ["AWSCredentials"]
 
 
 ENV_ACCESS_KEY = "AWS_ACCESS_KEY_ID"
