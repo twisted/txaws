@@ -300,8 +300,9 @@ sample_attach_volume_result = """\
 """ % (aws_api,)
 
 
-sample_single_describe_keypairs_result = """<?xml version="1.0"?>
-<DescribeKeyPairsResponse xmlns="http://ec2.amazonaws.com/doc/""" + aws_api + """/">
+sample_single_describe_keypairs_result = """\
+<?xml version="1.0"?>
+<DescribeKeyPairsResponse xmlns="http://ec2.amazonaws.com/doc/%s/">
   <keySet>
     <item>
       <keyName>gsg-keypair</keyName>
@@ -309,11 +310,12 @@ sample_single_describe_keypairs_result = """<?xml version="1.0"?>
     </item>
   </keySet>
 </DescribeKeyPairsResponse>
-"""
+""" % (aws_api,)
 
 
-sample_multiple_describe_keypairs_result = """<?xml version="1.0"?>
-<DescribeKeyPairsResponse xmlns="http://ec2.amazonaws.com/doc/""" + aws_api + """/">
+sample_multiple_describe_keypairs_result = """\
+<?xml version="1.0"?>
+<DescribeKeyPairsResponse xmlns="http://ec2.amazonaws.com/doc/%s/">
   <keySet>
     <item>
       <keyName>gsg-keypair-1</keyName>
@@ -325,11 +327,12 @@ sample_multiple_describe_keypairs_result = """<?xml version="1.0"?>
     </item>
   </keySet>
 </DescribeKeyPairsResponse>
-"""
+""" % (aws_api,)
 
 
-sample_create_keypair_result = """<?xml version="1.0"?>
-<CreateKeyPairResponse xmlns="http://ec2.amazonaws.com/doc/""" + aws_api + """/">
+sample_create_keypair_result = """\
+<?xml version="1.0"?>
+<CreateKeyPairResponse xmlns="http://ec2.amazonaws.com/doc/%s/">
   <keyName>example-key-name</keyName>
   <keyFingerprint>1f:51:ae:28:bf:89:e9:d8:1f:25:5d:37:2d:7d:b8:ca:9f:f5:f1:6f</keyFingerprint>
   <keyMaterial>-----BEGIN RSA PRIVATE KEY-----
@@ -356,24 +359,27 @@ P8TTvW/6bdPi23ExzxZn7KOdrfclYRph1LHMpAONv/x2xALIf91UB+v5ohy1oDoasL0gij1houRe
 2ERKKdwz0ZL9SWq6VTdhr/5G994CK72fy5WhyERbDjUIdHaK3M849JJuf8cSrvSb4g==
 -----END RSA PRIVATE KEY-----</keyMaterial>
 </CreateKeyPairResponse>
-"""
+""" % (aws_api,)
 
 
-sample_delete_keypair_true_result = """<?xml version="1.0"?>
-<DeleteKeyPair xmlns="http://ec2.amazonaws.com/doc/""" + aws_api + """/">
+sample_delete_keypair_true_result = """\
+<?xml version="1.0"?>
+<DeleteKeyPair xmlns="http://ec2.amazonaws.com/doc/%s/">
   <return>true</return>
 </DeleteKeyPair>
-"""
+""" % (aws_api,)
 
 
-sample_delete_keypair_false_result = """<?xml version="1.0"?>
-<DeleteKeyPair xmlns="http://ec2.amazonaws.com/doc/""" + aws_api + """/">
+sample_delete_keypair_false_result = """\
+<?xml version="1.0"?>
+<DeleteKeyPair xmlns="http://ec2.amazonaws.com/doc/%s/">
   <return>false</return>
 </DeleteKeyPair>
-"""
+""" % (aws_api,)
 
 
-sample_delete_keypair_no_result = """<?xml version="1.0"?>
-<DeleteKeyPair xmlns="http://ec2.amazonaws.com/doc/""" + aws_api + """/">
+sample_delete_keypair_no_result = """\
+<?xml version="1.0"?>
+<DeleteKeyPair xmlns="http://ec2.amazonaws.com/doc/%s/">
 </DeleteKeyPair>
-"""
+""" % (aws_api,)
