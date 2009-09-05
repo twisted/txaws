@@ -430,7 +430,7 @@ class QueryTestCase(TXAWSTestCase):
         self.assertEqual('JuCpwFA2H4OVF3Ql/lAQs+V6iMc=',
             query.params['Signature'])
 
-    def XXX_test_get_page(self):
+    def test_get_page(self):
         """Copied from twisted.web.test.test_webclient."""
         factory_wrapper = FactoryWrapper(payload.sample_ec2_error_message)
         query = client.Query(
@@ -441,7 +441,7 @@ class QueryTestCase(TXAWSTestCase):
         deferred.addCallback(self.assertEquals, "0123456789")
         return deferred
 
-    def XXX_test_submit_400_raise_error(self):
+    def test_submit_400_raise_error(self):
         """A 4xx response status from EC2 should raise a txAWS EC2Error."""
         factory_wrapper = FactoryWrapper(payload.sample_ec2_error_message)
 
@@ -454,7 +454,7 @@ class QueryTestCase(TXAWSTestCase):
             factory=factory_wrapper)
         return self.assertFailure(query.submit(), EC2Error)
 
-    def skip_test_submit_400_check_payload_and_status(self):
+    def test_submit_400_check_payload_and_status(self):
         """
         """
         factory_wrapper = FactoryWrapper(payload.sample_ec2_error_message)
@@ -466,7 +466,8 @@ class QueryTestCase(TXAWSTestCase):
                               "Request has fakely erred.")
 
         query = client.Query(
-            'BadQuery', self.creds, time_tuple=(2009,8,15,13,14,15,0,0,0),
+            'BadQuery', self.creds, self.endpoint,
+            time_tuple=(2009,8,15,13,14,15,0,0,0),
             factory=factory_wrapper)
         deferred = query.submit()
         deferred.addErrback(_checkError)
@@ -478,9 +479,11 @@ class QueryTestCase(TXAWSTestCase):
         exception.
         """
 
+
 class ClientTestCaseBase(TXAWSTestCase):
 
-    def XXX_test_400_payload(self):
+    def test_400_payload(self):
+
         def check_status(version, status, message):
             self.assertEquals(status, "400")
 
@@ -489,6 +492,7 @@ class ClientTestCaseBase(TXAWSTestCase):
                 len(payload.sample_ec2_error_message), 
                 payload.sample_ec2_error_message)
             self.assertEquals(data, expected)
+
         server = HTTPChannel()
         server.requestFactory = FourOhHTTPHandler
         client = FakeHTTPFactory(payload.sample_ec2_error_message)
@@ -496,7 +500,8 @@ class ClientTestCaseBase(TXAWSTestCase):
         client.handleStatus = check_status
         return loopbackAsync(server, client)
 
-class TestEBS(TXAWSTestCase):
+
+class EBSTestCase(TXAWSTestCase):
 
     def setUp(self):
         TXAWSTestCase.setUp(self)

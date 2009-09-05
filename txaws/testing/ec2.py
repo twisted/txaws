@@ -1,7 +1,7 @@
 from twisted.internet.defer import succeed, Deferred
 from twisted.test.proto_helpers import StringTransport
 from twisted.web.client import HTTPPageGetter, HTTPClientFactory
-from twisted.web.http import Request
+from twisted.web.http import Request, HTTPClient
 
 
 class FakeEC2Client(object):
@@ -45,10 +45,12 @@ class FakeHTTPPageGetter(HTTPPageGetter):
     transport = StringTransport
 
 
-class FakeHTTPFactory(HTTPClientFactory):
-#class FakeHTTPFactory(HTTPClient):
+class FakeHTTPClientFactory(HTTPClientFactory):
+    protocol = FakeHTTPPageGetter
 
-    #protocol = FakeHTTPPageGetter
+
+class FakeHTTPFactory(HTTPClient):
+
     #test_payload = ""
     def __init__(self, test_payload, method=None):
         self.test_payload = test_payload
@@ -64,21 +66,8 @@ class FakeHTTPFactory(HTTPClientFactory):
         self.sendHeader("Content-Length", content_length)
         self.endHeaders()
         self.transport.write(self.test_payload)
-        self.deferred.success("success")
-"""
-    def doStart(self):
-        self.wasStarted = True
+        self.deferred = succeed("success")
 
-    def doStop(self):
-        self.wasStopped = True
-
-    def startedConnecting(self, *args):
-        pass
-
-    def clientConnectionFailed(self, *args):
-        self.connectionFailed = True
-        self.deferred.fail("failed")
-"""
 
 class FactoryWrapper(object):
 
@@ -87,6 +76,6 @@ class FactoryWrapper(object):
 
     def __call__(self, url, *args, **kwds):
         FakeHTTPFactory.test_payload = self.payload
-        return FakeHTTPFactory(url, *args, **kwds)
+        return FakeHTTPClientFactory(url, *args, **kwds)
 
 
