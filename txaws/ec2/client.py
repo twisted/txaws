@@ -10,7 +10,7 @@
 from datetime import datetime
 from urllib import quote
 
-from twisted.internet import reactor
+from twisted.internet import reactor, ssl
 from twisted.web.client import _parse, HTTPClientFactory
 
 from txaws import version
@@ -424,7 +424,6 @@ class Query(object):
         scheme, host, port, path = _parse(url)
         factory = self.factory(url, *args, **kwds)
         if scheme == 'https':
-            from twisted.internet import ssl
             contextFactory = ssl.ClientContextFactory()
             reactor.connectSSL(host, port, factory, contextFactory)
         else:
