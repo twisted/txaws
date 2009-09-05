@@ -8,12 +8,12 @@ class MiscellaneousTests(TestCase):
 
     def test_hmac_sha1(self):
         cases = [
-            ('0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b'.decode('hex'),
-             'Hi There', 'thcxhlUFcmTii8C2+zeMjvFGvgA='),
-            ('Jefe', 'what do ya want for nothing?',
-             '7/zfauXrL6LSdBbV8YTfnCWafHk='),
-            ('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'.decode('hex'),
-             '\xdd' * 50, 'El1zQrmsEc2Ro5r0iqF7T2PxddM='),
+            ("0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b".decode("hex"),
+             "Hi There", "thcxhlUFcmTii8C2+zeMjvFGvgA="),
+            ("Jefe", "what do ya want for nothing?",
+             "7/zfauXrL6LSdBbV8YTfnCWafHk="),
+            ("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".decode("hex"),
+             "\xdd" * 50, "El1zQrmsEc2Ro5r0iqF7T2PxddM="),
             ]
 
         for key, data, expected in cases:
@@ -34,28 +34,28 @@ class ParseUrlTestCase(TestCase):
         """
         # The default port for HTTP is 80.
         self.assertEqual(
-            parse('http://127.0.0.1/'),
-            ('http', '127.0.0.1', 80, '/'))
+            parse("http://127.0.0.1/"),
+            ("http", "127.0.0.1", 80, "/"))
 
         # The default port for HTTPS is 443.
         self.assertEqual(
-            parse('https://127.0.0.1/'),
-            ('https', '127.0.0.1', 443, '/'))
+            parse("https://127.0.0.1/"),
+            ("https", "127.0.0.1", 443, "/"))
 
         # Specifying a port.
         self.assertEqual(
-            parse('http://spam:12345/'),
-            ('http', 'spam', 12345, '/'))
+            parse("http://spam:12345/"),
+            ("http", "spam", 12345, "/"))
 
         # Weird (but commonly accepted) structure uses default port.
         self.assertEqual(
-            parse('http://spam:/'),
-            ('http', 'spam', 80, '/'))
+            parse("http://spam:/"),
+            ("http", "spam", 80, "/"))
 
         # Spaces in the hostname are trimmed, the default path is /.
         self.assertEqual(
-            parse('http://foo '),
-            ('http', 'foo', 80, '/'))
+            parse("http://foo "),
+            ("http", "foo", 80, "/"))
 
     def test_externalUnicodeInterference(self):
         """
@@ -63,8 +63,8 @@ class ParseUrlTestCase(TestCase):
         elements of its return tuple, even when passed an URL which has
         previously been passed to L{urlparse} as a C{unicode} string.
         """
-        badInput = u'http://example.com/path'
-        goodInput = badInput.encode('ascii')
+        badInput = u"http://example.com/path"
+        goodInput = badInput.encode("ascii")
         urlparse(badInput)
         scheme, host, port, path = parse(goodInput)
         self.assertTrue(isinstance(scheme, str))

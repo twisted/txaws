@@ -21,7 +21,7 @@ from txaws.ec2 import model
 from txaws.ec2.exception import EC2Error
 
 
-__all__ = ['EC2Client']
+__all__ = ["EC2Client"]
 
 
 def ec2_error_wrapper(error):
@@ -54,7 +54,7 @@ class EC2Client(object):
 
     def describe_instances(self):
         """Describe current instances."""
-        q = self.query_factory('DescribeInstances', self.creds, self.endpoint)
+        q = self.query_factory("DescribeInstances", self.creds, self.endpoint)
         d = q.submit()
         return d.addCallback(self._parse_instances)
 
@@ -131,7 +131,7 @@ class EC2Client(object):
         instanceset = {}
         for pos, instance_id in enumerate(instance_ids):
             instanceset["InstanceId.%d" % (pos+1)] = instance_id
-        q = self.query_factory('TerminateInstances', self.creds, self.endpoint,
+        q = self.query_factory("TerminateInstances", self.creds, self.endpoint,
                                instanceset)
         d = q.submit()
         return d.addCallback(self._parse_terminate_instances)
@@ -279,11 +279,11 @@ class EC2Client(object):
 
     def describe_snapshots(self, *snapshot_ids):
         """Describe available snapshots."""
-        snapshotset = {}
+        snapshot_set = {}
         for pos, snapshot_id in enumerate(snapshot_ids):
-            snapshotset["SnapshotId.%d" % (pos + 1)] = snapshot_id
+            snapshot_set["SnapshotId.%d" % (pos + 1)] = snapshot_id
         q = self.query_factory(
-            "DescribeSnapshots", self.creds, self.endpoint, snapshotset)
+            "DescribeSnapshots", self.creds, self.endpoint, snapshot_set)
         d = q.submit()
         return d.addCallback(self._parse_snapshots)
 
@@ -354,6 +354,64 @@ class EC2Client(object):
             attach_time[:19], "%Y-%m-%dT%H:%M:%S")
         return {"status": status, "attach_time": attach_time}
 
+    def describe_keypairs(self, *keypair_names):
+        """Returns information about key pairs available."""
+        keypair_set = {}
+        for pos, keypair_name in enumerate(keypair_names):
+            keypair_set["KeyPair.%d" % (pos + 1)] = keypair_name
+        q = self.query_factory("DescribeKeyPairs", self.creds, self.endpoint,
+                               keypair_set)
+        d = q.submit()
+        return d.addCallback(self._parse_describe_keypairs)
+
+    def _parse_describe_keypairs(self, xml_bytes):
+        results = []
+        root = XML(xml_bytes)
+        for keypair_data in root.find("keySet"):
+            key_name = keypair_data.findtext("keyName")
+            key_fingerprint = keypair_data.findtext("keyFingerprint")
+            results.append(model.Keypair(key_name, key_fingerprint))
+        return results
+
+    def create_keypair(self, keypair_name):
+        """
+        Create a new 2048 bit RSA key pair and return a unique ID that can be
+        used to reference the created key pair when launching new instances.
+        """
+        q = self.query_factory(
+            "CreateKeyPair", self.creds, self.endpoint,
+            {"KeyName": keypair_name})
+        d = q.submit()
+        return d.addCallback(self._parse_create_keypair)
+
+    def _parse_create_keypair(self, xml_bytes):
+        results = []
+        keypair_data = XML(xml_bytes)
+        key_name = keypair_data.findtext("keyName")
+        key_fingerprint = keypair_data.findtext("keyFingerprint")
+        key_material = keypair_data.findtext("keyMaterial")
+        return model.Keypair(key_name, key_fingerprint, key_material)
+
+    def delete_keypair(self, keypair_name):
+        """Delete a given keypair."""
+        q = self.query_factory(
+            "DeleteKeyPair", self.creds, self.endpoint,
+            {"KeyName": keypair_name})
+        d = q.submit()
+        return d.addCallback(self._parse_delete_keypair)
+
+    def _parse_delete_keypair(self, xml_bytes):
+        results = []
+        keypair_data = XML(xml_bytes)
+        result = keypair_data.findtext("return")
+        if not result:
+            result = False
+        elif result.lower() == "true":
+            result = True
+        else:
+            result = False
+        return result
+
 
 class Query(object):
     """A query that may be submitted to EC2."""
@@ -367,12 +425,12 @@ class Query(object):
         if api_version is None:
             api_version = version.aws_api
         self.params = {
-            'Version': api_version,
-            'SignatureVersion': '2',
-            'SignatureMethod': 'HmacSHA1',
-            'Action': action,
-            'AWSAccessKeyId': self.creds.access_key,
-            'Timestamp': iso8601time(time_tuple),
+            "Version": api_version,
+            "SignatureVersion": "2",
+            "SignatureMethod": "HmacSHA1",
+            "Action": action,
+            "AWSAccessKeyId": self.creds.access_key,
+            "Timestamp": iso8601time(time_tuple),
             }
         if other_params:
             self.params.update(other_params)
@@ -382,8 +440,8 @@ class Query(object):
         """Return the canonical query params (used in signing)."""
         result = []
         for key, value in self.sorted_params():
-            result.append('%s=%s' % (self.encode(key), self.encode(value)))
-        return '&'.join(result)
+            result.append("%s=%s" % (self.encode(key), self.encode(value)))
+        return "&".join(result)
 
     def encode(self, a_string):
         """Encode a_string as per the canonicalisation encoding rules.
@@ -391,7 +449,7 @@ class Query(object):
         See the AWS dev reference page 90 (2008-12-01 version).
         @return: a_string encoded.
         """
-        return quote(a_string, safe='~')
+        return quote(a_string, safe="~")
 
     def signing_text(self):
         """Return the text to be signed when signing the query."""
@@ -407,7 +465,7 @@ class Query(object):
         submitting the query. Signing is done automatically - this is a public
         method to facilitate testing.
         """
-        self.params['Signature'] = self.creds.sign(self.signing_text())
+        self.params["Signature"] = self.creds.sign(self.signing_text())
 
     def sorted_params(self):
         """Return the query params sorted appropriately for signing."""
