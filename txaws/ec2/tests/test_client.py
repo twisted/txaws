@@ -10,6 +10,7 @@ import os
 
 from twisted.internet import reactor
 from twisted.internet.defer import succeed
+from twisted.python.failure import Failure
 from twisted.python.filepath import FilePath
 from twisted.web import server, static, util
 from twisted.web.http import HTTPChannel
@@ -499,6 +500,39 @@ class ClientTestCaseBase(TXAWSTestCase):
         client.handleResponse = check_payload
         client.handleStatus = check_status
         return loopbackAsync(server, client)
+
+
+class EC2ErrorWrapperTestCase(TXAWSTestCase):
+
+    def setUp(self):
+        TXAWSTestCase.setUp(self)
+        self.failure = Failure(Exception("An error occurred"))
+
+    def get_error(self, status):
+        self.failure.value.response = payload.sample_ec2_error_message
+        self.failure.value.status = status
+        return self.failure
+
+    def test_400_error(self):
+        self.assertRaises(EC2Error, client.ec2_error_wrapper,
+                          self.get_error(400))
+        try:
+            client.ec2_error_wrapper(self.get_error(400))
+        except Exception, error:
+            self.assertTrue(isinstance(error, EC2Error))
+            self.assertEquals(error.get_error_codes(), "Error.Code")
+            self.assertEquals(
+                error.get_error_messages(),
+                "Message for Error.Code")
+
+    def test_500_error(self):
+        self.assertRaises(Exception, client.ec2_error_wrapper,
+                          self.get_error(500))
+        try:
+            client.ec2_error_wrapper(self.get_error(500))
+        except Exception, error:
+            self.assertTrue(isinstance(error, Exception))
+            self.assertEquals(error.message, "An error occurred")
 
 
 class EBSTestCase(TXAWSTestCase):
