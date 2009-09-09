@@ -9,41 +9,10 @@ except ImportError:
 from twisted.trial.unittest import TestCase
 
 from txaws.ec2.exception import EC2Error
+from txaws.testing import payload
 
 
-REQUEST_ID = "a9e514a7-bee4-4e56-9dad-0e86d8175aa4"
-
-
-ERROR_EXAMPLE_SINGLE = """
-<?xml version="1.0"?>
-<Response>
-    <Errors>
-        <Error>
-            <Code>Error.Code</Code>
-            <Message>Message for Error.Code</Message>
-        </Error>
-    </Errors>
-    <RequestID>%s</RequestID>
-</Response>
-""" % REQUEST_ID
-
-
-ERROR_EXAMPLE_MULTIPLE = """
-<?xml version="1.0"?>
-<Response>
-    <Errors>
-        <Error>
-            <Code>Error.Code1</Code>
-            <Message>Message for Error.Code1</Message>
-        </Error>
-        <Error>
-            <Code>Error.Code2</Code>
-            <Message>Message for Error.Code2</Message>
-        </Error>
-    </Errors>
-    <RequestID>%s</RequestID>
-</Response>
-""" % REQUEST_ID
+REQUEST_ID = "0ef9fc37-6230-4d81-b2e6-1b36277d4247"
 
 
 class EC2ErrorTestCase(TestCase):
@@ -100,11 +69,11 @@ class EC2ErrorTestCase(TestCase):
         self.assertTrue(error.has_error("Code1"))
 
     def test_single_error(self):
-        error = EC2Error(ERROR_EXAMPLE_SINGLE)
+        error = EC2Error(payload.sample_ec2_error_message)
         self.assertEquals(len(error.errors), 1)
 
     def test_multiple_errors(self):
-        error = EC2Error(ERROR_EXAMPLE_MULTIPLE)
+        error = EC2Error(payload.sample_ec2_error_messages)
         self.assertEquals(len(error.errors), 2)
 
     def test_empty_xml(self):
@@ -145,11 +114,11 @@ class EC2ErrorTestCase(TestCase):
         self.assertEquals(error.errors, [])
 
     def test_single_get_error_codes(self):
-        error = EC2Error(ERROR_EXAMPLE_SINGLE)
+        error = EC2Error(payload.sample_ec2_error_message)
         self.assertEquals(error.get_error_codes(), "Error.Code")
 
     def test_multiple_get_error_codes(self):
-        error = EC2Error(ERROR_EXAMPLE_MULTIPLE)
+        error = EC2Error(payload.sample_ec2_error_messages)
         self.assertEquals(error.get_error_codes(), 2)
 
     def test_zero_get_error_codes(self):
@@ -158,11 +127,11 @@ class EC2ErrorTestCase(TestCase):
         self.assertEquals(error.get_error_codes(), None)
 
     def test_single_get_error_messages(self):
-        error = EC2Error(ERROR_EXAMPLE_SINGLE)
+        error = EC2Error(payload.sample_ec2_error_message)
         self.assertEquals(error.get_error_messages(), "Message for Error.Code")
 
     def test_multiple_get_error_messages(self):
-        error = EC2Error(ERROR_EXAMPLE_MULTIPLE)
+        error = EC2Error(payload.sample_ec2_error_messages)
         self.assertEquals(error.get_error_messages(), "Multiple EC2 Errors")
 
     def test_zero_get_error_messages(self):
@@ -171,19 +140,19 @@ class EC2ErrorTestCase(TestCase):
         self.assertEquals(error.get_error_messages(), "Empty error list")
 
     def test_single_error_str(self):
-        error = EC2Error(ERROR_EXAMPLE_SINGLE)
+        error = EC2Error(payload.sample_ec2_error_message)
         self.assertEquals(str(error), "Error Message: Message for Error.Code")
 
     def test_multiple_errors_str(self):
-        error = EC2Error(ERROR_EXAMPLE_MULTIPLE)
+        error = EC2Error(payload.sample_ec2_error_messages)
         self.assertEquals(str(error), "Multiple EC2 Errors.")
 
     def test_single_error_repr(self):
-        error = EC2Error(ERROR_EXAMPLE_SINGLE)
+        error = EC2Error(payload.sample_ec2_error_message)
         self.assertEquals(
             repr(error),
             "<EC2Error object with Error code: Error.Code>")
 
     def test_multiple_errors_repr(self):
-        error = EC2Error(ERROR_EXAMPLE_MULTIPLE)
+        error = EC2Error(payload.sample_ec2_error_messages)
         self.assertEquals(repr(error), "<EC2Error object with Error count: 2>")
