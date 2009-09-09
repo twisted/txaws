@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # Copyright (C) 2009 Robert Collins <robertc@robertcollins.net>
 # Copyright (C) 2009 Duncan McGreggor <duncan@canonical.com>
-# Copyright (C) 2009 Thomas Hervé <thomas@canonical.com>
+# Copyright (C) 2009 Thomas HervÃ© <thomas@canonical.com>
 # Licenced under the txaws licence available at /LICENSE in the txaws source.
 
 """EC2 client support."""
@@ -17,7 +17,7 @@ from txaws.service import AWSServiceEndpoint
 from txaws.util import iso8601time, XML
 
 
-__all__ = ['EC2Client']
+__all__ = ["EC2Client"]
 
 
 class Reservation(object):
@@ -77,6 +77,43 @@ class Instance(object):
         self.reservation = reservation
 
 
+class SecurityGroup(object):
+    """An EC2 security group.
+
+    @ivar owner_id: The AWS access key ID of the owner of this security group.
+    @ivar name: The name of the security group.
+    @ivar description: The description of this security group.
+    @ivar allowed_groups: The sequence of L{UserIDGroupPair} instances for
+        this security group.
+    @ivar allowed_ips: The sequence of L{IPPermission} instances for this
+        security group.
+    """
+    def __init__(self, owner_id, name, description, groups, ips):
+        self.owner_id = owner_id
+        self.name = name
+        self.description = description
+        self.allowed_groups = groups
+        self.allowed_ips = ips
+
+
+class UserIDGroupPair(object):
+    """A user ID/group name pair associated with a L{SecurityGroup}."""
+
+    def __init__(self, user_id, name):
+        self.user_id = user_id
+        self.name = name
+
+
+class IPPermission(object):
+    """An IP permission associated with a L{SecurityGroup}."""
+
+    def __init__(self, ip_protocol, from_port, to_port, cidr_ip):
+        self.ip_protocol = ip_protocol
+        self.from_port = from_port
+        self.to_port = to_port
+        self.cidr_ip = cidr_ip
+
+
 class Volume(object):
     """An EBS volume instance."""
 
@@ -111,6 +148,15 @@ class Snapshot(object):
         self.progress = progress
 
 
+class Keypair(object):
+    """A convenience object for holding keypair data."""
+
+    def __init__(self, name, fingerprint, material=None):
+        self.name = name
+        self.fingerprint = fingerprint
+        self.material = material
+
+
 class EC2Client(object):
     """A client for EC2."""
 
@@ -131,7 +177,7 @@ class EC2Client(object):
 
     def describe_instances(self):
         """Describe current instances."""
-        q = self.query_factory('DescribeInstances', self.creds, self.endpoint)
+        q = self.query_factory("DescribeInstances", self.creds, self.endpoint)
         d = q.submit()
         return d.addCallback(self._parse_instances)
 
@@ -208,7 +254,7 @@ class EC2Client(object):
         instanceset = {}
         for pos, instance_id in enumerate(instance_ids):
             instanceset["InstanceId.%d" % (pos+1)] = instance_id
-        q = self.query_factory('TerminateInstances', self.creds, self.endpoint,
+        q = self.query_factory("TerminateInstances", self.creds, self.endpoint,
                                instanceset)
         d = q.submit()
         return d.addCallback(self._parse_terminate_instances)
@@ -226,12 +272,65 @@ class EC2Client(object):
             result.append((instanceId, previousState, shutdownState))
         return result
 
+    def describe_security_groups(self, *names):
+        """Describe security groups.
+
+        @param names: Optionally, a list of security group names to describe.
+            Defaults to all security groups in the account.
+        @return: A C{Deferred} that will fire with a list of L{SecurityGroup}s
+            retrieved from the cloud.
+        """
+        group_names = None
+        if names:
+            group_names = dict([
+                ("GroupName.%d" % (i+1), name) for i, name in enumerate(names)])
+        query = self.query_factory("DescribeSecurityGroups", self.creds,
+                                   self.endpoint, group_names)
+        d = query.submit()
+        return d.addCallback(self._parse_security_groups)
+
+    def _parse_security_groups(self, xml_bytes):
+        """Parse the XML returned by the C{DescribeSecurityGroups} function.
+
+        @param xml_bytes: XML bytes with a C{DescribeSecurityGroupsResponse}
+            root element.
+        @return: A list of L{SecurityGroup} instances.
+        """
+        root = XML(xml_bytes)
+        result = []
+        for security_group_info in root.findall("securityGroupInfo"):
+            owner_id = security_group_info.findtext("item/ownerId")
+            name = security_group_info.findtext("item/groupName")
+            description = security_group_info.findtext("item/groupDescription")
+            allowed_groups = {}
+            allowed_ips = []
+            for ip_permission in security_group_info.find("item/ipPermissions"):
+                ip_protocol = ip_permission.findtext("ipProtocol")
+                from_port = int(ip_permission.findtext("fromPort"))
+                to_port = int(ip_permission.findtext("toPort"))
+                cidr_ip = ip_permission.findtext("ipRanges/item/cidrIp")
+                allowed_ips.append(
+                    IPPermission(ip_protocol, from_port, to_port, cidr_ip))
+
+                user_id = ip_permission.findtext("groups/item/userId")
+                group_name = ip_permission.findtext("groups/item/groupName")
+                if user_id and group_name:
+                    key = (user_id, group_name)
+                    if key not in allowed_groups:
+                        allowed_groups[key] = UserIDGroupPair(user_id,
+                                                              group_name)
+
+            result.append(SecurityGroup(owner_id, name, description,
+                                        allowed_groups.values(), allowed_ips))
+        return result
+
     def describe_volumes(self, *volume_ids):
         """Describe available volumes."""
         volumeset = {}
         for pos, volume_id in enumerate(volume_ids):
             volumeset["VolumeId.%d" % (pos + 1)] = volume_id
-        q = self.query_factory("DescribeVolumes", self.creds, volumeset)
+        q = self.query_factory(
+            "DescribeVolumes", self.creds, self.endpoint, volumeset)
         d = q.submit()
         return d.addCallback(self._parse_volumes)
 
@@ -272,7 +371,8 @@ class EC2Client(object):
             params["Size"] = str(size)
         if snapshot_id is not None:
             params["SnapshotId"] = snapshot_id
-        q = self.query_factory("CreateVolume", self.creds, params)
+        q = self.query_factory(
+            "CreateVolume", self.creds, self.endpoint, params)
         d = q.submit()
         return d.addCallback(self._parse_create_volume)
 
@@ -289,7 +389,7 @@ class EC2Client(object):
 
     def delete_volume(self, volume_id):
         q = self.query_factory(
-            "DeleteVolume", self.creds, {"VolumeId": volume_id})
+            "DeleteVolume", self.creds, self.endpoint, {"VolumeId": volume_id})
         d = q.submit()
         return d.addCallback(self._parse_delete_volume)
 
@@ -299,10 +399,11 @@ class EC2Client(object):
 
     def describe_snapshots(self, *snapshot_ids):
         """Describe available snapshots."""
-        snapshotset = {}
+        snapshot_set = {}
         for pos, snapshot_id in enumerate(snapshot_ids):
-            snapshotset["SnapshotId.%d" % (pos + 1)] = snapshot_id
-        q = self.query_factory("DescribeSnapshots", self.creds, snapshotset)
+            snapshot_set["SnapshotId.%d" % (pos + 1)] = snapshot_id
+        q = self.query_factory(
+            "DescribeSnapshots", self.creds, self.endpoint, snapshot_set)
         d = q.submit()
         return d.addCallback(self._parse_snapshots)
 
@@ -326,7 +427,8 @@ class EC2Client(object):
     def create_snapshot(self, volume_id):
         """Create a new snapshot of an existing volume."""
         q = self.query_factory(
-            "CreateSnapshot", self.creds, {"VolumeId": volume_id})
+            "CreateSnapshot", self.creds, self.endpoint,
+            {"VolumeId": volume_id})
         d = q.submit()
         return d.addCallback(self._parse_create_snapshot)
 
@@ -345,7 +447,8 @@ class EC2Client(object):
     def delete_snapshot(self, snapshot_id):
         """Remove a previously created snapshot."""
         q = self.query_factory(
-            "DeleteSnapshot", self.creds, {"SnapshotId": snapshot_id})
+            "DeleteSnapshot", self.creds, self.endpoint,
+            {"SnapshotId": snapshot_id})
         d = q.submit()
         return d.addCallback(self._parse_delete_snapshot)
 
@@ -356,7 +459,7 @@ class EC2Client(object):
     def attach_volume(self, volume_id, instance_id, device):
         """Attach the given volume to the specified instance at C{device}."""
         q = self.query_factory(
-            "AttachVolume", self.creds,
+            "AttachVolume", self.creds, self.endpoint,
             {"VolumeId": volume_id, "InstanceId": instance_id,
              "Device": device})
         d = q.submit()
@@ -369,6 +472,64 @@ class EC2Client(object):
         attach_time = datetime.strptime(
             attach_time[:19], "%Y-%m-%dT%H:%M:%S")
         return {"status": status, "attach_time": attach_time}
+
+    def describe_keypairs(self, *keypair_names):
+        """Returns information about key pairs available."""
+        keypair_set = {}
+        for pos, keypair_name in enumerate(keypair_names):
+            keypair_set["KeyPair.%d" % (pos + 1)] = keypair_name
+        q = self.query_factory("DescribeKeyPairs", self.creds, self.endpoint,
+                               keypair_set)
+        d = q.submit()
+        return d.addCallback(self._parse_describe_keypairs)
+
+    def _parse_describe_keypairs(self, xml_bytes):
+        results = []
+        root = XML(xml_bytes)
+        for keypair_data in root.find("keySet"):
+            key_name = keypair_data.findtext("keyName")
+            key_fingerprint = keypair_data.findtext("keyFingerprint")
+            results.append(Keypair(key_name, key_fingerprint))
+        return results
+
+    def create_keypair(self, keypair_name):
+        """
+        Create a new 2048 bit RSA key pair and return a unique ID that can be
+        used to reference the created key pair when launching new instances.
+        """
+        q = self.query_factory(
+            "CreateKeyPair", self.creds, self.endpoint,
+            {"KeyName": keypair_name})
+        d = q.submit()
+        return d.addCallback(self._parse_create_keypair)
+
+    def _parse_create_keypair(self, xml_bytes):
+        results = []
+        keypair_data = XML(xml_bytes)
+        key_name = keypair_data.findtext("keyName")
+        key_fingerprint = keypair_data.findtext("keyFingerprint")
+        key_material = keypair_data.findtext("keyMaterial")
+        return Keypair(key_name, key_fingerprint, key_material)
+
+    def delete_keypair(self, keypair_name):
+        """Delete a given keypair."""
+        q = self.query_factory(
+            "DeleteKeyPair", self.creds, self.endpoint,
+            {"KeyName": keypair_name})
+        d = q.submit()
+        return d.addCallback(self._parse_delete_keypair)
+
+    def _parse_delete_keypair(self, xml_bytes):
+        results = []
+        keypair_data = XML(xml_bytes)
+        result = keypair_data.findtext("return")
+        if not result:
+            result = False
+        elif result.lower() == "true":
+            result = True
+        else:
+            result = False
+        return result
 
 
 class Query(object):
@@ -383,12 +544,12 @@ class Query(object):
         if api_version is None:
             api_version = version.aws_api
         self.params = {
-            'Version': api_version,
-            'SignatureVersion': '2',
-            'SignatureMethod': 'HmacSHA1',
-            'Action': action,
-            'AWSAccessKeyId': self.creds.access_key,
-            'Timestamp': iso8601time(time_tuple),
+            "Version": api_version,
+            "SignatureVersion": "2",
+            "SignatureMethod": "HmacSHA1",
+            "Action": action,
+            "AWSAccessKeyId": self.creds.access_key,
+            "Timestamp": iso8601time(time_tuple),
             }
         if other_params:
             self.params.update(other_params)
@@ -397,8 +558,8 @@ class Query(object):
         """Return the canonical query params (used in signing)."""
         result = []
         for key, value in self.sorted_params():
-            result.append('%s=%s' % (self.encode(key), self.encode(value)))
-        return '&'.join(result)
+            result.append("%s=%s" % (self.encode(key), self.encode(value)))
+        return "&".join(result)
 
     def encode(self, a_string):
         """Encode a_string as per the canonicalisation encoding rules.
@@ -406,7 +567,7 @@ class Query(object):
         See the AWS dev reference page 90 (2008-12-01 version).
         @return: a_string encoded.
         """
-        return quote(a_string, safe='~')
+        return quote(a_string, safe="~")
 
     def signing_text(self):
         """Return the text to be signed when signing the query."""
@@ -421,7 +582,7 @@ class Query(object):
         submitting the query. Signing is done automatically - this is a public
         method to facilitate testing.
         """
-        self.params['Signature'] = self.creds.sign(self.signing_text())
+        self.params["Signature"] = self.creds.sign(self.signing_text())
 
     def sorted_params(self):
         """Return the query params sorted appropriately for signing."""
