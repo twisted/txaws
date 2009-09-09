@@ -305,11 +305,27 @@ sample_ec2_error_message = """\
 <Response>
     <Errors>
         <Error>
-            <Code>FakeRequestCode</Code>
-            <Message>
-                Request has fakely erred.
-            </Message><
-        /Error>
+            <Code>Error.Code</Code>
+            <Message>Message for Error.Code</Message>
+        </Error>
+    </Errors>
+    <RequestID>0ef9fc37-6230-4d81-b2e6-1b36277d4247</RequestID>
+</Response>
+"""
+
+
+sample_ec2_error_messages = """\
+<?xml version="1.0"?>
+<Response>
+    <Errors>
+        <Error>
+            <Code>Error.Code1</Code>
+            <Message>Message for Error.Code1</Message>
+        </Error>
+        <Error>
+            <Code>Error.Code2</Code>
+            <Message>Message for Error.Code2</Message>
+        </Error>
     </Errors>
     <RequestID>0ef9fc37-6230-4d81-b2e6-1b36277d4247</RequestID>
 </Response>
