@@ -14,9 +14,7 @@ from twisted.python.failure import Failure
 from twisted.python.filepath import FilePath
 from twisted.web import server, static, util
 from twisted.web.error import Error
-from twisted.web.http import HTTPChannel
 from twisted.protocols.policies import WrappingFactory
-from twisted.protocols.loopback import loopbackAsync
 
 from txaws.credentials import AWSCredentials
 from txaws.ec2 import client

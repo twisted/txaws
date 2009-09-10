@@ -1,15 +1,11 @@
 # Copyright (c) 2009 Canonical Ltd <duncan.mcgreggor@canonical.com>
 # Licenced under the txaws licence available at /LICENSE in the txaws source.
 
-try:
-    from xml.etree import ElementTree
-except ImportError:
-    from elementtree import ElementTree
-
 from twisted.trial.unittest import TestCase
 
 from txaws.ec2.exception import EC2Error
 from txaws.testing import payload
+from txaws.util import XML
 
 
 REQUEST_ID = "0ef9fc37-6230-4d81-b2e6-1b36277d4247"
@@ -28,33 +24,33 @@ class EC2ErrorTestCase(TestCase):
     def test_node_to_dict(self):
         xml = "<parent><child1>text1</child1><child2>text2</child2></parent>"
         error = EC2Error("<dummy />")
-        data = error._node_to_dict(ElementTree.fromstring(xml))
+        data = error._node_to_dict(XML(xml))
         self.assertEquals(data, {"child1": "text1", "child2": "text2"})
 
     def test_set_request_id(self):
         xml = "<a><b /><RequestID>%s</RequestID></a>" % REQUEST_ID
         error = EC2Error("<dummy />")
-        error._set_request_id(ElementTree.fromstring(xml))
+        error._set_request_id(XML(xml))
         self.assertEquals(error.requestID, REQUEST_ID)
 
     def test_set_errors(self):
         errorsXML = "<Error><Code>1</Code><Message>2</Message></Error>"
         xml = "<a><Errors>%s</Errors><b /></a>" % errorsXML
         error = EC2Error("<dummy />")
-        error._set_errors(ElementTree.fromstring(xml))
+        error._set_errors(XML(xml))
         self.assertEquals(error.errors[0]["Code"], "1")
         self.assertEquals(error.errors[0]["Message"], "2")
 
     def test_set_empty_errors(self):
         xml = "<a><Errors /><b /></a>"
         error = EC2Error("<dummy />")
-        error._set_errors(ElementTree.fromstring(xml))
+        error._set_errors(XML(xml))
         self.assertEquals(error.errors, [])
 
     def test_set_empty_error(self):
         xml = "<a><Errors><Error /><Error /></Errors><b /></a>"
         error = EC2Error("<dummy />")
-        error._set_errors(ElementTree.fromstring(xml))
+        error._set_errors(XML(xml))
         self.assertEquals(error.errors, [])
 
     def test_parse_without_xml(self):
