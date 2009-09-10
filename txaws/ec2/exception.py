@@ -1,24 +1,21 @@
 # Copyright (c) 2009 Canonical Ltd <duncan.mcgreggor@canonical.com>
 # Licenced under the txaws licence available at /LICENSE in the txaws source.
 
-try:
-    from xml.etree import ElementTree
-except ImportError:
-    from elementtree import ElementTree
-
 from txaws.exception import AWSError
+from txaws.util import XML
 
 
 class EC2Error(AWSError):
     """
     A error class providing custom methods on EC2 errors.
     """
-    def __init__(self, xml):
-        if not xml:
+    def __init__(self, xml_bytes, status=None, message=None, response=None):
+        super(AWSError, self).__init__(status, message, response)
+        if not xml_bytes:
             raise ValueError("XML cannot be empty.")
-        self.original = xml
+        self.original = xml_bytes
         self.errors = []
-        self.requestID = ""
+        self.request_id = ""
         self.parse()
 
     def __str__(self):
@@ -66,10 +63,10 @@ class EC2Error(AWSError):
                 data[child.tag] = child.text
         return data
 
-    def parse(self, xml=""):
-        if not xml:
-            xml = self.original
-        tree = ElementTree.fromstring(xml.strip())
+    def parse(self, xml_bytes=""):
+        if not xml_bytes:
+            xml_bytes = self.original
+        tree = XML(xml_bytes.strip())
         self._set_request_id(tree)
         self._set_errors(tree)
 
