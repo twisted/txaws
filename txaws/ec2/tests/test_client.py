@@ -1,8 +1,6 @@
-# -*- coding: utf-8 -*-
 # Copyright (C) 2009 Robert Collins <robertc@robertcollins.net>
-# Copyright (C) 2009 Duncan McGreggor <duncan@canonical.com>
-# Copyright (C) 2009 Thomas Hervé <thomas@canonical.com>
-# Copyright (C) 2009 Jamshed Kakar <jkakar@canonical.com>
+# Copyright (C) 2009 Canonical Ltd
+# Copyright (C) 2009 Duncan McGreggor <oubiwann@adytum.us>
 # Licenced under the txaws licence available at /LICENSE in the txaws source.
 
 from datetime import datetime
@@ -147,11 +145,6 @@ class EC2ClientTestCase(TXAWSTestCase):
         creds = AWSCredentials("foo", "bar")
         ec2 = client.EC2Client(creds, query_factory=StubQuery)
         d = ec2.describe_instances()
-
-        def check_instances(reservation):
-            self.assertEqual(1, len(reservation))
-            self.assertEqual('i-abcdef01', reservation[0].instance_id)
-            self.assertEqual('running', reservation[0].instance_state)
         d.addCallback(self.check_parsed_instances)
         return d
 
@@ -305,43 +298,6 @@ class QueryTestCase(TXAWSTestCase):
         TXAWSTestCase.setUp(self)
         self.creds = AWSCredentials("foo", "bar")
         self.endpoint = AWSServiceEndpoint(uri=EC2_ENDPOINT_US)
-        self.twisted_client_test_setup()
-        self.cleanupServerConnections = 0
-
-    def tearDown(self):
-        """Copied from twisted.web.test.test_webclient."""
-        # If the test indicated it might leave some server-side connections
-        # around, clean them up.
-        connections = self.wrapper.protocols.keys()
-        # If there are fewer server-side connections than requested,
-        # that's okay.  Some might have noticed that the client closed
-        # the connection and cleaned up after themselves.
-        for n in range(min(len(connections), self.cleanupServerConnections)):
-            proto = connections.pop()
-            #msg("Closing %r" % (proto,))
-            proto.transport.loseConnection()
-        if connections:
-            #msg("Some left-over connections; this test is probably buggy.")
-            pass
-        return self.port.stopListening()
-
-    def _listen(self, site):
-        return reactor.listenTCP(0, site, interface="127.0.0.1")
-
-    def twisted_client_test_setup(self):
-        name = self.mktemp()
-        os.mkdir(name)
-        FilePath(name).child("file").setContent("0123456789")
-        resource = static.File(name)
-        resource.putChild("redirect", util.Redirect("/file"))
-        self.site = server.Site(resource, timeout=None)
-        self.wrapper = WrappingFactory(self.site)
-        self.port = self._listen(self.wrapper)
-        self.portno = self.port.getHost().port
-
-
-    def get_url(self, path):
-        return "http://127.0.0.1:%d/%s" % (self.portno, path)
 
     def test_init_minimum(self):
         query = client.Query("DescribeInstances", self.creds, self.endpoint)
@@ -428,21 +384,13 @@ class QueryTestCase(TXAWSTestCase):
         self.assertEqual("JuCpwFA2H4OVF3Ql/lAQs+V6iMc=",
             query.params["Signature"])
 
-    def test_get_page(self):
-        """Copied from twisted.web.test.test_webclient."""
-        query = client.Query(
-            'DummyQuery', self.creds, self.endpoint,
-            time_tuple=(2009,8,17,13,14,15,0,0,0))
-        deferred = query.get_page(self.get_url("file"))
-        deferred.addCallback(self.assertEquals, "0123456789")
-        return deferred
-
-    def test_submit_400_raise_error(self):
+    def test_submit_400(self):
         """A 4xx response status from EC2 should raise a txAWS EC2Error."""
         status = 400
+        self.addCleanup(setattr, client.Query, "get_page",
+                        client.Query.get_page)
         fake_page_getter = FakePageGetter(
             status, payload.sample_ec2_error_message)
-        original_get_page = client.Query.get_page
         client.Query.get_page = fake_page_getter.get_page_with_exception
 
         def check_error(error):
@@ -454,9 +402,6 @@ class QueryTestCase(TXAWSTestCase):
             self.assertEquals(error.status, status)
             self.assertEquals(error.response, payload.sample_ec2_error_message)
         
-        def cleanup(self):
-            setattr(client.Query, "get_page", original_get_page)
-
         query = client.Query(
             'BadQuery', self.creds, self.endpoint,
             time_tuple=(2009,8,15,13,14,15,0,0,0))
@@ -464,7 +409,6 @@ class QueryTestCase(TXAWSTestCase):
         failure = query.submit()
         d = self.assertFailure(failure, EC2Error)
         d.addCallback(check_error)
-        d.addCallback(cleanup)
         return d
 
     def test_submit_500(self):
@@ -473,9 +417,10 @@ class QueryTestCase(TXAWSTestCase):
         exception.
         """
         status = 500
+        self.addCleanup(setattr, client.Query, "get_page",
+                        client.Query.get_page)
         fake_page_getter = FakePageGetter(
             status, payload.sample_ec2_error_message)
-        original_get_page = client.Query.get_page
         client.Query.get_page = fake_page_getter.get_page_with_exception
 
         def check_error(error):
@@ -483,9 +428,6 @@ class QueryTestCase(TXAWSTestCase):
             self.assertEquals(error.status, status)
             self.assertEquals(str(error), "500 There's been an error")
         
-        def cleanup(self):
-            setattr(client.Query, "get_page", original_get_page)
-
         query = client.Query(
             'BadQuery', self.creds, self.endpoint,
             time_tuple=(2009,8,15,13,14,15,0,0,0))
@@ -493,41 +435,110 @@ class QueryTestCase(TXAWSTestCase):
         failure = query.submit()
         d = self.assertFailure(failure, Error)
         d.addCallback(check_error)
-        d.addCallback(cleanup)
         return d
+
+
+class QueryPageGetterTestCase(TXAWSTestCase):
+
+    def setUp(self):
+        TXAWSTestCase.setUp(self)
+        self.creds = AWSCredentials("foo", "bar")
+        self.endpoint = AWSServiceEndpoint(uri=EC2_ENDPOINT_US)
+        self.twisted_client_test_setup()
+        self.cleanupServerConnections = 0
+
+    def tearDown(self):
+        """Copied from twisted.web.test.test_webclient."""
+        # If the test indicated it might leave some server-side connections
+        # around, clean them up.
+        connections = self.wrapper.protocols.keys()
+        # If there are fewer server-side connections than requested,
+        # that's okay.  Some might have noticed that the client closed
+        # the connection and cleaned up after themselves.
+        for n in range(min(len(connections), self.cleanupServerConnections)):
+            proto = connections.pop()
+            #msg("Closing %r" % (proto,))
+            proto.transport.loseConnection()
+        if connections:
+            #msg("Some left-over connections; this test is probably buggy.")
+            pass
+        return self.port.stopListening()
+
+    def _listen(self, site):
+        return reactor.listenTCP(0, site, interface="127.0.0.1")
+
+    def twisted_client_test_setup(self):
+        name = self.mktemp()
+        os.mkdir(name)
+        FilePath(name).child("file").setContent("0123456789")
+        resource = static.File(name)
+        resource.putChild("redirect", util.Redirect("/file"))
+        self.site = server.Site(resource, timeout=None)
+        self.wrapper = WrappingFactory(self.site)
+        self.port = self._listen(self.wrapper)
+        self.portno = self.port.getHost().port
+
+    def get_url(self, path):
+        return "http://127.0.0.1:%d/%s" % (self.portno, path)
+
+    def test_get_page(self):
+        """Copied from twisted.web.test.test_webclient."""
+        query = client.Query(
+            'DummyQuery', self.creds, self.endpoint,
+            time_tuple=(2009,8,17,13,14,15,0,0,0))
+        deferred = query.get_page(self.get_url("file"))
+        deferred.addCallback(self.assertEquals, "0123456789")
+        return deferred
 
 
 class EC2ErrorWrapperTestCase(TXAWSTestCase):
 
     def setUp(self):
         TXAWSTestCase.setUp(self)
-        self.failure = Failure(Exception("An error occurred"))
 
-    def get_error(self, status):
-        self.failure.value.response = payload.sample_ec2_error_message
-        self.failure.value.status = status
-        return self.failure
+    def get_failure(self, status=None, type=None, message=""):
+        failure = Failure(type(message))
+        failure.value.response = payload.sample_ec2_error_message
+        failure.value.status = status
+        return failure
+
+    def test_302_error(self):
+        failure = self.get_failure(302, Exception, "found")
+        error = self.assertRaises(Exception, client.ec2_error_wrapper, failure)
+        self.assertEquals(failure.type, type(error))
+        self.assertFalse(isinstance(error, EC2Error))
+        self.assertTrue(isinstance(error, Exception))
+        self.assertEquals(error.message, "found")
 
     def test_400_error(self):
-        self.assertRaises(EC2Error, client.ec2_error_wrapper,
-                          self.get_error(400))
-        try:
-            client.ec2_error_wrapper(self.get_error(400))
-        except Exception, error:
-            self.assertTrue(isinstance(error, EC2Error))
-            self.assertEquals(error.get_error_codes(), "Error.Code")
-            self.assertEquals(
-                error.get_error_messages(),
-                "Message for Error.Code")
+        failure = self.get_failure(400, Exception)
+        error = self.assertRaises(EC2Error, client.ec2_error_wrapper, failure)
+        self.assertNotEquals(failure.type, type(error))
+        self.assertTrue(isinstance(error, EC2Error))
+        self.assertEquals(error.get_error_codes(), "Error.Code")
+        self.assertEquals(error.get_error_messages(), "Message for Error.Code")
+
+    def test_404_error(self):
+        failure = self.get_failure(404, Exception)
+        error = self.assertRaises(EC2Error, client.ec2_error_wrapper, failure)
+        self.assertNotEquals(failure.type, type(error))
+        self.assertTrue(isinstance(error, EC2Error))
+        self.assertEquals(error.get_error_codes(), "Error.Code")
+        self.assertEquals(error.get_error_messages(), "Message for Error.Code")
 
     def test_500_error(self):
-        self.assertRaises(Exception, client.ec2_error_wrapper,
-                          self.get_error(500))
-        try:
-            client.ec2_error_wrapper(self.get_error(500))
-        except Exception, error:
-            self.assertTrue(isinstance(error, Exception))
-            self.assertEquals(error.message, "An error occurred")
+        failure = self.get_failure(500, Exception, "A server error occurred")
+        error = self.assertRaises(Exception, client.ec2_error_wrapper, failure)
+        self.assertFalse(isinstance(error, EC2Error))
+        self.assertTrue(isinstance(error, Exception))
+        self.assertEquals(error.message, "A server error occurred")
+
+    def test_timeout_error(self):
+        failure = self.get_failure(type=Exception, message="timeout")
+        error = self.assertRaises(Exception, client.ec2_error_wrapper, failure)
+        self.assertFalse(isinstance(error, EC2Error))
+        self.assertTrue(isinstance(error, Exception))
+        self.assertEquals(error.message, "timeout")
 
 
 class EBSTestCase(TXAWSTestCase):

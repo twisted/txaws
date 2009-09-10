@@ -1,3 +1,7 @@
+# Copyright (C) 2009 Canonical Ltd
+# Copyright (C) 2009 Duncan McGreggor <oubiwann@adytum.us>
+# Licenced under the txaws licence available at /LICENSE in the txaws source.
+
 from twisted.internet.defer import succeed, fail
 from twisted.python.failure import Failure
 from twisted.web.error import Error

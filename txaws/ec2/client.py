@@ -1,8 +1,6 @@
-# -*- coding: utf-8 -*-
 # Copyright (C) 2009 Robert Collins <robertc@robertcollins.net>
-# Copyright (C) 2009 Duncan McGreggor <duncan@canonical.com>
-# Copyright (C) 2009 Thomas Hervé <thomas@canonical.com>
-# Copyright (C) 2009 Jamshed Kakar <jkakar@canonical.com>
+# Copyright (C) 2009 Canonical Ltd
+# Copyright (C) 2009 Duncan McGreggor <oubiwann@adytum.us>
 # Licenced under the txaws licence available at /LICENSE in the txaws source.
 
 """EC2 client support."""
@@ -26,13 +24,15 @@ __all__ = ["EC2Client"]
 
 def ec2_error_wrapper(error):
     xml_payload = error.value.response
-    http_status = int(error.value.status)
-    if http_status >= 500:
-        # raise the original Twisted exception
-        error.raiseException()
-    elif http_status >= 400:
+    http_status = None
+    if hasattr(error.value, "status"):
+        if error.value.status:
+            http_status = int(error.value.status)
+    if 400 <= http_status < 500:
         raise EC2Error(xml_payload, error.value.status, error.value.message,
                        error.value.response)
+    else:
+        error.raiseException()
 
 
 class EC2Client(object):
@@ -418,8 +418,9 @@ class Query(object):
     """A query that may be submitted to EC2."""
 
     def __init__(self, action, creds, endpoint, other_params=None,
-                 time_tuple=None, api_version=None, factory=HTTPClientFactory):
+                 time_tuple=None, api_version=None):
         """Create a Query to submit to EC2."""
+        self.factory = HTTPClientFactory
         self.creds = creds
         self.endpoint = endpoint
         # Currently, txAWS only supports version 2008-12-01
@@ -435,7 +436,6 @@ class Query(object):
             }
         if other_params:
             self.params.update(other_params)
-        self.factory = factory
 
     def canonical_query_params(self):
         """Return the canonical query params (used in signing)."""
