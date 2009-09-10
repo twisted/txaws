@@ -16,12 +16,20 @@ class FakeEC2Client(object):
         self.instances = instances or []
         self.keypairs = keypairs or []
         self.volumes = volumes or []
+        self.keypairs_deleted = []
 
     def describe_instances(self):
         return succeed(self.instances)
 
     def describe_keypairs(self):
         return succeed(self.keypairs)
+
+    def create_keypair(self, name, material=None):
+        return material
+
+    def delete_keypair(self, name):
+        self.keypairs_deleted.append(name)
+        return succeed(True)
 
     def describe_volumes(self):
         return succeed(self.volumes)
