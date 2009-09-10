@@ -10,13 +10,14 @@ from twisted.web.error import Error
 class FakeEC2Client(object):
 
     def __init__(self, creds, endpoint, instances=None, keypairs=None,
-                 volumes=None):
+                 volumes=None, key_material=None):
         self.creds = creds
         self.endpoint = endpoint
         self.instances = instances or []
         self.keypairs = keypairs or []
         self.volumes = volumes or []
         self.keypairs_deleted = []
+        self.key_material = key_material
 
     def describe_instances(self):
         return succeed(self.instances)
@@ -24,8 +25,8 @@ class FakeEC2Client(object):
     def describe_keypairs(self):
         return succeed(self.keypairs)
 
-    def create_keypair(self, name, material=None):
-        return material
+    def create_keypair(self, name):
+        return succeed(self.key_material)
 
     def delete_keypair(self, name):
         self.keypairs_deleted.append(name)
