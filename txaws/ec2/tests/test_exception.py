@@ -17,6 +17,14 @@ REQUEST_ID = "0ef9fc37-6230-4d81-b2e6-1b36277d4247"
 
 class EC2ErrorTestCase(TestCase):
 
+    def test_creation(self):
+        error = EC2Error("<dummy1 />", 400, "Not Found", "<dummy2 />")
+        self.assertEquals(error.status, 400)
+        self.assertEquals(error.response, "<dummy2 />")
+        self.assertEquals(error.original, "<dummy1 />")
+        self.assertEquals(error.errors, [])
+        self.assertEquals(error.request_id, "")
+
     def test_node_to_dict(self):
         xml = "<parent><child1>text1</child1><child2>text2</child2></parent>"
         error = EC2Error("<dummy />")
@@ -83,13 +91,13 @@ class EC2ErrorTestCase(TestCase):
         errors = "<Errors><Error><Code /><Message /></Error></Errors>"
         xml = "<Response>%s<RequestID /></Response>" % errors
         error = EC2Error(xml)
-        self.assertEquals(error.requestID, "")
+        self.assertEquals(error.request_id, "")
 
     def test_no_request_id_node(self):
         errors = "<Errors><Error><Code /><Message /></Error></Errors>"
         xml = "<Response>%s</Response>" % errors
         error = EC2Error(xml)
-        self.assertEquals(error.requestID, "")
+        self.assertEquals(error.request_id, "")
 
     def test_no_errors_node(self):
         xml = "<Response><RequestID /></Response>"

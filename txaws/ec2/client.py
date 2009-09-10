@@ -31,7 +31,8 @@ def ec2_error_wrapper(error):
         # raise the original Twisted exception
         error.raiseException()
     elif http_status >= 400:
-        raise EC2Error(xml_payload)
+        raise EC2Error(xml_payload, error.value.status, error.value.message,
+                       error.value.response)
 
 
 class EC2Client(object):

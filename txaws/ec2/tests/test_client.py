@@ -13,6 +13,7 @@ from twisted.internet.defer import succeed
 from twisted.python.failure import Failure
 from twisted.python.filepath import FilePath
 from twisted.web import server, static, util
+from twisted.web.error import Error
 from twisted.web.http import HTTPChannel
 from twisted.protocols.policies import WrappingFactory
 from twisted.protocols.loopback import loopbackAsync
@@ -24,9 +25,7 @@ from txaws.ec2.exception import EC2Error
 from txaws.service import AWSServiceEndpoint, EC2_ENDPOINT_US
 from txaws.testing import payload
 from txaws.testing.base import TXAWSTestCase
-from txaws.testing.ec2 import (
-    FakeHTTPHandler, FourOhHTTPHandler, FiveOhHTTPHandler, FakeHTTPPageGetter,
-    FakeHTTPFactory, FactoryWrapper)
+from txaws.testing.ec2 import FakePageGetter
 
 
 class ReservationTestCase(TXAWSTestCase):
@@ -433,73 +432,71 @@ class QueryTestCase(TXAWSTestCase):
 
     def test_get_page(self):
         """Copied from twisted.web.test.test_webclient."""
-        factory_wrapper = FactoryWrapper(payload.sample_ec2_error_message)
         query = client.Query(
             'DummyQuery', self.creds, self.endpoint,
-            time_tuple=(2009,8,17,13,14,15,0,0,0),
-            factory=factory_wrapper)
+            time_tuple=(2009,8,17,13,14,15,0,0,0))
         deferred = query.get_page(self.get_url("file"))
         deferred.addCallback(self.assertEquals, "0123456789")
         return deferred
 
     def test_submit_400_raise_error(self):
         """A 4xx response status from EC2 should raise a txAWS EC2Error."""
-        factory_wrapper = FactoryWrapper(payload.sample_ec2_error_message)
+        status = 400
+        fake_page_getter = FakePageGetter(
+            status, payload.sample_ec2_error_message)
+        original_get_page = client.Query.get_page
+        client.Query.get_page = fake_page_getter.get_page_with_exception
 
-        def _checkError(x):
-            import pdb;pdb.set_trace()
-
-        query = client.Query(
-            'BadQuery', self.creds, self.endpoint,
-            time_tuple=(2009,8,15,13,14,15,0,0,0),
-            factory=factory_wrapper)
-        return self.assertFailure(query.submit(), EC2Error)
-
-    def test_submit_400_check_payload_and_status(self):
-        """
-        """
-        factory_wrapper = FactoryWrapper(payload.sample_ec2_error_message)
-
-        def _checkError(error):
-            error_data = error.value.errors[0]
-            self.assertEquals(error_data["Code"], "FakeRequestCode")
-            self.assertEquals(error_data["Message"],
-                              "Request has fakely erred.")
+        def check_error(error):
+            self.assertTrue(isinstance(error, EC2Error))
+            self.assertEquals(error.get_error_codes(), "Error.Code")
+            self.assertEquals(
+                error.get_error_messages(),
+                "Message for Error.Code")
+            self.assertEquals(error.status, status)
+            self.assertEquals(error.response, payload.sample_ec2_error_message)
+        
+        def cleanup(self):
+            setattr(client.Query, "get_page", original_get_page)
 
         query = client.Query(
             'BadQuery', self.creds, self.endpoint,
-            time_tuple=(2009,8,15,13,14,15,0,0,0),
-            factory=factory_wrapper)
-        deferred = query.submit()
-        deferred.addErrback(_checkError)
-        return deferred
+            time_tuple=(2009,8,15,13,14,15,0,0,0))
+
+        failure = query.submit()
+        d = self.assertFailure(failure, EC2Error)
+        d.addCallback(check_error)
+        d.addCallback(cleanup)
+        return d
 
     def test_submit_500(self):
         """
         A 5xx response status from EC2 should raise the original Twisted
         exception.
         """
+        status = 500
+        fake_page_getter = FakePageGetter(
+            status, payload.sample_ec2_error_message)
+        original_get_page = client.Query.get_page
+        client.Query.get_page = fake_page_getter.get_page_with_exception
 
+        def check_error(error):
+            self.assertFalse(isinstance(error, EC2Error))
+            self.assertEquals(error.status, status)
+            self.assertEquals(str(error), "500 There's been an error")
+        
+        def cleanup(self):
+            setattr(client.Query, "get_page", original_get_page)
 
-class ClientTestCaseBase(TXAWSTestCase):
+        query = client.Query(
+            'BadQuery', self.creds, self.endpoint,
+            time_tuple=(2009,8,15,13,14,15,0,0,0))
 
-    def test_400_payload(self):
-
-        def check_status(version, status, message):
-            self.assertEquals(status, "400")
-
-        def check_payload(data):
-            expected = "'''\n%s\n%s'''\n" % (
-                len(payload.sample_ec2_error_message), 
-                payload.sample_ec2_error_message)
-            self.assertEquals(data, expected)
-
-        server = HTTPChannel()
-        server.requestFactory = FourOhHTTPHandler
-        client = FakeHTTPFactory(payload.sample_ec2_error_message)
-        client.handleResponse = check_payload
-        client.handleStatus = check_status
-        return loopbackAsync(server, client)
+        failure = query.submit()
+        d = self.assertFailure(failure, Error)
+        d.addCallback(check_error)
+        d.addCallback(cleanup)
+        return d
 
 
 class EC2ErrorWrapperTestCase(TXAWSTestCase):
