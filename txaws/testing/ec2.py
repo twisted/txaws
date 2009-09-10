@@ -1,9 +1,6 @@
-from twisted.internet.defer import succeed, fail, Deferred
+from twisted.internet.defer import succeed, fail
 from twisted.python.failure import Failure
-from twisted.test.proto_helpers import StringTransport
-from twisted.web.client import HTTPPageGetter, HTTPClientFactory
 from twisted.web.error import Error
-from twisted.web.http import Request, HTTPClient
 
 
 class FakeEC2Client(object):
