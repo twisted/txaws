@@ -6,11 +6,12 @@ from twisted.internet.defer import succeed, fail
 from twisted.python.failure import Failure
 from twisted.web.error import Error
 
+from txaws.ec2.model import Keypair
 
 class FakeEC2Client(object):
 
     def __init__(self, creds, endpoint, instances=None, keypairs=None,
-                 volumes=None, key_material=None):
+                 volumes=None, key_material=""):
         self.creds = creds
         self.endpoint = endpoint
         self.instances = instances or []
@@ -26,7 +27,8 @@ class FakeEC2Client(object):
         return succeed(self.keypairs)
 
     def create_keypair(self, name):
-        return succeed(self.key_material)
+        keypair = Keypair(name, "fingerprint", self.key_material)
+        return succeed(keypair)
 
     def delete_keypair(self, name):
         self.keypairs_deleted.append(name)
