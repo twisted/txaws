@@ -415,3 +415,17 @@ sample_delete_keypair_no_result = """\
 <DeleteKeyPair xmlns="http://ec2.amazonaws.com/doc/%s/">
 </DeleteKeyPair>
 """ % (aws_api,)
+
+
+sample_duplicate_keypair_result = """\
+<?xml version="1.0"?>
+<Response>
+  <Errors>
+    <Error>
+      <Code>InvalidKeyPair.Duplicate</Code>
+      <Message>The key pair 'key1' already exists </Message>
+    </Error>
+  </Errors>
+  <RequestID>89c977b5-22da-4c68-9148-9e0ebce5f68e</RequestID>
+</Response>
+"""
