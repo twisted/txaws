@@ -160,3 +160,13 @@ class EC2ErrorTestCase(TestCase):
     def test_multiple_errors_repr(self):
         error = EC2Error(payload.sample_ec2_error_messages)
         self.assertEquals(repr(error), "<EC2Error object with Error count: 2>")
+
+    def test_dupliate_keypair_result(self):
+        error = EC2Error(payload.sample_duplicate_keypair_result)
+        self.assertEquals(
+            error.get_error_messages(), "The key pair 'key1' already exists.")
+
+    def test_invalid_keypair_result(self):
+        error = EC2Error(payload.sample_invalid_keypair_result)
+        self.assertEquals(
+            error.get_error_messages(), "There is a problem with the keypair.")
