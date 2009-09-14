@@ -423,7 +423,21 @@ sample_duplicate_keypair_result = """\
   <Errors>
     <Error>
       <Code>InvalidKeyPair.Duplicate</Code>
-      <Message>The key pair 'key1' already exists </Message>
+      <Message>The key pair 'key1' already exists.</Message>
+    </Error>
+  </Errors>
+  <RequestID>89c977b5-22da-4c68-9148-9e0ebce5f68e</RequestID>
+</Response>
+"""
+
+
+sample_invalid_keypair_result = """\
+<?xml version="1.0"?>
+<Response>
+  <Errors>
+    <Error>
+      <Code>InvalidKeyPair.Runtime</Code>
+      <Message>There is a problem with the keypair.</Message>
     </Error>
   </Errors>
   <RequestID>89c977b5-22da-4c68-9148-9e0ebce5f68e</RequestID>
