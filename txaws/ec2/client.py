@@ -201,9 +201,10 @@ class EC2Client(object):
                             user_id, group_name)
                         allowed_groups.setdefault(user_id, user_group_pair)
 
-            result.append(model.SecurityGroup(
-                owner_id, name, description, allowed_groups.values(),
-                allowed_ips))
+            security_group = model.SecurityGroup(
+                name, description, owner_id=owner_id,
+                groups=allowed_groups.values(), ips=allowed_ips)
+            result.append(security_group)
         return result
 
     def describe_volumes(self, *volume_ids):
