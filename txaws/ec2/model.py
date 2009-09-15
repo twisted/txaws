@@ -85,9 +85,9 @@ class SecurityGroup(object):
 class UserIDGroupPair(object):
     """A user ID/group name pair associated with a L{SecurityGroup}."""
 
-    def __init__(self, user_id, name):
+    def __init__(self, user_id, group_name):
         self.user_id = user_id
-        self.name = name
+        self.group_name = group_name
 
 
 class IPPermission(object):
