@@ -176,13 +176,13 @@ class EC2Client(object):
         """
         root = XML(xml_bytes)
         result = []
-        for security_group_info in root.findall("securityGroupInfo/item"):
-            name = security_group_info.findtext("item/groupName")
-            description = security_group_info.findtext("item/groupDescription")
-            owner_id = security_group_info.findtext("item/ownerId")
+        for group_info in root.findall("securityGroupInfo/item"):
+            name = group_info.findtext("groupName")
+            description = group_info.findtext("groupDescription")
+            owner_id = group_info.findtext("ownerId")
             allowed_groups = {}
             allowed_ips = []
-            ip_permissions = security_group_info.find("item/ipPermissions")
+            ip_permissions = group_info.find("ipPermissions") or []
             for ip_permission in ip_permissions:
                 ip_protocol = ip_permission.findtext("ipProtocol")
                 from_port = int(ip_permission.findtext("fromPort"))
