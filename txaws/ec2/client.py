@@ -180,7 +180,7 @@ class EC2Client(object):
             name = security_group_info.findtext("item/groupName")
             description = security_group_info.findtext("item/groupDescription")
             owner_id = security_group_info.findtext("item/ownerId")
-            allowed_groups = []
+            allowed_groups = {}
             allowed_ips = []
             ip_permissions = security_group_info.find("item/ipPermissions")
             for ip_permission in ip_permissions:
@@ -199,7 +199,7 @@ class EC2Client(object):
                     if key not in allowed_groups:
                         user_group_pair = model.UserIDGroupPair(
                             user_id, group_name)
-                        allowed_groups.append(user_group_pair)
+                        allowed_groups.setdefault(user_id, user_group_pair)
 
             result.append(model.SecurityGroup(
                 owner_id, name, description, allowed_groups.values(),
