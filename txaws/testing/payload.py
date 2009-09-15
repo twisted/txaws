@@ -4,35 +4,35 @@ from txaws.version import aws_api
 sample_required_describe_instances_result = """\
 <?xml version="1.0"?>
 <DescribeInstancesResponse xmlns="http://ec2.amazonaws.com/doc/%s/">
-    <requestId>52b4c730-f29f-498d-94c1-91efb75994cc</requestId>
-    <reservationSet>
+  <requestId>52b4c730-f29f-498d-94c1-91efb75994cc</requestId>
+  <reservationSet>
+    <item>
+      <reservationId>r-cf24b1a6</reservationId>
+      <ownerId>123456789012</ownerId>
+      <groupSet>
         <item>
-            <reservationId>r-cf24b1a6</reservationId>
-            <ownerId>123456789012</ownerId>
-            <groupSet>
-                <item>
-                    <groupId>default</groupId>
-                </item>
-            </groupSet>
-            <instancesSet>
-                <item>
-                    <instanceId>i-abcdef01</instanceId>
-                    <imageId>ami-12345678</imageId>
-                    <instanceState>
-                        <code>16</code>
-                        <name>running</name>
-                    </instanceState>
-                    <privateDnsName>domU-12-31-39-03-15-11.compute-1.internal</privateDnsName>
-                    <dnsName>ec2-75-101-245-65.compute-1.amazonaws.com</dnsName>
-                    <instanceType>c1.xlarge</instanceType>
-                    <launchTime>2009-04-27T02:23:18.000Z</launchTime>
-                    <placement>
-                        <availabilityZone>us-east-1c</availabilityZone>
-                    </placement>
-                </item>
-            </instancesSet>
+          <groupId>default</groupId>
         </item>
-    </reservationSet>
+      </groupSet>
+      <instancesSet>
+        <item>
+          <instanceId>i-abcdef01</instanceId>
+          <imageId>ami-12345678</imageId>
+          <instanceState>
+            <code>16</code>
+            <name>running</name>
+          </instanceState>
+          <privateDnsName>domU-12-31-39-03-15-11.compute-1.internal</privateDnsName>
+          <dnsName>ec2-75-101-245-65.compute-1.amazonaws.com</dnsName>
+          <instanceType>c1.xlarge</instanceType>
+          <launchTime>2009-04-27T02:23:18.000Z</launchTime>
+          <placement>
+            <availabilityZone>us-east-1c</availabilityZone>
+          </placement>
+        </item>
+      </instancesSet>
+    </item>
+  </reservationSet>
 </DescribeInstancesResponse>
 """ % (aws_api,)
 
@@ -40,44 +40,43 @@ sample_required_describe_instances_result = """\
 sample_describe_instances_result = """\
 <?xml version="1.0"?>
 <DescribeInstancesResponse xmlns="http://ec2.amazonaws.com/doc/%s/">
-    <requestId>52b4c730-f29f-498d-94c1-91efb75994cc</requestId>
-    <reservationSet>
+  <requestId>52b4c730-f29f-498d-94c1-91efb75994cc</requestId>
+  <reservationSet>
+    <item>
+      <reservationId>r-cf24b1a6</reservationId>
+      <ownerId>123456789012</ownerId>
+      <groupSet>
         <item>
-            <reservationId>r-cf24b1a6</reservationId>
-            <ownerId>123456789012</ownerId>
-            <groupSet>
-                <item>
-                    <groupId>default</groupId>
-                </item>
-            </groupSet>
-            <instancesSet>
-                <item>
-                    <instanceId>i-abcdef01</instanceId>
-                    <imageId>ami-12345678</imageId>
-                    <instanceState>
-                        <code>16</code>
-                        <name>running</name>
-                    </instanceState>
-                    <privateDnsName>domU-12-31-39-03-15-11.compute-1.internal</privateDnsName>
-                    <dnsName>ec2-75-101-245-65.compute-1.amazonaws.com</dnsName>
-                    <reason/>
-                    <keyName>keyname</keyName>
-                    <amiLaunchIndex>0</amiLaunchIndex>
-                    <productCodes>
-                        <productCode>774F4FF8</productCode>
-                    </productCodes>
-
-                    <instanceType>c1.xlarge</instanceType>
-                    <launchTime>2009-04-27T02:23:18.000Z</launchTime>
-                    <placement>
-                        <availabilityZone>us-east-1c</availabilityZone>
-                    </placement>
-                    <kernelId>aki-b51cf9dc</kernelId>
-                    <ramdiskId>ari-b31cf9da</ramdiskId>
-                </item>
-            </instancesSet>
+          <groupId>default</groupId>
         </item>
-    </reservationSet>
+      </groupSet>
+      <instancesSet>
+        <item>
+          <instanceId>i-abcdef01</instanceId>
+          <imageId>ami-12345678</imageId>
+          <instanceState>
+            <code>16</code>
+            <name>running</name>
+          </instanceState>
+          <privateDnsName>domU-12-31-39-03-15-11.compute-1.internal</privateDnsName>
+          <dnsName>ec2-75-101-245-65.compute-1.amazonaws.com</dnsName>
+          <reason/>
+          <keyName>keyname</keyName>
+          <amiLaunchIndex>0</amiLaunchIndex>
+          <productCodes>
+            <productCode>774F4FF8</productCode>
+          </productCodes>
+          <instanceType>c1.xlarge</instanceType>
+          <launchTime>2009-04-27T02:23:18.000Z</launchTime>
+          <placement>
+            <availabilityZone>us-east-1c</availabilityZone>
+          </placement>
+          <kernelId>aki-b51cf9dc</kernelId>
+          <ramdiskId>ari-b31cf9da</ramdiskId>
+        </item>
+      </instancesSet>
+    </item>
+  </reservationSet>
 </DescribeInstancesResponse>
 """ % (aws_api,)
 
@@ -124,15 +123,15 @@ sample_describe_security_groups_result = """\
       <groupDescription>Web Servers</groupDescription>
       <ipPermissions>
         <item>
-  	  <ipProtocol>tcp</ipProtocol>
-	  <fromPort>80</fromPort>
-	  <toPort>80</toPort>
-	  <groups/>
-	  <ipRanges>
-	    <item>
-	      <cidrIp>0.0.0.0/0</cidrIp>
-	    </item>
-	  </ipRanges>
+        <ipProtocol>tcp</ipProtocol>
+      <fromPort>80</fromPort>
+      <toPort>80</toPort>
+      <groups/>
+      <ipRanges>
+        <item>
+          <cidrIp>0.0.0.0/0</cidrIp>
+        </item>
+      </ipRanges>
         </item>
       </ipPermissions>
     </item>
@@ -152,15 +151,15 @@ sample_describe_security_groups_multiple_result = """\
       <groupDescription>Message Servers</groupDescription>
       <ipPermissions>
         <item>
-  	  <ipProtocol>tcp</ipProtocol>
-	  <fromPort>80</fromPort>
-	  <toPort>80</toPort>
-	  <groups/>
-	  <ipRanges>
-	    <item>
-	      <cidrIp>0.0.0.0/0</cidrIp>
-	    </item>
-	  </ipRanges>
+        <ipProtocol>tcp</ipProtocol>
+      <fromPort>80</fromPort>
+      <toPort>80</toPort>
+      <groups/>
+      <ipRanges>
+        <item>
+          <cidrIp>0.0.0.0/0</cidrIp>
+        </item>
+      </ipRanges>
         </item>
       </ipPermissions>
     </item>
@@ -172,31 +171,31 @@ sample_describe_security_groups_multiple_result = """\
       <groupDescription>Web Servers</groupDescription>
       <ipPermissions>
         <item>
-  	  <ipProtocol>tcp</ipProtocol>
-	  <fromPort>80</fromPort>
-	  <toPort>80</toPort>
-	  <groups/>
-	  <ipRanges>
-	    <item>
-	      <cidrIp>0.0.0.0/0</cidrIp>
-	    </item>
-	  </ipRanges>
+        <ipProtocol>tcp</ipProtocol>
+      <fromPort>80</fromPort>
+      <toPort>80</toPort>
+      <groups/>
+      <ipRanges>
+        <item>
+          <cidrIp>0.0.0.0/0</cidrIp>
+        </item>
+      </ipRanges>
         </item>
         <item>
-  	  <ipProtocol>udp</ipProtocol>
-	  <fromPort>81</fromPort>
-	  <toPort>81</toPort>
-	  <groups>
+        <ipProtocol>udp</ipProtocol>
+      <fromPort>81</fromPort>
+      <toPort>81</toPort>
+      <groups>
             <item>
               <userId>group-user-id</userId>
               <groupName>group-name</groupName>
             </item>
           </groups>
-	  <ipRanges>
-	    <item>
-	      <cidrIp>0.0.0.0/16</cidrIp>
-	    </item>
-	  </ipRanges>
+      <ipRanges>
+        <item>
+          <cidrIp>0.0.0.0/16</cidrIp>
+        </item>
+      </ipRanges>
         </item>
       </ipPermissions>
     </item>
@@ -300,6 +299,38 @@ sample_attach_volume_result = """\
 """ % (aws_api,)
 
 
+sample_ec2_error_message = """\
+<?xml version="1.0"?>
+<Response>
+  <Errors>
+    <Error>
+      <Code>Error.Code</Code>
+      <Message>Message for Error.Code</Message>
+    </Error>
+  </Errors>
+  <RequestID>0ef9fc37-6230-4d81-b2e6-1b36277d4247</RequestID>
+</Response>
+"""
+
+
+sample_ec2_error_messages = """\
+<?xml version="1.0"?>
+<Response>
+  <Errors>
+    <Error>
+      <Code>Error.Code1</Code>
+      <Message>Message for Error.Code1</Message>
+    </Error>
+    <Error>
+      <Code>Error.Code2</Code>
+      <Message>Message for Error.Code2</Message>
+    </Error>
+  </Errors>
+  <RequestID>0ef9fc37-6230-4d81-b2e6-1b36277d4247</RequestID>
+</Response>
+"""
+
+
 sample_single_describe_keypairs_result = """\
 <?xml version="1.0"?>
 <DescribeKeyPairsResponse xmlns="http://ec2.amazonaws.com/doc/%s/">
@@ -383,3 +414,31 @@ sample_delete_keypair_no_result = """\
 <DeleteKeyPair xmlns="http://ec2.amazonaws.com/doc/%s/">
 </DeleteKeyPair>
 """ % (aws_api,)
+
+
+sample_duplicate_keypair_result = """\
+<?xml version="1.0"?>
+<Response>
+  <Errors>
+    <Error>
+      <Code>InvalidKeyPair.Duplicate</Code>
+      <Message>The key pair 'key1' already exists.</Message>
+    </Error>
+  </Errors>
+  <RequestID>89c977b5-22da-4c68-9148-9e0ebce5f68e</RequestID>
+</Response>
+"""
+
+
+sample_invalid_keypair_result = """\
+<?xml version="1.0"?>
+<Response>
+  <Errors>
+    <Error>
+      <Code>InvalidKeyPair.Runtime</Code>
+      <Message>There is a problem with the keypair.</Message>
+    </Error>
+  </Errors>
+  <RequestID>89c977b5-22da-4c68-9148-9e0ebce5f68e</RequestID>
+</Response>
+"""

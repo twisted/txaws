@@ -17,7 +17,7 @@ except ImportError:
     from elementtree.ElementTree import XMLTreeBuilder
 
 
-__all__ = ["hmac_sha1", "iso8601time", "XML"]
+__all__ = ["hmac_sha1", "iso8601time", "calculate_md5", "XML"]
 
 
 def calculate_md5(data):
