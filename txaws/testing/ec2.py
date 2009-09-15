@@ -11,7 +11,7 @@ from txaws.ec2.model import Keypair
 class FakeEC2Client(object):
 
     def __init__(self, creds, endpoint, instances=None, keypairs=None,
-                 volumes=None, key_material=""):
+                 volumes=None, key_material="", security_groups=None):
         self.creds = creds
         self.endpoint = endpoint
         self.instances = instances or []
@@ -19,6 +19,7 @@ class FakeEC2Client(object):
         self.volumes = volumes or []
         self.keypairs_deleted = []
         self.key_material = key_material
+        self.security_groups = security_groups or []
 
     def describe_instances(self):
         return succeed(self.instances)
@@ -42,6 +43,9 @@ class FakeEC2Client(object):
 
     def create_volume(self, availability_zone, size=None, snapshot_id=None):
         return succeed(self.volumes[0])
+
+    def describe_security_groups(self, names=None):
+        return success(self.security_groups)
 
 
 class FakePageGetter(object):
