@@ -45,7 +45,7 @@ class FakeEC2Client(object):
         return succeed(self.volumes[0])
 
     def describe_security_groups(self, names=None):
-        return success(self.security_groups)
+        return succeed(self.security_groups)
 
 
 class FakePageGetter(object):
