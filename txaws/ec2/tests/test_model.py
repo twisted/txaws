@@ -34,3 +34,13 @@ class SecurityGroupTestCase(TXAWSTestCase):
         self.assertEquals(group.allowed_groups[1].user_id, "somegal24") 
         self.assertEquals(group.allowed_groups[1].group_name, "other2") 
         self.assertEquals(group.allowed_ips[0].cidr_ip, "10.0.1.0/24") 
+
+
+class UserIDGroupPairTestCase(TXAWSTestCase):
+
+    def test_creation(self):
+        user_id = "cowboy22"
+        group_name = "Rough Riders"
+        user_group_pair = model.UserIDGroupPair(user_id, group_name)
+        self.assertEquals(user_group_pair.user_id, "cowboy22")
+        self.assertEquals(user_group_pair.group_name, "Rough Riders")
