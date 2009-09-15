@@ -152,19 +152,17 @@ sample_describe_security_groups_multiple_result = """\
       <ipPermissions>
         <item>
         <ipProtocol>tcp</ipProtocol>
-      <fromPort>80</fromPort>
-      <toPort>80</toPort>
-      <groups/>
-      <ipRanges>
-        <item>
-          <cidrIp>0.0.0.0/0</cidrIp>
-        </item>
-      </ipRanges>
+        <fromPort>80</fromPort>
+        <toPort>80</toPort>
+        <groups/>
+        <ipRanges>
+          <item>
+            <cidrIp>0.0.0.0/0</cidrIp>
+          </item>
+        </ipRanges>
         </item>
       </ipPermissions>
     </item>
-  </securityGroupInfo>
-  <securityGroupInfo>
     <item>
       <ownerId>UYY3TLBUXIEON5NQVUUX6OMPWBZIQNFM</ownerId>
       <groupName>WebServers</groupName>
