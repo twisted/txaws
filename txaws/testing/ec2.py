@@ -40,6 +40,9 @@ class FakeEC2Client(object):
     def delete_volume(self, volume_id):
         return succeed(True)
 
+    def create_volume(self, availability_zone, size=None, snapshot_id=None):
+        return succeed(self.volumes[0])
+
 
 class FakePageGetter(object):
 
