@@ -174,10 +174,9 @@ class EC2Client(object):
             root element.
         @return: A list of L{SecurityGroup} instances.
         """
-        print xml_bytes
         root = XML(xml_bytes)
         result = []
-        for security_group_info in root.findall("securityGroupInfo"):
+        for security_group_info in root.findall("securityGroupInfo/item"):
             name = security_group_info.findtext("item/groupName")
             description = security_group_info.findtext("item/groupDescription")
             owner_id = security_group_info.findtext("item/ownerId")
