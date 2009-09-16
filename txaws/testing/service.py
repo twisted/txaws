@@ -9,6 +9,7 @@ class FakeAWSServiceRegion(object):
     keypairs = None
     volumes = None
     key_material = ""
+    security_groups = None
 
     def __init__(self, access_key="", secret_key="", uri=""):
         self.access_key = access_key
@@ -23,5 +24,6 @@ class FakeAWSServiceRegion(object):
         endpoint = AWSServiceEndpoint(uri=self.uri)
         self.client = FakeEC2Client(
             creds, endpoint, instances=self.instances, keypairs=self.keypairs,
-            volumes=self.volumes, key_material=self.key_material)
+            volumes=self.volumes, key_material=self.key_material,
+            security_groups=self.security_groups)
         return self.client

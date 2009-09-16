@@ -74,20 +74,20 @@ class SecurityGroup(object):
     @ivar allowed_ips: The sequence of L{IPPermission} instances for this
         security group.
     """
-    def __init__(self, owner_id, name, description, groups, ips):
-        self.owner_id = owner_id
+    def __init__(self, name, description, owner_id="", groups=None, ips=None):
         self.name = name
         self.description = description
-        self.allowed_groups = groups
-        self.allowed_ips = ips
+        self.owner_id = owner_id
+        self.allowed_groups = groups or []
+        self.allowed_ips = ips or []
 
 
 class UserIDGroupPair(object):
     """A user ID/group name pair associated with a L{SecurityGroup}."""
 
-    def __init__(self, user_id, name):
+    def __init__(self, user_id, group_name):
         self.user_id = user_id
-        self.name = name
+        self.group_name = group_name
 
 
 class IPPermission(object):
