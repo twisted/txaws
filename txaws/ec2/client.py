@@ -176,13 +176,13 @@ class EC2Client(object):
         """
         root = XML(xml_bytes)
         result = []
-        for security_group_info in root.findall("securityGroupInfo"):
-            owner_id = security_group_info.findtext("item/ownerId")
-            name = security_group_info.findtext("item/groupName")
-            description = security_group_info.findtext("item/groupDescription")
+        for group_info in root.findall("securityGroupInfo/item"):
+            name = group_info.findtext("groupName")
+            description = group_info.findtext("groupDescription")
+            owner_id = group_info.findtext("ownerId")
             allowed_groups = {}
             allowed_ips = []
-            ip_permissions = security_group_info.find("item/ipPermissions")
+            ip_permissions = group_info.find("ipPermissions") or []
             for ip_permission in ip_permissions:
                 ip_protocol = ip_permission.findtext("ipProtocol")
                 from_port = int(ip_permission.findtext("fromPort"))
@@ -197,12 +197,14 @@ class EC2Client(object):
                 if user_id and group_name:
                     key = (user_id, group_name)
                     if key not in allowed_groups:
-                        allowed_groups[key] = model.UserIDGroupPair(
+                        user_group_pair = model.UserIDGroupPair(
                             user_id, group_name)
+                        allowed_groups.setdefault(user_id, user_group_pair)
 
-            result.append(model.SecurityGroup(
-                owner_id, name, description, allowed_groups.values(),
-                allowed_ips))
+            security_group = model.SecurityGroup(
+                name, description, owner_id=owner_id,
+                groups=allowed_groups.values(), ips=allowed_ips)
+            result.append(security_group)
         return result
 
     def describe_volumes(self, *volume_ids):

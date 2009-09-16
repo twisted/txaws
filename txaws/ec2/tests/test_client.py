@@ -253,7 +253,7 @@ class EC2ClientTestCase(TXAWSTestCase):
                               "UYY3TLBUXIEON5NQVUUX6OMPWBZIQNFM")
             self.assertEquals(security_group.name, "WebServers")
             self.assertEquals(security_group.description, "Web Servers")
-            self.assertEquals([(pair.user_id, pair.name)
+            self.assertEquals([(pair.user_id, pair.group_name)
                                for pair in security_group.allowed_groups],
                               [("group-user-id", "group-name")])
             self.assertEquals(

@@ -152,50 +152,48 @@ sample_describe_security_groups_multiple_result = """\
       <ipPermissions>
         <item>
         <ipProtocol>tcp</ipProtocol>
-      <fromPort>80</fromPort>
-      <toPort>80</toPort>
-      <groups/>
-      <ipRanges>
-        <item>
-          <cidrIp>0.0.0.0/0</cidrIp>
-        </item>
-      </ipRanges>
+        <fromPort>80</fromPort>
+        <toPort>80</toPort>
+        <groups/>
+        <ipRanges>
+          <item>
+            <cidrIp>0.0.0.0/0</cidrIp>
+          </item>
+        </ipRanges>
         </item>
       </ipPermissions>
     </item>
-  </securityGroupInfo>
-  <securityGroupInfo>
     <item>
       <ownerId>UYY3TLBUXIEON5NQVUUX6OMPWBZIQNFM</ownerId>
       <groupName>WebServers</groupName>
       <groupDescription>Web Servers</groupDescription>
       <ipPermissions>
         <item>
-        <ipProtocol>tcp</ipProtocol>
-      <fromPort>80</fromPort>
-      <toPort>80</toPort>
-      <groups/>
-      <ipRanges>
-        <item>
-          <cidrIp>0.0.0.0/0</cidrIp>
+          <ipProtocol>tcp</ipProtocol>
+          <fromPort>80</fromPort>
+          <toPort>80</toPort>
+          <groups/>
+          <ipRanges>
+            <item>
+              <cidrIp>0.0.0.0/0</cidrIp>
+            </item>
+          </ipRanges>
         </item>
-      </ipRanges>
-        </item>
         <item>
-        <ipProtocol>udp</ipProtocol>
-      <fromPort>81</fromPort>
-      <toPort>81</toPort>
-      <groups>
+          <ipProtocol>udp</ipProtocol>
+          <fromPort>81</fromPort>
+          <toPort>81</toPort>
+          <groups>
             <item>
               <userId>group-user-id</userId>
               <groupName>group-name</groupName>
             </item>
           </groups>
-      <ipRanges>
-        <item>
-          <cidrIp>0.0.0.0/16</cidrIp>
-        </item>
-      </ipRanges>
+          <ipRanges>
+            <item>
+              <cidrIp>0.0.0.0/16</cidrIp>
+            </item>
+          </ipRanges>
         </item>
       </ipPermissions>
     </item>
