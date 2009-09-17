@@ -1,7 +1,6 @@
-# -*- coding: utf-8 -*-
 # Copyright (C) 2009 Robert Collins <robertc@robertcollins.net>
-# Copyright (C) 2009 Duncan McGreggor <duncan@canonical.com>
-# Copyright (C) 2009 Thomas Hervé <thomas@canonical.com>
+# Copyright (C) 2009 Canonical Ltd
+# Copyright (C) 2009 Duncan McGreggor <oubiwann@adytum.us>
 # Licenced under the txaws licence available at /LICENSE in the txaws source.
 
 """EC2 client support."""
@@ -9,152 +8,31 @@
 from datetime import datetime
 from urllib import quote
 
-from twisted.web.client import getPage
+from twisted.internet import reactor, ssl
+from twisted.web.client import _parse, HTTPClientFactory
 
 from txaws import version
 from txaws.credentials import AWSCredentials
 from txaws.service import AWSServiceEndpoint
 from txaws.util import iso8601time, XML
+from txaws.ec2 import model
+from txaws.ec2.exception import EC2Error
 
 
 __all__ = ["EC2Client"]
 
 
-class Reservation(object):
-    """An Amazon EC2 Reservation.
-
-    @attrib reservation_id: Unique ID of the reservation.
-    @attrib owner_id: AWS Access Key ID of the user who owns the reservation.
-    @attrib groups: A list of security groups.
-    """
-    def __init__(self, reservation_id, owner_id, groups=None):
-        self.reservation_id = reservation_id
-        self.owner_id = owner_id
-        self.groups = groups or []
-
-
-class Instance(object):
-    """An Amazon EC2 Instance.
-
-    @attrib instance_id: The instance ID of this instance.
-    @attrib instance_state: The current state of this instance.
-    @attrib instance_type: The instance type.
-    @attrib image_id: Image ID of the AMI used to launch the instance.
-    @attrib private_dns_name: The private DNS name assigned to the instance.
-        This DNS name can only be used inside the Amazon EC2 network. This
-        element remains empty until the instance enters a running state.
-    @attrib dns_name: The public DNS name assigned to the instance. This DNS
-        name is contactable from outside the Amazon EC2 network. This element
-        remains empty until the instance enters a running state.
-    @attrib key_name: If this instance was launched with an associated key
-        pair, this displays the key pair name.
-    @attrib ami_launch_index: The AMI launch index, which can be used to find
-        this instance within the launch group.
-    @attrib product_codes: Product codes attached to this instance.
-    @attrib launch_time: The time the instance launched.
-    @attrib placement: The location where the instance launched.
-    @attrib kernel_id: Optional. Kernel associated with this instance.
-    @attrib ramdisk_id: Optional. RAM disk associated with this instance.
-    """
-    def __init__(self, instance_id, instance_state, instance_type="",
-                 image_id="", private_dns_name="", dns_name="", key_name="",
-                 ami_launch_index="", launch_time="", placement="",
-                 product_codes=[], kernel_id=None, ramdisk_id=None,
-                 reservation=None):
-        self.instance_id = instance_id
-        self.instance_state = instance_state
-        self.instance_type = instance_type
-        self.image_id = image_id
-        self.private_dns_name = private_dns_name
-        self.dns_name = dns_name
-        self.key_name = key_name
-        self.ami_launch_index = ami_launch_index
-        self.launch_time = launch_time
-        self.placement = placement
-        self.product_codes = product_codes
-        self.kernel_id = kernel_id
-        self.ramdisk_id = ramdisk_id
-        self.reservation = reservation
-
-
-class SecurityGroup(object):
-    """An EC2 security group.
-
-    @ivar owner_id: The AWS access key ID of the owner of this security group.
-    @ivar name: The name of the security group.
-    @ivar description: The description of this security group.
-    @ivar allowed_groups: The sequence of L{UserIDGroupPair} instances for
-        this security group.
-    @ivar allowed_ips: The sequence of L{IPPermission} instances for this
-        security group.
-    """
-    def __init__(self, owner_id, name, description, groups, ips):
-        self.owner_id = owner_id
-        self.name = name
-        self.description = description
-        self.allowed_groups = groups
-        self.allowed_ips = ips
-
-
-class UserIDGroupPair(object):
-    """A user ID/group name pair associated with a L{SecurityGroup}."""
-
-    def __init__(self, user_id, name):
-        self.user_id = user_id
-        self.name = name
-
-
-class IPPermission(object):
-    """An IP permission associated with a L{SecurityGroup}."""
-
-    def __init__(self, ip_protocol, from_port, to_port, cidr_ip):
-        self.ip_protocol = ip_protocol
-        self.from_port = from_port
-        self.to_port = to_port
-        self.cidr_ip = cidr_ip
-
-
-class Volume(object):
-    """An EBS volume instance."""
-
-    def __init__(self, id, size, status, create_time):
-        self.id = id
-        self.size = size
-        self.status = status
-        self.create_time = create_time
-        self.attachments = []
-
-
-class Attachment(object):
-    """An attachment of a L{Volume}."""
-
-    def __init__(self, instance_id, snapshot_id, availability_zone, status,
-                 attach_time):
-        self.instance_id = instance_id
-        self.snapshot_id = snapshot_id
-        self.availability_zone = availability_zone
-        self.status = status
-        self.attach_time = attach_time
-
-
-class Snapshot(object):
-    """A snapshot of a L{Volume}."""
-
-    def __init__(self, id, volume_id, status, start_time, progress):
-        self.id = id
-        self.volume_id = volume_id
-        self.status = status
-        self.start_time = start_time
-        self.progress = progress
-
-
-class Keypair(object):
-    """A convenience object for holding keypair data."""
-
-    def __init__(self, name, fingerprint, material=None):
-        self.name = name
-        self.fingerprint = fingerprint
-        self.material = material
+def ec2_error_wrapper(error):
+    xml_payload = error.value.response
+    http_status = None
+    if hasattr(error.value, "status"):
+        if error.value.status:
+            http_status = int(error.value.status)
+    if 400 <= http_status < 500:
+        raise EC2Error(xml_payload, error.value.status, error.value.message,
+                       error.value.response)
+    else:
+        error.raiseException()
 
 
 class EC2Client(object):
@@ -209,7 +87,7 @@ class EC2Client(object):
                 group_id = group_data.findtext("groupId")
                 groups.append(group_id)
             # Create a reservation object with the parsed data.
-            reservation = Reservation(
+            reservation = model.Reservation(
                 reservation_id=reservation_data.findtext("reservationId"),
                 owner_id=reservation_data.findtext("ownerId"),
                 groups=groups)
@@ -235,7 +113,7 @@ class EC2Client(object):
                         products.append(product_data.text)
                 kernel_id = instance_data.findtext("kernelId")
                 ramdisk_id = instance_data.findtext("ramdiskId")
-                instance = Instance(
+                instance = model.Instance(
                     instance_id, instance_state, instance_type, image_id,
                     private_dns_name, dns_name, key_name, ami_launch_index,
                     launch_time, placement, products, kernel_id, ramdisk_id,
@@ -282,8 +160,8 @@ class EC2Client(object):
         """
         group_names = None
         if names:
-            group_names = dict([
-                ("GroupName.%d" % (i+1), name) for i, name in enumerate(names)])
+            group_names = dict([("GroupName.%d" % (i+1), name)
+                                for i, name in enumerate(names)])
         query = self.query_factory("DescribeSecurityGroups", self.creds,
                                    self.endpoint, group_names)
         d = query.submit()
@@ -298,30 +176,35 @@ class EC2Client(object):
         """
         root = XML(xml_bytes)
         result = []
-        for security_group_info in root.findall("securityGroupInfo"):
-            owner_id = security_group_info.findtext("item/ownerId")
-            name = security_group_info.findtext("item/groupName")
-            description = security_group_info.findtext("item/groupDescription")
+        for group_info in root.findall("securityGroupInfo/item"):
+            name = group_info.findtext("groupName")
+            description = group_info.findtext("groupDescription")
+            owner_id = group_info.findtext("ownerId")
             allowed_groups = {}
             allowed_ips = []
-            for ip_permission in security_group_info.find("item/ipPermissions"):
+            ip_permissions = group_info.find("ipPermissions") or []
+            for ip_permission in ip_permissions:
                 ip_protocol = ip_permission.findtext("ipProtocol")
                 from_port = int(ip_permission.findtext("fromPort"))
                 to_port = int(ip_permission.findtext("toPort"))
                 cidr_ip = ip_permission.findtext("ipRanges/item/cidrIp")
                 allowed_ips.append(
-                    IPPermission(ip_protocol, from_port, to_port, cidr_ip))
+                    model.IPPermission(
+                        ip_protocol, from_port, to_port, cidr_ip))
 
                 user_id = ip_permission.findtext("groups/item/userId")
                 group_name = ip_permission.findtext("groups/item/groupName")
                 if user_id and group_name:
                     key = (user_id, group_name)
                     if key not in allowed_groups:
-                        allowed_groups[key] = UserIDGroupPair(user_id,
-                                                              group_name)
+                        user_group_pair = model.UserIDGroupPair(
+                            user_id, group_name)
+                        allowed_groups.setdefault(user_id, user_group_pair)
 
-            result.append(SecurityGroup(owner_id, name, description,
-                                        allowed_groups.values(), allowed_ips))
+            security_group = model.SecurityGroup(
+                name, description, owner_id=owner_id,
+                groups=allowed_groups.values(), ips=allowed_ips)
+            result.append(security_group)
         return result
 
     def describe_volumes(self, *volume_ids):
@@ -344,7 +227,7 @@ class EC2Client(object):
             create_time = volume_data.findtext("createTime")
             create_time = datetime.strptime(
                 create_time[:19], "%Y-%m-%dT%H:%M:%S")
-            volume = Volume(volume_id, size, status, create_time)
+            volume = model.Volume(volume_id, size, status, create_time)
             result.append(volume)
             for attachment_data in volume_data.find("attachmentSet"):
                 instance_id = attachment_data.findtext("instanceId")
@@ -355,7 +238,7 @@ class EC2Client(object):
                 attach_time = attachment_data.findtext("attachTime")
                 attach_time = datetime.strptime(
                     attach_time[:19], "%Y-%m-%dT%H:%M:%S")
-                attachment = Attachment(
+                attachment = model.Attachment(
                     instance_id, snapshot_id, availability_zone, status,
                     attach_time)
                 volume.attachments.append(attachment)
@@ -384,7 +267,7 @@ class EC2Client(object):
         create_time = root.findtext("createTime")
         create_time = datetime.strptime(
             create_time[:19], "%Y-%m-%dT%H:%M:%S")
-        volume = Volume(volume_id, size, status, create_time)
+        volume = model.Volume(volume_id, size, status, create_time)
         return volume
 
     def delete_volume(self, volume_id):
@@ -419,7 +302,7 @@ class EC2Client(object):
                 start_time[:19], "%Y-%m-%dT%H:%M:%S")
             progress = snapshot_data.findtext("progress")[:-1]
             progress = float(progress or "0") / 100.
-            snapshot = Snapshot(
+            snapshot = model.Snapshot(
                 snapshot_id, volume_id, status, start_time, progress)
             result.append(snapshot)
         return result
@@ -442,7 +325,8 @@ class EC2Client(object):
             start_time[:19], "%Y-%m-%dT%H:%M:%S")
         progress = root.findtext("progress")[:-1]
         progress = float(progress or "0") / 100.
-        return Snapshot(snapshot_id, volume_id, status, start_time, progress)
+        return model.Snapshot(
+            snapshot_id, volume_id, status, start_time, progress)
 
     def delete_snapshot(self, snapshot_id):
         """Remove a previously created snapshot."""
@@ -489,7 +373,7 @@ class EC2Client(object):
         for keypair_data in root.find("keySet"):
             key_name = keypair_data.findtext("keyName")
             key_fingerprint = keypair_data.findtext("keyFingerprint")
-            results.append(Keypair(key_name, key_fingerprint))
+            results.append(model.Keypair(key_name, key_fingerprint))
         return results
 
     def create_keypair(self, keypair_name):
@@ -509,7 +393,7 @@ class EC2Client(object):
         key_name = keypair_data.findtext("keyName")
         key_fingerprint = keypair_data.findtext("keyFingerprint")
         key_material = keypair_data.findtext("keyMaterial")
-        return Keypair(key_name, key_fingerprint, key_material)
+        return model.Keypair(key_name, key_fingerprint, key_material)
 
     def delete_keypair(self, keypair_name):
         """Delete a given keypair."""
@@ -538,6 +422,7 @@ class Query(object):
     def __init__(self, action, creds, endpoint, other_params=None,
                  time_tuple=None, api_version=None):
         """Create a Query to submit to EC2."""
+        self.factory = HTTPClientFactory
         self.creds = creds
         self.endpoint = endpoint
         # Currently, txAWS only supports version 2008-12-01
@@ -578,6 +463,7 @@ class Query(object):
 
     def sign(self):
         """Sign this query using its built in credentials.
+
         This prepares it to be sent, and should be done as the last step before
         submitting the query. Signing is done automatically - this is a public
         method to facilitate testing.
@@ -588,12 +474,31 @@ class Query(object):
         """Return the query params sorted appropriately for signing."""
         return sorted(self.params.items())
 
+    def get_page(self, url, *args, **kwds):
+        """
+        Define our own get_page method so that we can easily override the
+        factory when we need to. This was copied from the following:
+            * twisted.web.client.getPage
+            * twisted.web.client._makeGetterFactory
+        """
+        contextFactory = None
+        scheme, host, port, path = _parse(url)
+        factory = self.factory(url, *args, **kwds)
+        if scheme == 'https':
+            contextFactory = ssl.ClientContextFactory()
+            reactor.connectSSL(host, port, factory, contextFactory)
+        else:
+            reactor.connectTCP(host, port, factory)
+        return factory.deferred
+
     def submit(self):
         """Submit this query.
 
-        @return: A deferred from twisted.web.client.getPage
+        @return: A deferred from get_page
         """
         self.sign()
         url = "%s?%s" % (self.endpoint.get_uri(),
                          self.canonical_query_params())
-        return getPage(url, method=self.endpoint.method)
+        deferred = self.get_page(url, method=self.endpoint.method)
+        deferred.addErrback(ec2_error_wrapper)
+        return deferred
