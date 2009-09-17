@@ -2,6 +2,8 @@
 # Copyright (C) 2009 Robert Collins <robertc@robertcollins.net>
 # Licenced under the txaws licence available at /LICENSE in the txaws source.
 
+# NB: This installs a reactor. If debugging why a reactor is installed, don't
+# import txaws.service before setting your reactor.
 from twisted.web.client import _parse
 
 from txaws.credentials import AWSCredentials
