@@ -71,6 +71,9 @@ class EC2ClientTestCase(TXAWSTestCase):
         ec2 = client.EC2Client(creds=creds)
         self.assertEqual(creds, ec2.creds)
 
+
+class EC2ClientInstancesTestCase(TXAWSTestCase):
+
     def check_parsed_instances(self, results):
         instance = results[0]
         # check reservations
@@ -184,6 +187,9 @@ class EC2ClientTestCase(TXAWSTestCase):
                 ("i-5678", "shutting-down", "shutting-down")], sorted(changes))
         d.addCallback(check_transition)
         return d
+
+
+class EC2ClientSecurityGroupsTestCase(TXAWSTestCase):
 
     def test_describe_security_groups(self):
         """
@@ -307,256 +313,7 @@ class EC2ClientTestCase(TXAWSTestCase):
         pass
 
 
-class QueryTestCase(TXAWSTestCase):
-
-    def setUp(self):
-        TXAWSTestCase.setUp(self)
-        self.creds = AWSCredentials("foo", "bar")
-        self.endpoint = AWSServiceEndpoint(uri=EC2_ENDPOINT_US)
-
-    def test_init_minimum(self):
-        query = client.Query("DescribeInstances", self.creds, self.endpoint)
-        self.assertTrue("Timestamp" in query.params)
-        del query.params["Timestamp"]
-        self.assertEqual(
-            {"AWSAccessKeyId": "foo",
-             "Action": "DescribeInstances",
-             "SignatureMethod": "HmacSHA1",
-             "SignatureVersion": "2",
-             "Version": "2008-12-01"},
-            query.params)
-
-    def test_init_requires_action(self):
-        self.assertRaises(TypeError, client.Query)
-
-    def test_init_requires_creds(self):
-        self.assertRaises(TypeError, client.Query, None)
-
-    def test_init_other_args_are_params(self):
-        query = client.Query("DescribeInstances", self.creds, self.endpoint,
-            {"InstanceId.0": "12345"},
-            time_tuple=(2007,11,12,13,14,15,0,0,0))
-        self.assertEqual(
-            {"AWSAccessKeyId": "foo",
-             "Action": "DescribeInstances",
-             "InstanceId.0": "12345",
-             "SignatureMethod": "HmacSHA1",
-             "SignatureVersion": "2",
-             "Timestamp": "2007-11-12T13:14:15Z",
-             "Version": "2008-12-01"},
-            query.params)
-
-    def test_sorted_params(self):
-        query = client.Query("DescribeInstances", self.creds, self.endpoint,
-            {"fun": "games"},
-            time_tuple=(2007,11,12,13,14,15,0,0,0))
-        self.assertEqual([
-            ("AWSAccessKeyId", "foo"),
-            ("Action", "DescribeInstances"),
-            ("SignatureMethod", "HmacSHA1"),
-            ("SignatureVersion", "2"),
-            ("Timestamp", "2007-11-12T13:14:15Z"),
-            ("Version", "2008-12-01"),
-            ("fun", "games"),
-            ], query.sorted_params())
-
-    def test_encode_unreserved(self):
-        all_unreserved = ("ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-            "abcdefghijklmnopqrstuvwxyz0123456789-_.~")
-        query = client.Query("DescribeInstances", self.creds, self.endpoint)
-        self.assertEqual(all_unreserved, query.encode(all_unreserved))
-
-    def test_encode_space(self):
-        """This may be just "url encode", but the AWS manual isn't clear."""
-        query = client.Query("DescribeInstances", self.creds, self.endpoint)
-        self.assertEqual("a%20space", query.encode("a space"))
-
-    def test_canonical_query(self):
-        query = client.Query("DescribeInstances", self.creds, self.endpoint,
-            {"fu n": "g/ames", "argwithnovalue":"",
-             "InstanceId.1": "i-1234"},
-            time_tuple=(2007,11,12,13,14,15,0,0,0))
-        expected_query = ("AWSAccessKeyId=foo&Action=DescribeInstances"
-            "&InstanceId.1=i-1234"
-            "&SignatureMethod=HmacSHA1&SignatureVersion=2&"
-            "Timestamp=2007-11-12T13%3A14%3A15Z&Version=2008-12-01&"
-            "argwithnovalue=&fu%20n=g%2Fames")
-        self.assertEqual(expected_query, query.canonical_query_params())
-
-    def test_signing_text(self):
-        query = client.Query("DescribeInstances", self.creds, self.endpoint,
-            time_tuple=(2007,11,12,13,14,15,0,0,0))
-        signing_text = ("GET\n%s\n/\n" % self.endpoint.host +
-            "AWSAccessKeyId=foo&Action=DescribeInstances&"
-            "SignatureMethod=HmacSHA1&SignatureVersion=2&"
-            "Timestamp=2007-11-12T13%3A14%3A15Z&Version=2008-12-01")
-        self.assertEqual(signing_text, query.signing_text())
-
-    def test_sign(self):
-        query = client.Query("DescribeInstances", self.creds, self.endpoint,
-            time_tuple=(2007,11,12,13,14,15,0,0,0))
-        query.sign()
-        self.assertEqual("JuCpwFA2H4OVF3Ql/lAQs+V6iMc=",
-            query.params["Signature"])
-
-    def test_submit_400(self):
-        """A 4xx response status from EC2 should raise a txAWS EC2Error."""
-        status = 400
-        self.addCleanup(setattr, client.Query, "get_page",
-                        client.Query.get_page)
-        fake_page_getter = FakePageGetter(
-            status, payload.sample_ec2_error_message)
-        client.Query.get_page = fake_page_getter.get_page_with_exception
-
-        def check_error(error):
-            self.assertTrue(isinstance(error, EC2Error))
-            self.assertEquals(error.get_error_codes(), "Error.Code")
-            self.assertEquals(
-                error.get_error_messages(),
-                "Message for Error.Code")
-            self.assertEquals(error.status, status)
-            self.assertEquals(error.response, payload.sample_ec2_error_message)
-        
-        query = client.Query(
-            'BadQuery', self.creds, self.endpoint,
-            time_tuple=(2009,8,15,13,14,15,0,0,0))
-
-        failure = query.submit()
-        d = self.assertFailure(failure, EC2Error)
-        d.addCallback(check_error)
-        return d
-
-    def test_submit_500(self):
-        """
-        A 5xx response status from EC2 should raise the original Twisted
-        exception.
-        """
-        status = 500
-        self.addCleanup(setattr, client.Query, "get_page",
-                        client.Query.get_page)
-        fake_page_getter = FakePageGetter(
-            status, payload.sample_ec2_error_message)
-        client.Query.get_page = fake_page_getter.get_page_with_exception
-
-        def check_error(error):
-            self.assertFalse(isinstance(error, EC2Error))
-            self.assertEquals(error.status, status)
-            self.assertEquals(str(error), "500 There's been an error")
-        
-        query = client.Query(
-            'BadQuery', self.creds, self.endpoint,
-            time_tuple=(2009,8,15,13,14,15,0,0,0))
-
-        failure = query.submit()
-        d = self.assertFailure(failure, Error)
-        d.addCallback(check_error)
-        return d
-
-
-class QueryPageGetterTestCase(TXAWSTestCase):
-
-    def setUp(self):
-        TXAWSTestCase.setUp(self)
-        self.creds = AWSCredentials("foo", "bar")
-        self.endpoint = AWSServiceEndpoint(uri=EC2_ENDPOINT_US)
-        self.twisted_client_test_setup()
-        self.cleanupServerConnections = 0
-
-    def tearDown(self):
-        """Copied from twisted.web.test.test_webclient."""
-        # If the test indicated it might leave some server-side connections
-        # around, clean them up.
-        connections = self.wrapper.protocols.keys()
-        # If there are fewer server-side connections than requested,
-        # that's okay.  Some might have noticed that the client closed
-        # the connection and cleaned up after themselves.
-        for n in range(min(len(connections), self.cleanupServerConnections)):
-            proto = connections.pop()
-            #msg("Closing %r" % (proto,))
-            proto.transport.loseConnection()
-        if connections:
-            #msg("Some left-over connections; this test is probably buggy.")
-            pass
-        return self.port.stopListening()
-
-    def _listen(self, site):
-        return reactor.listenTCP(0, site, interface="127.0.0.1")
-
-    def twisted_client_test_setup(self):
-        name = self.mktemp()
-        os.mkdir(name)
-        FilePath(name).child("file").setContent("0123456789")
-        resource = static.File(name)
-        resource.putChild("redirect", util.Redirect("/file"))
-        self.site = server.Site(resource, timeout=None)
-        self.wrapper = WrappingFactory(self.site)
-        self.port = self._listen(self.wrapper)
-        self.portno = self.port.getHost().port
-
-    def get_url(self, path):
-        return "http://127.0.0.1:%d/%s" % (self.portno, path)
-
-    def test_get_page(self):
-        """Copied from twisted.web.test.test_webclient."""
-        query = client.Query(
-            'DummyQuery', self.creds, self.endpoint,
-            time_tuple=(2009,8,17,13,14,15,0,0,0))
-        deferred = query.get_page(self.get_url("file"))
-        deferred.addCallback(self.assertEquals, "0123456789")
-        return deferred
-
-
-class EC2ErrorWrapperTestCase(TXAWSTestCase):
-
-    def setUp(self):
-        TXAWSTestCase.setUp(self)
-
-    def get_failure(self, status=None, type=None, message=""):
-        failure = Failure(type(message))
-        failure.value.response = payload.sample_ec2_error_message
-        failure.value.status = status
-        return failure
-
-    def test_302_error(self):
-        failure = self.get_failure(302, Exception, "found")
-        error = self.assertRaises(Exception, client.ec2_error_wrapper, failure)
-        self.assertEquals(failure.type, type(error))
-        self.assertFalse(isinstance(error, EC2Error))
-        self.assertTrue(isinstance(error, Exception))
-        self.assertEquals(error.message, "found")
-
-    def test_400_error(self):
-        failure = self.get_failure(400, Exception)
-        error = self.assertRaises(EC2Error, client.ec2_error_wrapper, failure)
-        self.assertNotEquals(failure.type, type(error))
-        self.assertTrue(isinstance(error, EC2Error))
-        self.assertEquals(error.get_error_codes(), "Error.Code")
-        self.assertEquals(error.get_error_messages(), "Message for Error.Code")
-
-    def test_404_error(self):
-        failure = self.get_failure(404, Exception)
-        error = self.assertRaises(EC2Error, client.ec2_error_wrapper, failure)
-        self.assertNotEquals(failure.type, type(error))
-        self.assertTrue(isinstance(error, EC2Error))
-        self.assertEquals(error.get_error_codes(), "Error.Code")
-        self.assertEquals(error.get_error_messages(), "Message for Error.Code")
-
-    def test_500_error(self):
-        failure = self.get_failure(500, Exception, "A server error occurred")
-        error = self.assertRaises(Exception, client.ec2_error_wrapper, failure)
-        self.assertFalse(isinstance(error, EC2Error))
-        self.assertTrue(isinstance(error, Exception))
-        self.assertEquals(error.message, "A server error occurred")
-
-    def test_timeout_error(self):
-        failure = self.get_failure(type=Exception, message="timeout")
-        error = self.assertRaises(Exception, client.ec2_error_wrapper, failure)
-        self.assertFalse(isinstance(error, EC2Error))
-        self.assertTrue(isinstance(error, Exception))
-        self.assertEquals(error.message, "timeout")
-
-
-class EBSTestCase(TXAWSTestCase):
+class EC2ClientEBSTestCase(TXAWSTestCase):
 
     def setUp(self):
         TXAWSTestCase.setUp(self)
@@ -985,3 +742,252 @@ class EBSTestCase(TXAWSTestCase):
         d = ec2.delete_keypair("example-key-name")
         d.addCallback(self.assertFalse)
         return d
+
+
+class EC2ErrorWrapperTestCase(TXAWSTestCase):
+
+    def setUp(self):
+        TXAWSTestCase.setUp(self)
+
+    def get_failure(self, status=None, type=None, message=""):
+        failure = Failure(type(message))
+        failure.value.response = payload.sample_ec2_error_message
+        failure.value.status = status
+        return failure
+
+    def test_302_error(self):
+        failure = self.get_failure(302, Exception, "found")
+        error = self.assertRaises(Exception, client.ec2_error_wrapper, failure)
+        self.assertEquals(failure.type, type(error))
+        self.assertFalse(isinstance(error, EC2Error))
+        self.assertTrue(isinstance(error, Exception))
+        self.assertEquals(error.message, "found")
+
+    def test_400_error(self):
+        failure = self.get_failure(400, Exception)
+        error = self.assertRaises(EC2Error, client.ec2_error_wrapper, failure)
+        self.assertNotEquals(failure.type, type(error))
+        self.assertTrue(isinstance(error, EC2Error))
+        self.assertEquals(error.get_error_codes(), "Error.Code")
+        self.assertEquals(error.get_error_messages(), "Message for Error.Code")
+
+    def test_404_error(self):
+        failure = self.get_failure(404, Exception)
+        error = self.assertRaises(EC2Error, client.ec2_error_wrapper, failure)
+        self.assertNotEquals(failure.type, type(error))
+        self.assertTrue(isinstance(error, EC2Error))
+        self.assertEquals(error.get_error_codes(), "Error.Code")
+        self.assertEquals(error.get_error_messages(), "Message for Error.Code")
+
+    def test_500_error(self):
+        failure = self.get_failure(500, Exception, "A server error occurred")
+        error = self.assertRaises(Exception, client.ec2_error_wrapper, failure)
+        self.assertFalse(isinstance(error, EC2Error))
+        self.assertTrue(isinstance(error, Exception))
+        self.assertEquals(error.message, "A server error occurred")
+
+    def test_timeout_error(self):
+        failure = self.get_failure(type=Exception, message="timeout")
+        error = self.assertRaises(Exception, client.ec2_error_wrapper, failure)
+        self.assertFalse(isinstance(error, EC2Error))
+        self.assertTrue(isinstance(error, Exception))
+        self.assertEquals(error.message, "timeout")
+
+
+class QueryTestCase(TXAWSTestCase):
+
+    def setUp(self):
+        TXAWSTestCase.setUp(self)
+        self.creds = AWSCredentials("foo", "bar")
+        self.endpoint = AWSServiceEndpoint(uri=EC2_ENDPOINT_US)
+
+    def test_init_minimum(self):
+        query = client.Query("DescribeInstances", self.creds, self.endpoint)
+        self.assertTrue("Timestamp" in query.params)
+        del query.params["Timestamp"]
+        self.assertEqual(
+            {"AWSAccessKeyId": "foo",
+             "Action": "DescribeInstances",
+             "SignatureMethod": "HmacSHA1",
+             "SignatureVersion": "2",
+             "Version": "2008-12-01"},
+            query.params)
+
+    def test_init_requires_action(self):
+        self.assertRaises(TypeError, client.Query)
+
+    def test_init_requires_creds(self):
+        self.assertRaises(TypeError, client.Query, None)
+
+    def test_init_other_args_are_params(self):
+        query = client.Query("DescribeInstances", self.creds, self.endpoint,
+            {"InstanceId.0": "12345"},
+            time_tuple=(2007,11,12,13,14,15,0,0,0))
+        self.assertEqual(
+            {"AWSAccessKeyId": "foo",
+             "Action": "DescribeInstances",
+             "InstanceId.0": "12345",
+             "SignatureMethod": "HmacSHA1",
+             "SignatureVersion": "2",
+             "Timestamp": "2007-11-12T13:14:15Z",
+             "Version": "2008-12-01"},
+            query.params)
+
+    def test_sorted_params(self):
+        query = client.Query("DescribeInstances", self.creds, self.endpoint,
+            {"fun": "games"},
+            time_tuple=(2007,11,12,13,14,15,0,0,0))
+        self.assertEqual([
+            ("AWSAccessKeyId", "foo"),
+            ("Action", "DescribeInstances"),
+            ("SignatureMethod", "HmacSHA1"),
+            ("SignatureVersion", "2"),
+            ("Timestamp", "2007-11-12T13:14:15Z"),
+            ("Version", "2008-12-01"),
+            ("fun", "games"),
+            ], query.sorted_params())
+
+    def test_encode_unreserved(self):
+        all_unreserved = ("ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+            "abcdefghijklmnopqrstuvwxyz0123456789-_.~")
+        query = client.Query("DescribeInstances", self.creds, self.endpoint)
+        self.assertEqual(all_unreserved, query.encode(all_unreserved))
+
+    def test_encode_space(self):
+        """This may be just "url encode", but the AWS manual isn't clear."""
+        query = client.Query("DescribeInstances", self.creds, self.endpoint)
+        self.assertEqual("a%20space", query.encode("a space"))
+
+    def test_canonical_query(self):
+        query = client.Query("DescribeInstances", self.creds, self.endpoint,
+            {"fu n": "g/ames", "argwithnovalue":"",
+             "InstanceId.1": "i-1234"},
+            time_tuple=(2007,11,12,13,14,15,0,0,0))
+        expected_query = ("AWSAccessKeyId=foo&Action=DescribeInstances"
+            "&InstanceId.1=i-1234"
+            "&SignatureMethod=HmacSHA1&SignatureVersion=2&"
+            "Timestamp=2007-11-12T13%3A14%3A15Z&Version=2008-12-01&"
+            "argwithnovalue=&fu%20n=g%2Fames")
+        self.assertEqual(expected_query, query.canonical_query_params())
+
+    def test_signing_text(self):
+        query = client.Query("DescribeInstances", self.creds, self.endpoint,
+            time_tuple=(2007,11,12,13,14,15,0,0,0))
+        signing_text = ("GET\n%s\n/\n" % self.endpoint.host +
+            "AWSAccessKeyId=foo&Action=DescribeInstances&"
+            "SignatureMethod=HmacSHA1&SignatureVersion=2&"
+            "Timestamp=2007-11-12T13%3A14%3A15Z&Version=2008-12-01")
+        self.assertEqual(signing_text, query.signing_text())
+
+    def test_sign(self):
+        query = client.Query("DescribeInstances", self.creds, self.endpoint,
+            time_tuple=(2007,11,12,13,14,15,0,0,0))
+        query.sign()
+        self.assertEqual("JuCpwFA2H4OVF3Ql/lAQs+V6iMc=",
+            query.params["Signature"])
+
+    def test_submit_400(self):
+        """A 4xx response status from EC2 should raise a txAWS EC2Error."""
+        status = 400
+        self.addCleanup(setattr, client.Query, "get_page",
+                        client.Query.get_page)
+        fake_page_getter = FakePageGetter(
+            status, payload.sample_ec2_error_message)
+        client.Query.get_page = fake_page_getter.get_page_with_exception
+
+        def check_error(error):
+            self.assertTrue(isinstance(error, EC2Error))
+            self.assertEquals(error.get_error_codes(), "Error.Code")
+            self.assertEquals(
+                error.get_error_messages(),
+                "Message for Error.Code")
+            self.assertEquals(error.status, status)
+            self.assertEquals(error.response, payload.sample_ec2_error_message)
+        
+        query = client.Query(
+            'BadQuery', self.creds, self.endpoint,
+            time_tuple=(2009,8,15,13,14,15,0,0,0))
+
+        failure = query.submit()
+        d = self.assertFailure(failure, EC2Error)
+        d.addCallback(check_error)
+        return d
+
+    def test_submit_500(self):
+        """
+        A 5xx response status from EC2 should raise the original Twisted
+        exception.
+        """
+        status = 500
+        self.addCleanup(setattr, client.Query, "get_page",
+                        client.Query.get_page)
+        fake_page_getter = FakePageGetter(
+            status, payload.sample_ec2_error_message)
+        client.Query.get_page = fake_page_getter.get_page_with_exception
+
+        def check_error(error):
+            self.assertFalse(isinstance(error, EC2Error))
+            self.assertEquals(error.status, status)
+            self.assertEquals(str(error), "500 There's been an error")
+        
+        query = client.Query(
+            'BadQuery', self.creds, self.endpoint,
+            time_tuple=(2009,8,15,13,14,15,0,0,0))
+
+        failure = query.submit()
+        d = self.assertFailure(failure, Error)
+        d.addCallback(check_error)
+        return d
+
+
+class QueryPageGetterTestCase(TXAWSTestCase):
+
+    def setUp(self):
+        TXAWSTestCase.setUp(self)
+        self.creds = AWSCredentials("foo", "bar")
+        self.endpoint = AWSServiceEndpoint(uri=EC2_ENDPOINT_US)
+        self.twisted_client_test_setup()
+        self.cleanupServerConnections = 0
+
+    def tearDown(self):
+        """Copied from twisted.web.test.test_webclient."""
+        # If the test indicated it might leave some server-side connections
+        # around, clean them up.
+        connections = self.wrapper.protocols.keys()
+        # If there are fewer server-side connections than requested,
+        # that's okay.  Some might have noticed that the client closed
+        # the connection and cleaned up after themselves.
+        for n in range(min(len(connections), self.cleanupServerConnections)):
+            proto = connections.pop()
+            #msg("Closing %r" % (proto,))
+            proto.transport.loseConnection()
+        if connections:
+            #msg("Some left-over connections; this test is probably buggy.")
+            pass
+        return self.port.stopListening()
+
+    def _listen(self, site):
+        return reactor.listenTCP(0, site, interface="127.0.0.1")
+
+    def twisted_client_test_setup(self):
+        name = self.mktemp()
+        os.mkdir(name)
+        FilePath(name).child("file").setContent("0123456789")
+        resource = static.File(name)
+        resource.putChild("redirect", util.Redirect("/file"))
+        self.site = server.Site(resource, timeout=None)
+        self.wrapper = WrappingFactory(self.site)
+        self.port = self._listen(self.wrapper)
+        self.portno = self.port.getHost().port
+
+    def get_url(self, path):
+        return "http://127.0.0.1:%d/%s" % (self.portno, path)
+
+    def test_get_page(self):
+        """Copied from twisted.web.test.test_webclient."""
+        query = client.Query(
+            'DummyQuery', self.creds, self.endpoint,
+            time_tuple=(2009,8,17,13,14,15,0,0,0))
+        deferred = query.get_page(self.get_url("file"))
+        deferred.addCallback(self.assertEquals, "0123456789")
+        return deferred
