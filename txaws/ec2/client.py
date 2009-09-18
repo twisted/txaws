@@ -225,12 +225,22 @@ class EC2Client(object):
     def _parse_truth_return(self, xml_bytes):
         root = XML(xml_bytes)
         success = root.findtext("return")
-        if success.lower() == "true":
+        if success and success.lower() == "true":
             return True
         return False
 
     def delete_security_group(self, name):
-        pass
+        """
+        @param name: Name of the new security group.
+        @return: A C{Deferred} that will fire with a turth value for the
+            success of the operaion.
+        """
+        group_names = None
+        parameter = {"GroupName":  name}
+        query = self.query_factory("DeleteSecurityGroup", self.creds,
+                                   self.endpoint, parameter)
+        d = query.submit()
+        return d.addCallback(self._parse_truth_return)
 
     def authorize_security_group(
         self, group_name, source_group_name="", source_group_owner_id="",

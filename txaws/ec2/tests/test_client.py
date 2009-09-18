@@ -7,7 +7,7 @@ from datetime import datetime
 import os
 
 from twisted.internet import reactor
-from twisted.internet.defer import succeed
+from twisted.internet.defer import succeed, fail
 from twisted.python.failure import Failure
 from twisted.python.filepath import FilePath
 from twisted.web import server, static, util
@@ -320,7 +320,56 @@ class EC2ClientSecurityGroupsTestCase(TXAWSTestCase):
         return self.assertTrue(d)
 
     def test_delete_security_group(self):
-        pass
+        """
+        L{EC2Client.delete_security_group} returns a C{Deferred} that
+        eventually fires with a true value, indicating the success of the
+        operation.
+        """
+        class StubQuery(object):
+            def __init__(stub, action, creds, endpoint, other_params=None):
+                self.assertEqual(action, "DeleteSecurityGroup")
+                self.assertEqual(creds.access_key, "foo")
+                self.assertEqual(creds.secret_key, "bar")
+                self.assertEqual(other_params, {
+                    "GroupName": "WebServers",
+                    })
+            def submit(self):
+                return succeed(payload.sample_delete_security_group)
+
+        creds = AWSCredentials("foo", "bar")
+        ec2 = client.EC2Client(creds, query_factory=StubQuery)
+        d = ec2.delete_security_group("WebServers")
+        return self.assertTrue(d)
+
+    def test_delete_security_group_failure(self):
+        """
+        L{EC2Client.delete_security_group} returns a C{Deferred} that
+        eventually fires with a failure when EC2 is asked to delete a group
+        that another group uses in that other group's policy.
+        """
+        class StubQuery(object):
+            def __init__(stub, action, creds, endpoint, other_params=None):
+                self.assertEqual(action, "DeleteSecurityGroup")
+                self.assertEqual(creds.access_key, "foo")
+                self.assertEqual(creds.secret_key, "bar")
+                self.assertEqual(other_params, {
+                    "GroupName": "GroupReferredTo",
+                    })
+            def submit(self):
+                error = EC2Error(payload.sample_delete_security_group_failure)
+                return fail(error)
+
+        def check_error(error):
+            self.assertEquals(
+                str(error),
+                ("Error Message: Group groupID1:GroupReferredTo is used by "
+                 "groups: groupID2:UsingGroup"))
+
+        creds = AWSCredentials("foo", "bar")
+        ec2 = client.EC2Client(creds, query_factory=StubQuery)
+        failure = ec2.delete_security_group("GroupReferredTo")
+        d = self.assertFailure(failure, EC2Error)
+        return d.addCallback(check_error)
 
     def test_authorize_security_group_with_user_group_pair(self):
         pass
