@@ -220,9 +220,9 @@ class EC2Client(object):
         query = self.query_factory("CreateSecurityGroup", self.creds,
                                    self.endpoint, parameters)
         d = query.submit()
-        return d.addCallback(self._parse_create_security_group)
+        return d.addCallback(self._parse_truth_return)
 
-    def _parse_create_security_group(self, xml_bytes):
+    def _parse_truth_return(self, xml_bytes):
         root = XML(xml_bytes)
         success = root.findtext("return")
         if success.lower() == "true":
@@ -232,15 +232,9 @@ class EC2Client(object):
     def delete_security_group(self, name):
         pass
 
-    def _parse_delete_security_group(self, xml_bytes):
-        pass
-
     def authorize_security_group(
         self, group_name, source_group_name="", source_group_owner_id="",
         ip_protocol="", from_port="", to_port="", cidr_ip=""):
-        pass
-
-    def _parse_authorize_security_group(self, xml_bytes):
         pass
 
     def authorize_user_group_pair_permission(
@@ -254,9 +248,6 @@ class EC2Client(object):
     def revoke_security_group(
         self, group_name, source_group_name="", source_group_owner_id="",
         ip_protocol="", from_port="", to_port="", cidr_ip=""):
-        pass
-
-    def _parse_revoke_security_group(self, xml_bytes):
         pass
 
     def revoke_user_group_pair_permission(
