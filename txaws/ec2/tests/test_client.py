@@ -291,6 +291,21 @@ class EC2ClientTestCase(TXAWSTestCase):
         security_groups.addCallback(assert_security_groups)
         return security_groups
 
+    def test_create_security_group(self):
+        pass
+
+    def test_delete_security_group(self):
+        pass
+
+    def test_authorize_security_group_with_user_group_pair(self):
+        pass
+
+    def test_authorize_security_group_with_ip_permissions(self):
+        pass
+
+    def test_revoke_security_group(self):
+        pass
+
 
 class QueryTestCase(TXAWSTestCase):
 

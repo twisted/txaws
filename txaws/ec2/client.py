@@ -207,6 +207,50 @@ class EC2Client(object):
             result.append(security_group)
         return result
 
+    def create_security_group(self, name, description):
+        pass
+
+    def _parse_create_security_group(self, xml_bytes):
+        pass
+
+    def delete_security_group(self, name):
+        pass
+
+    def _parse_delete_security_group(self, xml_bytes):
+        pass
+
+    def authorize_security_group(
+        self, group_name, source_group_name="", source_group_owner_id="",
+        ip_protocol="", from_port="", to_port="", cidr_ip=""):
+        pass
+
+    def _parse_authorize_security_group(self, xml_bytes):
+        pass
+
+    def authorize_user_group_pair_permission(
+        self, group_name, source_group_name, source_group_owner_id):
+        pass
+
+    def authorize_ip_permission(
+        self, group_name, ip_protocol, from_port, to_port, cidr_ip):
+        pass
+
+    def revoke_security_group(
+        self, group_name, source_group_name="", source_group_owner_id="",
+        ip_protocol="", from_port="", to_port="", cidr_ip=""):
+        pass
+
+    def _parse_revoke_security_group(self, xml_bytes):
+        pass
+
+    def revoke_user_group_pair_permission(
+        self, group_name, source_group_name, source_group_owner_id):
+        pass
+
+    def revoke_ip_permission(
+        self, group_name, ip_protocol, from_port, to_port, cidr_ip):
+        pass
+
     def describe_volumes(self, *volume_ids):
         """Describe available volumes."""
         volumeset = {}

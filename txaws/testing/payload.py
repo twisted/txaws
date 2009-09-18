@@ -202,6 +202,34 @@ sample_describe_security_groups_multiple_result = """\
 """ % (aws_api,)
 
 
+sample_create_security_group = """\
+<CreateSecurityGroupResponse xmlns="http://ec2.amazonaws.com/doc/%s/">
+  <return>true</return>
+</CreateSecurityGroupResponse>
+""" % (aws_api,)
+
+
+sample_delete_security_group = """\
+<DeleteSecurityGroupResponse xmlns="http://ec2.amazonaws.com/doc/%s/">
+  <return>true</return>
+</DeleteSecurityGroupResponse>
+""" % (aws_api,)
+
+
+sample_authorize_security_group = """\
+<AuthorizeSecurityGroupIngressResponse xmlns="http://ec2.amazonaws.com/doc/%s/">
+  <return>true</return>
+</AuthorizeSecurityGroupIngressResponse>
+""" % (aws_api,)
+
+
+sample_revoke_security_group = """\
+<RevokeSecurityGroupIngressResponse xmlns="http://ec2.amazonaws.com/doc/%s/">
+  <return>true</return>
+</RevokeSecurityGroupIngressResponse>
+""" % (aws_api,)
+
+
 sample_describe_volumes_result = """\
 <?xml version="1.0"?>
 <DescribeVolumesResponse xmlns="http://ec2.amazonaws.com/doc/%s/">
