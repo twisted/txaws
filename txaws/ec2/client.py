@@ -235,7 +235,6 @@ class EC2Client(object):
         @return: A C{Deferred} that will fire with a turth value for the
             success of the operaion.
         """
-        group_names = None
         parameter = {"GroupName":  name}
         query = self.query_factory("DeleteSecurityGroup", self.creds,
                                    self.endpoint, parameter)
@@ -245,7 +244,58 @@ class EC2Client(object):
     def authorize_security_group(
         self, group_name, source_group_name="", source_group_owner_id="",
         ip_protocol="", from_port="", to_port="", cidr_ip=""):
-        pass
+        """
+        There are two ways to use C{authorize_security_group}:
+            1) associate an existing group (source group) with the one that you
+            are targetting (group_name) with an authorization update; or
+            2) associate a set of IP permissions with the group you are
+            targetting with an authorization update.
+
+        @param group_name: The group you will be modifying with a new
+            authorization.
+
+        Optionally, the following parameters:
+        @param source_group_name: Name of security group to authorize access to
+            when operating on a user/group pair.
+        @param source_group_owner_id: Owner of security group to authorize
+            access to when operating on a user/group pair.
+
+        If those parameters are not specified, then the following must be:
+        @param ip_protocol: IP protocol to authorize access to when operating
+            on a CIDR IP.
+        @param from_port: Bottom of port range to authorize access to when
+            operating on a CIDR IP. This contains the ICMP type if ICMP is
+            being authorized.
+        @param to_port: Top of port range to authorize access to when operating
+            on a CIDR IP. This contains the ICMP code if ICMP is being
+            authorized.
+        @param cidr_ip: CIDR IP range to authorize access to when operating on
+            a CIDR IP.
+
+        @return: A C{Deferred} that will fire with a turth value for the
+            success of the operaion.
+        """
+        if source_group_name and source_group_owner_id:
+            parameters = {
+                "SourceSecurityGroupName": source_group_name,
+                "SourceSecurityGroupOwnerId": source_group_owner_id,
+                }
+        elif ip_protocol and from_port and to_port and cidr_ip:
+            parameters = {
+                "IpProtocol": ip_protocol,
+                "FromPort": from_port,
+                "ToPort": to_port,
+                "CidrIp": cidr_ip,
+                }
+        else:
+            msg = ("You must specify either both group parameters or "
+                   "all the ip parameters.")
+            raise ValueError(msg)
+        parameters["GroupName"] = group_name
+        query = self.query_factory("AuthorizeSecurityGroupIngress", self.creds,
+                                   self.endpoint, parameters)
+        d = query.submit()
+        return d.addCallback(self._parse_truth_return)
 
     def authorize_user_group_pair_permission(
         self, group_name, source_group_name, source_group_owner_id):
