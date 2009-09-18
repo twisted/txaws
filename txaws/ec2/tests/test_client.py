@@ -133,7 +133,7 @@ class EC2ClientInstancesTestCase(TXAWSTestCase):
     def test_parse_reservation(self):
         creds = AWSCredentials("foo", "bar")
         ec2 = client.EC2Client(creds=creds)
-        results = ec2._parse_instances(
+        results = ec2._parse_describe_instances(
             payload.sample_describe_instances_result)
         self.check_parsed_instances(results)
 
@@ -206,7 +206,7 @@ class EC2ClientSecurityGroupsTestCase(TXAWSTestCase):
             def submit(self):
                 return succeed(payload.sample_describe_security_groups_result)
 
-        def assert_security_groups(security_groups):
+        def check_results(security_groups):
             [security_group] = security_groups
             self.assertEquals(security_group.owner_id,
                               "UYY3TLBUXIEON5NQVUUX6OMPWBZIQNFM")
@@ -220,9 +220,8 @@ class EC2ClientSecurityGroupsTestCase(TXAWSTestCase):
 
         creds = AWSCredentials("foo", "bar")
         ec2 = client.EC2Client(creds, query_factory=StubQuery)
-        security_groups = ec2.describe_security_groups()
-        security_groups.addCallback(assert_security_groups)
-        return security_groups
+        d = ec2.describe_security_groups()
+        return d.addCallback(check_results)
 
     def test_describe_security_groups_with_multiple_results(self):
         """
@@ -240,7 +239,7 @@ class EC2ClientSecurityGroupsTestCase(TXAWSTestCase):
                 return succeed(
                     payload.sample_describe_security_groups_multiple_result)
 
-        def assert_security_groups(security_groups):
+        def check_results(security_groups):
             self.assertEquals(len(security_groups), 2)
 
             security_group = security_groups[0]
@@ -269,9 +268,8 @@ class EC2ClientSecurityGroupsTestCase(TXAWSTestCase):
 
         creds = AWSCredentials("foo", "bar")
         ec2 = client.EC2Client(creds, query_factory=StubQuery)
-        security_groups = ec2.describe_security_groups()
-        security_groups.addCallback(assert_security_groups)
-        return security_groups
+        d = ec2.describe_security_groups()
+        return d.addCallback(check_results)
 
     def test_describe_security_groups_with_name(self):
         """
@@ -287,18 +285,39 @@ class EC2ClientSecurityGroupsTestCase(TXAWSTestCase):
             def submit(self):
                 return succeed(payload.sample_describe_security_groups_result)
 
-        def assert_security_groups(security_groups):
+        def check_result(security_groups):
             [security_group] = security_groups
             self.assertEquals(security_group.name, "WebServers")
 
         creds = AWSCredentials("foo", "bar")
         ec2 = client.EC2Client(creds, query_factory=StubQuery)
-        security_groups = ec2.describe_security_groups("WebServers")
-        security_groups.addCallback(assert_security_groups)
-        return security_groups
+        d = ec2.describe_security_groups("WebServers")
+        return d.addCallback(check_result)
 
     def test_create_security_group(self):
-        pass
+        """
+        L{EC2Client.create_security_group} returns a C{Deferred} that
+        eventually fires with a true value, indicating the success of the
+        operation.
+        """
+        class StubQuery(object):
+            def __init__(stub, action, creds, endpoint, other_params=None):
+                self.assertEqual(action, "CreateSecurityGroup")
+                self.assertEqual(creds.access_key, "foo")
+                self.assertEqual(creds.secret_key, "bar")
+                self.assertEqual(other_params, {
+                    "GroupName": "WebServers",
+                    "GroupDescription": "The group for the web server farm.",
+                    })
+            def submit(self):
+                return succeed(payload.sample_create_security_group)
+
+        creds = AWSCredentials("foo", "bar")
+        ec2 = client.EC2Client(creds, query_factory=StubQuery)
+        d = ec2.create_security_group(
+            "WebServers",
+            "The group for the web server farm.")
+        return self.assertTrue(d)
 
     def test_delete_security_group(self):
         pass

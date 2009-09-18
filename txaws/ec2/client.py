@@ -57,9 +57,9 @@ class EC2Client(object):
         """Describe current instances."""
         q = self.query_factory("DescribeInstances", self.creds, self.endpoint)
         d = q.submit()
-        return d.addCallback(self._parse_instances)
+        return d.addCallback(self._parse_describe_instances)
 
-    def _parse_instances(self, xml_bytes):
+    def _parse_describe_instances(self, xml_bytes):
         """
         Parse the reservations XML payload that is returned from an AWS
         describeInstances API call.
@@ -165,9 +165,9 @@ class EC2Client(object):
         query = self.query_factory("DescribeSecurityGroups", self.creds,
                                    self.endpoint, group_names)
         d = query.submit()
-        return d.addCallback(self._parse_security_groups)
+        return d.addCallback(self._parse_describe_security_groups)
 
-    def _parse_security_groups(self, xml_bytes):
+    def _parse_describe_security_groups(self, xml_bytes):
         """Parse the XML returned by the C{DescribeSecurityGroups} function.
 
         @param xml_bytes: XML bytes with a C{DescribeSecurityGroupsResponse}
@@ -208,10 +208,26 @@ class EC2Client(object):
         return result
 
     def create_security_group(self, name, description):
-        pass
+        """Create security group.
+
+        @param name: Name of the new security group.
+        @param description: Description of the new security group.
+        @return: A C{Deferred} that will fire with a turth value for the
+            success of the operaion.
+        """
+        group_names = None
+        parameters = {"GroupName":  name, "GroupDescription": description}
+        query = self.query_factory("CreateSecurityGroup", self.creds,
+                                   self.endpoint, parameters)
+        d = query.submit()
+        return d.addCallback(self._parse_create_security_group)
 
     def _parse_create_security_group(self, xml_bytes):
-        pass
+        root = XML(xml_bytes)
+        success = root.findtext("return")
+        if success.lower() == "true":
+            return True
+        return False
 
     def delete_security_group(self, name):
         pass
@@ -259,9 +275,9 @@ class EC2Client(object):
         q = self.query_factory(
             "DescribeVolumes", self.creds, self.endpoint, volumeset)
         d = q.submit()
-        return d.addCallback(self._parse_volumes)
+        return d.addCallback(self._parse_describe_volumes)
 
-    def _parse_volumes(self, xml_bytes):
+    def _parse_describe_volumes(self, xml_bytes):
         root = XML(xml_bytes)
         result = []
         for volume_data in root.find("volumeSet"):
