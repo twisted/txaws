@@ -328,15 +328,86 @@ class EC2Client(object):
     def revoke_security_group(
         self, group_name, source_group_name="", source_group_owner_id="",
         ip_protocol="", from_port="", to_port="", cidr_ip=""):
-        pass
+        """
+        There are two ways to use C{revoke_security_group}:
+            1) associate an existing group (source group) with the one that you
+            are targetting (group_name) with the revoke update; or
+            2) associate a set of IP permissions with the group you are
+            targetting with a revoke update.
 
-    def revoke_user_group_pair_permission(
+        @param group_name: The group you will be modifying with an
+            authorization removal.
+
+        Optionally, the following parameters:
+        @param source_group_name: Name of security group to revoke access from
+            when operating on a user/group pair.
+        @param source_group_owner_id: Owner of security group to revoke
+            access from when operating on a user/group pair.
+
+        If those parameters are not specified, then the following must be:
+        @param ip_protocol: IP protocol to revoke access from when operating
+            on a CIDR IP.
+        @param from_port: Bottom of port range to reveok access from when
+            operating on a CIDR IP. This contains the ICMP type if ICMP is
+            being revoked.
+        @param to_port: Top of port range to revoke access from when operating
+            on a CIDR IP. This contains the ICMP code if ICMP is being
+            revoked.
+        @param cidr_ip: CIDR IP range to revoke access from when operating on
+            a CIDR IP.
+
+        @return: A C{Deferred} that will fire with a turth value for the
+            success of the operaion.
+        """
+        if source_group_name and source_group_owner_id:
+            parameters = {
+                "SourceSecurityGroupName": source_group_name,
+                "SourceSecurityGroupOwnerId": source_group_owner_id,
+                }
+        elif ip_protocol and from_port and to_port and cidr_ip:
+            parameters = {
+                "IpProtocol": ip_protocol,
+                "FromPort": from_port,
+                "ToPort": to_port,
+                "CidrIp": cidr_ip,
+                }
+        else:
+            msg = ("You must specify either both group parameters or "
+                   "all the ip parameters.")
+            raise ValueError(msg)
+        parameters["GroupName"] = group_name
+        query = self.query_factory("RevokeSecurityGroupIngress", self.creds,
+                                   self.endpoint, parameters)
+        d = query.submit()
+        return d.addCallback(self._parse_truth_return)
+
+    def revoke_group_permission(
         self, group_name, source_group_name, source_group_owner_id):
-        pass
+        """
+        This is a convenience function that wraps the "authorize group"
+        functionality of the C{authorize_security_group} method.
+
+        For an explanation of the parameters, see C{authorize_security_group}.
+        """
+        d = self.revoke_security_group(
+            group_name,
+            source_group_name=source_group_name,
+            source_group_owner_id=source_group_owner_id)
+        return d
 
     def revoke_ip_permission(
         self, group_name, ip_protocol, from_port, to_port, cidr_ip):
-        pass
+        """
+        This is a convenience function that wraps the "authorize ip
+        permmission" functionality of the C{authorize_security_group} method.
+
+        For an explanation of the parameters, see C{authorize_security_group}.
+        """
+        d = self.revoke_security_group(
+            group_name,
+            ip_protocol=ip_protocol, from_port=from_port, to_port=to_port,
+            cidr_ip=cidr_ip)
+        return d
 
     def describe_volumes(self, *volume_ids):
         """Describe available volumes."""
