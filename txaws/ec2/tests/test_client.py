@@ -461,6 +461,59 @@ class EC2ClientSecurityGroupsTestCase(TXAWSTestCase):
                 ("You must specify either both group parameters or all the "
                  "ip parameters."))
 
+    def test_authorize_group_permission(self):
+        """
+        L{EC2Client.authorize_group_permission} returns a C{Deferred}
+        that eventually fires with a true value, indicating the success of the
+        operation.
+        """
+        class StubQuery(object):
+            def __init__(stub, action, creds, endpoint, other_params=None):
+                self.assertEqual(action, "AuthorizeSecurityGroupIngress")
+                self.assertEqual(creds.access_key, "foo")
+                self.assertEqual(creds.secret_key, "bar")
+                self.assertEqual(other_params, {
+                    "GroupName": "WebServers",
+                    "SourceSecurityGroupName": "AppServers",
+                    "SourceSecurityGroupOwnerId": "123456789123",
+                    })
+            def submit(self):
+                return succeed(payload.sample_authorize_security_group)
+
+        creds = AWSCredentials("foo", "bar")
+        ec2 = client.EC2Client(creds, query_factory=StubQuery)
+        d = ec2.authorize_group_permission(
+            "WebServers", source_group_name="AppServers",
+            source_group_owner_id="123456789123")
+        return self.assertTrue(d)
+
+    def test_authorize_ip_permission(self):
+        """
+        L{EC2Client.authorize_ip_permission} returns a C{Deferred} that
+        eventually fires with a true value, indicating the success of the
+        operation. There are two ways to use the method: set another group's
+        IP permissions or set new IP permissions.
+        """
+        class StubQuery(object):
+            def __init__(stub, action, creds, endpoint, other_params=None):
+                self.assertEqual(action, "AuthorizeSecurityGroupIngress")
+                self.assertEqual(creds.access_key, "foo")
+                self.assertEqual(creds.secret_key, "bar")
+                self.assertEqual(other_params, {
+                    "GroupName": "WebServers",
+                    "FromPort": "22", "ToPort": "80",
+                    "IpProtocol": "tcp", "CidrIp": "0.0.0.0/0",
+                    })
+            def submit(self):
+                return succeed(payload.sample_authorize_security_group)
+
+        creds = AWSCredentials("foo", "bar")
+        ec2 = client.EC2Client(creds, query_factory=StubQuery)
+        d = ec2.authorize_ip_permission(
+            "WebServers", ip_protocol="tcp", from_port="22", to_port="80",
+            cidr_ip="0.0.0.0/0")
+        return self.assertTrue(d)
+
     def test_revoke_security_group(self):
         pass
 

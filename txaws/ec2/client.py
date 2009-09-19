@@ -297,13 +297,33 @@ class EC2Client(object):
         d = query.submit()
         return d.addCallback(self._parse_truth_return)
 
-    def authorize_user_group_pair_permission(
+    def authorize_group_permission(
         self, group_name, source_group_name, source_group_owner_id):
-        pass
+        """
+        This is a convenience function that wraps the "authorize group"
+        functionality of the C{authorize_security_group} method.
+
+        For an explanation of the parameters, see C{authorize_security_group}.
+        """
+        d = self.authorize_security_group(
+            group_name,
+            source_group_name=source_group_name,
+            source_group_owner_id=source_group_owner_id)
+        return d
 
     def authorize_ip_permission(
         self, group_name, ip_protocol, from_port, to_port, cidr_ip):
-        pass
+        """
+        This is a convenience function that wraps the "authorize ip
+        permmission" functionality of the C{authorize_security_group} method.
+
+        For an explanation of the parameters, see C{authorize_security_group}.
+        """
+        d = self.authorize_security_group(
+            group_name,
+            ip_protocol=ip_protocol, from_port=from_port, to_port=to_port,
+            cidr_ip=cidr_ip)
+        return d
 
     def revoke_security_group(
         self, group_name, source_group_name="", source_group_owner_id="",
