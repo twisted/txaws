@@ -436,21 +436,8 @@ class EC2ClientSecurityGroupsTestCase(TXAWSTestCase):
         parameters are set and not all IP permission parameters are set, an
         error is raised.
         """
-        class StubQuery(object):
-            def __init__(stub, action, creds, endpoint, other_params=None):
-                self.assertEqual(action, "AuthorizeSecurityGroupIngress")
-                self.assertEqual(creds.access_key, "foo")
-                self.assertEqual(creds.secret_key, "bar")
-                self.assertEqual(other_params, {
-                    "GroupName": "WebServers",
-                    "FromPort": "22", "ToPort": "80",
-                    "IpProtocol": "tcp", "CidrIp": "0.0.0.0/0",
-                    })
-            def submit(self):
-                return succeed(payload.sample_authorize_security_group)
-
         creds = AWSCredentials("foo", "bar")
-        ec2 = client.EC2Client(creds, query_factory=StubQuery)
+        ec2 = client.EC2Client(creds)
         self.assertRaises(ValueError, ec2.authorize_security_group,
                 "WebServers", ip_protocol="tcp", from_port="22")
         try:
@@ -580,21 +567,8 @@ class EC2ClientSecurityGroupsTestCase(TXAWSTestCase):
         parameters are set and not all IP permission parameters are set, an
         error is raised.
         """
-        class StubQuery(object):
-            def __init__(stub, action, creds, endpoint, other_params=None):
-                self.assertEqual(action, "RevokeSecurityGroupIngress")
-                self.assertEqual(creds.access_key, "foo")
-                self.assertEqual(creds.secret_key, "bar")
-                self.assertEqual(other_params, {
-                    "GroupName": "WebServers",
-                    "FromPort": "22", "ToPort": "80",
-                    "IpProtocol": "tcp", "CidrIp": "0.0.0.0/0",
-                    })
-            def submit(self):
-                return succeed(payload.sample_revoke_security_group)
-
         creds = AWSCredentials("foo", "bar")
-        ec2 = client.EC2Client(creds, query_factory=StubQuery)
+        ec2 = client.EC2Client(creds)
         self.assertRaises(ValueError, ec2.authorize_security_group,
                 "WebServers", ip_protocol="tcp", from_port="22")
         try:
