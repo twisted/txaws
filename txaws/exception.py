@@ -3,6 +3,7 @@
 
 from twisted.web.error import Error
 
+
 class AWSError(Error):
     """
     A base class for txAWS errors.
