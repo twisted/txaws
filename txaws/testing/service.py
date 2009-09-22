@@ -8,6 +8,7 @@ class FakeAWSServiceRegion(object):
     instances = None
     keypairs = None
     volumes = None
+    snapshots = None
     key_material = ""
     security_groups = None
 
@@ -25,5 +26,5 @@ class FakeAWSServiceRegion(object):
         self.client = FakeEC2Client(
             creds, endpoint, instances=self.instances, keypairs=self.keypairs,
             volumes=self.volumes, key_material=self.key_material,
-            security_groups=self.security_groups)
+            security_groups=self.security_groups, snapshots=self.snapshots)
         return self.client
