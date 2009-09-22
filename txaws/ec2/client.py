@@ -9,12 +9,12 @@ from datetime import datetime
 from urllib import quote
 
 from twisted.internet import reactor, ssl
-from twisted.web.client import _parse, HTTPClientFactory
+from twisted.web.client import HTTPClientFactory
 
 from txaws import version
 from txaws.credentials import AWSCredentials
 from txaws.service import AWSServiceEndpoint
-from txaws.util import iso8601time, XML
+from txaws.util import iso8601time, parse, XML
 from txaws.ec2 import model
 from txaws.ec2.exception import EC2Error
 
@@ -482,7 +482,7 @@ class Query(object):
             * twisted.web.client._makeGetterFactory
         """
         contextFactory = None
-        scheme, host, port, path = _parse(url)
+        scheme, host, port, path = parse(url)
         factory = self.factory(url, *args, **kwds)
         if scheme == 'https':
             contextFactory = ssl.ClientContextFactory()
