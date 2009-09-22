@@ -2,10 +2,8 @@
 # Copyright (C) 2009 Robert Collins <robertc@robertcollins.net>
 # Licenced under the txaws licence available at /LICENSE in the txaws source.
 
-from twisted.web.client import _parse
-
 from txaws.credentials import AWSCredentials
-
+from txaws.util import parse
 
 __all__ = ["AWSServiceEndpoint", "AWSServiceRegion", "REGION_US", "REGION_EU"]
 
@@ -33,7 +31,7 @@ class AWSServiceEndpoint(object):
             self.scheme = "http"
 
     def _parse_uri(self, uri):
-        scheme, host, port, path = _parse(
+        scheme, host, port, path = parse(
             str(uri), defaultPort=DEFAULT_PORT)
         self.scheme = scheme
         self.host = host
