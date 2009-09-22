@@ -103,11 +103,12 @@ class IPPermission(object):
 class Volume(object):
     """An EBS volume instance."""
 
-    def __init__(self, id, size, status, create_time):
+    def __init__(self, id, size, status, create_time, availability_zone):
         self.id = id
         self.size = size
         self.status = status
         self.create_time = create_time
+        self.availability_zone = availability_zone
         self.attachments = []
 
 

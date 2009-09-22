@@ -401,7 +401,7 @@ class QueryTestCase(TXAWSTestCase):
                 "Message for Error.Code")
             self.assertEquals(error.status, status)
             self.assertEquals(error.response, payload.sample_ec2_error_message)
-        
+
         query = client.Query(
             'BadQuery', self.creds, self.endpoint,
             time_tuple=(2009,8,15,13,14,15,0,0,0))
@@ -427,7 +427,7 @@ class QueryTestCase(TXAWSTestCase):
             self.assertFalse(isinstance(error, EC2Error))
             self.assertEquals(error.status, status)
             self.assertEquals(str(error), "500 There's been an error")
-        
+
         query = client.Query(
             'BadQuery', self.creds, self.endpoint,
             time_tuple=(2009,8,15,13,14,15,0,0,0))
@@ -554,6 +554,7 @@ class EBSTestCase(TXAWSTestCase):
         self.assertEquals(volume.id, "vol-4282672b")
         self.assertEquals(volume.size, 800)
         self.assertEquals(volume.status, "in-use")
+        self.assertEquals(volume.availability_zone, "us-east-1a")
         create_time = datetime(2008, 05, 07, 11, 51, 50)
         self.assertEquals(volume.create_time, create_time)
         self.assertEquals(len(volume.attachments), 1)

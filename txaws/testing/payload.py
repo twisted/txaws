@@ -211,6 +211,7 @@ sample_describe_volumes_result = """\
       <size>800</size>
       <status>in-use</status>
       <createTime>2008-05-07T11:51:50.000Z</createTime>
+      <availabilityZone>us-east-1a</availabilityZone>
       <attachmentSet>
         <item>
           <volumeId>vol-4282672b</volumeId>
