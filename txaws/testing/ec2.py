@@ -52,6 +52,9 @@ class FakeEC2Client(object):
     def create_volume(self, availability_zone, size=None, snapshot_id=None):
         return succeed(self.volumes[0])
 
+    def create_snapshot(self, volume_id):
+        return succeed(self.snapshots[0])
+
     def describe_security_groups(self, names=None):
         return succeed(self.security_groups)
 
