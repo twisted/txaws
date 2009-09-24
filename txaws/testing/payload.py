@@ -218,6 +218,7 @@ sample_describe_volumes_result = """\
           <volumeId>vol-4282672b</volumeId>
           <instanceId>i-6058a509</instanceId>
           <size>800</size>
+          <device>/dev/sdh</device>
           <status>attached</status>
           <attachTime>2008-05-07T12:51:50.000Z</attachTime>
         </item>
