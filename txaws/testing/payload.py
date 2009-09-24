@@ -212,13 +212,12 @@ sample_describe_volumes_result = """\
       <status>in-use</status>
       <createTime>2008-05-07T11:51:50.000Z</createTime>
       <availabilityZone>us-east-1a</availabilityZone>
+      <snapshotId>snap-12345678</snapshotId>
       <attachmentSet>
         <item>
           <volumeId>vol-4282672b</volumeId>
           <instanceId>i-6058a509</instanceId>
           <size>800</size>
-          <snapshotId>snap-12345678</snapshotId>
-          <availabilityZone>us-east-1a</availabilityZone>
           <status>attached</status>
           <attachTime>2008-05-07T12:51:50.000Z</attachTime>
         </item>
