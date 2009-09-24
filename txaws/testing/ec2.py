@@ -37,10 +37,10 @@ class FakeEC2Client(object):
         self.keypairs_deleted.append(name)
         return succeed(True)
 
-    def describe_volumes(self):
+    def describe_volumes(self, *volume_ids):
         return succeed(self.volumes)
 
-    def describe_snapshots(self):
+    def describe_snapshots(self, *snapshot_ids):
         return succeed(self.snapshots)
 
     def delete_volume(self, volume_id):
