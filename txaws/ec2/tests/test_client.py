@@ -562,6 +562,7 @@ class EBSTestCase(TXAWSTestCase):
         attachment = volume.attachments[0]
         self.assertEquals(attachment.instance_id, "i-6058a509")
         self.assertEquals(attachment.status, "attached")
+        self.assertEquals(attachment.device, u"/dev/sdh")
         attach_time = datetime(2008, 05, 07, 12, 51, 50)
         self.assertEquals(attachment.attach_time, attach_time)
 
