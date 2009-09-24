@@ -555,13 +555,12 @@ class EBSTestCase(TXAWSTestCase):
         self.assertEquals(volume.size, 800)
         self.assertEquals(volume.status, "in-use")
         self.assertEquals(volume.availability_zone, "us-east-1a")
+        self.assertEquals(volume.snapshot_id, "snap-12345678")
         create_time = datetime(2008, 05, 07, 11, 51, 50)
         self.assertEquals(volume.create_time, create_time)
         self.assertEquals(len(volume.attachments), 1)
         attachment = volume.attachments[0]
         self.assertEquals(attachment.instance_id, "i-6058a509")
-        self.assertEquals(attachment.snapshot_id, "snap-12345678")
-        self.assertEquals(attachment.availability_zone, "us-east-1a")
         self.assertEquals(attachment.status, "attached")
         attach_time = datetime(2008, 05, 07, 12, 51, 50)
         self.assertEquals(attachment.attach_time, attach_time)
@@ -669,6 +668,7 @@ class EBSTestCase(TXAWSTestCase):
         def check_parsed_volume(volume):
             self.assertEquals(volume.id, "vol-4d826724")
             self.assertEquals(volume.size, 800)
+            self.assertEquals(volume.snapshot_id, "")
             create_time = datetime(2008, 05, 07, 11, 51, 50)
             self.assertEquals(volume.create_time, create_time)
 
