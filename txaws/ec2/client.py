@@ -212,7 +212,7 @@ class EC2Client(object):
 
         @param name: Name of the new security group.
         @param description: Description of the new security group.
-        @return: A C{Deferred} that will fire with a turth value for the
+        @return: A C{Deferred} that will fire with a truth value for the
             success of the operaion.
         """
         group_names = None
@@ -229,7 +229,7 @@ class EC2Client(object):
     def delete_security_group(self, name):
         """
         @param name: Name of the new security group.
-        @return: A C{Deferred} that will fire with a turth value for the
+        @return: A C{Deferred} that will fire with a truth value for the
             success of the operaion.
         """
         parameter = {"GroupName":  name}
@@ -269,7 +269,7 @@ class EC2Client(object):
         @param cidr_ip: CIDR IP range to authorize access to when operating on
             a CIDR IP.
 
-        @return: A C{Deferred} that will fire with a turth value for the
+        @return: A C{Deferred} that will fire with a truth value for the
             success of the operaion.
         """
         if source_group_name and source_group_owner_id:
@@ -353,7 +353,7 @@ class EC2Client(object):
         @param cidr_ip: CIDR IP range to revoke access from when operating on
             a CIDR IP.
 
-        @return: A C{Deferred} that will fire with a turth value for the
+        @return: A C{Deferred} that will fire with a truth value for the
             success of the operaion.
         """
         if source_group_name and source_group_owner_id:
