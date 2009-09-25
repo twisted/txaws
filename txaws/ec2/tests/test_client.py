@@ -444,7 +444,6 @@ class EC2ClientSecurityGroupsTestCase(TXAWSTestCase):
             d = ec2.authorize_security_group(
                 "WebServers", ip_protocol="tcp", from_port="22")
         except Exception, error:
-            print dir(error)
             self.assertEquals(
                 str(error), 
                 ("You must specify either both group parameters or all the "
@@ -575,7 +574,6 @@ class EC2ClientSecurityGroupsTestCase(TXAWSTestCase):
             d = ec2.authorize_security_group(
                 "WebServers", ip_protocol="tcp", from_port="22")
         except Exception, error:
-            print dir(error)
             self.assertEquals(
                 str(error), 
                 ("You must specify either both group parameters or all the "
