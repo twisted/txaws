@@ -202,6 +202,48 @@ sample_describe_security_groups_multiple_result = """\
 """ % (aws_api,)
 
 
+sample_create_security_group = """\
+<CreateSecurityGroupResponse xmlns="http://ec2.amazonaws.com/doc/%s/">
+  <return>true</return>
+</CreateSecurityGroupResponse>
+""" % (aws_api,)
+
+
+sample_delete_security_group = """\
+<DeleteSecurityGroupResponse xmlns="http://ec2.amazonaws.com/doc/%s/">
+  <return>true</return>
+</DeleteSecurityGroupResponse>
+""" % (aws_api,)
+
+
+sample_delete_security_group_failure = """\
+<?xml version="1.0"?>
+<Response>
+  <Errors>
+    <Error>
+      <Code>InvalidGroup.InUse</Code>
+      <Message>Group groupID1:GroupReferredTo is used by groups: groupID2:UsingGroup</Message>
+    </Error>
+  </Errors>
+  <RequestID>9a6df05f-9c27-47aa-81d8-6619689210cc</RequestID>
+</Response>
+"""
+
+
+sample_authorize_security_group = """\
+<AuthorizeSecurityGroupIngressResponse xmlns="http://ec2.amazonaws.com/doc/%s/">
+  <return>true</return>
+</AuthorizeSecurityGroupIngressResponse>
+""" % (aws_api,)
+
+
+sample_revoke_security_group = """\
+<RevokeSecurityGroupIngressResponse xmlns="http://ec2.amazonaws.com/doc/%s/">
+  <return>true</return>
+</RevokeSecurityGroupIngressResponse>
+""" % (aws_api,)
+
+
 sample_describe_volumes_result = """\
 <?xml version="1.0"?>
 <DescribeVolumesResponse xmlns="http://ec2.amazonaws.com/doc/%s/">
