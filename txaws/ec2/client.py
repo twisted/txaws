@@ -213,7 +213,7 @@ class EC2Client(object):
         @param name: Name of the new security group.
         @param description: Description of the new security group.
         @return: A C{Deferred} that will fire with a truth value for the
-            success of the operaion.
+            success of the operation.
         """
         group_names = None
         parameters = {"GroupName":  name, "GroupDescription": description}
@@ -230,7 +230,7 @@ class EC2Client(object):
         """
         @param name: Name of the new security group.
         @return: A C{Deferred} that will fire with a truth value for the
-            success of the operaion.
+            success of the operation.
         """
         parameter = {"GroupName":  name}
         query = self.query_factory("DeleteSecurityGroup", self.creds,
@@ -244,9 +244,9 @@ class EC2Client(object):
         """
         There are two ways to use C{authorize_security_group}:
             1) associate an existing group (source group) with the one that you
-            are targetting (group_name) with an authorization update; or
+            are targeting (group_name) with an authorization update; or
             2) associate a set of IP permissions with the group you are
-            targetting with an authorization update.
+            targeting with an authorization update.
 
         @param group_name: The group you will be modifying with a new
             authorization.
@@ -270,7 +270,7 @@ class EC2Client(object):
             a CIDR IP.
 
         @return: A C{Deferred} that will fire with a truth value for the
-            success of the operaion.
+            success of the operation.
         """
         if source_group_name and source_group_owner_id:
             parameters = {
@@ -312,7 +312,7 @@ class EC2Client(object):
         self, group_name, ip_protocol, from_port, to_port, cidr_ip):
         """
         This is a convenience function that wraps the "authorize ip
-        permmission" functionality of the C{authorize_security_group} method.
+        permission" functionality of the C{authorize_security_group} method.
 
         For an explanation of the parameters, see C{authorize_security_group}.
         """
@@ -328,9 +328,9 @@ class EC2Client(object):
         """
         There are two ways to use C{revoke_security_group}:
             1) associate an existing group (source group) with the one that you
-            are targetting (group_name) with the revoke update; or
+            are targeting (group_name) with the revoke update; or
             2) associate a set of IP permissions with the group you are
-            targetting with a revoke update.
+            targeting with a revoke update.
 
         @param group_name: The group you will be modifying with an
             authorization removal.
@@ -344,7 +344,7 @@ class EC2Client(object):
         If those parameters are not specified, then the following must be:
         @param ip_protocol: IP protocol to revoke access from when operating
             on a CIDR IP.
-        @param from_port: Bottom of port range to reveok access from when
+        @param from_port: Bottom of port range to revoke access from when
             operating on a CIDR IP. This contains the ICMP type if ICMP is
             being revoked.
         @param to_port: Top of port range to revoke access from when operating
@@ -354,7 +354,7 @@ class EC2Client(object):
             a CIDR IP.
 
         @return: A C{Deferred} that will fire with a truth value for the
-            success of the operaion.
+            success of the operation.
         """
         if source_group_name and source_group_owner_id:
             parameters = {
@@ -396,7 +396,7 @@ class EC2Client(object):
         self, group_name, ip_protocol, from_port, to_port, cidr_ip):
         """
         This is a convenience function that wraps the "authorize ip
-        permmission" functionality of the C{authorize_security_group} method.
+        permission" functionality of the C{authorize_security_group} method.
 
         For an explanation of the parameters, see C{authorize_security_group}.
         """
@@ -650,7 +650,7 @@ class Query(object):
         self.params["Signature"] = self.creds.sign(self.signing_text())
 
     def sorted_params(self):
-        """Return the query params sorted appropriately for signing."""
+        """Return the query parameters sorted appropriately for signing."""
         return sorted(self.params.items())
 
     def get_page(self, url, *args, **kwds):
