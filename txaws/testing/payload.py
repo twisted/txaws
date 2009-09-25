@@ -209,6 +209,32 @@ sample_create_security_group = """\
 """ % (aws_api,)
 
 
+sample_duplicate_create_security_group_result = """\
+<?xml version="1.0"?>
+<Response>
+  <Errors>
+    <Error>
+      <Code>InvalidGroup.Duplicate</Code>
+      <Message>The security group 'group1' already exists.</Message>
+    </Error>
+  </Errors>
+  <RequestID>89c977b5-22da-4c68-9148-9e0ebce5f68e</RequestID>
+</Response>
+"""
+
+sample_invalid_create_security_group_result = """\
+<?xml version="1.0"?>
+<Response>
+  <Errors>
+    <Error>
+      <Code>InvalidGroup.Reserved</Code>
+      <Message>Specified group name is a reserved name.</Message>
+    </Error>
+  </Errors>
+  <RequestID>89c977b5-22da-4c68-9148-9e0ebce5f68e</RequestID>
+</Response>
+""" 
+
 sample_delete_security_group = """\
 <DeleteSecurityGroupResponse xmlns="http://ec2.amazonaws.com/doc/%s/">
   <return>true</return>
@@ -463,20 +489,6 @@ sample_duplicate_keypair_result = """\
     <Error>
       <Code>InvalidKeyPair.Duplicate</Code>
       <Message>The key pair 'key1' already exists.</Message>
-    </Error>
-  </Errors>
-  <RequestID>89c977b5-22da-4c68-9148-9e0ebce5f68e</RequestID>
-</Response>
-"""
-
-
-sample_invalid_keypair_result = """\
-<?xml version="1.0"?>
-<Response>
-  <Errors>
-    <Error>
-      <Code>InvalidKeyPair.Runtime</Code>
-      <Message>There is a problem with the keypair.</Message>
     </Error>
   </Errors>
   <RequestID>89c977b5-22da-4c68-9148-9e0ebce5f68e</RequestID>
