@@ -224,10 +224,7 @@ class EC2Client(object):
 
     def _parse_truth_return(self, xml_bytes):
         root = XML(xml_bytes)
-        success = root.findtext("return")
-        if success and success.lower() == "true":
-            return True
-        return False
+        return root.findtext("return") == "true"
 
     def delete_security_group(self, name):
         """
@@ -476,11 +473,7 @@ class EC2Client(object):
         q = self.query_factory(
             "DeleteVolume", self.creds, self.endpoint, {"VolumeId": volume_id})
         d = q.submit()
-        return d.addCallback(self._parse_delete_volume)
-
-    def _parse_delete_volume(self, xml_bytes):
-        root = XML(xml_bytes)
-        return root.findtext("return") == "true"
+        return d.addCallback(self._parse_truth_return)
 
     def describe_snapshots(self, *snapshot_ids):
         """Describe available snapshots."""
@@ -536,11 +529,7 @@ class EC2Client(object):
             "DeleteSnapshot", self.creds, self.endpoint,
             {"SnapshotId": snapshot_id})
         d = q.submit()
-        return d.addCallback(self._parse_delete_snapshot)
-
-    def _parse_delete_snapshot(self, xml_bytes):
-        root = XML(xml_bytes)
-        return root.findtext("return") == "true"
+        return d.addCallback(self._parse_truth_return)
 
     def attach_volume(self, volume_id, instance_id, device):
         """Attach the given volume to the specified instance at C{device}."""
@@ -603,19 +592,7 @@ class EC2Client(object):
             "DeleteKeyPair", self.creds, self.endpoint,
             {"KeyName": keypair_name})
         d = q.submit()
-        return d.addCallback(self._parse_delete_keypair)
-
-    def _parse_delete_keypair(self, xml_bytes):
-        results = []
-        keypair_data = XML(xml_bytes)
-        result = keypair_data.findtext("return")
-        if not result:
-            result = False
-        elif result.lower() == "true":
-            result = True
-        else:
-            result = False
-        return result
+        return d.addCallback(self._parse_truth_return)
 
 
 class Query(object):
