@@ -1,6 +1,6 @@
 """Generally useful utilities for AWS web services not specific to a service.
 
-New things in this module should be of relevance to more than one of amazon's
+New things in this module should be of relevance to more than one of Amazon's
 services.
 """
 
@@ -17,7 +17,7 @@ except ImportError:
     from elementtree.ElementTree import XMLTreeBuilder
 
 
-__all__ = ["hmac_sha1", "iso8601time", "XML"]
+__all__ = ["hmac_sha1", "iso8601time", "calculate_md5", "XML"]
 
 
 def calculate_md5(data):
@@ -72,19 +72,19 @@ def parse(url, defaultPort=None):
     url = url.strip()
     parsed = urlparse(url)
     scheme = parsed[0]
-    path = urlunparse(('', '') + parsed[2:])
+    path = urlunparse(("", "") + parsed[2:])
     if defaultPort is None:
-        if scheme == 'https':
+        if scheme == "https":
             defaultPort = 443
         else:
             defaultPort = 80
     host, port = parsed[1], defaultPort
-    if ':' in host:
-        host, port = host.split(':')
+    if ":" in host:
+        host, port = host.split(":")
         try:
             port = int(port)
         except ValueError:
             port = defaultPort
-    if path == '':
-        path = '/'
+    if path == "":
+        path = "/"
     return scheme, host, port, path
