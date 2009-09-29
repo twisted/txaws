@@ -598,6 +598,85 @@ class EC2Client(object):
         d = q.submit()
         return d.addCallback(self._parse_truth_return)
 
+    def allocate_address(self):
+        """
+        Acquire an elastic IP address to be attached subsequently to EC2
+        instances.
+
+        @return: the IP address allocated.
+        """
+        q = self.query_factory(
+            "AllocateAddress", self.creds, self.endpoint, {})
+        d = q.submit()
+        return d.addCallback(self._parse_allocate_address)
+
+    def _parse_allocate_address(self, xml_bytes):
+        address_data = XML(xml_bytes)
+        return address_data.findtext("publicIp")
+
+    def release_address(self, address):
+        """
+        Release a previously allocated address returned by C{allocate_address}.
+
+        @return: C{True} if the operation succeeded.
+        """
+        q = self.query_factory(
+            "ReleaseAddress", self.creds, self.endpoint,
+            {"PublicIp": address})
+        d = q.submit()
+        return d.addCallback(self._parse_truth_return)
+
+    def associate_address(self, instance_id, address):
+        """
+        Associate an allocated C{address} with the instance identified by
+        C{instance_id}.
+
+        @return: C{True} if the operation succeeded.
+        """
+        q = self.query_factory(
+            "AssociateAddress", self.creds, self.endpoint,
+            {"InstanceId": instance_id, "PublicIp": address})
+        d = q.submit()
+        return d.addCallback(self._parse_truth_return)
+
+    def disassociate_address(self, address):
+        """
+        Disassociate an address previously associated with
+        C{associate_address}. This is an idempotent operation, so it can be
+        called several times without error.
+        """
+        q = self.query_factory(
+            "DisassociateAddress", self.creds, self.endpoint,
+            {"PublicIp": address})
+        d = q.submit()
+        return d.addCallback(self._parse_truth_return)
+
+    def describe_addresses(self, *addresses):
+        """
+        List the elastic IPs allocated in this account.
+
+        @param addresses: if specified, the addresses to get information about.
+
+        @return: a C{list} of (address, instance_id). If the elastic IP is not
+            associated currently, C{instance_id} will be C{None}.
+        """
+        address_set = {}
+        for pos, address in enumerate(addresses):
+            address_set["PublicIp.%d" % (pos + 1)] = address
+        q = self.query_factory(
+            "DescribeAddresses", self.creds, self.endpoint, address_set)
+        d = q.submit()
+        return d.addCallback(self._parse_describe_addresses)
+
+    def _parse_describe_addresses(self, xml_bytes):
+        results = []
+        root = XML(xml_bytes)
+        for address_data in root.find("addressesSet"):
+            address = address_data.findtext("publicIp")
+            instance_id = address_data.findtext("instanceId")
+            results.append((address, instance_id))
+        return results
+
 
 class Query(object):
     """A query that may be submitted to EC2."""
