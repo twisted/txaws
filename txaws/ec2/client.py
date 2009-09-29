@@ -594,6 +594,55 @@ class EC2Client(object):
         d = q.submit()
         return d.addCallback(self._parse_truth_return)
 
+    def allocate_address(self):
+        q = self.query_factory(
+            "AllocateAddress", self.creds, self.endpoint, {})
+        d = q.submit()
+        return d.addCallback(self._parse_allocate_address)
+
+    def _parse_allocate_address(self, xml_bytes):
+        address_data = XML(xml_bytes)
+        return address_data.findtext("publicIp")
+
+    def release_address(self, address):
+        q = self.query_factory(
+            "ReleaseAddress", self.creds, self.endpoint,
+            {"PublicIp": address})
+        d = q.submit()
+        return d.addCallback(self._parse_truth_return)
+
+    def associate_address(self, instance_id, address):
+        q = self.query_factory(
+            "AssociateAddress", self.creds, self.endpoint,
+            {"InstanceId": instance_id, "PublicIp": address})
+        d = q.submit()
+        return d.addCallback(self._parse_truth_return)
+
+    def disassociate_address(self, address):
+        q = self.query_factory(
+            "DisassociateAddress", self.creds, self.endpoint,
+            {"PublicIp": address})
+        d = q.submit()
+        return d.addCallback(self._parse_truth_return)
+
+    def describe_addresses(self, *addresses):
+        address_set = {}
+        for pos, address in enumerate(addresses):
+            address_set["PublicIp.%d" % (pos + 1)] = address
+        q = self.query_factory(
+            "DescribeAddresses", self.creds, self.endpoint, address_set)
+        d = q.submit()
+        return d.addCallback(self._parse_describe_addresses)
+
+    def _parse_describe_addresses(self, xml_bytes):
+        results = []
+        root = XML(xml_bytes)
+        for address_data in root.find("addressesSet"):
+            address = address_data.findtext("publicIp")
+            instance_id = address_data.findtext("instanceId")
+            results.append((address, instance_id))
+        return results
+
 
 class Query(object):
     """A query that may be submitted to EC2."""
