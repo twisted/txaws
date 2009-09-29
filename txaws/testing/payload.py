@@ -233,7 +233,7 @@ sample_invalid_create_security_group_result = """\
   </Errors>
   <RequestID>89c977b5-22da-4c68-9148-9e0ebce5f68e</RequestID>
 </Response>
-""" 
+"""
 
 sample_delete_security_group = """\
 <DeleteSecurityGroupResponse xmlns="http://ec2.amazonaws.com/doc/%s/">
@@ -279,13 +279,14 @@ sample_describe_volumes_result = """\
       <size>800</size>
       <status>in-use</status>
       <createTime>2008-05-07T11:51:50.000Z</createTime>
+      <availabilityZone>us-east-1a</availabilityZone>
+      <snapshotId>snap-12345678</snapshotId>
       <attachmentSet>
         <item>
           <volumeId>vol-4282672b</volumeId>
           <instanceId>i-6058a509</instanceId>
           <size>800</size>
-          <snapshotId>snap-12345678</snapshotId>
-          <availabilityZone>us-east-1a</availabilityZone>
+          <device>/dev/sdh</device>
           <status>attached</status>
           <attachTime>2008-05-07T12:51:50.000Z</attachTime>
         </item>

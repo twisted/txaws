@@ -445,7 +445,7 @@ class EC2ClientSecurityGroupsTestCase(TXAWSTestCase):
                 "WebServers", ip_protocol="tcp", from_port="22")
         except Exception, error:
             self.assertEquals(
-                str(error), 
+                str(error),
                 ("You must specify either both group parameters or all the "
                  "ip parameters."))
 
@@ -575,7 +575,7 @@ class EC2ClientSecurityGroupsTestCase(TXAWSTestCase):
                 "WebServers", ip_protocol="tcp", from_port="22")
         except Exception, error:
             self.assertEquals(
-                str(error), 
+                str(error),
                 ("You must specify either both group parameters or all the "
                  "ip parameters."))
 
@@ -645,14 +645,15 @@ class EC2ClientEBSTestCase(TXAWSTestCase):
         self.assertEquals(volume.id, "vol-4282672b")
         self.assertEquals(volume.size, 800)
         self.assertEquals(volume.status, "in-use")
+        self.assertEquals(volume.availability_zone, "us-east-1a")
+        self.assertEquals(volume.snapshot_id, "snap-12345678")
         create_time = datetime(2008, 05, 07, 11, 51, 50)
         self.assertEquals(volume.create_time, create_time)
         self.assertEquals(len(volume.attachments), 1)
         attachment = volume.attachments[0]
         self.assertEquals(attachment.instance_id, "i-6058a509")
-        self.assertEquals(attachment.snapshot_id, "snap-12345678")
-        self.assertEquals(attachment.availability_zone, "us-east-1a")
         self.assertEquals(attachment.status, "attached")
+        self.assertEquals(attachment.device, u"/dev/sdh")
         attach_time = datetime(2008, 05, 07, 12, 51, 50)
         self.assertEquals(attachment.attach_time, attach_time)
 
@@ -759,6 +760,7 @@ class EC2ClientEBSTestCase(TXAWSTestCase):
         def check_parsed_volume(volume):
             self.assertEquals(volume.id, "vol-4d826724")
             self.assertEquals(volume.size, 800)
+            self.assertEquals(volume.snapshot_id, "")
             create_time = datetime(2008, 05, 07, 11, 51, 50)
             self.assertEquals(volume.create_time, create_time)
 
@@ -1222,7 +1224,7 @@ class QueryTestCase(TXAWSTestCase):
                 "Message for Error.Code")
             self.assertEquals(error.status, status)
             self.assertEquals(error.response, payload.sample_ec2_error_message)
-        
+
         query = client.Query(
             'BadQuery', self.creds, self.endpoint,
             time_tuple=(2009,8,15,13,14,15,0,0,0))
@@ -1248,7 +1250,7 @@ class QueryTestCase(TXAWSTestCase):
             self.assertFalse(isinstance(error, EC2Error))
             self.assertEquals(error.status, status)
             self.assertEquals(str(error), "500 There's been an error")
-        
+
         query = client.Query(
             'BadQuery', self.creds, self.endpoint,
             time_tuple=(2009,8,15,13,14,15,0,0,0))

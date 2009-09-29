@@ -423,23 +423,24 @@ class EC2Client(object):
             volume_id = volume_data.findtext("volumeId")
             size = int(volume_data.findtext("size"))
             status = volume_data.findtext("status")
+            availability_zone = volume_data.findtext("availabilityZone")
+            snapshot_id = volume_data.findtext("snapshotId")
             create_time = volume_data.findtext("createTime")
             create_time = datetime.strptime(
                 create_time[:19], "%Y-%m-%dT%H:%M:%S")
-            volume = model.Volume(volume_id, size, status, create_time)
+            volume = model.Volume(
+                volume_id, size, status, create_time, availability_zone,
+                snapshot_id)
             result.append(volume)
             for attachment_data in volume_data.find("attachmentSet"):
                 instance_id = attachment_data.findtext("instanceId")
-                snapshot_id = attachment_data.findtext("snapshotId")
-                availability_zone = attachment_data.findtext(
-                    "availabilityZone")
                 status = attachment_data.findtext("status")
+                device = attachment_data.findtext("device")
                 attach_time = attachment_data.findtext("attachTime")
                 attach_time = datetime.strptime(
                     attach_time[:19], "%Y-%m-%dT%H:%M:%S")
                 attachment = model.Attachment(
-                    instance_id, snapshot_id, availability_zone, status,
-                    attach_time)
+                    instance_id, device, status, attach_time)
                 volume.attachments.append(attachment)
         return result
 
@@ -464,9 +465,13 @@ class EC2Client(object):
         size = int(root.findtext("size"))
         status = root.findtext("status")
         create_time = root.findtext("createTime")
+        availability_zone = root.findtext("availabilityZone")
+        snapshot_id = root.findtext("snapshotId")
         create_time = datetime.strptime(
             create_time[:19], "%Y-%m-%dT%H:%M:%S")
-        volume = model.Volume(volume_id, size, status, create_time)
+        volume = model.Volume(
+            volume_id, size, status, create_time, availability_zone,
+            snapshot_id)
         return volume
 
     def delete_volume(self, volume_id):
@@ -579,7 +584,6 @@ class EC2Client(object):
         return d.addCallback(self._parse_create_keypair)
 
     def _parse_create_keypair(self, xml_bytes):
-        results = []
         keypair_data = XML(xml_bytes)
         key_name = keypair_data.findtext("keyName")
         key_fingerprint = keypair_data.findtext("keyFingerprint")
