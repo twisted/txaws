@@ -445,7 +445,7 @@ class EC2ClientSecurityGroupsTestCase(TXAWSTestCase):
                 "WebServers", ip_protocol="tcp", from_port="22")
         except Exception, error:
             self.assertEquals(
-                str(error), 
+                str(error),
                 ("You must specify either both group parameters or all the "
                  "ip parameters."))
 
@@ -575,7 +575,7 @@ class EC2ClientSecurityGroupsTestCase(TXAWSTestCase):
                 "WebServers", ip_protocol="tcp", from_port="22")
         except Exception, error:
             self.assertEquals(
-                str(error), 
+                str(error),
                 ("You must specify either both group parameters or all the "
                  "ip parameters."))
 
@@ -1222,7 +1222,7 @@ class QueryTestCase(TXAWSTestCase):
                 "Message for Error.Code")
             self.assertEquals(error.status, status)
             self.assertEquals(error.response, payload.sample_ec2_error_message)
-        
+
         query = client.Query(
             'BadQuery', self.creds, self.endpoint,
             time_tuple=(2009,8,15,13,14,15,0,0,0))
@@ -1248,7 +1248,7 @@ class QueryTestCase(TXAWSTestCase):
             self.assertFalse(isinstance(error, EC2Error))
             self.assertEquals(error.status, status)
             self.assertEquals(str(error), "500 There's been an error")
-        
+
         query = client.Query(
             'BadQuery', self.creds, self.endpoint,
             time_tuple=(2009,8,15,13,14,15,0,0,0))
@@ -1310,3 +1310,128 @@ class QueryPageGetterTestCase(TXAWSTestCase):
         deferred = query.get_page(self.get_url("file"))
         deferred.addCallback(self.assertEquals, "0123456789")
         return deferred
+
+
+
+class EC2ClientAddressTestCase(TXAWSTestCase):
+
+    def setUp(self):
+        TXAWSTestCase.setUp(self)
+        self.creds = AWSCredentials("foo", "bar")
+        self.endpoint = AWSServiceEndpoint(uri=EC2_ENDPOINT_US)
+
+    def test_describe_addresses(self):
+
+        class StubQuery(object):
+            def __init__(stub, action, creds, endpoint, params):
+                self.assertEqual(action, "DescribeAddresses")
+                self.assertEqual(self.creds, creds)
+                self.assertEqual(self.endpoint, endpoint)
+                self.assertEquals(params, {})
+
+            def submit(self):
+                return succeed(payload.sample_describe_addresses_result)
+
+        ec2 = client.EC2Client(creds=self.creds, endpoint=self.endpoint,
+                               query_factory=StubQuery)
+        d = ec2.describe_addresses()
+        d.addCallback(
+            self.assertEquals, [("67.202.55.255", "i-28a64341"),
+                                ("67.202.55.233", None)])
+        return d
+
+    def test_describe_specified_addresses(self):
+
+        class StubQuery(object):
+            def __init__(stub, action, creds, endpoint, params):
+                self.assertEqual(action, "DescribeAddresses")
+                self.assertEqual(self.creds, creds)
+                self.assertEqual(self.endpoint, endpoint)
+                self.assertEquals(
+                    params,
+                    {"PublicIp.1": "67.202.55.255"})
+
+            def submit(self):
+                return succeed(payload.sample_describe_addresses_result)
+
+        ec2 = client.EC2Client(creds=self.creds, endpoint=self.endpoint,
+                               query_factory=StubQuery)
+        d = ec2.describe_addresses("67.202.55.255")
+        d.addCallback(
+            self.assertEquals, [("67.202.55.255", "i-28a64341"),
+                                ("67.202.55.233", None)])
+        return d
+
+    def test_associate_address(self):
+
+        class StubQuery(object):
+            def __init__(stub, action, creds, endpoint, params):
+                self.assertEqual(action, "AssociateAddress")
+                self.assertEqual(self.creds, creds)
+                self.assertEqual(self.endpoint, endpoint)
+                self.assertEquals(
+                    params,
+                    {"InstanceId": "i-28a64341", "PublicIp": "67.202.55.255"})
+
+            def submit(self):
+                return succeed(payload.sample_associate_address_result)
+
+        ec2 = client.EC2Client(creds=self.creds, endpoint=self.endpoint,
+                               query_factory=StubQuery)
+        d = ec2.associate_address("i-28a64341", "67.202.55.255")
+        d.addCallback(self.assertTrue)
+        return d
+
+    def test_allocate_address(self):
+
+        class StubQuery(object):
+            def __init__(stub, action, creds, endpoint, params):
+                self.assertEqual(action, "AllocateAddress")
+                self.assertEqual(self.creds, creds)
+                self.assertEqual(self.endpoint, endpoint)
+                self.assertEquals(params, {})
+
+            def submit(self):
+                return succeed(payload.sample_allocate_address_result)
+
+        ec2 = client.EC2Client(creds=self.creds, endpoint=self.endpoint,
+                               query_factory=StubQuery)
+        d = ec2.allocate_address()
+        d.addCallback(self.assertEquals, "67.202.55.255")
+        return d
+
+    def test_release_address(self):
+
+        class StubQuery(object):
+            def __init__(stub, action, creds, endpoint, params):
+                self.assertEqual(action, "ReleaseAddress")
+                self.assertEqual(self.creds, creds)
+                self.assertEqual(self.endpoint, endpoint)
+                self.assertEquals(params, {"PublicIp": "67.202.55.255"})
+
+            def submit(self):
+                return succeed(payload.sample_release_address_result)
+
+        ec2 = client.EC2Client(creds=self.creds, endpoint=self.endpoint,
+                               query_factory=StubQuery)
+        d = ec2.release_address("67.202.55.255")
+        d.addCallback(self.assertTrue)
+        return d
+
+    def test_disassociate_address(self):
+
+        class StubQuery(object):
+            def __init__(stub, action, creds, endpoint, params):
+                self.assertEqual(action, "DisassociateAddress")
+                self.assertEqual(self.creds, creds)
+                self.assertEqual(self.endpoint, endpoint)
+                self.assertEquals(params, {"PublicIp": "67.202.55.255"})
+
+            def submit(self):
+                return succeed(payload.sample_disassociate_address_result)
+
+        ec2 = client.EC2Client(creds=self.creds, endpoint=self.endpoint,
+                               query_factory=StubQuery)
+        d = ec2.disassociate_address("67.202.55.255")
+        d.addCallback(self.assertTrue)
+        return d
