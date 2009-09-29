@@ -494,3 +494,50 @@ sample_duplicate_keypair_result = """\
   <RequestID>89c977b5-22da-4c68-9148-9e0ebce5f68e</RequestID>
 </Response>
 """
+
+
+sample_allocate_address_result = """\
+<?xml version="1.0"?>
+<AllocateAddressResponse xmlns="http://ec2.amazonaws.com/doc/%s/">
+  <publicIp>67.202.55.255</publicIp>
+</AllocateAddressResponse>
+""" % (aws_api,)
+
+
+sample_release_address_result = """\
+<?xml version="1.0"?>
+<ReleaseAddressResponse xmlns="http://ec2.amazonaws.com/doc/%s/">
+  <return>true</return>
+</ReleaseAddressResponse>
+""" % (aws_api,)
+
+
+sample_associate_address_result = """\
+<?xml version="1.0"?>
+<AssociateAddressResponse xmlns="http://ec2.amazonaws.com/doc/%s/">
+  <return>true</return>
+</AssociateAddressResponse>
+""" % (aws_api,)
+
+
+sample_disassociate_address_result = """\
+<?xml version="1.0"?>
+<DisassociateAddressResponse xmlns="http://ec2.amazonaws.com/doc/%s/">
+  <return>true</return>
+</DisassociateAddressResponse>
+""" % (aws_api,)
+
+
+sample_describe_addresses_result = """\
+<DescribeAddressesResponse xmlns="http://ec2.amazonaws.com/doc/%s/">
+  <addressesSet>
+    <item>
+      <instanceId>i-28a64341</instanceId>
+      <publicIp>67.202.55.255</publicIp>
+    </item>
+    <item>
+      <publicIp>67.202.55.233</publicIp>
+    </item>
+  </addressesSet>
+</DescribeAddressesResponse>
+""" % (aws_api,)
