@@ -384,7 +384,7 @@ class EC2Client(object):
         This is a convenience function that wraps the "authorize group"
         functionality of the C{authorize_security_group} method.
 
-        For an explanation of the parameters, see C{authorize_security_group}.
+        For an explanation of the parameters, see C{revoke_security_group}.
         """
         d = self.revoke_security_group(
             group_name,
@@ -398,7 +398,7 @@ class EC2Client(object):
         This is a convenience function that wraps the "authorize ip
         permission" functionality of the C{authorize_security_group} method.
 
-        For an explanation of the parameters, see C{authorize_security_group}.
+        For an explanation of the parameters, see C{revoke_security_group}.
         """
         d = self.revoke_security_group(
             group_name,
