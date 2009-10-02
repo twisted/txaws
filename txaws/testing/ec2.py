@@ -77,6 +77,22 @@ class FakeEC2Client(object):
         self.snapshots_deleted.append(volume_id)
         return succeed(True)
 
+    def authorize_group_permission(self, group_name, source_group_name,
+                                   source_group_owner_id):
+        return succeed(True)
+
+    def revoke_group_permission(self, group_name, source_group_name,
+                                source_group_owner_id):
+        return succeed(True)
+
+    def authorize_ip_permission(self, group_name, protocol, from_port, to_port,
+                                cidr_ip):
+        return succeed(True)
+
+    def revoke_ip_permission(self, group_name, protocol, from_port, to_port,
+                             cidr_ip):
+        return succeed(True)
+
 
 class FakePageGetter(object):
 
