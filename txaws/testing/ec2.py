@@ -14,7 +14,7 @@ class FakeEC2Client(object):
 
     def __init__(self, creds, endpoint, instances=None, keypairs=None,
                  volumes=None, key_material="", security_groups=None,
-                 snapshots=None):
+                 snapshots=None, addresses=None):
         self.creds = creds
         self.endpoint = endpoint
         self.instances = instances or []
@@ -27,6 +27,7 @@ class FakeEC2Client(object):
         self.security_groups_deleted = []
         self.snapshots = snapshots or []
         self.snapshots_deleted = []
+        self.addresses = addresses or []
 
     def describe_instances(self):
         return succeed(self.instances)
@@ -91,6 +92,21 @@ class FakeEC2Client(object):
 
     def revoke_ip_permission(self, group_name, protocol, from_port, to_port,
                              cidr_ip):
+        return succeed(True)
+
+    def describe_addresses(self, *addresses):
+        return succeed(self.addresses)
+
+    def allocate_address(self):
+        return succeed(self.addresses[0][0])
+
+    def release_address(self, address):
+        return succeed(True)
+
+    def associate_address(self, instance_id, address):
+        return succeed(True)
+
+    def disassociate_address(self, address):
         return succeed(True)
 
 
