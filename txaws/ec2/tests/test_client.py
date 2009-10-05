@@ -71,6 +71,50 @@ class EC2ClientTestCase(TXAWSTestCase):
         ec2 = client.EC2Client(creds=creds)
         self.assertEqual(creds, ec2.creds)
 
+    def test_describe_availability_zones_single(self):
+        class StubQuery(object):
+            def __init__(stub, action, creds, endpoint, other_params):
+                self.assertEqual(action, "DescribeAvailabilityZones")
+                self.assertEqual(creds.access_key, "foo")
+                self.assertEqual(creds.secret_key, "bar")
+                self.assertEqual(
+                    {"InstanceId.1": "i-1234", "InstanceId.2": "i-5678"},
+                    other_params)
+            def submit(self):
+                return succeed(
+                    payload.sample_describe_availability_zones_single_results)
+
+        def check_parsed_availability_zones(results):
+            pass
+
+        creds = AWSCredentials("foo", "bar")
+        ec2 = client.EC2Client(creds, query_factory=StubQuery)
+        d = ec2.describe_availability_zones(["us-east-1a"])
+        d.addCallback(check_parsed_availability_zone)
+        return d
+
+    def test_describe_availability_zones_multiple(self):
+        class StubQuery(object):
+            def __init__(stub, action, creds, endpoint, other_params):
+                self.assertEqual(action, "DescribeAvailabilityZones")
+                self.assertEqual(creds.access_key, "foo")
+                self.assertEqual(creds.secret_key, "bar")
+                self.assertEqual(
+                    {"InstanceId.1": "i-1234", "InstanceId.2": "i-5678"},
+                    other_params)
+            def submit(self):
+                return succeed(
+                    payload.sample_describe_availability_zones_multiple_results)
+
+        def check_parsed_availability_zones(results):
+            pass
+
+        creds = AWSCredentials("foo", "bar")
+        ec2 = client.EC2Client(creds, query_factory=StubQuery)
+        d = ec2.describe_availability_zones()
+        d.addCallback(check_parsed_availability_zones)
+        return d
+
 
 class EC2ClientInstancesTestCase(TXAWSTestCase):
 
