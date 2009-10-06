@@ -687,13 +687,13 @@ class EC2Client(object):
         d = query.submit()
         return d.addCallback(self._parse_describe_availability_zones)
         
-    def _parse_availability_zones(self, xml_bytes):
+    def _parse_describe_availability_zones(self, xml_bytes):
         results = []
         root = XML(xml_bytes)
-        for zone_data in root.find("availabilityZoneInfo/item"):
+        for zone_data in root.find("availabilityZoneInfo"):
             zone_name = zone_data.findtext("zoneName")
-            zone_state = zone_data.findtest("zoneState")
-            results.append(model.AvailabilityZone(zone_name, zone_state)
+            zone_state = zone_data.findtext("zoneState")
+            results.append(model.AvailabilityZone(zone_name, zone_state))
         return results
 
 
