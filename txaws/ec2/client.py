@@ -677,6 +677,25 @@ class EC2Client(object):
             results.append((address, instance_id))
         return results
 
+    def describe_availability_zones(self, names=None):
+        zone_names = None
+        if names:
+            zone_names = dict([("ZoneName.%d" % (i+1), name)
+                                for i, name in enumerate(names)])
+        query = self.query_factory("DescribeAvailabilityZones", self.creds,
+                                   self.endpoint, zone_names)
+        d = query.submit()
+        return d.addCallback(self._parse_describe_availability_zones)
+        
+    def _parse_describe_availability_zones(self, xml_bytes):
+        results = []
+        root = XML(xml_bytes)
+        for zone_data in root.find("availabilityZoneInfo"):
+            zone_name = zone_data.findtext("zoneName")
+            zone_state = zone_data.findtext("zoneState")
+            results.append(model.AvailabilityZone(zone_name, zone_state))
+        return results
+
 
 class Query(object):
     """A query that may be submitted to EC2."""

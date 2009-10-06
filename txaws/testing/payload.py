@@ -542,3 +542,36 @@ sample_describe_addresses_result = """\
   </addressesSet>
 </DescribeAddressesResponse>
 """ % (aws_api,)
+
+
+sample_describe_availability_zones_single_result = """\
+<DescribeAvailabilityZonesResponse xmlns="http://ec2.amazonaws.com/doc/%s/">
+  <availabilityZoneInfo>
+    <item>
+      <zoneName>us-east-1a</zoneName>
+      <zoneState>available</zoneState>
+    </item>
+  </availabilityZoneInfo>
+</DescribeAvailabilityZonesResponse>
+""" % (aws_api,)
+
+
+sample_describe_availability_zones_multiple_results = """\
+<DescribeAvailabilityZonesResponse xmlns="http://ec2.amazonaws.com/doc/%s/">
+  <availabilityZoneInfo>
+    <item>
+      <zoneName>us-east-1a</zoneName>
+      <zoneState>available</zoneState>
+    </item>
+    <item>
+      <zoneName>us-east-1b</zoneName>
+      <zoneState>available</zoneState>
+    </item>
+    <item>
+      <zoneName>us-east-1c</zoneName>
+      <zoneState>available</zoneState>
+    </item>
+  </availabilityZoneInfo>
+</DescribeAvailabilityZonesResponse>
+""" % (aws_api,)
+

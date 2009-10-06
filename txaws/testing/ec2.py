@@ -14,7 +14,7 @@ class FakeEC2Client(object):
 
     def __init__(self, creds, endpoint, instances=None, keypairs=None,
                  volumes=None, key_material="", security_groups=None,
-                 snapshots=None, addresses=None):
+                 snapshots=None, addresses=None, availability_zones=None):
         self.creds = creds
         self.endpoint = endpoint
         self.instances = instances or []
@@ -28,6 +28,7 @@ class FakeEC2Client(object):
         self.snapshots = snapshots or []
         self.snapshots_deleted = []
         self.addresses = addresses or []
+        self.availability_zones = availability_zones or []
 
     def describe_instances(self):
         return succeed(self.instances)
@@ -108,6 +109,9 @@ class FakeEC2Client(object):
 
     def disassociate_address(self, address):
         return succeed(True)
+
+    def describe_availability_zones(self, *names):
+        return succeed(self.availability_zones)
 
 
 class FakePageGetter(object):
