@@ -142,3 +142,11 @@ class Keypair(object):
         self.name = name
         self.fingerprint = fingerprint
         self.material = material
+
+
+class AvailabilityZone(object):
+    """A convenience object for holding availability zone data."""
+
+    def __init__(self, name, state):
+        self.name = name
+        self.state = state

@@ -9,7 +9,8 @@ class FakeAWSServiceRegion(object):
 
     def __init__(self, access_key="", secret_key="", uri="",
                  ec2_client_factory=None, keypairs=None, security_groups=None,
-                 instances=None, volumes=None, snapshots=None):
+                 instances=None, volumes=None, snapshots=None,
+                 availability_zones=None):
         self.access_key = access_key
         self.secret_key = secret_key
         self.uri = uri
@@ -22,6 +23,7 @@ class FakeAWSServiceRegion(object):
         self.instances = instances
         self.volumes = volumes
         self.snapshots = snapshots
+        self.availability_zones = availability_zones
 
     def get_ec2_client(self, *args, **kwds):
 
@@ -31,5 +33,6 @@ class FakeAWSServiceRegion(object):
         self.ec2_client = self.ec2_client_factory(
             creds, endpoint, instances=self.instances, keypairs=self.keypairs,
             volumes=self.volumes, key_material=self.key_material,
-            security_groups=self.security_groups, snapshots=self.snapshots)
+            security_groups=self.security_groups, snapshots=self.snapshots,
+            availability_zones=self.availability_zones)
         return self.ec2_client
