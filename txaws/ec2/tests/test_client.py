@@ -78,14 +78,18 @@ class EC2ClientTestCase(TXAWSTestCase):
                 self.assertEqual(creds.access_key, "foo")
                 self.assertEqual(creds.secret_key, "bar")
                 self.assertEqual(
-                    {"InstanceId.1": "i-1234", "InstanceId.2": "i-5678"},
+                    {"ZoneName.1": "us-east-1a"},
                     other_params)
             def submit(self):
                 return succeed(
-                    payload.sample_describe_availability_zones_single_results)
+                    payload.sample_describe_availability_zones_single_result)
 
-        def check_parsed_availability_zones(results):
-            pass
+        def check_parsed_availability_zone(results):
+            self.assertEquals(len(results), 1)
+            [zone] = results
+            self.assertEquals(zone.name, "us-east-1a")
+            self.assertEquals(zone.state, "available")
+
 
         creds = AWSCredentials("foo", "bar")
         ec2 = client.EC2Client(creds, query_factory=StubQuery)
@@ -99,15 +103,18 @@ class EC2ClientTestCase(TXAWSTestCase):
                 self.assertEqual(action, "DescribeAvailabilityZones")
                 self.assertEqual(creds.access_key, "foo")
                 self.assertEqual(creds.secret_key, "bar")
-                self.assertEqual(
-                    {"InstanceId.1": "i-1234", "InstanceId.2": "i-5678"},
-                    other_params)
             def submit(self):
                 return succeed(
                     payload.sample_describe_availability_zones_multiple_results)
 
         def check_parsed_availability_zones(results):
-            pass
+            self.assertEquals(len(results), 3)
+            self.assertEquals(results[0].name, "us-east-1a")
+            self.assertEquals(results[0].state, "available")
+            self.assertEquals(results[1].name, "us-east-1b")
+            self.assertEquals(results[1].state, "available")
+            self.assertEquals(results[2].name, "us-east-1c")
+            self.assertEquals(results[2].state, "available")
 
         creds = AWSCredentials("foo", "bar")
         ec2 = client.EC2Client(creds, query_factory=StubQuery)
