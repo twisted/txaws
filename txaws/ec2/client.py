@@ -57,9 +57,9 @@ class EC2Client(object):
         """Describe current instances."""
         q = self.query_factory("DescribeInstances", self.creds, self.endpoint)
         d = q.submit()
-        return d.addCallback(self._parse_instances)
+        return d.addCallback(self._parse_describe_instances)
 
-    def _parse_instances(self, xml_bytes):
+    def _parse_describe_instances(self, xml_bytes):
         """
         Parse the reservations XML payload that is returned from an AWS
         describeInstances API call.
@@ -165,9 +165,9 @@ class EC2Client(object):
         query = self.query_factory("DescribeSecurityGroups", self.creds,
                                    self.endpoint, group_names)
         d = query.submit()
-        return d.addCallback(self._parse_security_groups)
+        return d.addCallback(self._parse_describe_security_groups)
 
-    def _parse_security_groups(self, xml_bytes):
+    def _parse_describe_security_groups(self, xml_bytes):
         """Parse the XML returned by the C{DescribeSecurityGroups} function.
 
         @param xml_bytes: XML bytes with a C{DescribeSecurityGroupsResponse}
@@ -207,6 +207,205 @@ class EC2Client(object):
             result.append(security_group)
         return result
 
+    def create_security_group(self, name, description):
+        """Create security group.
+
+        @param name: Name of the new security group.
+        @param description: Description of the new security group.
+        @return: A C{Deferred} that will fire with a truth value for the
+            success of the operation.
+        """
+        group_names = None
+        parameters = {"GroupName":  name, "GroupDescription": description}
+        query = self.query_factory("CreateSecurityGroup", self.creds,
+                                   self.endpoint, parameters)
+        d = query.submit()
+        return d.addCallback(self._parse_truth_return)
+
+    def _parse_truth_return(self, xml_bytes):
+        root = XML(xml_bytes)
+        return root.findtext("return") == "true"
+
+    def delete_security_group(self, name):
+        """
+        @param name: Name of the new security group.
+        @return: A C{Deferred} that will fire with a truth value for the
+            success of the operation.
+        """
+        parameter = {"GroupName":  name}
+        query = self.query_factory("DeleteSecurityGroup", self.creds,
+                                   self.endpoint, parameter)
+        d = query.submit()
+        return d.addCallback(self._parse_truth_return)
+
+    def authorize_security_group(
+        self, group_name, source_group_name="", source_group_owner_id="",
+        ip_protocol="", from_port="", to_port="", cidr_ip=""):
+        """
+        There are two ways to use C{authorize_security_group}:
+            1) associate an existing group (source group) with the one that you
+            are targeting (group_name) with an authorization update; or
+            2) associate a set of IP permissions with the group you are
+            targeting with an authorization update.
+
+        @param group_name: The group you will be modifying with a new
+            authorization.
+
+        Optionally, the following parameters:
+        @param source_group_name: Name of security group to authorize access to
+            when operating on a user/group pair.
+        @param source_group_owner_id: Owner of security group to authorize
+            access to when operating on a user/group pair.
+
+        If those parameters are not specified, then the following must be:
+        @param ip_protocol: IP protocol to authorize access to when operating
+            on a CIDR IP.
+        @param from_port: Bottom of port range to authorize access to when
+            operating on a CIDR IP. This contains the ICMP type if ICMP is
+            being authorized.
+        @param to_port: Top of port range to authorize access to when operating
+            on a CIDR IP. This contains the ICMP code if ICMP is being
+            authorized.
+        @param cidr_ip: CIDR IP range to authorize access to when operating on
+            a CIDR IP.
+
+        @return: A C{Deferred} that will fire with a truth value for the
+            success of the operation.
+        """
+        if source_group_name and source_group_owner_id:
+            parameters = {
+                "SourceSecurityGroupName": source_group_name,
+                "SourceSecurityGroupOwnerId": source_group_owner_id,
+                }
+        elif ip_protocol and from_port and to_port and cidr_ip:
+            parameters = {
+                "IpProtocol": ip_protocol,
+                "FromPort": from_port,
+                "ToPort": to_port,
+                "CidrIp": cidr_ip,
+                }
+        else:
+            msg = ("You must specify either both group parameters or "
+                   "all the ip parameters.")
+            raise ValueError(msg)
+        parameters["GroupName"] = group_name
+        query = self.query_factory("AuthorizeSecurityGroupIngress", self.creds,
+                                   self.endpoint, parameters)
+        d = query.submit()
+        return d.addCallback(self._parse_truth_return)
+
+    def authorize_group_permission(
+        self, group_name, source_group_name, source_group_owner_id):
+        """
+        This is a convenience function that wraps the "authorize group"
+        functionality of the C{authorize_security_group} method.
+
+        For an explanation of the parameters, see C{authorize_security_group}.
+        """
+        d = self.authorize_security_group(
+            group_name,
+            source_group_name=source_group_name,
+            source_group_owner_id=source_group_owner_id)
+        return d
+
+    def authorize_ip_permission(
+        self, group_name, ip_protocol, from_port, to_port, cidr_ip):
+        """
+        This is a convenience function that wraps the "authorize ip
+        permission" functionality of the C{authorize_security_group} method.
+
+        For an explanation of the parameters, see C{authorize_security_group}.
+        """
+        d = self.authorize_security_group(
+            group_name,
+            ip_protocol=ip_protocol, from_port=from_port, to_port=to_port,
+            cidr_ip=cidr_ip)
+        return d
+
+    def revoke_security_group(
+        self, group_name, source_group_name="", source_group_owner_id="",
+        ip_protocol="", from_port="", to_port="", cidr_ip=""):
+        """
+        There are two ways to use C{revoke_security_group}:
+            1) associate an existing group (source group) with the one that you
+            are targeting (group_name) with the revoke update; or
+            2) associate a set of IP permissions with the group you are
+            targeting with a revoke update.
+
+        @param group_name: The group you will be modifying with an
+            authorization removal.
+
+        Optionally, the following parameters:
+        @param source_group_name: Name of security group to revoke access from
+            when operating on a user/group pair.
+        @param source_group_owner_id: Owner of security group to revoke
+            access from when operating on a user/group pair.
+
+        If those parameters are not specified, then the following must be:
+        @param ip_protocol: IP protocol to revoke access from when operating
+            on a CIDR IP.
+        @param from_port: Bottom of port range to revoke access from when
+            operating on a CIDR IP. This contains the ICMP type if ICMP is
+            being revoked.
+        @param to_port: Top of port range to revoke access from when operating
+            on a CIDR IP. This contains the ICMP code if ICMP is being
+            revoked.
+        @param cidr_ip: CIDR IP range to revoke access from when operating on
+            a CIDR IP.
+
+        @return: A C{Deferred} that will fire with a truth value for the
+            success of the operation.
+        """
+        if source_group_name and source_group_owner_id:
+            parameters = {
+                "SourceSecurityGroupName": source_group_name,
+                "SourceSecurityGroupOwnerId": source_group_owner_id,
+                }
+        elif ip_protocol and from_port and to_port and cidr_ip:
+            parameters = {
+                "IpProtocol": ip_protocol,
+                "FromPort": from_port,
+                "ToPort": to_port,
+                "CidrIp": cidr_ip,
+                }
+        else:
+            msg = ("You must specify either both group parameters or "
+                   "all the ip parameters.")
+            raise ValueError(msg)
+        parameters["GroupName"] = group_name
+        query = self.query_factory("RevokeSecurityGroupIngress", self.creds,
+                                   self.endpoint, parameters)
+        d = query.submit()
+        return d.addCallback(self._parse_truth_return)
+
+    def revoke_group_permission(
+        self, group_name, source_group_name, source_group_owner_id):
+        """
+        This is a convenience function that wraps the "authorize group"
+        functionality of the C{authorize_security_group} method.
+
+        For an explanation of the parameters, see C{revoke_security_group}.
+        """
+        d = self.revoke_security_group(
+            group_name,
+            source_group_name=source_group_name,
+            source_group_owner_id=source_group_owner_id)
+        return d
+
+    def revoke_ip_permission(
+        self, group_name, ip_protocol, from_port, to_port, cidr_ip):
+        """
+        This is a convenience function that wraps the "authorize ip
+        permission" functionality of the C{authorize_security_group} method.
+
+        For an explanation of the parameters, see C{revoke_security_group}.
+        """
+        d = self.revoke_security_group(
+            group_name,
+            ip_protocol=ip_protocol, from_port=from_port, to_port=to_port,
+            cidr_ip=cidr_ip)
+        return d
+
     def describe_volumes(self, *volume_ids):
         """Describe available volumes."""
         volumeset = {}
@@ -215,32 +414,33 @@ class EC2Client(object):
         q = self.query_factory(
             "DescribeVolumes", self.creds, self.endpoint, volumeset)
         d = q.submit()
-        return d.addCallback(self._parse_volumes)
+        return d.addCallback(self._parse_describe_volumes)
 
-    def _parse_volumes(self, xml_bytes):
+    def _parse_describe_volumes(self, xml_bytes):
         root = XML(xml_bytes)
         result = []
         for volume_data in root.find("volumeSet"):
             volume_id = volume_data.findtext("volumeId")
             size = int(volume_data.findtext("size"))
             status = volume_data.findtext("status")
+            availability_zone = volume_data.findtext("availabilityZone")
+            snapshot_id = volume_data.findtext("snapshotId")
             create_time = volume_data.findtext("createTime")
             create_time = datetime.strptime(
                 create_time[:19], "%Y-%m-%dT%H:%M:%S")
-            volume = model.Volume(volume_id, size, status, create_time)
+            volume = model.Volume(
+                volume_id, size, status, create_time, availability_zone,
+                snapshot_id)
             result.append(volume)
             for attachment_data in volume_data.find("attachmentSet"):
                 instance_id = attachment_data.findtext("instanceId")
-                snapshot_id = attachment_data.findtext("snapshotId")
-                availability_zone = attachment_data.findtext(
-                    "availabilityZone")
                 status = attachment_data.findtext("status")
+                device = attachment_data.findtext("device")
                 attach_time = attachment_data.findtext("attachTime")
                 attach_time = datetime.strptime(
                     attach_time[:19], "%Y-%m-%dT%H:%M:%S")
                 attachment = model.Attachment(
-                    instance_id, snapshot_id, availability_zone, status,
-                    attach_time)
+                    instance_id, device, status, attach_time)
                 volume.attachments.append(attachment)
         return result
 
@@ -265,20 +465,20 @@ class EC2Client(object):
         size = int(root.findtext("size"))
         status = root.findtext("status")
         create_time = root.findtext("createTime")
+        availability_zone = root.findtext("availabilityZone")
+        snapshot_id = root.findtext("snapshotId")
         create_time = datetime.strptime(
             create_time[:19], "%Y-%m-%dT%H:%M:%S")
-        volume = model.Volume(volume_id, size, status, create_time)
+        volume = model.Volume(
+            volume_id, size, status, create_time, availability_zone,
+            snapshot_id)
         return volume
 
     def delete_volume(self, volume_id):
         q = self.query_factory(
             "DeleteVolume", self.creds, self.endpoint, {"VolumeId": volume_id})
         d = q.submit()
-        return d.addCallback(self._parse_delete_volume)
-
-    def _parse_delete_volume(self, xml_bytes):
-        root = XML(xml_bytes)
-        return root.findtext("return") == "true"
+        return d.addCallback(self._parse_truth_return)
 
     def describe_snapshots(self, *snapshot_ids):
         """Describe available snapshots."""
@@ -334,11 +534,7 @@ class EC2Client(object):
             "DeleteSnapshot", self.creds, self.endpoint,
             {"SnapshotId": snapshot_id})
         d = q.submit()
-        return d.addCallback(self._parse_delete_snapshot)
-
-    def _parse_delete_snapshot(self, xml_bytes):
-        root = XML(xml_bytes)
-        return root.findtext("return") == "true"
+        return d.addCallback(self._parse_truth_return)
 
     def attach_volume(self, volume_id, instance_id, device):
         """Attach the given volume to the specified instance at C{device}."""
@@ -388,7 +584,6 @@ class EC2Client(object):
         return d.addCallback(self._parse_create_keypair)
 
     def _parse_create_keypair(self, xml_bytes):
-        results = []
         keypair_data = XML(xml_bytes)
         key_name = keypair_data.findtext("keyName")
         key_fingerprint = keypair_data.findtext("keyFingerprint")
@@ -401,19 +596,105 @@ class EC2Client(object):
             "DeleteKeyPair", self.creds, self.endpoint,
             {"KeyName": keypair_name})
         d = q.submit()
-        return d.addCallback(self._parse_delete_keypair)
+        return d.addCallback(self._parse_truth_return)
 
-    def _parse_delete_keypair(self, xml_bytes):
+    def allocate_address(self):
+        """
+        Acquire an elastic IP address to be attached subsequently to EC2
+        instances.
+
+        @return: the IP address allocated.
+        """
+        q = self.query_factory(
+            "AllocateAddress", self.creds, self.endpoint, {})
+        d = q.submit()
+        return d.addCallback(self._parse_allocate_address)
+
+    def _parse_allocate_address(self, xml_bytes):
+        address_data = XML(xml_bytes)
+        return address_data.findtext("publicIp")
+
+    def release_address(self, address):
+        """
+        Release a previously allocated address returned by C{allocate_address}.
+
+        @return: C{True} if the operation succeeded.
+        """
+        q = self.query_factory(
+            "ReleaseAddress", self.creds, self.endpoint,
+            {"PublicIp": address})
+        d = q.submit()
+        return d.addCallback(self._parse_truth_return)
+
+    def associate_address(self, instance_id, address):
+        """
+        Associate an allocated C{address} with the instance identified by
+        C{instance_id}.
+
+        @return: C{True} if the operation succeeded.
+        """
+        q = self.query_factory(
+            "AssociateAddress", self.creds, self.endpoint,
+            {"InstanceId": instance_id, "PublicIp": address})
+        d = q.submit()
+        return d.addCallback(self._parse_truth_return)
+
+    def disassociate_address(self, address):
+        """
+        Disassociate an address previously associated with
+        C{associate_address}. This is an idempotent operation, so it can be
+        called several times without error.
+        """
+        q = self.query_factory(
+            "DisassociateAddress", self.creds, self.endpoint,
+            {"PublicIp": address})
+        d = q.submit()
+        return d.addCallback(self._parse_truth_return)
+
+    def describe_addresses(self, *addresses):
+        """
+        List the elastic IPs allocated in this account.
+
+        @param addresses: if specified, the addresses to get information about.
+
+        @return: a C{list} of (address, instance_id). If the elastic IP is not
+            associated currently, C{instance_id} will be C{None}.
+        """
+        address_set = {}
+        for pos, address in enumerate(addresses):
+            address_set["PublicIp.%d" % (pos + 1)] = address
+        q = self.query_factory(
+            "DescribeAddresses", self.creds, self.endpoint, address_set)
+        d = q.submit()
+        return d.addCallback(self._parse_describe_addresses)
+
+    def _parse_describe_addresses(self, xml_bytes):
         results = []
-        keypair_data = XML(xml_bytes)
-        result = keypair_data.findtext("return")
-        if not result:
-            result = False
-        elif result.lower() == "true":
-            result = True
-        else:
-            result = False
-        return result
+        root = XML(xml_bytes)
+        for address_data in root.find("addressesSet"):
+            address = address_data.findtext("publicIp")
+            instance_id = address_data.findtext("instanceId")
+            results.append((address, instance_id))
+        return results
+
+    def describe_availability_zones(self, names=None):
+        zone_names = None
+        if names:
+            zone_names = dict([("ZoneName.%d" % (i+1), name)
+                                for i, name in enumerate(names)])
+        query = self.query_factory("DescribeAvailabilityZones", self.creds,
+                                   self.endpoint, zone_names)
+        d = query.submit()
+        return d.addCallback(self._parse_describe_availability_zones)
+        
+    def _parse_describe_availability_zones(self, xml_bytes):
+        results = []
+        root = XML(xml_bytes)
+        for zone_data in root.find("availabilityZoneInfo"):
+            zone_name = zone_data.findtext("zoneName")
+            zone_state = zone_data.findtext("zoneState")
+            results.append(model.AvailabilityZone(zone_name, zone_state))
+        return results
 
 
 class Query(object):
@@ -471,7 +752,7 @@ class Query(object):
         self.params["Signature"] = self.creds.sign(self.signing_text())
 
     def sorted_params(self):
-        """Return the query params sorted appropriately for signing."""
+        """Return the query parameters sorted appropriately for signing."""
         return sorted(self.params.items())
 
     def get_page(self, url, *args, **kwds):
