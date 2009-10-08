@@ -166,7 +166,14 @@ class EC2ErrorTestCase(TestCase):
         self.assertEquals(
             error.get_error_messages(), "The key pair 'key1' already exists.")
 
-    def test_invalid_keypair_result(self):
-        error = EC2Error(payload.sample_invalid_keypair_result)
+    def test_dupliate_create_security_group_result(self):
+        error = EC2Error(payload.sample_duplicate_create_security_group_result)
         self.assertEquals(
-            error.get_error_messages(), "There is a problem with the keypair.")
+            error.get_error_messages(),
+            "The security group 'group1' already exists.")
+
+    def test_invalid_create_security_group_result(self):
+        error = EC2Error(payload.sample_invalid_create_security_group_result)
+        self.assertEquals(
+            error.get_error_messages(),
+            "Specified group name is a reserved name.")
