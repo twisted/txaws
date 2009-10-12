@@ -190,10 +190,11 @@ class EC2ClientInstancesTestCase(TXAWSTestCase):
 
     def test_describe_instances(self):
         class StubQuery(object):
-            def __init__(stub, action, creds, endpoint):
+            def __init__(stub, action, creds, endpoint, params):
                 self.assertEqual(action, "DescribeInstances")
                 self.assertEqual(creds.access_key, "foo")
                 self.assertEqual(creds.secret_key, "bar")
+                self.assertEquals(params, {})
             def submit(self):
                 return succeed(payload.sample_describe_instances_result)
         creds = AWSCredentials("foo", "bar")
@@ -204,16 +205,36 @@ class EC2ClientInstancesTestCase(TXAWSTestCase):
 
     def test_describe_instances_required(self):
         class StubQuery(object):
-            def __init__(stub, action, creds, endpoint):
+            def __init__(stub, action, creds, endpoint, params):
                 self.assertEqual(action, "DescribeInstances")
                 self.assertEqual(creds.access_key, "foo")
                 self.assertEqual(creds.secret_key, "bar")
+                self.assertEquals(params, {})
             def submit(self):
                 return succeed(
                     payload.sample_required_describe_instances_result)
         creds = AWSCredentials("foo", "bar")
         ec2 = client.EC2Client(creds, query_factory=StubQuery)
         d = ec2.describe_instances()
+        d.addCallback(self.check_parsed_instances_required)
+        return d
+
+    def test_describe_instances_specific_instances(self):
+        class StubQuery(object):
+            def __init__(stub, action, creds, endpoint, params):
+                self.assertEqual(action, "DescribeInstances")
+                self.assertEqual(creds.access_key, "foo")
+                self.assertEqual(creds.secret_key, "bar")
+                self.assertEquals(
+                    params,
+                    {"InstanceId.1": "i-16546401",
+                     "InstanceId.2": "i-49873415"})
+            def submit(self):
+                return succeed(
+                    payload.sample_required_describe_instances_result)
+        creds = AWSCredentials("foo", "bar")
+        ec2 = client.EC2Client(creds, query_factory=StubQuery)
+        d = ec2.describe_instances("i-16546401", "i-49873415")
         d.addCallback(self.check_parsed_instances_required)
         return d
 
