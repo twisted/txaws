@@ -260,6 +260,57 @@ class EC2ClientInstancesTestCase(TXAWSTestCase):
         d.addCallback(check_transition)
         return d
 
+    def check_parsed_run_instances(self, results):
+        instance = results[0]
+        # check reservations
+        reservation = instance.reservation
+        self.assertEquals(reservation.reservation_id, "r-47a5402e")
+        self.assertEquals(reservation.owner_id, "495219933132")
+        # check groups
+        group = reservation.groups[0]
+        self.assertEquals(group, "default")
+        # check instance
+        self.assertEquals(instance.instance_id, "i-2ba64342")
+        self.assertEquals(instance.instance_state, "pending")
+        self.assertEquals(instance.instance_type, "m1.small")
+        self.assertEquals(instance.placement, "us-east-1b")
+        instance = results[1]
+        self.assertEquals(instance.instance_id, "i-2bc64242")
+        self.assertEquals(instance.instance_state, "pending")
+        self.assertEquals(instance.instance_type, "m1.small")
+        self.assertEquals(instance.placement, "us-east-1b")
+        instance = results[2]
+        self.assertEquals(instance.instance_id, "i-2be64332")
+        self.assertEquals(instance.instance_state, "pending")
+        self.assertEquals(instance.instance_type, "m1.small")
+        self.assertEquals(instance.placement, "us-east-1b")
+
+    def test_run_instances(self):
+
+        class StubQuery(object):
+            def __init__(stub, action, creds, endpoint, params):
+                self.assertEqual(action, "RunInstances")
+                self.assertEqual(creds.access_key, "foo")
+                self.assertEqual(creds.secret_key, "bar")
+                self.assertEquals(
+                    params,
+                    {"ImageId": "ami-1234", "MaxCount": 2, "MinCount": 1,
+                     "SecurityGroup.1": u"group1", "KeyName": u"default",
+                     "UserData": "Zm9v", "InstanceType": u"m1.small",
+                     "Placement.AvailabilityZone": u"us-east-1b",
+                     "KernelId": u"k-1234", "RamdiskId": u"r-1234"})
+            def submit(self):
+                return succeed(
+                    payload.sample_run_instances_result)
+
+        creds = AWSCredentials("foo", "bar")
+        ec2 = client.EC2Client(creds, query_factory=StubQuery)
+        d = ec2.run_instances("ami-1234", 1, 2, security_groups=[u"group1"],
+            key_name=u"default", user_data=u"foo", instance_type=u"m1.small",
+            availability_zone=u"us-east-1b", kernel_id=u"k-1234",
+            ramdisk_id=u"r-1234")
+        d.addCallback(self.check_parsed_run_instances)
+
 
 class EC2ClientSecurityGroupsTestCase(TXAWSTestCase):
 
