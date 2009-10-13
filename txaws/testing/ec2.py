@@ -30,7 +30,7 @@ class FakeEC2Client(object):
         self.addresses = addresses or []
         self.availability_zones = availability_zones or []
 
-    def describe_instances(self):
+    def describe_instances(self, *instances):
         return succeed(self.instances)
 
     def describe_keypairs(self):
