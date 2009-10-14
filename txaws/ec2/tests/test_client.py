@@ -294,7 +294,7 @@ class EC2ClientInstancesTestCase(TXAWSTestCase):
                 self.assertEqual(creds.secret_key, "bar")
                 self.assertEquals(
                     params,
-                    {"ImageId": "ami-1234", "MaxCount": 2, "MinCount": 1,
+                    {"ImageId": "ami-1234", "MaxCount": "2", "MinCount": "1",
                      "SecurityGroup.1": u"group1", "KeyName": u"default",
                      "UserData": "Zm9v", "InstanceType": u"m1.small",
                      "Placement.AvailabilityZone": u"us-east-1b",
