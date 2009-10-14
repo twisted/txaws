@@ -641,3 +641,16 @@ sample_describe_availability_zones_multiple_results = """\
 </DescribeAvailabilityZonesResponse>
 """ % (aws_api,)
 
+
+sample_invalid_client_token_result = """\
+<?xml version="1.0"?>
+<Response>
+  <Errors>
+    <Error>
+      <Code>InvalidClientTokenId</Code>
+      <Message>The AWS Access Key Id you provided does not exist in our records.</Message>
+    </Error>
+  </Errors>
+  <RequestID>47bfd77d-78d6-446d-be0d-f7621795dded</RequestID>
+</Response>
+"""
