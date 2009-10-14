@@ -33,6 +33,12 @@ class FakeEC2Client(object):
     def describe_instances(self, *instances):
         return succeed(self.instances)
 
+    def run_instances(self, image_id, min_count, max_count,
+        security_groups=None, key_name=None, instance_type=None,
+        user_data=None, availability_zone=None, kernel_id=None,
+        ramdisk_id=None):
+        return succeed(self.instances)
+
     def describe_keypairs(self):
         return succeed(self.keypairs)
 
