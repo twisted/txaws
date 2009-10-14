@@ -39,6 +39,11 @@ class FakeEC2Client(object):
         ramdisk_id=None):
         return succeed(self.instances)
 
+    def terminate_instances(self, *instance_ids):
+        result = [(instance.instance_id, instance.instance_state,
+                   u"shutting-down") for instance in self.instances]
+        return succeed(result)
+
     def describe_keypairs(self):
         return succeed(self.keypairs)
 
