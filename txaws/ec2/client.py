@@ -137,11 +137,11 @@ class EC2Client(object):
         user_data=None, availability_zone=None, kernel_id=None,
         ramdisk_id=None):
         """Run new instances."""
-        params = {"ImageId": image_id, "MinCount": min_count,
-                  "MaxCount": max_count}
+        params = {"ImageId": image_id, "MinCount": str(min_count),
+                  "MaxCount": str(max_count)}
         if security_groups is not None:
             for i, name in enumerate(security_groups):
-                params["SecurityGroup.%d" % (i+1)] = name
+                params["SecurityGroup.%d" % (i + 1)] = name
         if key_name is not None:
             params["KeyName"] = key_name
         if user_data is not None:
