@@ -30,8 +30,19 @@ class FakeEC2Client(object):
         self.addresses = addresses or []
         self.availability_zones = availability_zones or []
 
-    def describe_instances(self):
+    def describe_instances(self, *instances):
         return succeed(self.instances)
+
+    def run_instances(self, image_id, min_count, max_count,
+        security_groups=None, key_name=None, instance_type=None,
+        user_data=None, availability_zone=None, kernel_id=None,
+        ramdisk_id=None):
+        return succeed(self.instances)
+
+    def terminate_instances(self, *instance_ids):
+        result = [(instance.instance_id, instance.instance_state,
+                   u"shutting-down") for instance in self.instances]
+        return succeed(result)
 
     def describe_keypairs(self):
         return succeed(self.keypairs)
