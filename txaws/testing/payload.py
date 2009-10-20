@@ -81,6 +81,72 @@ sample_describe_instances_result = """\
 """ % (aws_api,)
 
 
+sample_run_instances_result = """\
+<?xml version="1.0"?>
+<RunInstancesResponse xmlns="http://ec2.amazonaws.com/doc/%s/">
+  <reservationId>r-47a5402e</reservationId>
+  <ownerId>495219933132</ownerId>
+  <groupSet>
+    <item>
+      <groupId>default</groupId>
+    </item>
+  </groupSet>
+  <instancesSet>
+    <item>
+      <instanceId>i-2ba64342</instanceId>
+      <imageId>ami-60a54009</imageId>
+      <instanceState>
+        <code>0</code>
+    <name>pending</name>
+      </instanceState>
+      <privateDnsName></privateDnsName>
+      <dnsName></dnsName>
+      <keyName>example-key-name</keyName>
+       <amiLaunchIndex>0</amiLaunchIndex>
+      <instanceType>m1.small</instanceType>
+      <launchTime>2007-08-07T11:51:50.000Z</launchTime>
+      <placement>
+        <availabilityZone>us-east-1b</availabilityZone>
+      </placement>
+    </item>
+    <item>
+      <instanceId>i-2bc64242</instanceId>
+      <imageId>ami-60a54009</imageId>
+      <instanceState>
+        <code>0</code>
+    <name>pending</name>
+      </instanceState>
+      <privateDnsName></privateDnsName>
+      <dnsName></dnsName>
+      <keyName>example-key-name</keyName>
+      <amiLaunchIndex>1</amiLaunchIndex>
+      <instanceType>m1.small</instanceType>
+      <launchTime>2007-08-07T11:51:50.000Z</launchTime>
+      <placement>
+        <availabilityZone>us-east-1b</availabilityZone>
+      </placement>
+    </item>
+    <item>
+      <instanceId>i-2be64332</instanceId>
+      <imageId>ami-60a54009</imageId>
+      <instanceState>
+        <code>0</code>
+    <name>pending</name>
+      </instanceState>
+      <privateDnsName></privateDnsName>
+      <dnsName></dnsName>
+      <keyName>example-key-name</keyName>
+      <amiLaunchIndex>2</amiLaunchIndex>
+      <instanceType>m1.small</instanceType>
+      <launchTime>2007-08-07T11:51:50.000Z</launchTime>
+      <placement>
+        <availabilityZone>us-east-1b</availabilityZone>
+      </placement>
+    </item>
+  </instancesSet>
+</RunInstancesResponse>
+""" % (aws_api,)
+
 sample_terminate_instances_result = """\
 <?xml version="1.0"?>
 <TerminateInstancesResponse xmlns="http://ec2.amazonaws.com/doc/%s/">
@@ -575,3 +641,16 @@ sample_describe_availability_zones_multiple_results = """\
 </DescribeAvailabilityZonesResponse>
 """ % (aws_api,)
 
+
+sample_invalid_client_token_result = """\
+<?xml version="1.0"?>
+<Response>
+  <Errors>
+    <Error>
+      <Code>InvalidClientTokenId</Code>
+      <Message>The AWS Access Key Id you provided does not exist in our records.</Message>
+    </Error>
+  </Errors>
+  <RequestID>47bfd77d-78d6-446d-be0d-f7621795dded</RequestID>
+</Response>
+"""

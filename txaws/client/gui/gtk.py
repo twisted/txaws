@@ -8,10 +8,11 @@ import gnomekeyring
 import gobject
 import gtk
 
-from twisted.internet.defer import TimeoutError 
+# DO NOT IMPORT twisted.internet, or things that import
+# twisted.internet.
+# Doing so loads the default Reactor, which is bad. thanks.
 
 from txaws.credentials import AWSCredentials
-from txaws.service import AWSServiceRegion
 
 
 __all__ = ["main"]
@@ -21,6 +22,7 @@ class AWSStatusIcon(gtk.StatusIcon):
     """A status icon shown when instances are running."""
 
     def __init__(self, reactor):
+        from txaws.service import AWSServiceRegion
         gtk.StatusIcon.__init__(self)
         self.set_from_stock(gtk.STOCK_NETWORK)
         self.set_visible(True)
@@ -176,6 +178,7 @@ class AWSStatusIcon(gtk.StatusIcon):
             pass
 
     def describe_error(self, error):
+        from twisted.internet.defer import TimeoutError
         if isinstance(error.value, TimeoutError):
             # timeout errors can be ignored - transient network issue or some
             # such.
