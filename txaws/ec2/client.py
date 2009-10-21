@@ -768,7 +768,7 @@ class Query(object):
         self.params = {
             "Version": api_version,
             "SignatureVersion": "2",
-            "SignatureMethod": "HmacSHA1",
+            "SignatureMethod": "HmacSHA256",
             "Action": action,
             "AWSAccessKeyId": self.creds.access_key,
             "Timestamp": iso8601time(time_tuple),
