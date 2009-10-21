@@ -5,7 +5,7 @@
 
 import os
 
-from txaws.util import hmac_sha1
+from txaws.util import hmac_sha256
 
 
 __all__ = ["AWSCredentials"]
@@ -23,7 +23,7 @@ class AWSCredentials(object):
     @param secret_key: The secret key to use. If None the environment variable
         AWS_SECRET_ACCESS_KEY is consulted.
     """
- 
+
     def __init__(self, access_key="", secret_key=""):
         self.access_key = access_key
         self.secret_key = secret_key
@@ -40,4 +40,4 @@ class AWSCredentials(object):
 
     def sign(self, bytes):
         """Sign some bytes."""
-        return hmac_sha1(self.secret_key, bytes)
+        return hmac_sha256(self.secret_key, bytes)

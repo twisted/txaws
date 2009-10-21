@@ -5,19 +5,20 @@ services.
 """
 
 from base64 import b64encode
-from hashlib import sha1, md5
+from hashlib import sha1, md5, sha256
 import hmac
 from urlparse import urlparse, urlunparse
 import time
 
-# Import XMLTreeBuilder from somwhere; here in one place to prevent duplication.
+# Import XMLTreeBuilder from somewhere; here in one place to prevent
+# duplication.
 try:
     from xml.etree.ElementTree import XMLTreeBuilder
 except ImportError:
     from elementtree.ElementTree import XMLTreeBuilder
 
 
-__all__ = ["hmac_sha1", "iso8601time", "calculate_md5", "XML"]
+__all__ = ["hmac_sha1", "hmac_sha256", "iso8601time", "calculate_md5", "XML"]
 
 
 def calculate_md5(data):
@@ -27,6 +28,11 @@ def calculate_md5(data):
 
 def hmac_sha1(secret, data):
     digest = hmac.new(secret, data, sha1).digest()
+    return b64encode(digest)
+
+
+def hmac_sha256(secret, data):
+    digest = hmac.new(secret, data, sha256).digest()
     return b64encode(digest)
 
 
