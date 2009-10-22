@@ -241,14 +241,6 @@ class EC2Client(object):
             allowed_ips = []
             ip_permissions = group_info.find("ipPermissions") or []
             for ip_permission in ip_permissions:
-                ip_protocol = ip_permission.findtext("ipProtocol")
-                from_port = int(ip_permission.findtext("fromPort"))
-                to_port = int(ip_permission.findtext("toPort"))
-                cidr_ip = ip_permission.findtext("ipRanges/item/cidrIp")
-                allowed_ips.append(
-                    model.IPPermission(
-                        ip_protocol, from_port, to_port, cidr_ip))
-
                 user_id = ip_permission.findtext("groups/item/userId")
                 group_name = ip_permission.findtext("groups/item/groupName")
                 if user_id and group_name:
@@ -257,6 +249,14 @@ class EC2Client(object):
                         user_group_pair = model.UserIDGroupPair(
                             user_id, group_name)
                         allowed_groups.setdefault(user_id, user_group_pair)
+                else:
+                    ip_protocol = ip_permission.findtext("ipProtocol")
+                    from_port = int(ip_permission.findtext("fromPort"))
+                    to_port = int(ip_permission.findtext("toPort"))
+                    cidr_ip = ip_permission.findtext("ipRanges/item/cidrIp")
+                    allowed_ips.append(
+                        model.IPPermission(
+                            ip_protocol, from_port, to_port, cidr_ip))
 
             security_group = model.SecurityGroup(
                 name, description, owner_id=owner_id,
