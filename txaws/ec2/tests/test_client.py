@@ -387,7 +387,7 @@ class EC2ClientSecurityGroupsTestCase(TXAWSTestCase):
             self.assertEquals(
                 [(ip.ip_protocol, ip.from_port, ip.to_port, ip.cidr_ip)
                  for ip in security_group.allowed_ips],
-                [("tcp", 80, 80, "0.0.0.0/0"), ("udp", 81, 81, "0.0.0.0/16")])
+                [("tcp", 80, 80, "0.0.0.0/0")])
 
         creds = AWSCredentials("foo", "bar")
         ec2 = client.EC2Client(creds, query_factory=StubQuery)
