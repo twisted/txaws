@@ -7,7 +7,7 @@ from datetime import datetime
 import os
 
 from twisted.internet import reactor
-from twisted.internet.defer import succeed
+from twisted.internet.defer import succeed, fail
 from twisted.python.failure import Failure
 from twisted.python.filepath import FilePath
 from twisted.web import server, static, util
@@ -71,6 +71,60 @@ class EC2ClientTestCase(TXAWSTestCase):
         ec2 = client.EC2Client(creds=creds)
         self.assertEqual(creds, ec2.creds)
 
+    def test_describe_availability_zones_single(self):
+        class StubQuery(object):
+            def __init__(stub, action, creds, endpoint, other_params):
+                self.assertEqual(action, "DescribeAvailabilityZones")
+                self.assertEqual(creds.access_key, "foo")
+                self.assertEqual(creds.secret_key, "bar")
+                self.assertEqual(
+                    {"ZoneName.1": "us-east-1a"},
+                    other_params)
+            def submit(self):
+                return succeed(
+                    payload.sample_describe_availability_zones_single_result)
+
+        def check_parsed_availability_zone(results):
+            self.assertEquals(len(results), 1)
+            [zone] = results
+            self.assertEquals(zone.name, "us-east-1a")
+            self.assertEquals(zone.state, "available")
+
+
+        creds = AWSCredentials("foo", "bar")
+        ec2 = client.EC2Client(creds, query_factory=StubQuery)
+        d = ec2.describe_availability_zones(["us-east-1a"])
+        d.addCallback(check_parsed_availability_zone)
+        return d
+
+    def test_describe_availability_zones_multiple(self):
+        class StubQuery(object):
+            def __init__(stub, action, creds, endpoint, other_params):
+                self.assertEqual(action, "DescribeAvailabilityZones")
+                self.assertEqual(creds.access_key, "foo")
+                self.assertEqual(creds.secret_key, "bar")
+            def submit(self):
+                return succeed(
+                    payload.sample_describe_availability_zones_multiple_results)
+
+        def check_parsed_availability_zones(results):
+            self.assertEquals(len(results), 3)
+            self.assertEquals(results[0].name, "us-east-1a")
+            self.assertEquals(results[0].state, "available")
+            self.assertEquals(results[1].name, "us-east-1b")
+            self.assertEquals(results[1].state, "available")
+            self.assertEquals(results[2].name, "us-east-1c")
+            self.assertEquals(results[2].state, "available")
+
+        creds = AWSCredentials("foo", "bar")
+        ec2 = client.EC2Client(creds, query_factory=StubQuery)
+        d = ec2.describe_availability_zones()
+        d.addCallback(check_parsed_availability_zones)
+        return d
+
+
+class EC2ClientInstancesTestCase(TXAWSTestCase):
+
     def check_parsed_instances(self, results):
         instance = results[0]
         # check reservations
@@ -130,16 +184,17 @@ class EC2ClientTestCase(TXAWSTestCase):
     def test_parse_reservation(self):
         creds = AWSCredentials("foo", "bar")
         ec2 = client.EC2Client(creds=creds)
-        results = ec2._parse_instances(
+        results = ec2._parse_describe_instances(
             payload.sample_describe_instances_result)
         self.check_parsed_instances(results)
 
     def test_describe_instances(self):
         class StubQuery(object):
-            def __init__(stub, action, creds, endpoint):
+            def __init__(stub, action, creds, endpoint, params):
                 self.assertEqual(action, "DescribeInstances")
                 self.assertEqual(creds.access_key, "foo")
                 self.assertEqual(creds.secret_key, "bar")
+                self.assertEquals(params, {})
             def submit(self):
                 return succeed(payload.sample_describe_instances_result)
         creds = AWSCredentials("foo", "bar")
@@ -150,16 +205,36 @@ class EC2ClientTestCase(TXAWSTestCase):
 
     def test_describe_instances_required(self):
         class StubQuery(object):
-            def __init__(stub, action, creds, endpoint):
+            def __init__(stub, action, creds, endpoint, params):
                 self.assertEqual(action, "DescribeInstances")
                 self.assertEqual(creds.access_key, "foo")
                 self.assertEqual(creds.secret_key, "bar")
+                self.assertEquals(params, {})
             def submit(self):
                 return succeed(
                     payload.sample_required_describe_instances_result)
         creds = AWSCredentials("foo", "bar")
         ec2 = client.EC2Client(creds, query_factory=StubQuery)
         d = ec2.describe_instances()
+        d.addCallback(self.check_parsed_instances_required)
+        return d
+
+    def test_describe_instances_specific_instances(self):
+        class StubQuery(object):
+            def __init__(stub, action, creds, endpoint, params):
+                self.assertEqual(action, "DescribeInstances")
+                self.assertEqual(creds.access_key, "foo")
+                self.assertEqual(creds.secret_key, "bar")
+                self.assertEquals(
+                    params,
+                    {"InstanceId.1": "i-16546401",
+                     "InstanceId.2": "i-49873415"})
+            def submit(self):
+                return succeed(
+                    payload.sample_required_describe_instances_result)
+        creds = AWSCredentials("foo", "bar")
+        ec2 = client.EC2Client(creds, query_factory=StubQuery)
+        d = ec2.describe_instances("i-16546401", "i-49873415")
         d.addCallback(self.check_parsed_instances_required)
         return d
 
@@ -185,6 +260,60 @@ class EC2ClientTestCase(TXAWSTestCase):
         d.addCallback(check_transition)
         return d
 
+    def check_parsed_run_instances(self, results):
+        instance = results[0]
+        # check reservations
+        reservation = instance.reservation
+        self.assertEquals(reservation.reservation_id, "r-47a5402e")
+        self.assertEquals(reservation.owner_id, "495219933132")
+        # check groups
+        group = reservation.groups[0]
+        self.assertEquals(group, "default")
+        # check instance
+        self.assertEquals(instance.instance_id, "i-2ba64342")
+        self.assertEquals(instance.instance_state, "pending")
+        self.assertEquals(instance.instance_type, "m1.small")
+        self.assertEquals(instance.placement, "us-east-1b")
+        instance = results[1]
+        self.assertEquals(instance.instance_id, "i-2bc64242")
+        self.assertEquals(instance.instance_state, "pending")
+        self.assertEquals(instance.instance_type, "m1.small")
+        self.assertEquals(instance.placement, "us-east-1b")
+        instance = results[2]
+        self.assertEquals(instance.instance_id, "i-2be64332")
+        self.assertEquals(instance.instance_state, "pending")
+        self.assertEquals(instance.instance_type, "m1.small")
+        self.assertEquals(instance.placement, "us-east-1b")
+
+    def test_run_instances(self):
+
+        class StubQuery(object):
+            def __init__(stub, action, creds, endpoint, params):
+                self.assertEqual(action, "RunInstances")
+                self.assertEqual(creds.access_key, "foo")
+                self.assertEqual(creds.secret_key, "bar")
+                self.assertEquals(
+                    params,
+                    {"ImageId": "ami-1234", "MaxCount": "2", "MinCount": "1",
+                     "SecurityGroup.1": u"group1", "KeyName": u"default",
+                     "UserData": "Zm9v", "InstanceType": u"m1.small",
+                     "Placement.AvailabilityZone": u"us-east-1b",
+                     "KernelId": u"k-1234", "RamdiskId": u"r-1234"})
+            def submit(self):
+                return succeed(
+                    payload.sample_run_instances_result)
+
+        creds = AWSCredentials("foo", "bar")
+        ec2 = client.EC2Client(creds, query_factory=StubQuery)
+        d = ec2.run_instances("ami-1234", 1, 2, security_groups=[u"group1"],
+            key_name=u"default", user_data=u"foo", instance_type=u"m1.small",
+            availability_zone=u"us-east-1b", kernel_id=u"k-1234",
+            ramdisk_id=u"r-1234")
+        d.addCallback(self.check_parsed_run_instances)
+
+
+class EC2ClientSecurityGroupsTestCase(TXAWSTestCase):
+
     def test_describe_security_groups(self):
         """
         L{EC2Client.describe_security_groups} returns a C{Deferred} that
@@ -200,7 +329,7 @@ class EC2ClientTestCase(TXAWSTestCase):
             def submit(self):
                 return succeed(payload.sample_describe_security_groups_result)
 
-        def assert_security_groups(security_groups):
+        def check_results(security_groups):
             [security_group] = security_groups
             self.assertEquals(security_group.owner_id,
                               "UYY3TLBUXIEON5NQVUUX6OMPWBZIQNFM")
@@ -214,9 +343,8 @@ class EC2ClientTestCase(TXAWSTestCase):
 
         creds = AWSCredentials("foo", "bar")
         ec2 = client.EC2Client(creds, query_factory=StubQuery)
-        security_groups = ec2.describe_security_groups()
-        security_groups.addCallback(assert_security_groups)
-        return security_groups
+        d = ec2.describe_security_groups()
+        return d.addCallback(check_results)
 
     def test_describe_security_groups_with_multiple_results(self):
         """
@@ -234,7 +362,7 @@ class EC2ClientTestCase(TXAWSTestCase):
                 return succeed(
                     payload.sample_describe_security_groups_multiple_result)
 
-        def assert_security_groups(security_groups):
+        def check_results(security_groups):
             self.assertEquals(len(security_groups), 2)
 
             security_group = security_groups[0]
@@ -259,13 +387,12 @@ class EC2ClientTestCase(TXAWSTestCase):
             self.assertEquals(
                 [(ip.ip_protocol, ip.from_port, ip.to_port, ip.cidr_ip)
                  for ip in security_group.allowed_ips],
-                [("tcp", 80, 80, "0.0.0.0/0"), ("udp", 81, 81, "0.0.0.0/16")])
+                [("tcp", 80, 80, "0.0.0.0/0")])
 
         creds = AWSCredentials("foo", "bar")
         ec2 = client.EC2Client(creds, query_factory=StubQuery)
-        security_groups = ec2.describe_security_groups()
-        security_groups.addCallback(assert_security_groups)
-        return security_groups
+        d = ec2.describe_security_groups()
+        return d.addCallback(check_results)
 
     def test_describe_security_groups_with_name(self):
         """
@@ -281,267 +408,354 @@ class EC2ClientTestCase(TXAWSTestCase):
             def submit(self):
                 return succeed(payload.sample_describe_security_groups_result)
 
-        def assert_security_groups(security_groups):
+        def check_result(security_groups):
             [security_group] = security_groups
             self.assertEquals(security_group.name, "WebServers")
 
         creds = AWSCredentials("foo", "bar")
         ec2 = client.EC2Client(creds, query_factory=StubQuery)
-        security_groups = ec2.describe_security_groups("WebServers")
-        security_groups.addCallback(assert_security_groups)
-        return security_groups
+        d = ec2.describe_security_groups("WebServers")
+        return d.addCallback(check_result)
 
+    def test_create_security_group(self):
+        """
+        L{EC2Client.create_security_group} returns a C{Deferred} that
+        eventually fires with a true value, indicating the success of the
+        operation.
+        """
+        class StubQuery(object):
+            def __init__(stub, action, creds, endpoint, other_params=None):
+                self.assertEqual(action, "CreateSecurityGroup")
+                self.assertEqual(creds.access_key, "foo")
+                self.assertEqual(creds.secret_key, "bar")
+                self.assertEqual(other_params, {
+                    "GroupName": "WebServers",
+                    "GroupDescription": "The group for the web server farm.",
+                    })
+            def submit(self):
+                return succeed(payload.sample_create_security_group)
 
-class QueryTestCase(TXAWSTestCase):
+        creds = AWSCredentials("foo", "bar")
+        ec2 = client.EC2Client(creds, query_factory=StubQuery)
+        d = ec2.create_security_group(
+            "WebServers",
+            "The group for the web server farm.")
+        return self.assertTrue(d)
 
-    def setUp(self):
-        TXAWSTestCase.setUp(self)
-        self.creds = AWSCredentials("foo", "bar")
-        self.endpoint = AWSServiceEndpoint(uri=EC2_ENDPOINT_US)
+    def test_delete_security_group(self):
+        """
+        L{EC2Client.delete_security_group} returns a C{Deferred} that
+        eventually fires with a true value, indicating the success of the
+        operation.
+        """
+        class StubQuery(object):
+            def __init__(stub, action, creds, endpoint, other_params=None):
+                self.assertEqual(action, "DeleteSecurityGroup")
+                self.assertEqual(creds.access_key, "foo")
+                self.assertEqual(creds.secret_key, "bar")
+                self.assertEqual(other_params, {
+                    "GroupName": "WebServers",
+                    })
+            def submit(self):
+                return succeed(payload.sample_delete_security_group)
 
-    def test_init_minimum(self):
-        query = client.Query("DescribeInstances", self.creds, self.endpoint)
-        self.assertTrue("Timestamp" in query.params)
-        del query.params["Timestamp"]
-        self.assertEqual(
-            {"AWSAccessKeyId": "foo",
-             "Action": "DescribeInstances",
-             "SignatureMethod": "HmacSHA1",
-             "SignatureVersion": "2",
-             "Version": "2008-12-01"},
-            query.params)
+        creds = AWSCredentials("foo", "bar")
+        ec2 = client.EC2Client(creds, query_factory=StubQuery)
+        d = ec2.delete_security_group("WebServers")
+        return self.assertTrue(d)
 
-    def test_init_requires_action(self):
-        self.assertRaises(TypeError, client.Query)
-
-    def test_init_requires_creds(self):
-        self.assertRaises(TypeError, client.Query, None)
-
-    def test_init_other_args_are_params(self):
-        query = client.Query("DescribeInstances", self.creds, self.endpoint,
-            {"InstanceId.0": "12345"},
-            time_tuple=(2007,11,12,13,14,15,0,0,0))
-        self.assertEqual(
-            {"AWSAccessKeyId": "foo",
-             "Action": "DescribeInstances",
-             "InstanceId.0": "12345",
-             "SignatureMethod": "HmacSHA1",
-             "SignatureVersion": "2",
-             "Timestamp": "2007-11-12T13:14:15Z",
-             "Version": "2008-12-01"},
-            query.params)
-
-    def test_sorted_params(self):
-        query = client.Query("DescribeInstances", self.creds, self.endpoint,
-            {"fun": "games"},
-            time_tuple=(2007,11,12,13,14,15,0,0,0))
-        self.assertEqual([
-            ("AWSAccessKeyId", "foo"),
-            ("Action", "DescribeInstances"),
-            ("SignatureMethod", "HmacSHA1"),
-            ("SignatureVersion", "2"),
-            ("Timestamp", "2007-11-12T13:14:15Z"),
-            ("Version", "2008-12-01"),
-            ("fun", "games"),
-            ], query.sorted_params())
-
-    def test_encode_unreserved(self):
-        all_unreserved = ("ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-            "abcdefghijklmnopqrstuvwxyz0123456789-_.~")
-        query = client.Query("DescribeInstances", self.creds, self.endpoint)
-        self.assertEqual(all_unreserved, query.encode(all_unreserved))
-
-    def test_encode_space(self):
-        """This may be just "url encode", but the AWS manual isn't clear."""
-        query = client.Query("DescribeInstances", self.creds, self.endpoint)
-        self.assertEqual("a%20space", query.encode("a space"))
-
-    def test_canonical_query(self):
-        query = client.Query("DescribeInstances", self.creds, self.endpoint,
-            {"fu n": "g/ames", "argwithnovalue":"",
-             "InstanceId.1": "i-1234"},
-            time_tuple=(2007,11,12,13,14,15,0,0,0))
-        expected_query = ("AWSAccessKeyId=foo&Action=DescribeInstances"
-            "&InstanceId.1=i-1234"
-            "&SignatureMethod=HmacSHA1&SignatureVersion=2&"
-            "Timestamp=2007-11-12T13%3A14%3A15Z&Version=2008-12-01&"
-            "argwithnovalue=&fu%20n=g%2Fames")
-        self.assertEqual(expected_query, query.canonical_query_params())
-
-    def test_signing_text(self):
-        query = client.Query("DescribeInstances", self.creds, self.endpoint,
-            time_tuple=(2007,11,12,13,14,15,0,0,0))
-        signing_text = ("GET\n%s\n/\n" % self.endpoint.host +
-            "AWSAccessKeyId=foo&Action=DescribeInstances&"
-            "SignatureMethod=HmacSHA1&SignatureVersion=2&"
-            "Timestamp=2007-11-12T13%3A14%3A15Z&Version=2008-12-01")
-        self.assertEqual(signing_text, query.signing_text())
-
-    def test_sign(self):
-        query = client.Query("DescribeInstances", self.creds, self.endpoint,
-            time_tuple=(2007,11,12,13,14,15,0,0,0))
-        query.sign()
-        self.assertEqual("JuCpwFA2H4OVF3Ql/lAQs+V6iMc=",
-            query.params["Signature"])
-
-    def test_submit_400(self):
-        """A 4xx response status from EC2 should raise a txAWS EC2Error."""
-        status = 400
-        self.addCleanup(setattr, client.Query, "get_page",
-                        client.Query.get_page)
-        fake_page_getter = FakePageGetter(
-            status, payload.sample_ec2_error_message)
-        client.Query.get_page = fake_page_getter.get_page_with_exception
+    def test_delete_security_group_failure(self):
+        """
+        L{EC2Client.delete_security_group} returns a C{Deferred} that
+        eventually fires with a failure when EC2 is asked to delete a group
+        that another group uses in that other group's policy.
+        """
+        class StubQuery(object):
+            def __init__(stub, action, creds, endpoint, other_params=None):
+                self.assertEqual(action, "DeleteSecurityGroup")
+                self.assertEqual(creds.access_key, "foo")
+                self.assertEqual(creds.secret_key, "bar")
+                self.assertEqual(other_params, {
+                    "GroupName": "GroupReferredTo",
+                    })
+            def submit(self):
+                error = EC2Error(payload.sample_delete_security_group_failure)
+                return fail(error)
 
         def check_error(error):
-            self.assertTrue(isinstance(error, EC2Error))
-            self.assertEquals(error.get_error_codes(), "Error.Code")
             self.assertEquals(
-                error.get_error_messages(),
-                "Message for Error.Code")
-            self.assertEquals(error.status, status)
-            self.assertEquals(error.response, payload.sample_ec2_error_message)
-        
-        query = client.Query(
-            'BadQuery', self.creds, self.endpoint,
-            time_tuple=(2009,8,15,13,14,15,0,0,0))
+                str(error),
+                ("Error Message: Group groupID1:GroupReferredTo is used by "
+                 "groups: groupID2:UsingGroup"))
 
-        failure = query.submit()
+        creds = AWSCredentials("foo", "bar")
+        ec2 = client.EC2Client(creds, query_factory=StubQuery)
+        failure = ec2.delete_security_group("GroupReferredTo")
         d = self.assertFailure(failure, EC2Error)
-        d.addCallback(check_error)
-        return d
+        return d.addCallback(check_error)
 
-    def test_submit_500(self):
+    def test_authorize_security_group_with_user_group_pair(self):
         """
-        A 5xx response status from EC2 should raise the original Twisted
-        exception.
+        L{EC2Client.authorize_security_group} returns a C{Deferred} that
+        eventually fires with a true value, indicating the success of the
+        operation. There are two ways to use the method: set another group's
+        IP permissions or set new IP permissions; this test checks the first
+        way.
         """
-        status = 500
-        self.addCleanup(setattr, client.Query, "get_page",
-                        client.Query.get_page)
-        fake_page_getter = FakePageGetter(
-            status, payload.sample_ec2_error_message)
-        client.Query.get_page = fake_page_getter.get_page_with_exception
+        class StubQuery(object):
+            def __init__(stub, action, creds, endpoint, other_params=None):
+                self.assertEqual(action, "AuthorizeSecurityGroupIngress")
+                self.assertEqual(creds.access_key, "foo")
+                self.assertEqual(creds.secret_key, "bar")
+                self.assertEqual(other_params, {
+                    "GroupName": "WebServers",
+                    "SourceSecurityGroupName": "AppServers",
+                    "SourceSecurityGroupOwnerId": "123456789123",
+                    })
+            def submit(self):
+                return succeed(payload.sample_authorize_security_group)
 
-        def check_error(error):
-            self.assertFalse(isinstance(error, EC2Error))
-            self.assertEquals(error.status, status)
-            self.assertEquals(str(error), "500 There's been an error")
-        
-        query = client.Query(
-            'BadQuery', self.creds, self.endpoint,
-            time_tuple=(2009,8,15,13,14,15,0,0,0))
+        creds = AWSCredentials("foo", "bar")
+        ec2 = client.EC2Client(creds, query_factory=StubQuery)
+        d = ec2.authorize_security_group(
+            "WebServers", source_group_name="AppServers",
+            source_group_owner_id="123456789123")
+        return self.assertTrue(d)
 
-        failure = query.submit()
-        d = self.assertFailure(failure, Error)
-        d.addCallback(check_error)
-        return d
+    def test_authorize_security_group_with_ip_permissions(self):
+        """
+        L{EC2Client.authorize_security_group} returns a C{Deferred} that
+        eventually fires with a true value, indicating the success of the
+        operation. There are two ways to use the method: set another group's
+        IP permissions or set new IP permissions; this test checks the second
+        way.
+        """
+        class StubQuery(object):
+            def __init__(stub, action, creds, endpoint, other_params=None):
+                self.assertEqual(action, "AuthorizeSecurityGroupIngress")
+                self.assertEqual(creds.access_key, "foo")
+                self.assertEqual(creds.secret_key, "bar")
+                self.assertEqual(other_params, {
+                    "GroupName": "WebServers",
+                    "FromPort": "22", "ToPort": "80",
+                    "IpProtocol": "tcp", "CidrIp": "0.0.0.0/0",
+                    })
+            def submit(self):
+                return succeed(payload.sample_authorize_security_group)
+
+        creds = AWSCredentials("foo", "bar")
+        ec2 = client.EC2Client(creds, query_factory=StubQuery)
+        d = ec2.authorize_security_group(
+            "WebServers", ip_protocol="tcp", from_port="22", to_port="80",
+            cidr_ip="0.0.0.0/0")
+        return self.assertTrue(d)
+
+    def test_authorize_security_group_with_missing_parameters(self):
+        """
+        L{EC2Client.authorize_security_group} returns a C{Deferred} that
+        eventually fires with a true value, indicating the success of the
+        operation. There are two ways to use the method: set another group's
+        IP permissions or set new IP permissions. If not all group-setting
+        parameters are set and not all IP permission parameters are set, an
+        error is raised.
+        """
+        creds = AWSCredentials("foo", "bar")
+        ec2 = client.EC2Client(creds)
+        self.assertRaises(ValueError, ec2.authorize_security_group,
+                "WebServers", ip_protocol="tcp", from_port="22")
+        try:
+            ec2.authorize_security_group(
+                "WebServers", ip_protocol="tcp", from_port="22")
+        except Exception, error:
+            self.assertEquals(
+                str(error),
+                ("You must specify either both group parameters or all the "
+                 "ip parameters."))
+
+    def test_authorize_group_permission(self):
+        """
+        L{EC2Client.authorize_group_permission} returns a C{Deferred}
+        that eventually fires with a true value, indicating the success of the
+        operation.
+        """
+        class StubQuery(object):
+            def __init__(stub, action, creds, endpoint, other_params=None):
+                self.assertEqual(action, "AuthorizeSecurityGroupIngress")
+                self.assertEqual(creds.access_key, "foo")
+                self.assertEqual(creds.secret_key, "bar")
+                self.assertEqual(other_params, {
+                    "GroupName": "WebServers",
+                    "SourceSecurityGroupName": "AppServers",
+                    "SourceSecurityGroupOwnerId": "123456789123",
+                    })
+            def submit(self):
+                return succeed(payload.sample_authorize_security_group)
+
+        creds = AWSCredentials("foo", "bar")
+        ec2 = client.EC2Client(creds, query_factory=StubQuery)
+        d = ec2.authorize_group_permission(
+            "WebServers", source_group_name="AppServers",
+            source_group_owner_id="123456789123")
+        return self.assertTrue(d)
+
+    def test_authorize_ip_permission(self):
+        """
+        L{EC2Client.authorize_ip_permission} returns a C{Deferred} that
+        eventually fires with a true value, indicating the success of the
+        operation.
+        """
+        class StubQuery(object):
+            def __init__(stub, action, creds, endpoint, other_params=None):
+                self.assertEqual(action, "AuthorizeSecurityGroupIngress")
+                self.assertEqual(creds.access_key, "foo")
+                self.assertEqual(creds.secret_key, "bar")
+                self.assertEqual(other_params, {
+                    "GroupName": "WebServers",
+                    "FromPort": "22", "ToPort": "80",
+                    "IpProtocol": "tcp", "CidrIp": "0.0.0.0/0",
+                    })
+            def submit(self):
+                return succeed(payload.sample_authorize_security_group)
+
+        creds = AWSCredentials("foo", "bar")
+        ec2 = client.EC2Client(creds, query_factory=StubQuery)
+        d = ec2.authorize_ip_permission(
+            "WebServers", ip_protocol="tcp", from_port="22", to_port="80",
+            cidr_ip="0.0.0.0/0")
+        return self.assertTrue(d)
+
+    def test_revoke_security_group_with_user_group_pair(self):
+        """
+        L{EC2Client.revoke_security_group} returns a C{Deferred} that
+        eventually fires with a true value, indicating the success of the
+        operation. There are two ways to use the method: set another group's
+        IP permissions or set new IP permissions; this test checks the first
+        way.
+        """
+        class StubQuery(object):
+            def __init__(stub, action, creds, endpoint, other_params=None):
+                self.assertEqual(action, "RevokeSecurityGroupIngress")
+                self.assertEqual(creds.access_key, "foo")
+                self.assertEqual(creds.secret_key, "bar")
+                self.assertEqual(other_params, {
+                    "GroupName": "WebServers",
+                    "SourceSecurityGroupName": "AppServers",
+                    "SourceSecurityGroupOwnerId": "123456789123",
+                    })
+            def submit(self):
+                return succeed(payload.sample_revoke_security_group)
+
+        creds = AWSCredentials("foo", "bar")
+        ec2 = client.EC2Client(creds, query_factory=StubQuery)
+        d = ec2.revoke_security_group(
+            "WebServers", source_group_name="AppServers",
+            source_group_owner_id="123456789123")
+        return self.assertTrue(d)
+
+    def test_revoke_security_group_with_ip_permissions(self):
+        """
+        L{EC2Client.revoke_security_group} returns a C{Deferred} that
+        eventually fires with a true value, indicating the success of the
+        operation. There are two ways to use the method: set another group's
+        IP permissions or set new IP permissions; this test checks the second
+        way.
+        """
+        class StubQuery(object):
+            def __init__(stub, action, creds, endpoint, other_params=None):
+                self.assertEqual(action, "RevokeSecurityGroupIngress")
+                self.assertEqual(creds.access_key, "foo")
+                self.assertEqual(creds.secret_key, "bar")
+                self.assertEqual(other_params, {
+                    "GroupName": "WebServers",
+                    "FromPort": "22", "ToPort": "80",
+                    "IpProtocol": "tcp", "CidrIp": "0.0.0.0/0",
+                    })
+            def submit(self):
+                return succeed(payload.sample_revoke_security_group)
+
+        creds = AWSCredentials("foo", "bar")
+        ec2 = client.EC2Client(creds, query_factory=StubQuery)
+        d = ec2.revoke_security_group(
+            "WebServers", ip_protocol="tcp", from_port="22", to_port="80",
+            cidr_ip="0.0.0.0/0")
+        return self.assertTrue(d)
+
+    def test_revoke_security_group_with_missing_parameters(self):
+        """
+        L{EC2Client.revoke_security_group} returns a C{Deferred} that
+        eventually fires with a true value, indicating the success of the
+        operation. There are two ways to use the method: set another group's
+        IP permissions or set new IP permissions. If not all group-setting
+        parameters are set and not all IP permission parameters are set, an
+        error is raised.
+        """
+        creds = AWSCredentials("foo", "bar")
+        ec2 = client.EC2Client(creds)
+        self.assertRaises(ValueError, ec2.authorize_security_group,
+                "WebServers", ip_protocol="tcp", from_port="22")
+        try:
+            ec2.authorize_security_group(
+                "WebServers", ip_protocol="tcp", from_port="22")
+        except Exception, error:
+            self.assertEquals(
+                str(error),
+                ("You must specify either both group parameters or all the "
+                 "ip parameters."))
+
+    def test_revoke_group_permission(self):
+        """
+        L{EC2Client.revoke_group_permission} returns a C{Deferred} that
+        eventually fires with a true value, indicating the success of the
+        operation.
+        """
+        class StubQuery(object):
+            def __init__(stub, action, creds, endpoint, other_params=None):
+                self.assertEqual(action, "RevokeSecurityGroupIngress")
+                self.assertEqual(creds.access_key, "foo")
+                self.assertEqual(creds.secret_key, "bar")
+                self.assertEqual(other_params, {
+                    "GroupName": "WebServers",
+                    "SourceSecurityGroupName": "AppServers",
+                    "SourceSecurityGroupOwnerId": "123456789123",
+                    })
+            def submit(self):
+                return succeed(payload.sample_revoke_security_group)
+
+        creds = AWSCredentials("foo", "bar")
+        ec2 = client.EC2Client(creds, query_factory=StubQuery)
+        d = ec2.revoke_group_permission(
+            "WebServers", source_group_name="AppServers",
+            source_group_owner_id="123456789123")
+        return self.assertTrue(d)
+
+    def test_revoke_ip_permission(self):
+        """
+        L{EC2Client.revoke_ip_permission} returns a C{Deferred} that
+        eventually fires with a true value, indicating the success of the
+        operation.
+        """
+        class StubQuery(object):
+            def __init__(stub, action, creds, endpoint, other_params=None):
+                self.assertEqual(action, "RevokeSecurityGroupIngress")
+                self.assertEqual(creds.access_key, "foo")
+                self.assertEqual(creds.secret_key, "bar")
+                self.assertEqual(other_params, {
+                    "GroupName": "WebServers",
+                    "FromPort": "22", "ToPort": "80",
+                    "IpProtocol": "tcp", "CidrIp": "0.0.0.0/0",
+                    })
+            def submit(self):
+                return succeed(payload.sample_revoke_security_group)
+
+        creds = AWSCredentials("foo", "bar")
+        ec2 = client.EC2Client(creds, query_factory=StubQuery)
+        d = ec2.revoke_ip_permission(
+            "WebServers", ip_protocol="tcp", from_port="22", to_port="80",
+            cidr_ip="0.0.0.0/0")
+        return self.assertTrue(d)
 
 
-class QueryPageGetterTestCase(TXAWSTestCase):
-
-    def setUp(self):
-        TXAWSTestCase.setUp(self)
-        self.creds = AWSCredentials("foo", "bar")
-        self.endpoint = AWSServiceEndpoint(uri=EC2_ENDPOINT_US)
-        self.twisted_client_test_setup()
-        self.cleanupServerConnections = 0
-
-    def tearDown(self):
-        """Copied from twisted.web.test.test_webclient."""
-        # If the test indicated it might leave some server-side connections
-        # around, clean them up.
-        connections = self.wrapper.protocols.keys()
-        # If there are fewer server-side connections than requested,
-        # that's okay.  Some might have noticed that the client closed
-        # the connection and cleaned up after themselves.
-        for n in range(min(len(connections), self.cleanupServerConnections)):
-            proto = connections.pop()
-            #msg("Closing %r" % (proto,))
-            proto.transport.loseConnection()
-        if connections:
-            #msg("Some left-over connections; this test is probably buggy.")
-            pass
-        return self.port.stopListening()
-
-    def _listen(self, site):
-        return reactor.listenTCP(0, site, interface="127.0.0.1")
-
-    def twisted_client_test_setup(self):
-        name = self.mktemp()
-        os.mkdir(name)
-        FilePath(name).child("file").setContent("0123456789")
-        resource = static.File(name)
-        resource.putChild("redirect", util.Redirect("/file"))
-        self.site = server.Site(resource, timeout=None)
-        self.wrapper = WrappingFactory(self.site)
-        self.port = self._listen(self.wrapper)
-        self.portno = self.port.getHost().port
-
-    def get_url(self, path):
-        return "http://127.0.0.1:%d/%s" % (self.portno, path)
-
-    def test_get_page(self):
-        """Copied from twisted.web.test.test_webclient."""
-        query = client.Query(
-            'DummyQuery', self.creds, self.endpoint,
-            time_tuple=(2009,8,17,13,14,15,0,0,0))
-        deferred = query.get_page(self.get_url("file"))
-        deferred.addCallback(self.assertEquals, "0123456789")
-        return deferred
-
-
-class EC2ErrorWrapperTestCase(TXAWSTestCase):
-
-    def setUp(self):
-        TXAWSTestCase.setUp(self)
-
-    def get_failure(self, status=None, type=None, message=""):
-        failure = Failure(type(message))
-        failure.value.response = payload.sample_ec2_error_message
-        failure.value.status = status
-        return failure
-
-    def test_302_error(self):
-        failure = self.get_failure(302, Exception, "found")
-        error = self.assertRaises(Exception, client.ec2_error_wrapper, failure)
-        self.assertEquals(failure.type, type(error))
-        self.assertFalse(isinstance(error, EC2Error))
-        self.assertTrue(isinstance(error, Exception))
-        self.assertEquals(error.message, "found")
-
-    def test_400_error(self):
-        failure = self.get_failure(400, Exception)
-        error = self.assertRaises(EC2Error, client.ec2_error_wrapper, failure)
-        self.assertNotEquals(failure.type, type(error))
-        self.assertTrue(isinstance(error, EC2Error))
-        self.assertEquals(error.get_error_codes(), "Error.Code")
-        self.assertEquals(error.get_error_messages(), "Message for Error.Code")
-
-    def test_404_error(self):
-        failure = self.get_failure(404, Exception)
-        error = self.assertRaises(EC2Error, client.ec2_error_wrapper, failure)
-        self.assertNotEquals(failure.type, type(error))
-        self.assertTrue(isinstance(error, EC2Error))
-        self.assertEquals(error.get_error_codes(), "Error.Code")
-        self.assertEquals(error.get_error_messages(), "Message for Error.Code")
-
-    def test_500_error(self):
-        failure = self.get_failure(500, Exception, "A server error occurred")
-        error = self.assertRaises(Exception, client.ec2_error_wrapper, failure)
-        self.assertFalse(isinstance(error, EC2Error))
-        self.assertTrue(isinstance(error, Exception))
-        self.assertEquals(error.message, "A server error occurred")
-
-    def test_timeout_error(self):
-        failure = self.get_failure(type=Exception, message="timeout")
-        error = self.assertRaises(Exception, client.ec2_error_wrapper, failure)
-        self.assertFalse(isinstance(error, EC2Error))
-        self.assertTrue(isinstance(error, Exception))
-        self.assertEquals(error.message, "timeout")
-
-
-class EBSTestCase(TXAWSTestCase):
+class EC2ClientEBSTestCase(TXAWSTestCase):
 
     def setUp(self):
         TXAWSTestCase.setUp(self)
@@ -554,14 +768,15 @@ class EBSTestCase(TXAWSTestCase):
         self.assertEquals(volume.id, "vol-4282672b")
         self.assertEquals(volume.size, 800)
         self.assertEquals(volume.status, "in-use")
+        self.assertEquals(volume.availability_zone, "us-east-1a")
+        self.assertEquals(volume.snapshot_id, "snap-12345678")
         create_time = datetime(2008, 05, 07, 11, 51, 50)
         self.assertEquals(volume.create_time, create_time)
         self.assertEquals(len(volume.attachments), 1)
         attachment = volume.attachments[0]
         self.assertEquals(attachment.instance_id, "i-6058a509")
-        self.assertEquals(attachment.snapshot_id, "snap-12345678")
-        self.assertEquals(attachment.availability_zone, "us-east-1a")
         self.assertEquals(attachment.status, "attached")
+        self.assertEquals(attachment.device, u"/dev/sdh")
         attach_time = datetime(2008, 05, 07, 12, 51, 50)
         self.assertEquals(attachment.attach_time, attach_time)
 
@@ -668,6 +883,7 @@ class EBSTestCase(TXAWSTestCase):
         def check_parsed_volume(volume):
             self.assertEquals(volume.id, "vol-4d826724")
             self.assertEquals(volume.size, 800)
+            self.assertEquals(volume.snapshot_id, "")
             create_time = datetime(2008, 05, 07, 11, 51, 50)
             self.assertEquals(volume.create_time, create_time)
 
@@ -969,4 +1185,378 @@ class EBSTestCase(TXAWSTestCase):
         ec2 = client.EC2Client(creds="foo", query_factory=StubQuery)
         d = ec2.delete_keypair("example-key-name")
         d.addCallback(self.assertFalse)
+        return d
+
+
+class EC2ErrorWrapperTestCase(TXAWSTestCase):
+
+    def setUp(self):
+        TXAWSTestCase.setUp(self)
+
+    def get_failure(self, status=None, type=None, message=""):
+        failure = Failure(type(message))
+        failure.value.response = payload.sample_ec2_error_message
+        failure.value.status = status
+        return failure
+
+    def test_302_error(self):
+        failure = self.get_failure(302, Exception, "found")
+        error = self.assertRaises(Exception, client.ec2_error_wrapper, failure)
+        self.assertEquals(failure.type, type(error))
+        self.assertFalse(isinstance(error, EC2Error))
+        self.assertTrue(isinstance(error, Exception))
+        self.assertEquals(error.message, "found")
+
+    def test_400_error(self):
+        failure = self.get_failure(400, Exception)
+        error = self.assertRaises(EC2Error, client.ec2_error_wrapper, failure)
+        self.assertNotEquals(failure.type, type(error))
+        self.assertTrue(isinstance(error, EC2Error))
+        self.assertEquals(error.get_error_codes(), "Error.Code")
+        self.assertEquals(error.get_error_messages(), "Message for Error.Code")
+
+    def test_404_error(self):
+        failure = self.get_failure(404, Exception)
+        error = self.assertRaises(EC2Error, client.ec2_error_wrapper, failure)
+        self.assertNotEquals(failure.type, type(error))
+        self.assertTrue(isinstance(error, EC2Error))
+        self.assertEquals(error.get_error_codes(), "Error.Code")
+        self.assertEquals(error.get_error_messages(), "Message for Error.Code")
+
+    def test_500_error(self):
+        failure = self.get_failure(500, Exception, "A server error occurred")
+        error = self.assertRaises(Exception, client.ec2_error_wrapper, failure)
+        self.assertFalse(isinstance(error, EC2Error))
+        self.assertTrue(isinstance(error, Exception))
+        self.assertEquals(error.message, "A server error occurred")
+
+    def test_timeout_error(self):
+        failure = self.get_failure(type=Exception, message="timeout")
+        error = self.assertRaises(Exception, client.ec2_error_wrapper, failure)
+        self.assertFalse(isinstance(error, EC2Error))
+        self.assertTrue(isinstance(error, Exception))
+        self.assertEquals(error.message, "timeout")
+
+
+class QueryTestCase(TXAWSTestCase):
+
+    def setUp(self):
+        TXAWSTestCase.setUp(self)
+        self.creds = AWSCredentials("foo", "bar")
+        self.endpoint = AWSServiceEndpoint(uri=EC2_ENDPOINT_US)
+
+    def test_init_minimum(self):
+        query = client.Query("DescribeInstances", self.creds, self.endpoint)
+        self.assertTrue("Timestamp" in query.params)
+        del query.params["Timestamp"]
+        self.assertEqual(
+            {"AWSAccessKeyId": "foo",
+             "Action": "DescribeInstances",
+             "SignatureMethod": "HmacSHA256",
+             "SignatureVersion": "2",
+             "Version": "2008-12-01"},
+            query.params)
+
+    def test_init_requires_action(self):
+        self.assertRaises(TypeError, client.Query)
+
+    def test_init_requires_creds(self):
+        self.assertRaises(TypeError, client.Query, None)
+
+    def test_init_other_args_are_params(self):
+        query = client.Query("DescribeInstances", self.creds, self.endpoint,
+            {"InstanceId.0": "12345"},
+            time_tuple=(2007,11,12,13,14,15,0,0,0))
+        self.assertEqual(
+            {"AWSAccessKeyId": "foo",
+             "Action": "DescribeInstances",
+             "InstanceId.0": "12345",
+             "SignatureMethod": "HmacSHA256",
+             "SignatureVersion": "2",
+             "Timestamp": "2007-11-12T13:14:15Z",
+             "Version": "2008-12-01"},
+            query.params)
+
+    def test_sorted_params(self):
+        query = client.Query("DescribeInstances", self.creds, self.endpoint,
+            {"fun": "games"},
+            time_tuple=(2007,11,12,13,14,15,0,0,0))
+        self.assertEqual([
+            ("AWSAccessKeyId", "foo"),
+            ("Action", "DescribeInstances"),
+            ("SignatureMethod", "HmacSHA256"),
+            ("SignatureVersion", "2"),
+            ("Timestamp", "2007-11-12T13:14:15Z"),
+            ("Version", "2008-12-01"),
+            ("fun", "games"),
+            ], query.sorted_params())
+
+    def test_encode_unreserved(self):
+        all_unreserved = ("ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+            "abcdefghijklmnopqrstuvwxyz0123456789-_.~")
+        query = client.Query("DescribeInstances", self.creds, self.endpoint)
+        self.assertEqual(all_unreserved, query.encode(all_unreserved))
+
+    def test_encode_space(self):
+        """This may be just "url encode", but the AWS manual isn't clear."""
+        query = client.Query("DescribeInstances", self.creds, self.endpoint)
+        self.assertEqual("a%20space", query.encode("a space"))
+
+    def test_canonical_query(self):
+        query = client.Query("DescribeInstances", self.creds, self.endpoint,
+            {"fu n": "g/ames", "argwithnovalue":"",
+             "InstanceId.1": "i-1234"},
+            time_tuple=(2007,11,12,13,14,15,0,0,0))
+        expected_query = ("AWSAccessKeyId=foo&Action=DescribeInstances"
+            "&InstanceId.1=i-1234"
+            "&SignatureMethod=HmacSHA256&SignatureVersion=2&"
+            "Timestamp=2007-11-12T13%3A14%3A15Z&Version=2008-12-01&"
+            "argwithnovalue=&fu%20n=g%2Fames")
+        self.assertEqual(expected_query, query.canonical_query_params())
+
+    def test_signing_text(self):
+        query = client.Query("DescribeInstances", self.creds, self.endpoint,
+            time_tuple=(2007,11,12,13,14,15,0,0,0))
+        signing_text = ("GET\n%s\n/\n" % self.endpoint.host +
+            "AWSAccessKeyId=foo&Action=DescribeInstances&"
+            "SignatureMethod=HmacSHA256&SignatureVersion=2&"
+            "Timestamp=2007-11-12T13%3A14%3A15Z&Version=2008-12-01")
+        self.assertEqual(signing_text, query.signing_text())
+
+    def test_sign(self):
+        query = client.Query("DescribeInstances", self.creds, self.endpoint,
+            time_tuple=(2007, 11, 12, 13, 14, 15, 0, 0, 0))
+        query.sign()
+        self.assertEqual("aDmLr0Ktjsmt17UJD/EZf6DrfKWT1JW0fq2FDUCOPic=",
+            query.params["Signature"])
+
+    def test_submit_400(self):
+        """A 4xx response status from EC2 should raise a txAWS EC2Error."""
+        status = 400
+        self.addCleanup(setattr, client.Query, "get_page",
+                        client.Query.get_page)
+        fake_page_getter = FakePageGetter(
+            status, payload.sample_ec2_error_message)
+        client.Query.get_page = fake_page_getter.get_page_with_exception
+
+        def check_error(error):
+            self.assertTrue(isinstance(error, EC2Error))
+            self.assertEquals(error.get_error_codes(), "Error.Code")
+            self.assertEquals(
+                error.get_error_messages(),
+                "Message for Error.Code")
+            self.assertEquals(error.status, status)
+            self.assertEquals(error.response, payload.sample_ec2_error_message)
+
+        query = client.Query(
+            'BadQuery', self.creds, self.endpoint,
+            time_tuple=(2009,8,15,13,14,15,0,0,0))
+
+        failure = query.submit()
+        d = self.assertFailure(failure, EC2Error)
+        d.addCallback(check_error)
+        return d
+
+    def test_submit_500(self):
+        """
+        A 5xx response status from EC2 should raise the original Twisted
+        exception.
+        """
+        status = 500
+        self.addCleanup(setattr, client.Query, "get_page",
+                        client.Query.get_page)
+        fake_page_getter = FakePageGetter(
+            status, payload.sample_ec2_error_message)
+        client.Query.get_page = fake_page_getter.get_page_with_exception
+
+        def check_error(error):
+            self.assertFalse(isinstance(error, EC2Error))
+            self.assertEquals(error.status, status)
+            self.assertEquals(str(error), "500 There's been an error")
+
+        query = client.Query(
+            'BadQuery', self.creds, self.endpoint,
+            time_tuple=(2009,8,15,13,14,15,0,0,0))
+
+        failure = query.submit()
+        d = self.assertFailure(failure, Error)
+        d.addCallback(check_error)
+        return d
+
+
+class QueryPageGetterTestCase(TXAWSTestCase):
+
+    def setUp(self):
+        TXAWSTestCase.setUp(self)
+        self.creds = AWSCredentials("foo", "bar")
+        self.endpoint = AWSServiceEndpoint(uri=EC2_ENDPOINT_US)
+        self.twisted_client_test_setup()
+        self.cleanupServerConnections = 0
+
+    def tearDown(self):
+        """Copied from twisted.web.test.test_webclient."""
+        # If the test indicated it might leave some server-side connections
+        # around, clean them up.
+        connections = self.wrapper.protocols.keys()
+        # If there are fewer server-side connections than requested,
+        # that's okay.  Some might have noticed that the client closed
+        # the connection and cleaned up after themselves.
+        for n in range(min(len(connections), self.cleanupServerConnections)):
+            proto = connections.pop()
+            #msg("Closing %r" % (proto,))
+            proto.transport.loseConnection()
+        if connections:
+            #msg("Some left-over connections; this test is probably buggy.")
+            pass
+        return self.port.stopListening()
+
+    def _listen(self, site):
+        return reactor.listenTCP(0, site, interface="127.0.0.1")
+
+    def twisted_client_test_setup(self):
+        name = self.mktemp()
+        os.mkdir(name)
+        FilePath(name).child("file").setContent("0123456789")
+        resource = static.File(name)
+        resource.putChild("redirect", util.Redirect("/file"))
+        self.site = server.Site(resource, timeout=None)
+        self.wrapper = WrappingFactory(self.site)
+        self.port = self._listen(self.wrapper)
+        self.portno = self.port.getHost().port
+
+    def get_url(self, path):
+        return "http://127.0.0.1:%d/%s" % (self.portno, path)
+
+    def test_get_page(self):
+        """Copied from twisted.web.test.test_webclient."""
+        query = client.Query(
+            'DummyQuery', self.creds, self.endpoint,
+            time_tuple=(2009,8,17,13,14,15,0,0,0))
+        deferred = query.get_page(self.get_url("file"))
+        deferred.addCallback(self.assertEquals, "0123456789")
+        return deferred
+
+
+
+class EC2ClientAddressTestCase(TXAWSTestCase):
+
+    def setUp(self):
+        TXAWSTestCase.setUp(self)
+        self.creds = AWSCredentials("foo", "bar")
+        self.endpoint = AWSServiceEndpoint(uri=EC2_ENDPOINT_US)
+
+    def test_describe_addresses(self):
+
+        class StubQuery(object):
+            def __init__(stub, action, creds, endpoint, params):
+                self.assertEqual(action, "DescribeAddresses")
+                self.assertEqual(self.creds, creds)
+                self.assertEqual(self.endpoint, endpoint)
+                self.assertEquals(params, {})
+
+            def submit(self):
+                return succeed(payload.sample_describe_addresses_result)
+
+        ec2 = client.EC2Client(creds=self.creds, endpoint=self.endpoint,
+                               query_factory=StubQuery)
+        d = ec2.describe_addresses()
+        d.addCallback(
+            self.assertEquals, [("67.202.55.255", "i-28a64341"),
+                                ("67.202.55.233", None)])
+        return d
+
+    def test_describe_specified_addresses(self):
+
+        class StubQuery(object):
+            def __init__(stub, action, creds, endpoint, params):
+                self.assertEqual(action, "DescribeAddresses")
+                self.assertEqual(self.creds, creds)
+                self.assertEqual(self.endpoint, endpoint)
+                self.assertEquals(
+                    params,
+                    {"PublicIp.1": "67.202.55.255"})
+
+            def submit(self):
+                return succeed(payload.sample_describe_addresses_result)
+
+        ec2 = client.EC2Client(creds=self.creds, endpoint=self.endpoint,
+                               query_factory=StubQuery)
+        d = ec2.describe_addresses("67.202.55.255")
+        d.addCallback(
+            self.assertEquals, [("67.202.55.255", "i-28a64341"),
+                                ("67.202.55.233", None)])
+        return d
+
+    def test_associate_address(self):
+
+        class StubQuery(object):
+            def __init__(stub, action, creds, endpoint, params):
+                self.assertEqual(action, "AssociateAddress")
+                self.assertEqual(self.creds, creds)
+                self.assertEqual(self.endpoint, endpoint)
+                self.assertEquals(
+                    params,
+                    {"InstanceId": "i-28a64341", "PublicIp": "67.202.55.255"})
+
+            def submit(self):
+                return succeed(payload.sample_associate_address_result)
+
+        ec2 = client.EC2Client(creds=self.creds, endpoint=self.endpoint,
+                               query_factory=StubQuery)
+        d = ec2.associate_address("i-28a64341", "67.202.55.255")
+        d.addCallback(self.assertTrue)
+        return d
+
+    def test_allocate_address(self):
+
+        class StubQuery(object):
+            def __init__(stub, action, creds, endpoint, params):
+                self.assertEqual(action, "AllocateAddress")
+                self.assertEqual(self.creds, creds)
+                self.assertEqual(self.endpoint, endpoint)
+                self.assertEquals(params, {})
+
+            def submit(self):
+                return succeed(payload.sample_allocate_address_result)
+
+        ec2 = client.EC2Client(creds=self.creds, endpoint=self.endpoint,
+                               query_factory=StubQuery)
+        d = ec2.allocate_address()
+        d.addCallback(self.assertEquals, "67.202.55.255")
+        return d
+
+    def test_release_address(self):
+
+        class StubQuery(object):
+            def __init__(stub, action, creds, endpoint, params):
+                self.assertEqual(action, "ReleaseAddress")
+                self.assertEqual(self.creds, creds)
+                self.assertEqual(self.endpoint, endpoint)
+                self.assertEquals(params, {"PublicIp": "67.202.55.255"})
+
+            def submit(self):
+                return succeed(payload.sample_release_address_result)
+
+        ec2 = client.EC2Client(creds=self.creds, endpoint=self.endpoint,
+                               query_factory=StubQuery)
+        d = ec2.release_address("67.202.55.255")
+        d.addCallback(self.assertTrue)
+        return d
+
+    def test_disassociate_address(self):
+
+        class StubQuery(object):
+            def __init__(stub, action, creds, endpoint, params):
+                self.assertEqual(action, "DisassociateAddress")
+                self.assertEqual(self.creds, creds)
+                self.assertEqual(self.endpoint, endpoint)
+                self.assertEquals(params, {"PublicIp": "67.202.55.255"})
+
+            def submit(self):
+                return succeed(payload.sample_disassociate_address_result)
+
+        ec2 = client.EC2Client(creds=self.creds, endpoint=self.endpoint,
+                               query_factory=StubQuery)
+        d = ec2.disassociate_address("67.202.55.255")
+        d.addCallback(self.assertTrue)
         return d

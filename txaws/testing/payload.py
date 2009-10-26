@@ -81,6 +81,72 @@ sample_describe_instances_result = """\
 """ % (aws_api,)
 
 
+sample_run_instances_result = """\
+<?xml version="1.0"?>
+<RunInstancesResponse xmlns="http://ec2.amazonaws.com/doc/%s/">
+  <reservationId>r-47a5402e</reservationId>
+  <ownerId>495219933132</ownerId>
+  <groupSet>
+    <item>
+      <groupId>default</groupId>
+    </item>
+  </groupSet>
+  <instancesSet>
+    <item>
+      <instanceId>i-2ba64342</instanceId>
+      <imageId>ami-60a54009</imageId>
+      <instanceState>
+        <code>0</code>
+    <name>pending</name>
+      </instanceState>
+      <privateDnsName></privateDnsName>
+      <dnsName></dnsName>
+      <keyName>example-key-name</keyName>
+       <amiLaunchIndex>0</amiLaunchIndex>
+      <instanceType>m1.small</instanceType>
+      <launchTime>2007-08-07T11:51:50.000Z</launchTime>
+      <placement>
+        <availabilityZone>us-east-1b</availabilityZone>
+      </placement>
+    </item>
+    <item>
+      <instanceId>i-2bc64242</instanceId>
+      <imageId>ami-60a54009</imageId>
+      <instanceState>
+        <code>0</code>
+    <name>pending</name>
+      </instanceState>
+      <privateDnsName></privateDnsName>
+      <dnsName></dnsName>
+      <keyName>example-key-name</keyName>
+      <amiLaunchIndex>1</amiLaunchIndex>
+      <instanceType>m1.small</instanceType>
+      <launchTime>2007-08-07T11:51:50.000Z</launchTime>
+      <placement>
+        <availabilityZone>us-east-1b</availabilityZone>
+      </placement>
+    </item>
+    <item>
+      <instanceId>i-2be64332</instanceId>
+      <imageId>ami-60a54009</imageId>
+      <instanceState>
+        <code>0</code>
+    <name>pending</name>
+      </instanceState>
+      <privateDnsName></privateDnsName>
+      <dnsName></dnsName>
+      <keyName>example-key-name</keyName>
+      <amiLaunchIndex>2</amiLaunchIndex>
+      <instanceType>m1.small</instanceType>
+      <launchTime>2007-08-07T11:51:50.000Z</launchTime>
+      <placement>
+        <availabilityZone>us-east-1b</availabilityZone>
+      </placement>
+    </item>
+  </instancesSet>
+</RunInstancesResponse>
+""" % (aws_api,)
+
 sample_terminate_instances_result = """\
 <?xml version="1.0"?>
 <TerminateInstancesResponse xmlns="http://ec2.amazonaws.com/doc/%s/">
@@ -202,6 +268,74 @@ sample_describe_security_groups_multiple_result = """\
 """ % (aws_api,)
 
 
+sample_create_security_group = """\
+<CreateSecurityGroupResponse xmlns="http://ec2.amazonaws.com/doc/%s/">
+  <return>true</return>
+</CreateSecurityGroupResponse>
+""" % (aws_api,)
+
+
+sample_duplicate_create_security_group_result = """\
+<?xml version="1.0"?>
+<Response>
+  <Errors>
+    <Error>
+      <Code>InvalidGroup.Duplicate</Code>
+      <Message>The security group 'group1' already exists.</Message>
+    </Error>
+  </Errors>
+  <RequestID>89c977b5-22da-4c68-9148-9e0ebce5f68e</RequestID>
+</Response>
+"""
+
+sample_invalid_create_security_group_result = """\
+<?xml version="1.0"?>
+<Response>
+  <Errors>
+    <Error>
+      <Code>InvalidGroup.Reserved</Code>
+      <Message>Specified group name is a reserved name.</Message>
+    </Error>
+  </Errors>
+  <RequestID>89c977b5-22da-4c68-9148-9e0ebce5f68e</RequestID>
+</Response>
+"""
+
+sample_delete_security_group = """\
+<DeleteSecurityGroupResponse xmlns="http://ec2.amazonaws.com/doc/%s/">
+  <return>true</return>
+</DeleteSecurityGroupResponse>
+""" % (aws_api,)
+
+
+sample_delete_security_group_failure = """\
+<?xml version="1.0"?>
+<Response>
+  <Errors>
+    <Error>
+      <Code>InvalidGroup.InUse</Code>
+      <Message>Group groupID1:GroupReferredTo is used by groups: groupID2:UsingGroup</Message>
+    </Error>
+  </Errors>
+  <RequestID>9a6df05f-9c27-47aa-81d8-6619689210cc</RequestID>
+</Response>
+"""
+
+
+sample_authorize_security_group = """\
+<AuthorizeSecurityGroupIngressResponse xmlns="http://ec2.amazonaws.com/doc/%s/">
+  <return>true</return>
+</AuthorizeSecurityGroupIngressResponse>
+""" % (aws_api,)
+
+
+sample_revoke_security_group = """\
+<RevokeSecurityGroupIngressResponse xmlns="http://ec2.amazonaws.com/doc/%s/">
+  <return>true</return>
+</RevokeSecurityGroupIngressResponse>
+""" % (aws_api,)
+
+
 sample_describe_volumes_result = """\
 <?xml version="1.0"?>
 <DescribeVolumesResponse xmlns="http://ec2.amazonaws.com/doc/%s/">
@@ -211,13 +345,14 @@ sample_describe_volumes_result = """\
       <size>800</size>
       <status>in-use</status>
       <createTime>2008-05-07T11:51:50.000Z</createTime>
+      <availabilityZone>us-east-1a</availabilityZone>
+      <snapshotId>snap-12345678</snapshotId>
       <attachmentSet>
         <item>
           <volumeId>vol-4282672b</volumeId>
           <instanceId>i-6058a509</instanceId>
           <size>800</size>
-          <snapshotId>snap-12345678</snapshotId>
-          <availabilityZone>us-east-1a</availabilityZone>
+          <device>/dev/sdh</device>
           <status>attached</status>
           <attachTime>2008-05-07T12:51:50.000Z</attachTime>
         </item>
@@ -428,15 +563,94 @@ sample_duplicate_keypair_result = """\
 """
 
 
-sample_invalid_keypair_result = """\
+sample_allocate_address_result = """\
+<?xml version="1.0"?>
+<AllocateAddressResponse xmlns="http://ec2.amazonaws.com/doc/%s/">
+  <publicIp>67.202.55.255</publicIp>
+</AllocateAddressResponse>
+""" % (aws_api,)
+
+
+sample_release_address_result = """\
+<?xml version="1.0"?>
+<ReleaseAddressResponse xmlns="http://ec2.amazonaws.com/doc/%s/">
+  <return>true</return>
+</ReleaseAddressResponse>
+""" % (aws_api,)
+
+
+sample_associate_address_result = """\
+<?xml version="1.0"?>
+<AssociateAddressResponse xmlns="http://ec2.amazonaws.com/doc/%s/">
+  <return>true</return>
+</AssociateAddressResponse>
+""" % (aws_api,)
+
+
+sample_disassociate_address_result = """\
+<?xml version="1.0"?>
+<DisassociateAddressResponse xmlns="http://ec2.amazonaws.com/doc/%s/">
+  <return>true</return>
+</DisassociateAddressResponse>
+""" % (aws_api,)
+
+
+sample_describe_addresses_result = """\
+<DescribeAddressesResponse xmlns="http://ec2.amazonaws.com/doc/%s/">
+  <addressesSet>
+    <item>
+      <instanceId>i-28a64341</instanceId>
+      <publicIp>67.202.55.255</publicIp>
+    </item>
+    <item>
+      <publicIp>67.202.55.233</publicIp>
+    </item>
+  </addressesSet>
+</DescribeAddressesResponse>
+""" % (aws_api,)
+
+
+sample_describe_availability_zones_single_result = """\
+<DescribeAvailabilityZonesResponse xmlns="http://ec2.amazonaws.com/doc/%s/">
+  <availabilityZoneInfo>
+    <item>
+      <zoneName>us-east-1a</zoneName>
+      <zoneState>available</zoneState>
+    </item>
+  </availabilityZoneInfo>
+</DescribeAvailabilityZonesResponse>
+""" % (aws_api,)
+
+
+sample_describe_availability_zones_multiple_results = """\
+<DescribeAvailabilityZonesResponse xmlns="http://ec2.amazonaws.com/doc/%s/">
+  <availabilityZoneInfo>
+    <item>
+      <zoneName>us-east-1a</zoneName>
+      <zoneState>available</zoneState>
+    </item>
+    <item>
+      <zoneName>us-east-1b</zoneName>
+      <zoneState>available</zoneState>
+    </item>
+    <item>
+      <zoneName>us-east-1c</zoneName>
+      <zoneState>available</zoneState>
+    </item>
+  </availabilityZoneInfo>
+</DescribeAvailabilityZonesResponse>
+""" % (aws_api,)
+
+
+sample_invalid_client_token_result = """\
 <?xml version="1.0"?>
 <Response>
   <Errors>
     <Error>
-      <Code>InvalidKeyPair.Runtime</Code>
-      <Message>There is a problem with the keypair.</Message>
+      <Code>InvalidClientTokenId</Code>
+      <Message>The AWS Access Key Id you provided does not exist in our records.</Message>
     </Error>
   </Errors>
-  <RequestID>89c977b5-22da-4c68-9148-9e0ebce5f68e</RequestID>
+  <RequestID>47bfd77d-78d6-446d-be0d-f7621795dded</RequestID>
 </Response>
 """
