@@ -32,7 +32,7 @@ class EC2ErrorTestCase(TestCase):
         xml = "<a><b /><RequestID>%s</RequestID></a>" % REQUEST_ID
         error = EC2Error("<dummy />")
         error._set_request_id(XML(xml))
-        self.assertEquals(error.requestID, REQUEST_ID)
+        self.assertEquals(error.request_id, REQUEST_ID)
 
     def test_set_400_errors(self):
         errorsXML = "<Error><Code>1</Code><Message>2</Message></Error>"
@@ -41,6 +41,20 @@ class EC2ErrorTestCase(TestCase):
         error._set_400_errors(XML(xml))
         self.assertEquals(error.errors[0]["Code"], "1")
         self.assertEquals(error.errors[0]["Message"], "2")
+
+    def test_set_request_id(self):
+        host_id = "ASD@#FDG$E%FG"
+        xml = "<a><b /><HostID>%s</HostID></a>" % host_id
+        error = EC2Error("<dummy />")
+        error._set_host_id(XML(xml))
+        self.assertEquals(error.host_id, host_id)
+
+    def test_set_500_error(self):
+        xml = "<Error><Code>500</Code><Message>Oops</Message></Error>"
+        error = EC2Error("<dummy />")
+        error._set_500_error(XML(xml))
+        self.assertEquals(error.errors[0]["Code"], "500")
+        self.assertEquals(error.errors[0]["Message"], "Oops")
 
     def test_set_empty_errors(self):
         xml = "<a><Errors /><b /></a>"

@@ -661,7 +661,7 @@ sample_server_internal_error_result = """\
 <Error>
   <Code>InternalError</Code>
   <Message>We encountered an internal error. Please try again.</Message>
-  <RequestId>A2A7E5395E27DFBB</RequestId>
-  <HostId>f691zulHNsUqonsZkjhILnvWwD3ZnmOM4ObM1wXTc6xuS3GzPmjArp8QC/sGsn6K</HostId>
+  <RequestID>A2A7E5395E27DFBB</RequestID>
+  <HostID>f691zulHNsUqonsZkjhILnvWwD3ZnmOM4ObM1wXTc6xuS3GzPmjArp8QC/sGsn6K</HostID>
 </Error>
 """
