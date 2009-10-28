@@ -11,6 +11,7 @@ from base64 import b64encode
 
 from twisted.internet import reactor, ssl
 from twisted.web.client import HTTPClientFactory
+from twisted.web.error import Error as TwistedWebError
 
 from txaws import version
 from txaws.credentials import AWSCredentials
@@ -26,9 +27,13 @@ __all__ = ["EC2Client"]
 def ec2_error_wrapper(error):
     xml_payload = error.value.response
     http_status = None
+    if error.check(TwistedWebError):
+        error.raiseException()
     if hasattr(error.value, "status"):
         if error.value.status:
             http_status = int(error.value.status)
+    else:
+        error.raiseException()
     if 400 <= http_status < 500:
         raise EC2Error(xml_payload, error.value.status, error.value.message,
                        error.value.response)
@@ -622,7 +627,10 @@ class EC2Client(object):
     def _parse_describe_keypairs(self, xml_bytes):
         results = []
         root = XML(xml_bytes)
-        for keypair_data in root.find("keySet"):
+        keypairs = root.find("keySet")
+        if not keypairs:
+            return results
+        for keypair_data in keypairs:
             key_name = keypair_data.findtext("keyName")
             key_fingerprint = keypair_data.findtext("keyFingerprint")
             results.append(model.Keypair(key_name, key_fingerprint))
