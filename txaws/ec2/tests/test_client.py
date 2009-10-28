@@ -19,7 +19,6 @@ from txaws.credentials import AWSCredentials
 from txaws.ec2 import client
 from txaws.ec2 import model
 from txaws.ec2.exception import EC2Error
-from txaws.exception import AWSResponseParseError
 from txaws.service import AWSServiceEndpoint, EC2_ENDPOINT_US
 from txaws.testing import payload
 from txaws.testing.base import TXAWSTestCase

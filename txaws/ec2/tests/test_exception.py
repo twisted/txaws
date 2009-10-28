@@ -42,7 +42,7 @@ class EC2ErrorTestCase(TestCase):
         self.assertEquals(error.errors[0]["Code"], "1")
         self.assertEquals(error.errors[0]["Message"], "2")
 
-    def test_set_request_id(self):
+    def test_set_host_id(self):
         host_id = "ASD@#FDG$E%FG"
         xml = "<a><b /><HostID>%s</HostID></a>" % host_id
         error = EC2Error("<dummy />")
