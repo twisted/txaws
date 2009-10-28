@@ -11,7 +11,7 @@ from twisted.internet.defer import succeed, fail
 from twisted.python.failure import Failure
 from twisted.python.filepath import FilePath
 from twisted.web import server, static, util
-from twisted.web.error import Error
+from twisted.web.error import Error as TwistedWebError
 from twisted.protocols.policies import WrappingFactory
 
 from txaws.credentials import AWSCredentials
@@ -1216,12 +1216,11 @@ class EC2ErrorWrapperTestCase(TXAWSTestCase):
         self.assertEquals(error.get_error_messages(), "Message for Error.Code")
 
     def test_404_error(self):
-        failure = self.get_failure(404, Exception)
-        error = self.assertRaises(EC2Error, client.ec2_error_wrapper, failure)
-        self.assertNotEquals(failure.type, type(error))
-        self.assertTrue(isinstance(error, EC2Error))
-        self.assertEquals(error.get_error_codes(), "Error.Code")
-        self.assertEquals(error.get_error_messages(), "Message for Error.Code")
+        failure = self.get_failure(404, TwistedWebError, "not found")
+        error = self.assertRaises(
+            TwistedWebError, client.ec2_error_wrapper, failure)
+        self.assertTrue(isinstance(error, TwistedWebError))
+        self.assertEquals(error.status, 404)
 
     def test_500_error(self):
         failure = self.get_failure(500, Exception, "A server error occurred")
@@ -1331,7 +1330,7 @@ class QueryTestCase(TXAWSTestCase):
             query.params["Signature"])
 
     def test_submit_400(self):
-        """A 4xx response status from EC2 should raise a txAWS EC2Error."""
+        """A 4xx response status from EC2 should raise a Twisted web error."""
         status = 400
         self.addCleanup(setattr, client.Query, "get_page",
                         client.Query.get_page)
@@ -1340,20 +1339,15 @@ class QueryTestCase(TXAWSTestCase):
         client.Query.get_page = fake_page_getter.get_page_with_exception
 
         def check_error(error):
-            self.assertTrue(isinstance(error, EC2Error))
-            self.assertEquals(error.get_error_codes(), "Error.Code")
-            self.assertEquals(
-                error.get_error_messages(),
-                "Message for Error.Code")
+            self.assertTrue(isinstance(error, TwistedWebError))
             self.assertEquals(error.status, status)
-            self.assertEquals(error.response, payload.sample_ec2_error_message)
 
         query = client.Query(
             'BadQuery', self.creds, self.endpoint,
             time_tuple=(2009,8,15,13,14,15,0,0,0))
 
         failure = query.submit()
-        d = self.assertFailure(failure, EC2Error)
+        d = self.assertFailure(failure, TwistedWebError)
         d.addCallback(check_error)
         return d
 
@@ -1379,7 +1373,7 @@ class QueryTestCase(TXAWSTestCase):
             time_tuple=(2009,8,15,13,14,15,0,0,0))
 
         failure = query.submit()
-        d = self.assertFailure(failure, Error)
+        d = self.assertFailure(failure, TwistedWebError)
         d.addCallback(check_error)
         return d
 
