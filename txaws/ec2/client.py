@@ -11,6 +11,7 @@ from base64 import b64encode
 from xml.parsers.expat import ExpatError
 
 from twisted.internet import reactor, ssl
+from twisted.web import http
 from twisted.web.client import HTTPClientFactory
 from twisted.web.error import Error as TwistedWebError
 
@@ -34,8 +35,8 @@ def ec2_error_wrapper(error):
     the error is in that range. If it is, we then need to see if the error
     message is an EC2 one.
 
-    In the event that an error is not an EC2 one, the original exception is
-    raised.
+    In the event that an error is not a Twisted web error nor an EC2 one, the
+    original exception is raised.
     """
     http_status = 0
     if error.check(TwistedWebError):
@@ -44,13 +45,15 @@ def ec2_error_wrapper(error):
             http_status = int(error.value.status)
     else:
         error.raiseException()
-    if 400 <= http_status < 500:
+    if http_status >= 400:
         try:
-            new_error = EC2Error(xml_payload, error.value.status,
+            fallback_error = EC2Error(xml_payload, error.value.status,
                                  error.value.message, error.value.response)
-        except ExpatError, parse_error:
-            new_error = AWSResponseParseError(parse_error.message)
-        raise new_error
+        except (ExpatError, AWSResponseParseError), parse_error:
+            error_message = http.RESPONSES.get(http_status)
+            fallback_error = TwistedWebError(http_status, error_message,
+                                        error.value.response)
+        raise fallback_error
     else:
         error.raiseException()
 

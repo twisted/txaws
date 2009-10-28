@@ -1238,13 +1238,25 @@ class EC2ErrorWrapperTestCase(TXAWSTestCase):
         The error wrapper should handle cases where an endpoint returns a
         non-EC2 404.
         """
-        failure = self.get_failure(404, TwistedWebError, "not found")
+        some_html = "<html><body>404</body></html>"
+        failure = self.get_failure(404, TwistedWebError, "not found",
+                                   some_html)
         error = self.assertRaises(
             TwistedWebError, client.ec2_error_wrapper, failure)
         self.assertTrue(isinstance(error, TwistedWebError))
         self.assertEquals(error.status, 404)
+        self.assertEquals(str(error), "404 Not Found")
 
     def test_500_error(self):
+        failure = self.get_failure(
+            500, type=TwistedWebError,
+            response=payload.sample_server_internal_error_result)
+        error = self.assertRaises(EC2Error, client.ec2_error_wrapper, failure)
+        self.assertTrue(isinstance(error, EC2Error))
+        self.assertEquals(error.get_error_codes(), "Error.Code")
+        self.assertEquals(error.get_error_messages(), "Message for Error.Code")
+
+    def test_non_EC2_500_error(self):
         failure = self.get_failure(500, Exception, "A server error occurred")
         error = self.assertRaises(Exception, client.ec2_error_wrapper, failure)
         self.assertFalse(isinstance(error, EC2Error))
@@ -1269,9 +1281,8 @@ class EC2ErrorWrapperTestCase(TXAWSTestCase):
         bad_payload = "<bad></xml>"
         failure = self.get_failure(400, type=TwistedWebError,
                                    response=bad_payload)
-        error = self.assertRaises(AWSResponseParseError,
-                                  client.ec2_error_wrapper, failure)
-        self.assertEquals(error.message, "mismatched tag: line 1, column 7")
+        error = self.assertRaises(Exception, client.ec2_error_wrapper, failure)
+        self.assertEquals(str(error), "400 Bad Request")
 
 
 class QueryTestCase(TXAWSTestCase):
