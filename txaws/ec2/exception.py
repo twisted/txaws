@@ -1,7 +1,7 @@
 # Copyright (c) 2009 Canonical Ltd <duncan.mcgreggor@canonical.com>
 # Licenced under the txaws licence available at /LICENSE in the txaws source.
 
-from txaws.exception import AWSError
+from txaws.exception import AWSError, AWSResponseParseError
 from txaws.util import XML
 
 
@@ -32,8 +32,16 @@ class EC2Error(AWSError):
             if text:
                 self.requestID = text
 
-    def _set_errors(self, tree):
+    def _set_400_errors(self, tree):
         errorsNode = tree.find(".//Errors")
+        if errorsNode:
+            for error in errorsNode:
+                data = self._node_to_dict(error)
+                if data:
+                    self.errors.append(data)
+
+    def _set_500_error(self, tree):
+        errorsNode = tree.find(".//Error")
         if errorsNode:
             for error in errorsNode:
                 data = self._node_to_dict(error)
@@ -63,12 +71,21 @@ class EC2Error(AWSError):
                 data[child.tag] = child.text
         return data
 
+    def _check_for_html(self, tree):
+        if tree.tag == "html":
+            message = "Could not parse HTML in the response."
+            raise AWSResponseParseError(message)
+        
     def parse(self, xml_bytes=""):
         if not xml_bytes:
             xml_bytes = self.original
         tree = XML(xml_bytes.strip())
+        self._check_for_html(tree)
         self._set_request_id(tree)
-        self._set_errors(tree)
+        if self.status >= 500:
+            self._set_500_error(tree)
+        else:
+            self._set_400_errors(tree)
 
     def has_error(self, errorString):
         for error in self.errors:

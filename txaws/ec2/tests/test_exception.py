@@ -4,6 +4,7 @@
 from twisted.trial.unittest import TestCase
 
 from txaws.ec2.exception import EC2Error
+from txaws.exception import AWSResponseParseError
 from txaws.testing import payload
 from txaws.util import XML
 
@@ -33,24 +34,24 @@ class EC2ErrorTestCase(TestCase):
         error._set_request_id(XML(xml))
         self.assertEquals(error.requestID, REQUEST_ID)
 
-    def test_set_errors(self):
+    def test_set_400_errors(self):
         errorsXML = "<Error><Code>1</Code><Message>2</Message></Error>"
         xml = "<a><Errors>%s</Errors><b /></a>" % errorsXML
         error = EC2Error("<dummy />")
-        error._set_errors(XML(xml))
+        error._set_400_errors(XML(xml))
         self.assertEquals(error.errors[0]["Code"], "1")
         self.assertEquals(error.errors[0]["Message"], "2")
 
     def test_set_empty_errors(self):
         xml = "<a><Errors /><b /></a>"
         error = EC2Error("<dummy />")
-        error._set_errors(XML(xml))
+        error._set_400_errors(XML(xml))
         self.assertEquals(error.errors, [])
 
     def test_set_empty_error(self):
         xml = "<a><Errors><Error /><Error /></Errors><b /></a>"
         error = EC2Error("<dummy />")
-        error._set_errors(XML(xml))
+        error._set_400_errors(XML(xml))
         self.assertEquals(error.errors, [])
 
     def test_parse_without_xml(self):
@@ -65,6 +66,10 @@ class EC2ErrorTestCase(TestCase):
         error = EC2Error(xml2)
         error.parse(xml2)
         self.assertEquals(error.original, xml2)
+
+    def test_parse_html(self):
+        xml = "<html><body>a page</body></html>"
+        self.assertRaises(AWSResponseParseError, EC2Error, xml)
 
     def test_has_error(self):
         errorsXML = "<Error><Code>Code1</Code><Message>2</Message></Error>"
