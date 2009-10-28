@@ -8,6 +8,7 @@ import os
 
 from twisted.internet import reactor
 from twisted.internet.defer import succeed, fail
+from twisted.internet.error import ConnectionRefusedError
 from twisted.python.failure import Failure
 from twisted.python.filepath import FilePath
 from twisted.web import server, static, util
@@ -18,6 +19,7 @@ from txaws.credentials import AWSCredentials
 from txaws.ec2 import client
 from txaws.ec2 import model
 from txaws.ec2.exception import EC2Error
+from txaws.exception import AWSResponseParseError
 from txaws.service import AWSServiceEndpoint, EC2_ENDPOINT_US
 from txaws.testing import payload
 from txaws.testing.base import TXAWSTestCase
@@ -1193,9 +1195,17 @@ class EC2ErrorWrapperTestCase(TXAWSTestCase):
     def setUp(self):
         TXAWSTestCase.setUp(self)
 
-    def get_failure(self, status=None, type=None, message=""):
-        failure = Failure(type(message))
-        failure.value.response = payload.sample_ec2_error_message
+    def get_failure(self, status=None, type=None, message="", response=""):
+        if type == TwistedWebError:
+            error = type(status)
+        elif message:
+            error = type(message)
+        else:
+            error = type()
+        failure = Failure(error)
+        if not response:
+            response = payload.sample_ec2_error_message
+        failure.value.response = response
         failure.value.status = status
         return failure
 
@@ -1247,6 +1257,21 @@ class EC2ErrorWrapperTestCase(TXAWSTestCase):
         self.assertFalse(isinstance(error, EC2Error))
         self.assertTrue(isinstance(error, Exception))
         self.assertEquals(error.message, "timeout")
+
+    def test_connection_error(self):
+        failure = self.get_failure(type=ConnectionRefusedError)
+        error = self.assertRaises(ConnectionRefusedError,
+                                  client.ec2_error_wrapper, failure)
+        self.assertFalse(isinstance(error, EC2Error))
+        self.assertTrue(isinstance(error, ConnectionRefusedError))
+
+    def test_response_parse_error(self):
+        bad_payload = "<bad></xml>"
+        failure = self.get_failure(400, type=TwistedWebError,
+                                   response=bad_payload)
+        error = self.assertRaises(AWSResponseParseError,
+                                  client.ec2_error_wrapper, failure)
+        self.assertEquals(error.message, "mismatched tag: line 1, column 7")
 
 
 class QueryTestCase(TXAWSTestCase):
