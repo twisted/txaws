@@ -1253,8 +1253,14 @@ class EC2ErrorWrapperTestCase(TXAWSTestCase):
             response=payload.sample_server_internal_error_result)
         error = self.assertRaises(EC2Error, client.ec2_error_wrapper, failure)
         self.assertTrue(isinstance(error, EC2Error))
-        self.assertEquals(error.get_error_codes(), "Error.Code")
-        self.assertEquals(error.get_error_messages(), "Message for Error.Code")
+        self.assertEquals(error.get_error_codes(), "InternalError")
+        self.assertEquals(
+            error.get_error_messages(),
+            "We encountered an internal error. Please try again.")
+        self.assertEquals(error.request_id, "A2A7E5395E27DFBB")
+        self.assertEquals(
+            error.host_id,
+            "f691zulHNsUqonsZkjhILnvWwD3ZnmOM4ObM1wXTc6xuS3GzPmjArp8QC/sGsn6K")
 
     def test_non_EC2_500_error(self):
         failure = self.get_failure(500, Exception, "A server error occurred")
@@ -1438,13 +1444,16 @@ class QueryTestCase(TXAWSTestCase):
         self.addCleanup(setattr, client.Query, "get_page",
                         client.Query.get_page)
         fake_page_getter = FakePageGetter(
-            status, payload.sample_ec2_error_message)
+            status, payload.sample_server_internal_error_result)
         client.Query.get_page = fake_page_getter.get_page_with_exception
 
         def check_error(error):
-            self.assertFalse(isinstance(error, EC2Error))
+            self.assertTrue(isinstance(error, EC2Error))
             self.assertEquals(error.status, status)
-            self.assertEquals(str(error), "500 There's been an error")
+            self.assertEquals(error.get_error_codes(), "InternalError")
+            self.assertEquals(
+                error.get_error_messages(),
+                "We encountered an internal error. Please try again.")
 
         query = client.Query(
             'BadQuery', self.creds, self.endpoint,

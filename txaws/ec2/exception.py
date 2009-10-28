@@ -16,6 +16,7 @@ class EC2Error(AWSError):
         self.original = xml_bytes
         self.errors = []
         self.request_id = ""
+        self.host_id = ""
         self.parse()
 
     def __str__(self):
@@ -30,7 +31,7 @@ class EC2Error(AWSError):
         if hasattr(requestIDNode, "text"):
             text = requestIDNode.text
             if text:
-                self.requestID = text
+                self.request_id = text
 
     def _set_400_errors(self, tree):
         errorsNode = tree.find(".//Errors")
@@ -40,13 +41,19 @@ class EC2Error(AWSError):
                 if data:
                     self.errors.append(data)
 
+    def _set_host_id(self, tree):
+        host_id = tree.find(".//HostID")
+        if hasattr(host_id, "text"):
+            text = host_id.text
+            if text:
+                self.host_id = text
+
     def _set_500_error(self, tree):
-        errorsNode = tree.find(".//Error")
-        if errorsNode:
-            for error in errorsNode:
-                data = self._node_to_dict(error)
-                if data:
-                    self.errors.append(data)
+        self._set_request_id(tree)
+        self._set_host_id(tree)
+        data = self._node_to_dict(tree)
+        if data:
+            self.errors.append(data)
 
     def _get_error_code_string(self):
         count = len(self.errors)
