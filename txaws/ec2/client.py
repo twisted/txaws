@@ -46,10 +46,11 @@ def ec2_error_wrapper(error):
         error.raiseException()
     if 400 <= http_status < 500:
         try:
-            ec2_error = EC2Error(xml_payload, error.value.status,
+            new_error = EC2Error(xml_payload, error.value.status,
                                  error.value.message, error.value.response)
         except ExpatError, parse_error:
-            raise AWSResponseParseError(parse_error.message)
+            new_error = AWSResponseParseError(parse_error.message)
+        raise new_error
     else:
         error.raiseException()
 
