@@ -8,6 +8,7 @@
 from datetime import datetime
 from urllib import quote
 from base64 import b64encode
+from xml.parsers.expat import ExpatError
 
 from twisted.internet import reactor, ssl
 from twisted.web.client import HTTPClientFactory
@@ -15,28 +16,40 @@ from twisted.web.error import Error as TwistedWebError
 
 from txaws import version
 from txaws.credentials import AWSCredentials
-from txaws.service import AWSServiceEndpoint
-from txaws.util import iso8601time, parse, XML
 from txaws.ec2 import model
 from txaws.ec2.exception import EC2Error
+from txaws.exception import AWSResponseParseError
+from txaws.service import AWSServiceEndpoint
+from txaws.util import iso8601time, parse, XML
 
 
 __all__ = ["EC2Client"]
 
 
 def ec2_error_wrapper(error):
-    xml_payload = error.value.response
-    http_status = None
+    """
+    We want to see all error messages from cloud services. Amazon's EC2 says
+    that their errors are accompanied either by a 400-series or 500-series HTTP
+    response code. As such, the first thing we want to do is check to see if
+    the error is in that range. If it is, we then need to see if the error
+    message is an EC2 one.
+
+    In the event that an error is not an EC2 one, the original exception is
+    raised.
+    """
+    http_status = 0
     if error.check(TwistedWebError):
-        error.raiseException()
-    if hasattr(error.value, "status"):
+        xml_payload = error.value.response
         if error.value.status:
             http_status = int(error.value.status)
     else:
         error.raiseException()
     if 400 <= http_status < 500:
-        raise EC2Error(xml_payload, error.value.status, error.value.message,
-                       error.value.response)
+        try:
+            ec2_error = EC2Error(xml_payload, error.value.status,
+                                 error.value.message, error.value.response)
+        except ExpatError, parse_error:
+            raise AWSResponseParseError(parse_error.message)
     else:
         error.raiseException()
 
