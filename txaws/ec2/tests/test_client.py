@@ -1208,7 +1208,7 @@ class EC2ErrorWrapperTestCase(TXAWSTestCase):
         self.assertEquals(error.message, "found")
 
     def test_400_error(self):
-        failure = self.get_failure(400, Exception)
+        failure = self.get_failure(400, TwistedWebError)
         error = self.assertRaises(EC2Error, client.ec2_error_wrapper, failure)
         self.assertNotEquals(failure.type, type(error))
         self.assertTrue(isinstance(error, EC2Error))
@@ -1216,6 +1216,18 @@ class EC2ErrorWrapperTestCase(TXAWSTestCase):
         self.assertEquals(error.get_error_messages(), "Message for Error.Code")
 
     def test_404_error(self):
+        failure = self.get_failure(404, TwistedWebError)
+        error = self.assertRaises(EC2Error, client.ec2_error_wrapper, failure)
+        self.assertNotEquals(failure.type, type(error))
+        self.assertTrue(isinstance(error, EC2Error))
+        self.assertEquals(error.get_error_codes(), "Error.Code")
+        self.assertEquals(error.get_error_messages(), "Message for Error.Code")
+
+    def test_non_EC2_404_error(self):
+        """
+        The error wrapper should handle cases where an endpoint returns a
+        non-EC2 404.
+        """
         failure = self.get_failure(404, TwistedWebError, "not found")
         error = self.assertRaises(
             TwistedWebError, client.ec2_error_wrapper, failure)
@@ -1330,7 +1342,37 @@ class QueryTestCase(TXAWSTestCase):
             query.params["Signature"])
 
     def test_submit_400(self):
-        """A 4xx response status from EC2 should raise a Twisted web error."""
+        """A 4xx response status from EC2 should raise a txAWS EC2Error."""
+        status = 400
+        self.addCleanup(setattr, client.Query, "get_page",
+                        client.Query.get_page)
+        fake_page_getter = FakePageGetter(
+            status, payload.sample_ec2_error_message)
+        client.Query.get_page = fake_page_getter.get_page_with_exception
+
+        def check_error(error):
+            self.assertTrue(isinstance(error, EC2Error))
+            self.assertEquals(error.get_error_codes(), "Error.Code")
+            self.assertEquals(
+                error.get_error_messages(),
+                "Message for Error.Code")
+            self.assertEquals(error.status, status)
+            self.assertEquals(error.response, payload.sample_ec2_error_message)
+
+        query = client.Query(
+            'BadQuery', self.creds, self.endpoint,
+            time_tuple=(2009,8,15,13,14,15,0,0,0))
+
+        failure = query.submit()
+        d = self.assertFailure(failure, TwistedWebError)
+        d.addCallback(check_error)
+        return d
+
+    def test_submit_non_EC2_400(self):
+        """
+        A 4xx response status from a non-EC2 compatible service should raise a
+        Twisted web error.
+        """
         status = 400
         self.addCleanup(setattr, client.Query, "get_page",
                         client.Query.get_page)
