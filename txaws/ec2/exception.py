@@ -27,16 +27,16 @@ class EC2Error(AWSError):
             self.__class__.__name__, self._get_error_code_string())
 
     def _set_request_id(self, tree):
-        requestIDNode = tree.find(".//RequestID")
-        if hasattr(requestIDNode, "text"):
-            text = requestIDNode.text
+        request_id_node = tree.find(".//RequestID")
+        if hasattr(request_id_node, "text"):
+            text = request_id_node.text
             if text:
                 self.request_id = text
 
     def _set_400_errors(self, tree):
-        errorsNode = tree.find(".//Errors")
-        if errorsNode:
-            for error in errorsNode:
+        errors_node = tree.find(".//Errors")
+        if errors_node:
+            for error in errors_node:
                 data = self._node_to_dict(error)
                 if data:
                     self.errors.append(data)
