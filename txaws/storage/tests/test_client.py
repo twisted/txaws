@@ -6,7 +6,7 @@ from twisted.internet.defer import succeed
 
 from txaws.credentials import AWSCredentials
 from txaws.service import AWSServiceEndpoint
-from txaws.storage.client import S3, Query
+from txaws.storage.client import S3Client, Query
 from txaws.testing.base import TXAWSTestCase
 from txaws.util import calculate_md5
 
@@ -146,9 +146,9 @@ class InertQuery(Query):
         return succeed(self.response)
 
 
-class TestableS3(S3):
+class TestableS3Client(S3Client):
     """
-    Testable version of S3.
+    Testable version of S3Client.
 
     This subclass stubs request_factory to use InertQuery, making it easy to
     assert things about the requests that are created in response to various
@@ -191,7 +191,7 @@ class WrapperTests(TXAWSTestCase):
         self.creds = AWSCredentials(
             access_key="accessKey", secret_key="secretKey")
         self.endpoint = AWSServiceEndpoint()
-        self.s3 = TestableS3(creds=self.creds, endpoint=self.endpoint)
+        self.s3 = TestableS3Client(creds=self.creds, endpoint=self.endpoint)
 
     def test_make_request(self):
         """

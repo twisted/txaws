@@ -88,7 +88,7 @@ class Query(object):
         return getPage(*a, **kw)
 
 
-class S3(object):
+class S3Client(object):
 
     request_factory = Query
 
