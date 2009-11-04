@@ -6,59 +6,58 @@ from twisted.internet.defer import succeed
 
 from txaws.credentials import AWSCredentials
 from txaws.service import AWSServiceEndpoint
-from txaws.storage.client import S3, S3Request
+from txaws.storage.client import S3, Query
 from txaws.testing.base import TXAWSTestCase
 from txaws.util import calculate_md5
 
 
-
-class StubbedS3Request(S3Request):
+class StubbedQuery(Query):
 
     def get_page(self, url, method, postdata, headers):
         self.getPageArgs = (url, method, postdata, headers)
         return succeed("")
 
 
-class RequestTestCase(TXAWSTestCase):
+class QueryTestCase(TXAWSTestCase):
 
     creds = AWSCredentials(access_key="fookeyid", secret_key="barsecretkey")
     endpoint = AWSServiceEndpoint("https://s3.amazonaws.com/")
 
     def test_get_uri_with_endpoint(self):
         endpoint = AWSServiceEndpoint("http://localhost/")
-        request = S3Request("PUT", endpoint=endpoint)
+        request = Query("PUT", endpoint=endpoint)
         self.assertEquals(request.endpoint.get_uri(), "http://localhost/")
         self.assertEquals(request.get_uri(), "http://localhost/")
 
     def test_get_uri_with_endpoint_bucket_and_object(self):
         endpoint = AWSServiceEndpoint("http://localhost/")
-        request = S3Request("PUT", bucket="mybucket", object_name="myobject",
+        request = Query("PUT", bucket="mybucket", object_name="myobject",
                             endpoint=endpoint)
         self.assertEquals(
             request.get_uri(),
             "http://localhost/mybucket/myobject")
 
     def test_get_uri_with_no_endpoint(self):
-        request = S3Request("PUT")
+        request = Query("PUT")
         self.assertEquals(request.endpoint, None)
         self.assertEquals(request.get_uri(), "http:///")
 
     def test_get_path_with_bucket_and_object(self):
-        request = S3Request("PUT", bucket="mybucket", object_name="myobject")
+        request = Query("PUT", bucket="mybucket", object_name="myobject")
         self.assertEquals(request.get_path(), "/mybucket/myobject")
 
     def test_get_path_with_no_bucket_or_object(self):
-        request = S3Request("PUT")
+        request = Query("PUT")
         self.assertEquals(request.get_path(), "/")
 
-    def test_objectRequest(self):
+    def test_objectQuery(self):
         """
         Test that a request addressing an object is created correctly.
         """
         DATA = "objectData"
         DIGEST = "zhdB6gwvocWv/ourYUWMxA=="
 
-        request = S3Request("PUT", "somebucket", "object/name/here", DATA,
+        request = Query("PUT", "somebucket", "object/name/here", DATA,
                             content_type="text/plain", metadata={"foo": "bar"},
                             creds=self.creds, endpoint=self.endpoint)
         request.get_signature = lambda headers: "TESTINGSIG="
@@ -77,13 +76,13 @@ class RequestTestCase(TXAWSTestCase):
                 "x-amz-meta-foo": "bar"})
         self.assertEqual(request.data, "objectData")
 
-    def test_bucketRequest(self):
+    def test_bucketQuery(self):
         """
         Test that a request addressing a bucket is created correctly.
         """
         DIGEST = "1B2M2Y8AsgTpgAmY7PhCfg=="
 
-        request = S3Request("GET", "somebucket", creds=self.creds,
+        request = Query("GET", "somebucket", creds=self.creds,
                             endpoint=self.endpoint)
         request.get_signature = lambda headers: "TESTINGSIG="
         self.assertEqual(request.verb, "GET")
@@ -102,7 +101,7 @@ class RequestTestCase(TXAWSTestCase):
         """
         Submitting the request should invoke getPage correctly.
         """
-        request = StubbedS3Request("GET", "somebucket", creds=self.creds,
+        request = StubbedQuery("GET", "somebucket", creds=self.creds,
                                    endpoint=self.endpoint)
 
         def _postCheck(result):
@@ -117,7 +116,7 @@ class RequestTestCase(TXAWSTestCase):
         return request.submit().addCallback(_postCheck)
 
     def test_authenticationTestCases(self):
-        request = S3Request("GET", creds=self.creds, endpoint=self.endpoint)
+        request = Query("GET", creds=self.creds, endpoint=self.endpoint)
         request.get_signature = lambda headers: "TESTINGSIG="
         request.date = "Wed, 28 Mar 2007 01:29:59 +0000"
 
@@ -127,9 +126,9 @@ class RequestTestCase(TXAWSTestCase):
             "AWS fookeyid:TESTINGSIG=")
 
 
-class InertRequest(S3Request):
+class InertQuery(Query):
     """
-    Inert version of S3Request.
+    Inert version of Query.
 
     The submission action is stubbed out to return the provided response.
     """
@@ -137,7 +136,7 @@ class InertRequest(S3Request):
 
     def __init__(self, *a, **kw):
         self.response = kw.pop("response")
-        super(InertRequest, self).__init__(*a, **kw)
+        super(InertQuery, self).__init__(*a, **kw)
 
     def submit(self):
         """
@@ -151,14 +150,14 @@ class TestableS3(S3):
     """
     Testable version of S3.
 
-    This subclass stubs request_factory to use InertRequest, making it easy to
+    This subclass stubs request_factory to use InertQuery, making it easy to
     assert things about the requests that are created in response to various
     operations.
     """
     response = None
 
     def request_factory(self, *a, **kw):
-        req = InertRequest(response=self.response, *a, **kw)
+        req = InertQuery(response=self.response, *a, **kw)
         self._lastRequest = req
         return req
 

@@ -16,7 +16,7 @@ from txaws.service import AWSServiceEndpoint
 from txaws.util import XML, calculate_md5
 
 
-class S3Request(object):
+class Query(object):
 
     def __init__(self, verb, bucket=None, object_name=None, data="",
                  content_type=None, metadata={}, creds=None, endpoint=None):
@@ -90,7 +90,7 @@ class S3Request(object):
 
 class S3(object):
 
-    request_factory = S3Request
+    request_factory = Query
 
     def __init__(self, creds, endpoint):
         self.creds = creds
