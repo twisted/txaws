@@ -1,4 +1,4 @@
-from txaws.version import aws_api
+from txaws import version
 
 
 sample_required_describe_instances_result = """\
@@ -34,7 +34,7 @@ sample_required_describe_instances_result = """\
     </item>
   </reservationSet>
 </DescribeInstancesResponse>
-""" % (aws_api,)
+""" % (version.ec2_api,)
 
 
 sample_describe_instances_result = """\
@@ -78,7 +78,7 @@ sample_describe_instances_result = """\
     </item>
   </reservationSet>
 </DescribeInstancesResponse>
-""" % (aws_api,)
+""" % (version.ec2_api,)
 
 
 sample_run_instances_result = """\
@@ -145,7 +145,7 @@ sample_run_instances_result = """\
     </item>
   </instancesSet>
 </RunInstancesResponse>
-""" % (aws_api,)
+""" % (version.ec2_api,)
 
 sample_terminate_instances_result = """\
 <?xml version="1.0"?>
@@ -175,7 +175,7 @@ sample_terminate_instances_result = """\
     </item>
   </instancesSet>
 </TerminateInstancesResponse>
-""" % (aws_api,)
+""" % (version.ec2_api,)
 
 
 sample_describe_security_groups_result = """\
@@ -203,7 +203,7 @@ sample_describe_security_groups_result = """\
     </item>
   </securityGroupInfo>
 </DescribeSecurityGroupsResponse>
-""" % (aws_api,)
+""" % (version.ec2_api,)
 
 
 sample_describe_security_groups_multiple_result = """\
@@ -265,14 +265,14 @@ sample_describe_security_groups_multiple_result = """\
     </item>
   </securityGroupInfo>
 </DescribeSecurityGroupsResponse>
-""" % (aws_api,)
+""" % (version.ec2_api,)
 
 
 sample_create_security_group = """\
 <CreateSecurityGroupResponse xmlns="http://ec2.amazonaws.com/doc/%s/">
   <return>true</return>
 </CreateSecurityGroupResponse>
-""" % (aws_api,)
+""" % (version.ec2_api,)
 
 
 sample_duplicate_create_security_group_result = """\
@@ -305,7 +305,7 @@ sample_delete_security_group = """\
 <DeleteSecurityGroupResponse xmlns="http://ec2.amazonaws.com/doc/%s/">
   <return>true</return>
 </DeleteSecurityGroupResponse>
-""" % (aws_api,)
+""" % (version.ec2_api,)
 
 
 sample_delete_security_group_failure = """\
@@ -326,14 +326,14 @@ sample_authorize_security_group = """\
 <AuthorizeSecurityGroupIngressResponse xmlns="http://ec2.amazonaws.com/doc/%s/">
   <return>true</return>
 </AuthorizeSecurityGroupIngressResponse>
-""" % (aws_api,)
+""" % (version.ec2_api,)
 
 
 sample_revoke_security_group = """\
 <RevokeSecurityGroupIngressResponse xmlns="http://ec2.amazonaws.com/doc/%s/">
   <return>true</return>
 </RevokeSecurityGroupIngressResponse>
-""" % (aws_api,)
+""" % (version.ec2_api,)
 
 
 sample_describe_volumes_result = """\
@@ -360,7 +360,7 @@ sample_describe_volumes_result = """\
     </item>
   </volumeSet>
 </DescribeVolumesResponse>
-""" % (aws_api,)
+""" % (version.ec2_api,)
 
 
 sample_describe_snapshots_result = """\
@@ -376,7 +376,7 @@ sample_describe_snapshots_result = """\
     </item>
   </snapshotSet>
 </DescribeSnapshotsResponse>
-""" % (aws_api,)
+""" % (version.ec2_api,)
 
 
 sample_create_volume_result = """\
@@ -389,7 +389,7 @@ sample_create_volume_result = """\
   <availabilityZone>us-east-1a</availabilityZone>
   <snapshotId></snapshotId>
 </CreateVolumeResponse>
-""" % (aws_api,)
+""" % (version.ec2_api,)
 
 
 sample_delete_volume_result = """\
@@ -397,7 +397,7 @@ sample_delete_volume_result = """\
 <DeleteVolumeResponse xmlns="http://ec2.amazonaws.com/doc/%s/">
   <return>true</return>
 </DeleteVolumeResponse>
-""" % (aws_api,)
+""" % (version.ec2_api,)
 
 
 sample_create_snapshot_result = """\
@@ -409,7 +409,7 @@ sample_create_snapshot_result = """\
   <startTime>2008-05-07T12:51:50.000Z</startTime>
   <progress></progress>
 </CreateSnapshotResponse>
-""" % (aws_api,)
+""" % (version.ec2_api,)
 
 
 sample_delete_snapshot_result = """\
@@ -417,7 +417,7 @@ sample_delete_snapshot_result = """\
 <DeleteSnapshotResponse xmlns="http://ec2.amazonaws.com/doc/%s/">
   <return>true</return>
 </DeleteSnapshotResponse>
-""" % (aws_api,)
+""" % (version.ec2_api,)
 
 
 sample_attach_volume_result = """\
@@ -429,7 +429,7 @@ sample_attach_volume_result = """\
   <status>attaching</status>
   <attachTime>2008-05-07T11:51:50.000Z</attachTime>
 </AttachVolumeResponse>
-""" % (aws_api,)
+""" % (version.ec2_api,)
 
 
 sample_ec2_error_message = """\
@@ -474,7 +474,7 @@ sample_single_describe_keypairs_result = """\
     </item>
   </keySet>
 </DescribeKeyPairsResponse>
-""" % (aws_api,)
+""" % (version.ec2_api,)
 
 
 sample_multiple_describe_keypairs_result = """\
@@ -491,7 +491,7 @@ sample_multiple_describe_keypairs_result = """\
     </item>
   </keySet>
 </DescribeKeyPairsResponse>
-""" % (aws_api,)
+""" % (version.ec2_api,)
 
 
 sample_create_keypair_result = """\
@@ -523,7 +523,7 @@ P8TTvW/6bdPi23ExzxZn7KOdrfclYRph1LHMpAONv/x2xALIf91UB+v5ohy1oDoasL0gij1houRe
 2ERKKdwz0ZL9SWq6VTdhr/5G994CK72fy5WhyERbDjUIdHaK3M849JJuf8cSrvSb4g==
 -----END RSA PRIVATE KEY-----</keyMaterial>
 </CreateKeyPairResponse>
-""" % (aws_api,)
+""" % (version.ec2_api,)
 
 
 sample_delete_keypair_true_result = """\
@@ -531,7 +531,7 @@ sample_delete_keypair_true_result = """\
 <DeleteKeyPair xmlns="http://ec2.amazonaws.com/doc/%s/">
   <return>true</return>
 </DeleteKeyPair>
-""" % (aws_api,)
+""" % (version.ec2_api,)
 
 
 sample_delete_keypair_false_result = """\
@@ -539,14 +539,14 @@ sample_delete_keypair_false_result = """\
 <DeleteKeyPair xmlns="http://ec2.amazonaws.com/doc/%s/">
   <return>false</return>
 </DeleteKeyPair>
-""" % (aws_api,)
+""" % (version.ec2_api,)
 
 
 sample_delete_keypair_no_result = """\
 <?xml version="1.0"?>
 <DeleteKeyPair xmlns="http://ec2.amazonaws.com/doc/%s/">
 </DeleteKeyPair>
-""" % (aws_api,)
+""" % (version.ec2_api,)
 
 
 sample_duplicate_keypair_result = """\
@@ -568,7 +568,7 @@ sample_allocate_address_result = """\
 <AllocateAddressResponse xmlns="http://ec2.amazonaws.com/doc/%s/">
   <publicIp>67.202.55.255</publicIp>
 </AllocateAddressResponse>
-""" % (aws_api,)
+""" % (version.ec2_api,)
 
 
 sample_release_address_result = """\
@@ -576,7 +576,7 @@ sample_release_address_result = """\
 <ReleaseAddressResponse xmlns="http://ec2.amazonaws.com/doc/%s/">
   <return>true</return>
 </ReleaseAddressResponse>
-""" % (aws_api,)
+""" % (version.ec2_api,)
 
 
 sample_associate_address_result = """\
@@ -584,7 +584,7 @@ sample_associate_address_result = """\
 <AssociateAddressResponse xmlns="http://ec2.amazonaws.com/doc/%s/">
   <return>true</return>
 </AssociateAddressResponse>
-""" % (aws_api,)
+""" % (version.ec2_api,)
 
 
 sample_disassociate_address_result = """\
@@ -592,7 +592,7 @@ sample_disassociate_address_result = """\
 <DisassociateAddressResponse xmlns="http://ec2.amazonaws.com/doc/%s/">
   <return>true</return>
 </DisassociateAddressResponse>
-""" % (aws_api,)
+""" % (version.ec2_api,)
 
 
 sample_describe_addresses_result = """\
@@ -607,7 +607,7 @@ sample_describe_addresses_result = """\
     </item>
   </addressesSet>
 </DescribeAddressesResponse>
-""" % (aws_api,)
+""" % (version.ec2_api,)
 
 
 sample_describe_availability_zones_single_result = """\
@@ -619,7 +619,7 @@ sample_describe_availability_zones_single_result = """\
     </item>
   </availabilityZoneInfo>
 </DescribeAvailabilityZonesResponse>
-""" % (aws_api,)
+""" % (version.ec2_api,)
 
 
 sample_describe_availability_zones_multiple_results = """\
@@ -639,7 +639,7 @@ sample_describe_availability_zones_multiple_results = """\
     </item>
   </availabilityZoneInfo>
 </DescribeAvailabilityZonesResponse>
-""" % (aws_api,)
+""" % (version.ec2_api,)
 
 
 sample_invalid_client_token_result = """\
@@ -673,4 +673,4 @@ sample_list_buckets_result = """\
     </Bucket>
   </Buckets>
 </ListAllMyBucketsResult>
-""" % (aws_api,)
+""" % (version.s3_api,)

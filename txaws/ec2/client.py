@@ -764,7 +764,7 @@ class Query(object):
         self.endpoint = endpoint
         # Currently, txAWS only supports version 2008-12-01
         if api_version is None:
-            api_version = version.aws_api
+            api_version = version.ec2_api
         self.params = {
             "Version": api_version,
             "SignatureVersion": "2",
