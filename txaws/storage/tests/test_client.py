@@ -7,6 +7,7 @@ from twisted.internet.defer import succeed
 from txaws.credentials import AWSCredentials
 from txaws.service import AWSServiceEndpoint
 from txaws.storage.client import S3Client, Query
+from txaws.testing import payload
 from txaws.testing.base import TXAWSTestCase
 from txaws.util import calculate_md5
 
@@ -61,7 +62,7 @@ class QueryTestCase(TXAWSTestCase):
                             content_type="text/plain", metadata={"foo": "bar"},
                             creds=self.creds, endpoint=self.endpoint)
         request.get_signature = lambda headers: "TESTINGSIG="
-        self.assertEqual(request.verb, "PUT")
+        self.assertEqual(request.action, "PUT")
         self.assertEqual(
             request.get_uri(),
             "https://s3.amazonaws.com/somebucket/object/name/here")
@@ -85,7 +86,7 @@ class QueryTestCase(TXAWSTestCase):
         request = Query("GET", "somebucket", creds=self.creds,
                             endpoint=self.endpoint)
         request.get_signature = lambda headers: "TESTINGSIG="
-        self.assertEqual(request.verb, "GET")
+        self.assertEqual(request.action, "GET")
         self.assertEqual(
             request.get_uri(), "https://s3.amazonaws.com/somebucket")
         headers = request.get_headers()
@@ -109,7 +110,7 @@ class QueryTestCase(TXAWSTestCase):
 
             url, method, postdata, headers = request.getPageArgs
             self.assertEqual(url, request.get_uri())
-            self.assertEqual(method, request.verb)
+            self.assertEqual(method, request.action)
             self.assertEqual(postdata, request.data)
             self.assertEqual(headers, request.get_headers())
 
@@ -162,28 +163,6 @@ class TestableS3Client(S3Client):
         return req
 
 
-samples = {
-    "ListAllMyBucketsResult":
-    """<?xml version="1.0" encoding="UTF-8"?>
-<ListAllMyBucketsResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
-  <Owner>
-    <ID>bcaf1ffd86f41caff1a493dc2ad8c2c281e37522a640e161ca5fb16fd081034f</ID>
-    <DisplayName>webfile</DisplayName>
-  </Owner>
-  <Buckets>
-    <Bucket>
-      <Name>quotes</Name>
-      <CreationDate>2006-02-03T16:45:09.000Z</CreationDate>
-    </Bucket>
-    <Bucket>
-      <Name>samples</Name>
-      <CreationDate>2006-02-03T16:41:58.000Z</CreationDate>
-    </Bucket>
-  </Buckets>
-</ListAllMyBucketsResult>""",
-    }
-
-
 class WrapperTests(TXAWSTestCase):
 
     def setUp(self):
@@ -208,12 +187,12 @@ class WrapperTests(TXAWSTestCase):
         self.assertIdentical(self.s3.make_request("GET"), marker)
 
     def test_list_buckets(self):
-        self.s3.response = samples["ListAllMyBucketsResult"]
+        self.s3.response = payload.sample_list_buckets_result
         d = self.s3.list_buckets()
 
         req = self.s3._lastRequest
         self.assertTrue(req.submitted)
-        self.assertEqual(req.verb, "GET")
+        self.assertEqual(req.action, "GET")
         self.assertEqual(req.bucket, None)
         self.assertEqual(req.object_name, None)
 
@@ -232,7 +211,7 @@ class WrapperTests(TXAWSTestCase):
         self.s3.create_bucket("foo")
         req = self.s3._lastRequest
         self.assertTrue(req.submitted)
-        self.assertEqual(req.verb, "PUT")
+        self.assertEqual(req.action, "PUT")
         self.assertEqual(req.bucket, "foo")
         self.assertEqual(req.object_name, None)
 
@@ -240,7 +219,7 @@ class WrapperTests(TXAWSTestCase):
         self.s3.delete_bucket("foo")
         req = self.s3._lastRequest
         self.assertTrue(req.submitted)
-        self.assertEqual(req.verb, "DELETE")
+        self.assertEqual(req.action, "DELETE")
         self.assertEqual(req.bucket, "foo")
         self.assertEqual(req.object_name, None)
 
@@ -249,7 +228,7 @@ class WrapperTests(TXAWSTestCase):
             "foobucket", "foo", "data", "text/plain", {"foo": "bar"})
         req = self.s3._lastRequest
         self.assertTrue(req.submitted)
-        self.assertEqual(req.verb, "PUT")
+        self.assertEqual(req.action, "PUT")
         self.assertEqual(req.bucket, "foobucket")
         self.assertEqual(req.object_name, "foo")
         self.assertEqual(req.data, "data")
@@ -260,7 +239,7 @@ class WrapperTests(TXAWSTestCase):
         self.s3.get_object("foobucket", "foo")
         req = self.s3._lastRequest
         self.assertTrue(req.submitted)
-        self.assertEqual(req.verb, "GET")
+        self.assertEqual(req.action, "GET")
         self.assertEqual(req.bucket, "foobucket")
         self.assertEqual(req.object_name, "foo")
 
@@ -268,7 +247,7 @@ class WrapperTests(TXAWSTestCase):
         self.s3.head_object("foobucket", "foo")
         req = self.s3._lastRequest
         self.assertTrue(req.submitted)
-        self.assertEqual(req.verb, "HEAD")
+        self.assertEqual(req.action, "HEAD")
         self.assertEqual(req.bucket, "foobucket")
         self.assertEqual(req.object_name, "foo")
 
@@ -276,7 +255,7 @@ class WrapperTests(TXAWSTestCase):
         self.s3.delete_object("foobucket", "foo")
         req = self.s3._lastRequest
         self.assertTrue(req.submitted)
-        self.assertEqual(req.verb, "DELETE")
+        self.assertEqual(req.action, "DELETE")
         self.assertEqual(req.bucket, "foobucket")
         self.assertEqual(req.object_name, "foo")
 

@@ -654,3 +654,23 @@ sample_invalid_client_token_result = """\
   <RequestID>47bfd77d-78d6-446d-be0d-f7621795dded</RequestID>
 </Response>
 """
+
+sample_list_buckets_result = """\
+<?xml version="1.0" encoding="UTF-8"?>
+<ListAllMyBucketsResult xmlns="http://s3.amazonaws.com/doc/%s/">
+  <Owner>
+    <ID>bcaf1ffd86f41caff1a493dc2ad8c2c281e37522a640e161ca5fb16fd081034f</ID>
+    <DisplayName>webfile</DisplayName>
+  </Owner>
+  <Buckets>
+    <Bucket>
+      <Name>quotes</Name>
+      <CreationDate>2006-02-03T16:45:09.000Z</CreationDate>
+    </Bucket>
+    <Bucket>
+      <Name>samples</Name>
+      <CreationDate>2006-02-03T16:41:58.000Z</CreationDate>
+    </Bucket>
+  </Buckets>
+</ListAllMyBucketsResult>
+""" % (aws_api,)
