@@ -655,6 +655,7 @@ sample_invalid_client_token_result = """\
 </Response>
 """
 
+
 sample_list_buckets_result = """\
 <?xml version="1.0" encoding="UTF-8"?>
 <ListAllMyBucketsResult xmlns="http://s3.amazonaws.com/doc/%s/">
@@ -674,3 +675,18 @@ sample_list_buckets_result = """\
   </Buckets>
 </ListAllMyBucketsResult>
 """ % (version.s3_api,)
+
+
+sample_s3_signature_mismatch = """\
+<?xml version="1.0" encoding="UTF-8"?>
+<Error>
+  <Code>SignatureDoesNotMatch</Code>
+  <Message>The request signature we calculated does not match the signature you provided. Check your key and signing method.</Message>
+  <StringToSignBytes>47 45 54 0a 31 42 32 4d 32 59 38 41 73 67 54 70 67 41 6d 59 37 50 68 43 66 67 3d 3d 0a 0a 54 68 75 2c 20 30 35 20 4e 6f 76 20 32 30 30 39 20 32 31 3a 33 33 3a 32 39 20 47 4d 54 0a 2f</StringToSignBytes>
+  <RequestId>AB9216C8640751B2</RequestId>
+  <HostId>sAPBpmFdsOsgUUwtSLsiT6KIwP1mPbmrYY0xUoahzJE263qmABkTaqzGhHddgOq5</HostId>
+  <SignatureProvided>ltowhdrbjaQ8dQc9VS5MxzJfsPJZi0BZHEzJC3r9pzU=</SignatureProvided>
+  <StringToSign>GET\n1B2M2Y8AsgTpgAmY7PhCfg==\n\nThu, 05 Nov 2009 21:33:29 GMT\n/</StringToSign>
+  <AWSAccessKeyId>SOMEKEYID</AWSAccessKeyId>
+</Error>
+"""
