@@ -14,10 +14,10 @@ from twisted.web.client import HTTPClientFactory
 
 from txaws import version
 from txaws.credentials import AWSCredentials
-from txaws.service import AWSServiceEndpoint
-from txaws.util import iso8601time, parse, XML
 from txaws.ec2 import model
 from txaws.ec2.exception import EC2Error
+from txaws.service import AWSServiceEndpoint
+from txaws.util import iso8601time, parse, XML
 
 
 __all__ = ["EC2Client"]
@@ -776,26 +776,26 @@ class Query(object):
         if other_params:
             self.params.update(other_params)
 
-    def canonical_query_params(self):
+    def get_canonical_query_params(self):
         """Return the canonical query params (used in signing)."""
         result = []
         for key, value in self.sorted_params():
             result.append("%s=%s" % (self.encode(key), self.encode(value)))
         return "&".join(result)
 
-    def encode(self, a_string):
+    def encode(self, string):
         """Encode a_string as per the canonicalisation encoding rules.
 
         See the AWS dev reference page 90 (2008-12-01 version).
         @return: a_string encoded.
         """
-        return quote(a_string, safe="~")
+        return quote(string, safe="~")
 
     def signing_text(self):
         """Return the text to be signed when signing the query."""
         result = "%s\n%s\n%s\n%s" % (self.endpoint.method, self.endpoint.host,
                                      self.endpoint.path,
-                                     self.canonical_query_params())
+                                     self.get_canonical_query_params())
         return result
 
     def sign(self):
@@ -835,7 +835,7 @@ class Query(object):
         """
         self.sign()
         url = "%s?%s" % (self.endpoint.get_uri(),
-                         self.canonical_query_params())
+                         self.get_canonical_query_params())
         deferred = self.get_page(url, method=self.endpoint.method)
         deferred.addErrback(ec2_error_wrapper)
         return deferred
