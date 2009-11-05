@@ -61,7 +61,7 @@ class QueryTestCase(TXAWSTestCase):
         request = Query("PUT", "somebucket", "object/name/here", DATA,
                             content_type="text/plain", metadata={"foo": "bar"},
                             creds=self.creds, endpoint=self.endpoint)
-        request.get_signature = lambda headers: "TESTINGSIG="
+        request.sign = lambda headers: "TESTINGSIG="
         self.assertEqual(request.action, "PUT")
         self.assertEqual(
             request.get_uri(),
@@ -85,7 +85,7 @@ class QueryTestCase(TXAWSTestCase):
 
         request = Query("GET", "somebucket", creds=self.creds,
                             endpoint=self.endpoint)
-        request.get_signature = lambda headers: "TESTINGSIG="
+        request.sign = lambda headers: "TESTINGSIG="
         self.assertEqual(request.action, "GET")
         self.assertEqual(
             request.get_uri(), "https://s3.amazonaws.com/somebucket")
@@ -118,7 +118,7 @@ class QueryTestCase(TXAWSTestCase):
 
     def test_authenticationTestCases(self):
         request = Query("GET", creds=self.creds, endpoint=self.endpoint)
-        request.get_signature = lambda headers: "TESTINGSIG="
+        request.sign = lambda headers: "TESTINGSIG="
         request.date = "Wed, 28 Mar 2007 01:29:59 +0000"
 
         headers = request.get_headers()
