@@ -6,6 +6,7 @@ API stability: unstable.
 Various API-incompatible changes are planned in order to expose missing
 functionality in this wrapper.
 """
+import mimetypes
 
 from twisted.web.http import datetimeToString
 
@@ -22,7 +23,7 @@ class S3Client(object):
         if query_factory is None:
             query_factory = Query
         self.query_factory = query_factory
-            
+
         self.creds = creds
         self.endpoint = endpoint
 
@@ -43,8 +44,7 @@ class S3Client(object):
         Returns a list of all the buckets owned by the authenticated sender of
         the request.
         """
-        #d = self.make_request("GET").submit()
-        query = self.query_factory(action="GET", creds=self.creds, 
+        query = self.query_factory(action="GET", creds=self.creds,
                                    endpoint=self.endpoint)
         d = query.submit()
         return d.addCallback(self._parse_list_buckets)
@@ -53,7 +53,6 @@ class S3Client(object):
         """
         Parse XML bucket list response.
         """
-        print xml_bytes
         root = XML(xml_bytes)
         for bucket in root.find("Buckets"):
             timeText = bucket.findtext("CreationDate")
@@ -125,35 +124,51 @@ class Query(BaseQuery):
         self.content_type = content_type
         self.metadata = metadata
         self.date = datetimeToString()
-        self.base_host = "s3.amazonaws.com"
+        self.default_endpoint_url = "https://s3.amazonaws.com"
+        # XXX add unit test
+        if not self.endpoint or not self.endpoint.host:
+            self.endpoint = AWSServiceEndpoint(self.default_endpoint_url)
+        # XXX add unit test
+        self.endpoint.set_method(self.action)
 
-    # XXX add unit test
     def get_host(self):
         if not self.bucket:
-            return self.base_host
-            
+            return self.endpoint.get_host()
+        else:
+            return "%s.%s" % (self.bucket, self.endpoint.get_host())
+
     def get_path(self):
         path = "/"
-        if self.bucket is not None:
-            path += self.bucket
-            if self.object_name is not None:
-                path += "/" + self.object_name
+        if self.bucket is not None and self.object_name:
+            if self.object_name.startswith("/"):
+                path = self.object_name
+            else:
+                path += self.object_name
         return path
 
     def get_uri(self):
-        return "%s%s" % (self.get_host(), self.get_path())
+        return "%s://%s%s" % (
+            self.endpoint.scheme, self.get_host(), self.get_path())
+
+    # XXX needs unit tests
+    def set_content_type(self):
+        if self.object_name and not self.content_type:
+            # XXX nothing is currently done with the encoding... we may
+            # need to in the future
+            self.content_type, encoding = mimetypes.guess_type(
+                self.object_name, strict=False)
 
     def get_headers(self):
         headers = {"Content-Length": len(self.data),
                    "Content-MD5": calculate_md5(self.data),
                    "Date": self.date}
-
         for key, value in self.metadata.iteritems():
             headers["x-amz-meta-" + key] = value
-
+        # Before we check if the content type is set, let's see if we can set
+        # if by guessing the the mimetype.
+        self.set_content_type()
         if self.content_type is not None:
             headers["Content-Type"] = self.content_type
-
         if self.creds is not None:
             signature = self.sign(headers)
             headers["Authorization"] = "AWS %s:%s" % (
@@ -162,23 +177,28 @@ class Query(BaseQuery):
 
     def get_canonicalized_amz_headers(self, headers):
         result = ""
-        headers = [(name.lower(), value) for name, value in headers.iteritems()
+        headers = [
+            (name.lower(), value) for name, value in headers.iteritems()
             if name.lower().startswith("x-amz-")]
         headers.sort()
+        # XXX missing spec implementation:
+        # 1) txAWS doesn't currently combine headers with the same name
+        # 2) txAWS doesn't currently unfold long headers
         return "".join("%s:%s\n" % (name, value) for name, value in headers)
 
     def sign(self, headers):
-        text = (self.action + "\n" + 
+        text = (self.action + "\n" +
                 headers.get("Content-MD5", "") + "\n" +
                 headers.get("Content-Type", "") + "\n" +
                 headers.get("Date", "") + "\n" +
                 self.get_canonicalized_amz_headers(headers) +
                 self.get_path())
-        return self.creds.sign(text)
+        return self.creds.sign(text, hash_type="sha1")
 
     def submit(self):
-        d = self.get_page(self.get_uri(), method=self.action,
-                          postdata=self.data, headers=self.get_headers())
+        d = self.get_page(
+            self.get_uri(), method=self.action, postdata=self.data,
+            headers=self.get_headers())
         # XXX - we need an error wrapper like we have for ec2... but let's wait
         # until the new error-wrapper brach has landed, and possibly generalize
         # a base class for all clients.
