@@ -6,17 +6,10 @@ from twisted.internet.defer import succeed
 
 from txaws.credentials import AWSCredentials
 from txaws.service import AWSServiceEndpoint
-from txaws.storage.client import S3Client, Query
+from txaws.storage import client
 from txaws.testing import payload
 from txaws.testing.base import TXAWSTestCase
 from txaws.util import calculate_md5
-
-
-class StubbedQuery(Query):
-
-    def get_page(self, url, method, postdata, headers):
-        self.getPageArgs = (url, method, postdata, headers)
-        return succeed("")
 
 
 class QueryTestCase(TXAWSTestCase):
@@ -51,7 +44,7 @@ class QueryTestCase(TXAWSTestCase):
         request = Query("PUT")
         self.assertEquals(request.get_path(), "/")
 
-    def test_objectQuery(self):
+    def test_object_query(self):
         """
         Test that a request addressing an object is created correctly.
         """
@@ -77,7 +70,7 @@ class QueryTestCase(TXAWSTestCase):
                 "x-amz-meta-foo": "bar"})
         self.assertEqual(request.data, "objectData")
 
-    def test_bucketQuery(self):
+    def test_bucket_query(self):
         """
         Test that a request addressing a bucket is created correctly.
         """
@@ -116,7 +109,7 @@ class QueryTestCase(TXAWSTestCase):
 
         return request.submit().addCallback(_postCheck)
 
-    def test_authenticationTestCases(self):
+    def test_authentication(self):
         request = Query("GET", creds=self.creds, endpoint=self.endpoint)
         request.sign = lambda headers: "TESTINGSIG="
         request.date = "Wed, 28 Mar 2007 01:29:59 +0000"
@@ -127,54 +120,19 @@ class QueryTestCase(TXAWSTestCase):
             "AWS fookeyid:TESTINGSIG=")
 
 
-class InertQuery(Query):
-    """
-    Inert version of Query.
-
-    The submission action is stubbed out to return the provided response.
-    """
-    submitted = False
-
-    def __init__(self, *a, **kw):
-        self.response = kw.pop("response")
-        super(InertQuery, self).__init__(*a, **kw)
-
-    def submit(self):
-        """
-        Return the canned result instead of performing a network operation.
-        """
-        self.submitted = True
-        return succeed(self.response)
-
-
-class TestableS3Client(S3Client):
-    """
-    Testable version of S3Client.
-
-    This subclass stubs request_factory to use InertQuery, making it easy to
-    assert things about the requests that are created in response to various
-    operations.
-    """
-    response = None
-
-    def request_factory(self, *a, **kw):
-        req = InertQuery(response=self.response, *a, **kw)
-        self._lastRequest = req
-        return req
-
-
-class WrapperTests(TXAWSTestCase):
+class S3ClientTestCase(TXAWSTestCase):
 
     def setUp(self):
         TXAWSTestCase.setUp(self)
         self.creds = AWSCredentials(
             access_key="accessKey", secret_key="secretKey")
         self.endpoint = AWSServiceEndpoint()
-        self.s3 = TestableS3Client(creds=self.creds, endpoint=self.endpoint)
 
-    def test_make_request(self):
+    # we're getting rid of make_request
+    def XXX_test_make_request(self):
         """
         Test that make_request passes in the credentials object.
+        """
         """
         marker = object()
 
@@ -185,35 +143,81 @@ class WrapperTests(TXAWSTestCase):
 
         self.s3.request_factory = _cb
         self.assertIdentical(self.s3.make_request("GET"), marker)
+        """
+        class StubQuery(object):
+
+            def __init__(stub, action, creds, endpoint):
+                self.assertEquals(action, "")
+                self.assertEqual(creds.access_key, "foo")
+                self.assertEqual(creds.secret_key, "bar")
+
+            def submit(self):
+                return succeed()
+
+        creds = AWSCredentials("foo", "bar")
+        ec2 = client.S3Client(creds, query_factory=StubQuery)
+        d = ec2.describe_availability_zones(["us-east-1a"])
+        d.addCallback(check_parsed_availability_zone)
+        return d
+
 
     def test_list_buckets(self):
-        self.s3.response = payload.sample_list_buckets_result
-        d = self.s3.list_buckets()
 
-        req = self.s3._lastRequest
-        self.assertTrue(req.submitted)
-        self.assertEqual(req.action, "GET")
-        self.assertEqual(req.bucket, None)
-        self.assertEqual(req.object_name, None)
+        class StubQuery(client.Query):
 
-        def _check_result(buckets):
+            def __init__(query, action, creds, endpoint):
+                super(StubQuery, query).__init__(
+                    action=action, creds=creds)
+                self.assertEquals(action, "GET")
+                self.assertEqual(creds.access_key, "foo")
+                self.assertEqual(creds.secret_key, "bar")
+                self.assertEqual(query.get_path(), "/")
+                self.assertEqual(query.bucket, None)
+                self.assertEqual(query.object_name, None)
+                self.assertEqual(query.data, "")
+                self.assertEqual(query.metadata, {})
+
+            def submit(query):
+                return succeed(payload.sample_list_buckets_result)
+
+        def check_list_buckets(results):
             self.assertEqual(
-                list(buckets),
+                list(results),
                 [{"name": u"quotes",
                   "created": Time.fromDatetime(
                     datetime(2006, 2, 3, 16, 45, 9))},
                  {"name": u"samples",
                   "created": Time.fromDatetime(
                     datetime(2006, 2, 3, 16, 41, 58))}])
-        return d.addCallback(_check_result)
+
+        creds = AWSCredentials("foo", "bar")
+        s3 = client.S3Client(creds, query_factory=StubQuery)
+        d = s3.list_buckets()
+        return d.addCallback(check_list_buckets)
 
     def test_create_bucket(self):
-        self.s3.create_bucket("foo")
-        req = self.s3._lastRequest
-        self.assertTrue(req.submitted)
-        self.assertEqual(req.action, "PUT")
-        self.assertEqual(req.bucket, "foo")
-        self.assertEqual(req.object_name, None)
+
+        class StubQuery(client.Query):
+
+            def __init__(query, action, creds, bucket=None):
+                super(StubQuery, query).__init__(
+                    action=action, creds=creds, bucket=bucket)
+                self.assertEquals(action, "PUT")
+                self.assertEqual(creds.access_key, "foo")
+                self.assertEqual(creds.secret_key, "bar")
+                self.assertEqual(query.get_uri(), "/mybucket")
+                self.assertEqual(query.get_path(), "/mybucket")
+                self.assertEqual(query.bucket, "mybucket")
+                self.assertEqual(query.object_name, None)
+                self.assertEqual(query.data, "")
+                self.assertEqual(query.metadata, {})
+
+            def submit(query):
+                return succeed(payload.sample_list_buckets_result)
+
+        creds = AWSCredentials("foo", "bar")
+        s3 = client.S3Client(creds, query_factory=StubQuery)
+        return s3.create_bucket("mybucket")
 
     def test_delete_bucket(self):
         self.s3.delete_bucket("foo")

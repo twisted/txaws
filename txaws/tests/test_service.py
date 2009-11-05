@@ -3,6 +3,7 @@
 
 from txaws.credentials import AWSCredentials
 from txaws.ec2.client import EC2Client
+from txaws.storage.client import S3Client
 from txaws.service import (AWSServiceEndpoint, AWSServiceRegion,
                            EC2_ENDPOINT_EU, EC2_ENDPOINT_US, REGION_EU)
 from txaws.testing.base import TXAWSTestCase
@@ -92,7 +93,7 @@ class AWSServiceRegionTestCase(TXAWSTestCase):
         region = AWSServiceRegion(creds=self.creds, region=REGION_EU)
         self.assertEquals(region.ec2_endpoint.get_uri(), EC2_ENDPOINT_EU)
 
-    def test_get_client_with_empty_cache(self):
+    def test_get_ec2_client_with_empty_cache(self):
         key = str(EC2Client) + str(self.creds) + str(self.region.ec2_endpoint)
         original_client = self.region._clients.get(key)
         new_client = self.region.get_client(
@@ -101,7 +102,14 @@ class AWSServiceRegionTestCase(TXAWSTestCase):
         self.assertTrue(isinstance(new_client, EC2Client))
         self.assertNotEquals(original_client, new_client)
 
-    def test_get_client_from_cache(self):
+    def test_get_ec2_client_from_cache_default(self):
+        client1 = self.region.get_ec2_client()
+        client2 = self.region.get_ec2_client()
+        self.assertTrue(isinstance(client1, EC2Client))
+        self.assertTrue(isinstance(client2, EC2Client))
+        self.assertEquals(client1, client2)
+
+    def test_get_ec2_client_from_cache(self):
         client1 = self.region.get_client(
             EC2Client, creds=self.creds, endpoint=self.region.ec2_endpoint)
         client2 = self.region.get_client(
@@ -110,7 +118,7 @@ class AWSServiceRegionTestCase(TXAWSTestCase):
         self.assertTrue(isinstance(client2, EC2Client))
         self.assertEquals(client1, client2)
 
-    def test_get_client_from_cache_with_purge(self):
+    def test_get_ec2_client_from_cache_with_purge(self):
         client1 = self.region.get_client(
             EC2Client, creds=self.creds, endpoint=self.region.ec2_endpoint,
             purge_cache=True)
@@ -121,10 +129,13 @@ class AWSServiceRegionTestCase(TXAWSTestCase):
         self.assertTrue(isinstance(client2, EC2Client))
         self.assertNotEquals(client1, client2)
 
-    def test_get_ec2_client_from_cache(self):
-        client1 = self.region.get_ec2_client(self.creds)
-        client2 = self.region.get_ec2_client(self.creds)
-        self.assertEquals(self.creds, self.region.creds)
-        self.assertTrue(isinstance(client1, EC2Client))
-        self.assertTrue(isinstance(client2, EC2Client))
-        self.assertEquals(client1, client2)
+    def test_get_s3_client_with_empty_cache(self):
+        # XXX need to fix the endpoint usage here... not appropriate for S3
+        # clients...
+        key = str(S3Client) + str(self.creds) + str(self.region.ec2_endpoint)
+        original_client = self.region._clients.get(key)
+        new_client = self.region.get_client(
+            S3Client, creds=self.creds, endpoint=self.region.ec2_endpoint)
+        self.assertEquals(original_client, None)
+        self.assertTrue(isinstance(new_client, S3Client))
+        self.assertNotEquals(original_client, new_client)
