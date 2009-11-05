@@ -9,15 +9,13 @@ from datetime import datetime
 from urllib import quote
 from base64 import b64encode
 
-from twisted.internet import reactor, ssl
-from twisted.web.client import HTTPClientFactory
-
 from txaws import version
+from txaws.client.base import BaseQuery
 from txaws.credentials import AWSCredentials
 from txaws.ec2 import model
 from txaws.ec2.exception import EC2Error
 from txaws.service import AWSServiceEndpoint
-from txaws.util import iso8601time, parse, XML
+from txaws.util import iso8601time, XML
 
 
 __all__ = ["EC2Client"]
@@ -59,9 +57,9 @@ class EC2Client(object):
         instanceset = {}
         for pos, instance_id in enumerate(instance_ids):
             instanceset["InstanceId.%d" % (pos + 1)] = instance_id
-        q = self.query_factory("DescribeInstances", self.creds, self.endpoint,
+        query = self.query_factory("DescribeInstances", self.creds, self.endpoint,
             instanceset)
-        d = q.submit()
+        d = query.submit()
         return d.addCallback(self._parse_describe_instances)
 
     def _parse_instances_set(self, root, reservation):
@@ -154,9 +152,9 @@ class EC2Client(object):
             params["KernelId"] = kernel_id
         if ramdisk_id is not None:
             params["RamdiskId"] = ramdisk_id
-        q = self.query_factory(
+        query = self.query_factory(
             "RunInstances", self.creds, self.endpoint, params)
-        d = q.submit()
+        d = query.submit()
         return d.addCallback(self._parse_run_instances)
 
     def _parse_run_instances(self, xml_bytes):
@@ -189,9 +187,9 @@ class EC2Client(object):
         instanceset = {}
         for pos, instance_id in enumerate(instance_ids):
             instanceset["InstanceId.%d" % (pos+1)] = instance_id
-        q = self.query_factory("TerminateInstances", self.creds, self.endpoint,
+        query = self.query_factory("TerminateInstances", self.creds, self.endpoint,
                                instanceset)
-        d = q.submit()
+        d = query.submit()
         return d.addCallback(self._parse_terminate_instances)
 
     def _parse_terminate_instances(self, xml_bytes):
@@ -467,9 +465,9 @@ class EC2Client(object):
         volumeset = {}
         for pos, volume_id in enumerate(volume_ids):
             volumeset["VolumeId.%d" % (pos + 1)] = volume_id
-        q = self.query_factory(
+        query = self.query_factory(
             "DescribeVolumes", self.creds, self.endpoint, volumeset)
-        d = q.submit()
+        d = query.submit()
         return d.addCallback(self._parse_describe_volumes)
 
     def _parse_describe_volumes(self, xml_bytes):
@@ -510,9 +508,9 @@ class EC2Client(object):
             params["Size"] = str(size)
         if snapshot_id is not None:
             params["SnapshotId"] = snapshot_id
-        q = self.query_factory(
+        query = self.query_factory(
             "CreateVolume", self.creds, self.endpoint, params)
-        d = q.submit()
+        d = query.submit()
         return d.addCallback(self._parse_create_volume)
 
     def _parse_create_volume(self, xml_bytes):
@@ -531,9 +529,9 @@ class EC2Client(object):
         return volume
 
     def delete_volume(self, volume_id):
-        q = self.query_factory(
+        query = self.query_factory(
             "DeleteVolume", self.creds, self.endpoint, {"VolumeId": volume_id})
-        d = q.submit()
+        d = query.submit()
         return d.addCallback(self._parse_truth_return)
 
     def describe_snapshots(self, *snapshot_ids):
@@ -541,9 +539,9 @@ class EC2Client(object):
         snapshot_set = {}
         for pos, snapshot_id in enumerate(snapshot_ids):
             snapshot_set["SnapshotId.%d" % (pos + 1)] = snapshot_id
-        q = self.query_factory(
+        query = self.query_factory(
             "DescribeSnapshots", self.creds, self.endpoint, snapshot_set)
-        d = q.submit()
+        d = query.submit()
         return d.addCallback(self._parse_snapshots)
 
     def _parse_snapshots(self, xml_bytes):
@@ -565,10 +563,10 @@ class EC2Client(object):
 
     def create_snapshot(self, volume_id):
         """Create a new snapshot of an existing volume."""
-        q = self.query_factory(
+        query = self.query_factory(
             "CreateSnapshot", self.creds, self.endpoint,
             {"VolumeId": volume_id})
-        d = q.submit()
+        d = query.submit()
         return d.addCallback(self._parse_create_snapshot)
 
     def _parse_create_snapshot(self, xml_bytes):
@@ -586,19 +584,19 @@ class EC2Client(object):
 
     def delete_snapshot(self, snapshot_id):
         """Remove a previously created snapshot."""
-        q = self.query_factory(
+        query = self.query_factory(
             "DeleteSnapshot", self.creds, self.endpoint,
             {"SnapshotId": snapshot_id})
-        d = q.submit()
+        d = query.submit()
         return d.addCallback(self._parse_truth_return)
 
     def attach_volume(self, volume_id, instance_id, device):
         """Attach the given volume to the specified instance at C{device}."""
-        q = self.query_factory(
+        query = self.query_factory(
             "AttachVolume", self.creds, self.endpoint,
             {"VolumeId": volume_id, "InstanceId": instance_id,
              "Device": device})
-        d = q.submit()
+        d = query.submit()
         return d.addCallback(self._parse_attach_volume)
 
     def _parse_attach_volume(self, xml_bytes):
@@ -614,9 +612,9 @@ class EC2Client(object):
         keypair_set = {}
         for pos, keypair_name in enumerate(keypair_names):
             keypair_set["KeyPair.%d" % (pos + 1)] = keypair_name
-        q = self.query_factory("DescribeKeyPairs", self.creds, self.endpoint,
+        query = self.query_factory("DescribeKeyPairs", self.creds, self.endpoint,
                                keypair_set)
-        d = q.submit()
+        d = query.submit()
         return d.addCallback(self._parse_describe_keypairs)
 
     def _parse_describe_keypairs(self, xml_bytes):
@@ -633,10 +631,10 @@ class EC2Client(object):
         Create a new 2048 bit RSA key pair and return a unique ID that can be
         used to reference the created key pair when launching new instances.
         """
-        q = self.query_factory(
+        query = self.query_factory(
             "CreateKeyPair", self.creds, self.endpoint,
             {"KeyName": keypair_name})
-        d = q.submit()
+        d = query.submit()
         return d.addCallback(self._parse_create_keypair)
 
     def _parse_create_keypair(self, xml_bytes):
@@ -648,10 +646,10 @@ class EC2Client(object):
 
     def delete_keypair(self, keypair_name):
         """Delete a given keypair."""
-        q = self.query_factory(
+        query = self.query_factory(
             "DeleteKeyPair", self.creds, self.endpoint,
             {"KeyName": keypair_name})
-        d = q.submit()
+        d = query.submit()
         return d.addCallback(self._parse_truth_return)
 
     def allocate_address(self):
@@ -661,9 +659,9 @@ class EC2Client(object):
 
         @return: the IP address allocated.
         """
-        q = self.query_factory(
+        query = self.query_factory(
             "AllocateAddress", self.creds, self.endpoint, {})
-        d = q.submit()
+        d = query.submit()
         return d.addCallback(self._parse_allocate_address)
 
     def _parse_allocate_address(self, xml_bytes):
@@ -676,10 +674,10 @@ class EC2Client(object):
 
         @return: C{True} if the operation succeeded.
         """
-        q = self.query_factory(
+        query = self.query_factory(
             "ReleaseAddress", self.creds, self.endpoint,
             {"PublicIp": address})
-        d = q.submit()
+        d = query.submit()
         return d.addCallback(self._parse_truth_return)
 
     def associate_address(self, instance_id, address):
@@ -689,10 +687,10 @@ class EC2Client(object):
 
         @return: C{True} if the operation succeeded.
         """
-        q = self.query_factory(
+        query = self.query_factory(
             "AssociateAddress", self.creds, self.endpoint,
             {"InstanceId": instance_id, "PublicIp": address})
-        d = q.submit()
+        d = query.submit()
         return d.addCallback(self._parse_truth_return)
 
     def disassociate_address(self, address):
@@ -701,10 +699,10 @@ class EC2Client(object):
         C{associate_address}. This is an idempotent operation, so it can be
         called several times without error.
         """
-        q = self.query_factory(
+        query = self.query_factory(
             "DisassociateAddress", self.creds, self.endpoint,
             {"PublicIp": address})
-        d = q.submit()
+        d = query.submit()
         return d.addCallback(self._parse_truth_return)
 
     def describe_addresses(self, *addresses):
@@ -719,9 +717,9 @@ class EC2Client(object):
         address_set = {}
         for pos, address in enumerate(addresses):
             address_set["PublicIp.%d" % (pos + 1)] = address
-        q = self.query_factory(
+        query = self.query_factory(
             "DescribeAddresses", self.creds, self.endpoint, address_set)
-        d = q.submit()
+        d = query.submit()
         return d.addCallback(self._parse_describe_addresses)
 
     def _parse_describe_addresses(self, xml_bytes):
@@ -753,15 +751,13 @@ class EC2Client(object):
         return results
 
 
-class Query(object):
+class Query(BaseQuery):
     """A query that may be submitted to EC2."""
 
-    def __init__(self, action, creds, endpoint, other_params=None,
-                 time_tuple=None, api_version=None):
+    def __init__(self, other_params=None, time_tuple=None, api_version=None,
+                 *args, **kwargs):
         """Create a Query to submit to EC2."""
-        self.factory = HTTPClientFactory
-        self.creds = creds
-        self.endpoint = endpoint
+        super(Query, self).__init__(*args, **kwargs)
         # Currently, txAWS only supports version 2008-12-01
         if api_version is None:
             api_version = version.ec2_api
@@ -769,7 +765,7 @@ class Query(object):
             "Version": api_version,
             "SignatureVersion": "2",
             "SignatureMethod": "HmacSHA256",
-            "Action": action,
+            "Action": self.action,
             "AWSAccessKeyId": self.creds.access_key,
             "Timestamp": iso8601time(time_tuple),
             }
@@ -798,6 +794,10 @@ class Query(object):
                                      self.get_canonical_query_params())
         return result
 
+    def sorted_params(self):
+        """Return the query parameters sorted appropriately for signing."""
+        return sorted(self.params.items())
+
     def sign(self):
         """Sign this query using its built in credentials.
 
@@ -806,27 +806,6 @@ class Query(object):
         method to facilitate testing.
         """
         self.params["Signature"] = self.creds.sign(self.signing_text())
-
-    def sorted_params(self):
-        """Return the query parameters sorted appropriately for signing."""
-        return sorted(self.params.items())
-
-    def get_page(self, url, *args, **kwds):
-        """
-        Define our own get_page method so that we can easily override the
-        factory when we need to. This was copied from the following:
-            * twisted.web.client.getPage
-            * twisted.web.client._makeGetterFactory
-        """
-        contextFactory = None
-        scheme, host, port, path = parse(url)
-        factory = self.factory(url, *args, **kwds)
-        if scheme == 'https':
-            contextFactory = ssl.ClientContextFactory()
-            reactor.connectSSL(host, port, factory, contextFactory)
-        else:
-            reactor.connectTCP(host, port, factory)
-        return factory.deferred
 
     def submit(self):
         """Submit this query.

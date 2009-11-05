@@ -72,7 +72,9 @@ class EC2ClientTestCase(TXAWSTestCase):
         self.assertEqual(creds, ec2.creds)
 
     def test_describe_availability_zones_single(self):
+
         class StubQuery(object):
+
             def __init__(stub, action, creds, endpoint, other_params):
                 self.assertEqual(action, "DescribeAvailabilityZones")
                 self.assertEqual(creds.access_key, "foo")
@@ -80,6 +82,7 @@ class EC2ClientTestCase(TXAWSTestCase):
                 self.assertEqual(
                     {"ZoneName.1": "us-east-1a"},
                     other_params)
+
             def submit(self):
                 return succeed(
                     payload.sample_describe_availability_zones_single_result)
@@ -98,11 +101,14 @@ class EC2ClientTestCase(TXAWSTestCase):
         return d
 
     def test_describe_availability_zones_multiple(self):
+
         class StubQuery(object):
+
             def __init__(stub, action, creds, endpoint, other_params):
                 self.assertEqual(action, "DescribeAvailabilityZones")
                 self.assertEqual(creds.access_key, "foo")
                 self.assertEqual(creds.secret_key, "bar")
+
             def submit(self):
                 return succeed(
                     payload.sample_describe_availability_zones_multiple_results)
@@ -189,14 +195,18 @@ class EC2ClientInstancesTestCase(TXAWSTestCase):
         self.check_parsed_instances(results)
 
     def test_describe_instances(self):
+
         class StubQuery(object):
+
             def __init__(stub, action, creds, endpoint, params):
                 self.assertEqual(action, "DescribeInstances")
                 self.assertEqual(creds.access_key, "foo")
                 self.assertEqual(creds.secret_key, "bar")
                 self.assertEquals(params, {})
+
             def submit(self):
                 return succeed(payload.sample_describe_instances_result)
+
         creds = AWSCredentials("foo", "bar")
         ec2 = client.EC2Client(creds, query_factory=StubQuery)
         d = ec2.describe_instances()
@@ -204,15 +214,19 @@ class EC2ClientInstancesTestCase(TXAWSTestCase):
         return d
 
     def test_describe_instances_required(self):
+
         class StubQuery(object):
+
             def __init__(stub, action, creds, endpoint, params):
                 self.assertEqual(action, "DescribeInstances")
                 self.assertEqual(creds.access_key, "foo")
                 self.assertEqual(creds.secret_key, "bar")
                 self.assertEquals(params, {})
+
             def submit(self):
                 return succeed(
                     payload.sample_required_describe_instances_result)
+
         creds = AWSCredentials("foo", "bar")
         ec2 = client.EC2Client(creds, query_factory=StubQuery)
         d = ec2.describe_instances()
@@ -220,7 +234,9 @@ class EC2ClientInstancesTestCase(TXAWSTestCase):
         return d
 
     def test_describe_instances_specific_instances(self):
+
         class StubQuery(object):
+
             def __init__(stub, action, creds, endpoint, params):
                 self.assertEqual(action, "DescribeInstances")
                 self.assertEqual(creds.access_key, "foo")
@@ -229,9 +245,11 @@ class EC2ClientInstancesTestCase(TXAWSTestCase):
                     params,
                     {"InstanceId.1": "i-16546401",
                      "InstanceId.2": "i-49873415"})
+
             def submit(self):
                 return succeed(
                     payload.sample_required_describe_instances_result)
+
         creds = AWSCredentials("foo", "bar")
         ec2 = client.EC2Client(creds, query_factory=StubQuery)
         d = ec2.describe_instances("i-16546401", "i-49873415")
@@ -239,7 +257,9 @@ class EC2ClientInstancesTestCase(TXAWSTestCase):
         return d
 
     def test_terminate_instances(self):
+
         class StubQuery(object):
+
             def __init__(stub, action, creds, endpoint, other_params):
                 self.assertEqual(action, "TerminateInstances")
                 self.assertEqual(creds.access_key, "foo")
@@ -247,16 +267,19 @@ class EC2ClientInstancesTestCase(TXAWSTestCase):
                 self.assertEqual(
                     {"InstanceId.1": "i-1234", "InstanceId.2": "i-5678"},
                     other_params)
+
             def submit(self):
                 return succeed(payload.sample_terminate_instances_result)
+
+        def check_transition(changes):
+            self.assertEqual([("i-1234", "running", "shutting-down"),
+                ("i-5678", "shutting-down", "shutting-down")], sorted(changes))
+
         creds = AWSCredentials("foo", "bar")
         endpoint = AWSServiceEndpoint(uri=EC2_ENDPOINT_US)
         ec2 = client.EC2Client(creds=creds, endpoint=endpoint,
                                query_factory=StubQuery)
         d = ec2.terminate_instances("i-1234", "i-5678")
-        def check_transition(changes):
-            self.assertEqual([("i-1234", "running", "shutting-down"),
-                ("i-5678", "shutting-down", "shutting-down")], sorted(changes))
         d.addCallback(check_transition)
         return d
 
@@ -288,6 +311,7 @@ class EC2ClientInstancesTestCase(TXAWSTestCase):
     def test_run_instances(self):
 
         class StubQuery(object):
+
             def __init__(stub, action, creds, endpoint, params):
                 self.assertEqual(action, "RunInstances")
                 self.assertEqual(creds.access_key, "foo")
@@ -299,6 +323,7 @@ class EC2ClientInstancesTestCase(TXAWSTestCase):
                      "UserData": "Zm9v", "InstanceType": u"m1.small",
                      "Placement.AvailabilityZone": u"us-east-1b",
                      "KernelId": u"k-1234", "RamdiskId": u"r-1234"})
+
             def submit(self):
                 return succeed(
                     payload.sample_run_instances_result)
@@ -321,11 +346,13 @@ class EC2ClientSecurityGroupsTestCase(TXAWSTestCase):
         using XML data received from the cloud.
         """
         class StubQuery(object):
+
             def __init__(stub, action, creds, endpoint, other_params=None):
                 self.assertEqual(action, "DescribeSecurityGroups")
                 self.assertEqual(creds.access_key, "foo")
                 self.assertEqual(creds.secret_key, "bar")
                 self.assertEqual(other_params, None)
+
             def submit(self):
                 return succeed(payload.sample_describe_security_groups_result)
 
@@ -353,11 +380,13 @@ class EC2ClientSecurityGroupsTestCase(TXAWSTestCase):
         information about more than one L{SecurityGroup}.
         """
         class StubQuery(object):
+
             def __init__(stub, action, creds, endpoint, other_params=None):
                 self.assertEqual(action, "DescribeSecurityGroups")
                 self.assertEqual(creds.access_key, "foo")
                 self.assertEqual(creds.secret_key, "bar")
                 self.assertEqual(other_params, None)
+
             def submit(self):
                 return succeed(
                     payload.sample_describe_security_groups_multiple_result)
@@ -400,11 +429,13 @@ class EC2ClientSecurityGroupsTestCase(TXAWSTestCase):
         security group names to limit results to.
         """
         class StubQuery(object):
+
             def __init__(stub, action, creds, endpoint, other_params=None):
                 self.assertEqual(action, "DescribeSecurityGroups")
                 self.assertEqual(creds.access_key, "foo")
                 self.assertEqual(creds.secret_key, "bar")
                 self.assertEqual(other_params, {"GroupName.1": "WebServers"})
+
             def submit(self):
                 return succeed(payload.sample_describe_security_groups_result)
 
@@ -424,6 +455,7 @@ class EC2ClientSecurityGroupsTestCase(TXAWSTestCase):
         operation.
         """
         class StubQuery(object):
+
             def __init__(stub, action, creds, endpoint, other_params=None):
                 self.assertEqual(action, "CreateSecurityGroup")
                 self.assertEqual(creds.access_key, "foo")
@@ -432,6 +464,7 @@ class EC2ClientSecurityGroupsTestCase(TXAWSTestCase):
                     "GroupName": "WebServers",
                     "GroupDescription": "The group for the web server farm.",
                     })
+
             def submit(self):
                 return succeed(payload.sample_create_security_group)
 
@@ -449,6 +482,7 @@ class EC2ClientSecurityGroupsTestCase(TXAWSTestCase):
         operation.
         """
         class StubQuery(object):
+
             def __init__(stub, action, creds, endpoint, other_params=None):
                 self.assertEqual(action, "DeleteSecurityGroup")
                 self.assertEqual(creds.access_key, "foo")
@@ -456,6 +490,7 @@ class EC2ClientSecurityGroupsTestCase(TXAWSTestCase):
                 self.assertEqual(other_params, {
                     "GroupName": "WebServers",
                     })
+
             def submit(self):
                 return succeed(payload.sample_delete_security_group)
 
@@ -471,6 +506,7 @@ class EC2ClientSecurityGroupsTestCase(TXAWSTestCase):
         that another group uses in that other group's policy.
         """
         class StubQuery(object):
+
             def __init__(stub, action, creds, endpoint, other_params=None):
                 self.assertEqual(action, "DeleteSecurityGroup")
                 self.assertEqual(creds.access_key, "foo")
@@ -478,6 +514,7 @@ class EC2ClientSecurityGroupsTestCase(TXAWSTestCase):
                 self.assertEqual(other_params, {
                     "GroupName": "GroupReferredTo",
                     })
+
             def submit(self):
                 error = EC2Error(payload.sample_delete_security_group_failure)
                 return fail(error)
@@ -503,6 +540,7 @@ class EC2ClientSecurityGroupsTestCase(TXAWSTestCase):
         way.
         """
         class StubQuery(object):
+
             def __init__(stub, action, creds, endpoint, other_params=None):
                 self.assertEqual(action, "AuthorizeSecurityGroupIngress")
                 self.assertEqual(creds.access_key, "foo")
@@ -512,6 +550,7 @@ class EC2ClientSecurityGroupsTestCase(TXAWSTestCase):
                     "SourceSecurityGroupName": "AppServers",
                     "SourceSecurityGroupOwnerId": "123456789123",
                     })
+
             def submit(self):
                 return succeed(payload.sample_authorize_security_group)
 
@@ -531,6 +570,7 @@ class EC2ClientSecurityGroupsTestCase(TXAWSTestCase):
         way.
         """
         class StubQuery(object):
+
             def __init__(stub, action, creds, endpoint, other_params=None):
                 self.assertEqual(action, "AuthorizeSecurityGroupIngress")
                 self.assertEqual(creds.access_key, "foo")
@@ -540,6 +580,7 @@ class EC2ClientSecurityGroupsTestCase(TXAWSTestCase):
                     "FromPort": "22", "ToPort": "80",
                     "IpProtocol": "tcp", "CidrIp": "0.0.0.0/0",
                     })
+
             def submit(self):
                 return succeed(payload.sample_authorize_security_group)
 
@@ -579,6 +620,7 @@ class EC2ClientSecurityGroupsTestCase(TXAWSTestCase):
         operation.
         """
         class StubQuery(object):
+
             def __init__(stub, action, creds, endpoint, other_params=None):
                 self.assertEqual(action, "AuthorizeSecurityGroupIngress")
                 self.assertEqual(creds.access_key, "foo")
@@ -588,6 +630,7 @@ class EC2ClientSecurityGroupsTestCase(TXAWSTestCase):
                     "SourceSecurityGroupName": "AppServers",
                     "SourceSecurityGroupOwnerId": "123456789123",
                     })
+
             def submit(self):
                 return succeed(payload.sample_authorize_security_group)
 
@@ -605,6 +648,7 @@ class EC2ClientSecurityGroupsTestCase(TXAWSTestCase):
         operation.
         """
         class StubQuery(object):
+
             def __init__(stub, action, creds, endpoint, other_params=None):
                 self.assertEqual(action, "AuthorizeSecurityGroupIngress")
                 self.assertEqual(creds.access_key, "foo")
@@ -614,6 +658,7 @@ class EC2ClientSecurityGroupsTestCase(TXAWSTestCase):
                     "FromPort": "22", "ToPort": "80",
                     "IpProtocol": "tcp", "CidrIp": "0.0.0.0/0",
                     })
+
             def submit(self):
                 return succeed(payload.sample_authorize_security_group)
 
@@ -633,6 +678,7 @@ class EC2ClientSecurityGroupsTestCase(TXAWSTestCase):
         way.
         """
         class StubQuery(object):
+
             def __init__(stub, action, creds, endpoint, other_params=None):
                 self.assertEqual(action, "RevokeSecurityGroupIngress")
                 self.assertEqual(creds.access_key, "foo")
@@ -642,6 +688,7 @@ class EC2ClientSecurityGroupsTestCase(TXAWSTestCase):
                     "SourceSecurityGroupName": "AppServers",
                     "SourceSecurityGroupOwnerId": "123456789123",
                     })
+
             def submit(self):
                 return succeed(payload.sample_revoke_security_group)
 
@@ -661,6 +708,7 @@ class EC2ClientSecurityGroupsTestCase(TXAWSTestCase):
         way.
         """
         class StubQuery(object):
+
             def __init__(stub, action, creds, endpoint, other_params=None):
                 self.assertEqual(action, "RevokeSecurityGroupIngress")
                 self.assertEqual(creds.access_key, "foo")
@@ -670,6 +718,7 @@ class EC2ClientSecurityGroupsTestCase(TXAWSTestCase):
                     "FromPort": "22", "ToPort": "80",
                     "IpProtocol": "tcp", "CidrIp": "0.0.0.0/0",
                     })
+
             def submit(self):
                 return succeed(payload.sample_revoke_security_group)
 
@@ -709,6 +758,7 @@ class EC2ClientSecurityGroupsTestCase(TXAWSTestCase):
         operation.
         """
         class StubQuery(object):
+
             def __init__(stub, action, creds, endpoint, other_params=None):
                 self.assertEqual(action, "RevokeSecurityGroupIngress")
                 self.assertEqual(creds.access_key, "foo")
@@ -718,6 +768,7 @@ class EC2ClientSecurityGroupsTestCase(TXAWSTestCase):
                     "SourceSecurityGroupName": "AppServers",
                     "SourceSecurityGroupOwnerId": "123456789123",
                     })
+
             def submit(self):
                 return succeed(payload.sample_revoke_security_group)
 
@@ -735,6 +786,7 @@ class EC2ClientSecurityGroupsTestCase(TXAWSTestCase):
         operation.
         """
         class StubQuery(object):
+
             def __init__(stub, action, creds, endpoint, other_params=None):
                 self.assertEqual(action, "RevokeSecurityGroupIngress")
                 self.assertEqual(creds.access_key, "foo")
@@ -744,6 +796,7 @@ class EC2ClientSecurityGroupsTestCase(TXAWSTestCase):
                     "FromPort": "22", "ToPort": "80",
                     "IpProtocol": "tcp", "CidrIp": "0.0.0.0/0",
                     })
+
             def submit(self):
                 return succeed(payload.sample_revoke_security_group)
 
@@ -783,6 +836,7 @@ class EC2ClientEBSTestCase(TXAWSTestCase):
     def test_describe_volumes(self):
 
         class StubQuery(object):
+
             def __init__(stub, action, creds, endpoint, params):
                 self.assertEqual(action, "DescribeVolumes")
                 self.assertEqual(self.creds, creds)
@@ -801,6 +855,7 @@ class EC2ClientEBSTestCase(TXAWSTestCase):
     def test_describe_specified_volumes(self):
 
         class StubQuery(object):
+
             def __init__(stub, action, creds, endpoint, params):
                 self.assertEqual(action, "DescribeVolumes")
                 self.assertEqual(self.creds, creds)
@@ -831,6 +886,7 @@ class EC2ClientEBSTestCase(TXAWSTestCase):
     def test_describe_snapshots(self):
 
         class StubQuery(object):
+
             def __init__(stub, action, creds, endpoint, params):
                 self.assertEqual(action, "DescribeSnapshots")
                 self.assertEqual(self.creds, creds)
@@ -849,6 +905,7 @@ class EC2ClientEBSTestCase(TXAWSTestCase):
     def test_describe_specified_snapshots(self):
 
         class StubQuery(object):
+
             def __init__(stub, action, creds, endpoint, params):
                 self.assertEqual(action, "DescribeSnapshots")
                 self.assertEqual(self.creds, creds)
@@ -869,6 +926,7 @@ class EC2ClientEBSTestCase(TXAWSTestCase):
     def test_create_volume(self):
 
         class StubQuery(object):
+
             def __init__(stub, action, creds, endpoint, params):
                 self.assertEqual(action, "CreateVolume")
                 self.assertEqual(self.creds, creds)
@@ -896,6 +954,7 @@ class EC2ClientEBSTestCase(TXAWSTestCase):
     def test_create_volume_with_snapshot(self):
 
         class StubQuery(object):
+
             def __init__(stub, action, creds, endpoint, params):
                 self.assertEqual(action, "CreateVolume")
                 self.assertEqual(self.creds, creds)
@@ -938,6 +997,7 @@ class EC2ClientEBSTestCase(TXAWSTestCase):
     def test_delete_volume(self):
 
         class StubQuery(object):
+
             def __init__(stub, action, creds, endpoint, params):
                 self.assertEqual(action, "DeleteVolume")
                 self.assertEqual(self.creds, creds)
@@ -958,6 +1018,7 @@ class EC2ClientEBSTestCase(TXAWSTestCase):
     def test_create_snapshot(self):
 
         class StubQuery(object):
+
             def __init__(stub, action, creds, endpoint, params):
                 self.assertEqual(action, "CreateSnapshot")
                 self.assertEqual(self.creds, creds)
@@ -986,6 +1047,7 @@ class EC2ClientEBSTestCase(TXAWSTestCase):
     def test_delete_snapshot(self):
 
         class StubQuery(object):
+
             def __init__(stub, action, creds, endpoint, params):
                 self.assertEqual(action, "DeleteSnapshot")
                 self.assertEqual(self.creds, creds)
@@ -1006,6 +1068,7 @@ class EC2ClientEBSTestCase(TXAWSTestCase):
     def test_attach_volume(self):
 
         class StubQuery(object):
+
             def __init__(stub, action, creds, endpoint, params):
                 self.assertEqual(action, "AttachVolume")
                 self.assertEqual(self.creds, creds)
@@ -1041,6 +1104,7 @@ class EC2ClientEBSTestCase(TXAWSTestCase):
     def test_single_describe_keypairs(self):
 
         class StubQuery(object):
+
             def __init__(stub, action, creds, endpoint, params):
                 self.assertEqual(action, "DescribeKeyPairs")
                 self.assertEqual("foo", creds)
@@ -1086,6 +1150,7 @@ class EC2ClientEBSTestCase(TXAWSTestCase):
     def test_describe_specified_keypairs(self):
 
         class StubQuery(object):
+
             def __init__(stub, action, creds, endpoint, params):
                 self.assertEqual(action, "DescribeKeyPairs")
                 self.assertEqual("foo", creds)
@@ -1115,6 +1180,7 @@ class EC2ClientEBSTestCase(TXAWSTestCase):
             self.assertEquals(len(keypair.material), 1670)
 
         class StubQuery(object):
+
             def __init__(stub, action, creds, endpoint, params):
                 self.assertEqual(action, "CreateKeyPair")
                 self.assertEqual("foo", creds)
@@ -1133,6 +1199,7 @@ class EC2ClientEBSTestCase(TXAWSTestCase):
     def test_delete_keypair_true_result(self):
 
         class StubQuery(object):
+
             def __init__(stub, action, creds, endpoint, params):
                 self.assertEqual(action, "DeleteKeyPair")
                 self.assertEqual("foo", creds)
@@ -1152,6 +1219,7 @@ class EC2ClientEBSTestCase(TXAWSTestCase):
     def test_delete_keypair_false_result(self):
 
         class StubQuery(object):
+
             def __init__(stub, action, creds, endpoint, params):
                 self.assertEqual(action, "DeleteKeyPair")
                 self.assertEqual("foo", creds)
@@ -1171,6 +1239,7 @@ class EC2ClientEBSTestCase(TXAWSTestCase):
     def test_delete_keypair_no_result(self):
 
         class StubQuery(object):
+
             def __init__(stub, action, creds, endpoint, params):
                 self.assertEqual(action, "DeleteKeyPair")
                 self.assertEqual("foo", creds)
@@ -1437,7 +1506,6 @@ class QueryPageGetterTestCase(TXAWSTestCase):
         return deferred
 
 
-
 class EC2ClientAddressTestCase(TXAWSTestCase):
 
     def setUp(self):
@@ -1448,6 +1516,7 @@ class EC2ClientAddressTestCase(TXAWSTestCase):
     def test_describe_addresses(self):
 
         class StubQuery(object):
+
             def __init__(stub, action, creds, endpoint, params):
                 self.assertEqual(action, "DescribeAddresses")
                 self.assertEqual(self.creds, creds)
@@ -1468,6 +1537,7 @@ class EC2ClientAddressTestCase(TXAWSTestCase):
     def test_describe_specified_addresses(self):
 
         class StubQuery(object):
+
             def __init__(stub, action, creds, endpoint, params):
                 self.assertEqual(action, "DescribeAddresses")
                 self.assertEqual(self.creds, creds)
@@ -1490,6 +1560,7 @@ class EC2ClientAddressTestCase(TXAWSTestCase):
     def test_associate_address(self):
 
         class StubQuery(object):
+
             def __init__(stub, action, creds, endpoint, params):
                 self.assertEqual(action, "AssociateAddress")
                 self.assertEqual(self.creds, creds)
@@ -1510,6 +1581,7 @@ class EC2ClientAddressTestCase(TXAWSTestCase):
     def test_allocate_address(self):
 
         class StubQuery(object):
+
             def __init__(stub, action, creds, endpoint, params):
                 self.assertEqual(action, "AllocateAddress")
                 self.assertEqual(self.creds, creds)
@@ -1528,6 +1600,7 @@ class EC2ClientAddressTestCase(TXAWSTestCase):
     def test_release_address(self):
 
         class StubQuery(object):
+
             def __init__(stub, action, creds, endpoint, params):
                 self.assertEqual(action, "ReleaseAddress")
                 self.assertEqual(self.creds, creds)
@@ -1546,6 +1619,7 @@ class EC2ClientAddressTestCase(TXAWSTestCase):
     def test_disassociate_address(self):
 
         class StubQuery(object):
+
             def __init__(stub, action, creds, endpoint, params):
                 self.assertEqual(action, "DisassociateAddress")
                 self.assertEqual(self.creds, creds)
