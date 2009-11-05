@@ -836,6 +836,6 @@ class Query(object):
         self.sign()
         url = "%s?%s" % (self.endpoint.get_uri(),
                          self.get_canonical_query_params())
-        deferred = self.get_page(url, method=self.endpoint.method)
-        deferred.addErrback(ec2_error_wrapper)
-        return deferred
+        d = self.get_page(url, method=self.endpoint.method)
+        d.addErrback(ec2_error_wrapper)
+        return d

@@ -151,13 +151,10 @@ class Query(object):
             headers["Content-Type"] = self.content_type
 
         if self.creds is not None:
-            signature = self.get_signature(headers)
+            signature = self.sign(headers)
             headers["Authorization"] = "AWS %s:%s" % (
                 self.creds.access_key, signature)
         return headers
-
-    def get_canonicalized_resource(self):
-        return self.get_path()
 
     def get_canonicalized_amz_headers(self, headers):
         result = ""
@@ -166,13 +163,13 @@ class Query(object):
         headers.sort()
         return "".join("%s:%s\n" % (name, value) for name, value in headers)
 
-    def get_signature(self, headers):
+    def sign(self, headers):
         text = (self.action + "\n" + 
                 headers.get("Content-MD5", "") + "\n" +
                 headers.get("Content-Type", "") + "\n" +
                 headers.get("Date", "") + "\n" +
                 self.get_canonicalized_amz_headers(headers) +
-                self.get_canonicalized_resource())
+                self.get_path())
         return self.creds.sign(text)
 
     def get_page(self, url, *args, **kwds):
@@ -193,5 +190,10 @@ class Query(object):
         return factory.deferred
 
     def submit(self):
-        return self.get_page(url=self.get_uri(), method=self.action,
-                             postdata=self.data, headers=self.get_headers())
+        d = self.get_page(self.get_uri(), method=self.action,
+                          postdata=self.data, headers=self.get_headers())
+        # XXX - we need an error wrapper like we have for ec2... but let's wait
+        # until the new error-wrapper brach has landed, and possibly generalize
+        # a base class for all clients.
+        #d.addErrback(s3_error_wrapper)
+        return d
