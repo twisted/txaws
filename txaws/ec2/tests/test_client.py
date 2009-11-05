@@ -1312,7 +1312,7 @@ class QueryTestCase(TXAWSTestCase):
             "&SignatureMethod=HmacSHA256&SignatureVersion=2&"
             "Timestamp=2007-11-12T13%3A14%3A15Z&Version=2008-12-01&"
             "argwithnovalue=&fu%20n=g%2Fames")
-        self.assertEqual(expected_query, query.canonical_query_params())
+        self.assertEqual(expected_query, query.get_canonical_query_params())
 
     def test_signing_text(self):
         query = client.Query("DescribeInstances", self.creds, self.endpoint,

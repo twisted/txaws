@@ -7,10 +7,12 @@ Various API-incompatible changes are planned in order to expose missing
 functionality in this wrapper.
 """
 
-from epsilon.extime import Time
-
 from twisted.web.client import getPage
 from twisted.web.http import datetimeToString
+from twisted.internet import reactor, ssl
+from twisted.web.client import HTTPClientFactory
+
+from epsilon.extime import Time
 
 from txaws.service import AWSServiceEndpoint
 from txaws.util import XML, calculate_md5
@@ -112,6 +114,7 @@ class Query(object):
 
     def __init__(self, action, bucket=None, object_name=None, data="",
                  content_type=None, metadata={}, creds=None, endpoint=None):
+        self.factory = HTTPClientFactory
         self.action = action
         self.bucket = bucket
         self.object_name = object_name
@@ -172,9 +175,23 @@ class Query(object):
                 self.get_canonicalized_resource())
         return self.creds.sign(text)
 
+    def get_page(self, url, *args, **kwds):
+        """
+        Define our own get_page method so that we can easily override the
+        factory when we need to. This was copied from the following:
+            * twisted.web.client.getPage
+            * twisted.web.client._makeGetterFactory
+        """
+        contextFactory = None
+        scheme, host, port, path = parse(url)
+        factory = self.factory(url, *args, **kwds)
+        if scheme == 'https':
+            contextFactory = ssl.ClientContextFactory()
+            reactor.connectSSL(host, port, factory, contextFactory)
+        else:
+            reactor.connectTCP(host, port, factory)
+        return factory.deferred
+
     def submit(self):
         return self.get_page(url=self.get_uri(), method=self.action,
                              postdata=self.data, headers=self.get_headers())
-
-    def get_page(self, *a, **kw):
-        return getPage(*a, **kw)
