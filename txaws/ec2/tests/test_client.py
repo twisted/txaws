@@ -190,10 +190,11 @@ class EC2ClientInstancesTestCase(TXAWSTestCase):
 
     def test_describe_instances(self):
         class StubQuery(object):
-            def __init__(stub, action, creds, endpoint):
+            def __init__(stub, action, creds, endpoint, params):
                 self.assertEqual(action, "DescribeInstances")
                 self.assertEqual(creds.access_key, "foo")
                 self.assertEqual(creds.secret_key, "bar")
+                self.assertEquals(params, {})
             def submit(self):
                 return succeed(payload.sample_describe_instances_result)
         creds = AWSCredentials("foo", "bar")
@@ -204,16 +205,36 @@ class EC2ClientInstancesTestCase(TXAWSTestCase):
 
     def test_describe_instances_required(self):
         class StubQuery(object):
-            def __init__(stub, action, creds, endpoint):
+            def __init__(stub, action, creds, endpoint, params):
                 self.assertEqual(action, "DescribeInstances")
                 self.assertEqual(creds.access_key, "foo")
                 self.assertEqual(creds.secret_key, "bar")
+                self.assertEquals(params, {})
             def submit(self):
                 return succeed(
                     payload.sample_required_describe_instances_result)
         creds = AWSCredentials("foo", "bar")
         ec2 = client.EC2Client(creds, query_factory=StubQuery)
         d = ec2.describe_instances()
+        d.addCallback(self.check_parsed_instances_required)
+        return d
+
+    def test_describe_instances_specific_instances(self):
+        class StubQuery(object):
+            def __init__(stub, action, creds, endpoint, params):
+                self.assertEqual(action, "DescribeInstances")
+                self.assertEqual(creds.access_key, "foo")
+                self.assertEqual(creds.secret_key, "bar")
+                self.assertEquals(
+                    params,
+                    {"InstanceId.1": "i-16546401",
+                     "InstanceId.2": "i-49873415"})
+            def submit(self):
+                return succeed(
+                    payload.sample_required_describe_instances_result)
+        creds = AWSCredentials("foo", "bar")
+        ec2 = client.EC2Client(creds, query_factory=StubQuery)
+        d = ec2.describe_instances("i-16546401", "i-49873415")
         d.addCallback(self.check_parsed_instances_required)
         return d
 
@@ -238,6 +259,57 @@ class EC2ClientInstancesTestCase(TXAWSTestCase):
                 ("i-5678", "shutting-down", "shutting-down")], sorted(changes))
         d.addCallback(check_transition)
         return d
+
+    def check_parsed_run_instances(self, results):
+        instance = results[0]
+        # check reservations
+        reservation = instance.reservation
+        self.assertEquals(reservation.reservation_id, "r-47a5402e")
+        self.assertEquals(reservation.owner_id, "495219933132")
+        # check groups
+        group = reservation.groups[0]
+        self.assertEquals(group, "default")
+        # check instance
+        self.assertEquals(instance.instance_id, "i-2ba64342")
+        self.assertEquals(instance.instance_state, "pending")
+        self.assertEquals(instance.instance_type, "m1.small")
+        self.assertEquals(instance.placement, "us-east-1b")
+        instance = results[1]
+        self.assertEquals(instance.instance_id, "i-2bc64242")
+        self.assertEquals(instance.instance_state, "pending")
+        self.assertEquals(instance.instance_type, "m1.small")
+        self.assertEquals(instance.placement, "us-east-1b")
+        instance = results[2]
+        self.assertEquals(instance.instance_id, "i-2be64332")
+        self.assertEquals(instance.instance_state, "pending")
+        self.assertEquals(instance.instance_type, "m1.small")
+        self.assertEquals(instance.placement, "us-east-1b")
+
+    def test_run_instances(self):
+
+        class StubQuery(object):
+            def __init__(stub, action, creds, endpoint, params):
+                self.assertEqual(action, "RunInstances")
+                self.assertEqual(creds.access_key, "foo")
+                self.assertEqual(creds.secret_key, "bar")
+                self.assertEquals(
+                    params,
+                    {"ImageId": "ami-1234", "MaxCount": "2", "MinCount": "1",
+                     "SecurityGroup.1": u"group1", "KeyName": u"default",
+                     "UserData": "Zm9v", "InstanceType": u"m1.small",
+                     "Placement.AvailabilityZone": u"us-east-1b",
+                     "KernelId": u"k-1234", "RamdiskId": u"r-1234"})
+            def submit(self):
+                return succeed(
+                    payload.sample_run_instances_result)
+
+        creds = AWSCredentials("foo", "bar")
+        ec2 = client.EC2Client(creds, query_factory=StubQuery)
+        d = ec2.run_instances("ami-1234", 1, 2, security_groups=[u"group1"],
+            key_name=u"default", user_data=u"foo", instance_type=u"m1.small",
+            availability_zone=u"us-east-1b", kernel_id=u"k-1234",
+            ramdisk_id=u"r-1234")
+        d.addCallback(self.check_parsed_run_instances)
 
 
 class EC2ClientSecurityGroupsTestCase(TXAWSTestCase):
@@ -315,7 +387,7 @@ class EC2ClientSecurityGroupsTestCase(TXAWSTestCase):
             self.assertEquals(
                 [(ip.ip_protocol, ip.from_port, ip.to_port, ip.cidr_ip)
                  for ip in security_group.allowed_ips],
-                [("tcp", 80, 80, "0.0.0.0/0"), ("udp", 81, 81, "0.0.0.0/16")])
+                [("tcp", 80, 80, "0.0.0.0/0")])
 
         creds = AWSCredentials("foo", "bar")
         ec2 = client.EC2Client(creds, query_factory=StubQuery)
@@ -492,7 +564,7 @@ class EC2ClientSecurityGroupsTestCase(TXAWSTestCase):
         self.assertRaises(ValueError, ec2.authorize_security_group,
                 "WebServers", ip_protocol="tcp", from_port="22")
         try:
-            d = ec2.authorize_security_group(
+            ec2.authorize_security_group(
                 "WebServers", ip_protocol="tcp", from_port="22")
         except Exception, error:
             self.assertEquals(
@@ -622,7 +694,7 @@ class EC2ClientSecurityGroupsTestCase(TXAWSTestCase):
         self.assertRaises(ValueError, ec2.authorize_security_group,
                 "WebServers", ip_protocol="tcp", from_port="22")
         try:
-            d = ec2.authorize_security_group(
+            ec2.authorize_security_group(
                 "WebServers", ip_protocol="tcp", from_port="22")
         except Exception, error:
             self.assertEquals(
@@ -1180,7 +1252,7 @@ class QueryTestCase(TXAWSTestCase):
         self.assertEqual(
             {"AWSAccessKeyId": "foo",
              "Action": "DescribeInstances",
-             "SignatureMethod": "HmacSHA1",
+             "SignatureMethod": "HmacSHA256",
              "SignatureVersion": "2",
              "Version": "2008-12-01"},
             query.params)
@@ -1199,7 +1271,7 @@ class QueryTestCase(TXAWSTestCase):
             {"AWSAccessKeyId": "foo",
              "Action": "DescribeInstances",
              "InstanceId.0": "12345",
-             "SignatureMethod": "HmacSHA1",
+             "SignatureMethod": "HmacSHA256",
              "SignatureVersion": "2",
              "Timestamp": "2007-11-12T13:14:15Z",
              "Version": "2008-12-01"},
@@ -1212,7 +1284,7 @@ class QueryTestCase(TXAWSTestCase):
         self.assertEqual([
             ("AWSAccessKeyId", "foo"),
             ("Action", "DescribeInstances"),
-            ("SignatureMethod", "HmacSHA1"),
+            ("SignatureMethod", "HmacSHA256"),
             ("SignatureVersion", "2"),
             ("Timestamp", "2007-11-12T13:14:15Z"),
             ("Version", "2008-12-01"),
@@ -1237,7 +1309,7 @@ class QueryTestCase(TXAWSTestCase):
             time_tuple=(2007,11,12,13,14,15,0,0,0))
         expected_query = ("AWSAccessKeyId=foo&Action=DescribeInstances"
             "&InstanceId.1=i-1234"
-            "&SignatureMethod=HmacSHA1&SignatureVersion=2&"
+            "&SignatureMethod=HmacSHA256&SignatureVersion=2&"
             "Timestamp=2007-11-12T13%3A14%3A15Z&Version=2008-12-01&"
             "argwithnovalue=&fu%20n=g%2Fames")
         self.assertEqual(expected_query, query.canonical_query_params())
@@ -1247,15 +1319,15 @@ class QueryTestCase(TXAWSTestCase):
             time_tuple=(2007,11,12,13,14,15,0,0,0))
         signing_text = ("GET\n%s\n/\n" % self.endpoint.host +
             "AWSAccessKeyId=foo&Action=DescribeInstances&"
-            "SignatureMethod=HmacSHA1&SignatureVersion=2&"
+            "SignatureMethod=HmacSHA256&SignatureVersion=2&"
             "Timestamp=2007-11-12T13%3A14%3A15Z&Version=2008-12-01")
         self.assertEqual(signing_text, query.signing_text())
 
     def test_sign(self):
         query = client.Query("DescribeInstances", self.creds, self.endpoint,
-            time_tuple=(2007,11,12,13,14,15,0,0,0))
+            time_tuple=(2007, 11, 12, 13, 14, 15, 0, 0, 0))
         query.sign()
-        self.assertEqual("JuCpwFA2H4OVF3Ql/lAQs+V6iMc=",
+        self.assertEqual("aDmLr0Ktjsmt17UJD/EZf6DrfKWT1JW0fq2FDUCOPic=",
             query.params["Signature"])
 
     def test_submit_400(self):
