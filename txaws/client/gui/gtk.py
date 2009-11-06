@@ -162,7 +162,7 @@ class AWSStatusIcon(gtk.StatusIcon):
 
     def shutdown_instances(self, reservation):
         d = self.client.terminate_instances(
-            *[instance.instanceId for instance in reservation])
+            *[instance.instance_id for instance in reservation])
         d.addCallbacks(self.on_activate, self.show_error)
 
     def queue_check(self):
