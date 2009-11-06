@@ -7,6 +7,7 @@
 
 from datetime import datetime
 from urllib import quote
+from base64 import b64encode
 
 from twisted.internet import reactor, ssl
 from twisted.web.client import HTTPClientFactory
@@ -53,11 +54,45 @@ class EC2Client(object):
         else:
             self.query_factory = query_factory
 
-    def describe_instances(self):
+    def describe_instances(self, *instance_ids):
         """Describe current instances."""
-        q = self.query_factory("DescribeInstances", self.creds, self.endpoint)
+        instanceset = {}
+        for pos, instance_id in enumerate(instance_ids):
+            instanceset["InstanceId.%d" % (pos + 1)] = instance_id
+        q = self.query_factory("DescribeInstances", self.creds, self.endpoint,
+            instanceset)
         d = q.submit()
         return d.addCallback(self._parse_describe_instances)
+
+    def _parse_instances_set(self, root, reservation):
+        instances = []
+        for instance_data in root.find("instancesSet"):
+            instance_id = instance_data.findtext("instanceId")
+            instance_state = instance_data.find(
+                "instanceState").findtext("name")
+            instance_type = instance_data.findtext("instanceType")
+            image_id = instance_data.findtext("imageId")
+            private_dns_name = instance_data.findtext("privateDnsName")
+            dns_name = instance_data.findtext("dnsName")
+            key_name = instance_data.findtext("keyName")
+            ami_launch_index = instance_data.findtext("amiLaunchIndex")
+            launch_time = instance_data.findtext("launchTime")
+            placement = instance_data.find("placement").findtext(
+                "availabilityZone")
+            products = []
+            product_codes = instance_data.find("productCodes")
+            if product_codes:
+                for product_data in instance_data.find("productCodes"):
+                    products.append(product_data.text)
+            kernel_id = instance_data.findtext("kernelId")
+            ramdisk_id = instance_data.findtext("ramdiskId")
+            instance = model.Instance(
+                instance_id, instance_state, instance_type, image_id,
+                private_dns_name, dns_name, key_name, ami_launch_index,
+                launch_time, placement, products, kernel_id, ramdisk_id,
+                reservation=reservation)
+            instances.append(instance)
+        return instances
 
     def _parse_describe_instances(self, xml_bytes):
         """
@@ -92,35 +127,57 @@ class EC2Client(object):
                 owner_id=reservation_data.findtext("ownerId"),
                 groups=groups)
             # Get the list of instances.
-            instances = []
-            for instance_data in reservation_data.find("instancesSet"):
-                instance_id = instance_data.findtext("instanceId")
-                instance_state = instance_data.find(
-                    "instanceState").findtext("name")
-                instance_type = instance_data.findtext("instanceType")
-                image_id = instance_data.findtext("imageId")
-                private_dns_name = instance_data.findtext("privateDnsName")
-                dns_name = instance_data.findtext("dnsName")
-                key_name = instance_data.findtext("keyName")
-                ami_launch_index = instance_data.findtext("amiLaunchIndex")
-                launch_time = instance_data.findtext("launchTime")
-                placement = instance_data.find("placement").findtext(
-                    "availabilityZone")
-                products = []
-                product_codes = instance_data.find("productCodes")
-                if product_codes:
-                    for product_data in instance_data.find("productCodes"):
-                        products.append(product_data.text)
-                kernel_id = instance_data.findtext("kernelId")
-                ramdisk_id = instance_data.findtext("ramdiskId")
-                instance = model.Instance(
-                    instance_id, instance_state, instance_type, image_id,
-                    private_dns_name, dns_name, key_name, ami_launch_index,
-                    launch_time, placement, products, kernel_id, ramdisk_id,
-                    reservation=reservation)
-                instances.append(instance)
+            instances = self._parse_instances_set(
+                reservation_data, reservation)
             results.extend(instances)
         return results
+
+    def run_instances(self, image_id, min_count, max_count,
+        security_groups=None, key_name=None, instance_type=None,
+        user_data=None, availability_zone=None, kernel_id=None,
+        ramdisk_id=None):
+        """Run new instances."""
+        params = {"ImageId": image_id, "MinCount": str(min_count),
+                  "MaxCount": str(max_count)}
+        if security_groups is not None:
+            for i, name in enumerate(security_groups):
+                params["SecurityGroup.%d" % (i + 1)] = name
+        if key_name is not None:
+            params["KeyName"] = key_name
+        if user_data is not None:
+            params["UserData"] = b64encode(user_data)
+        if instance_type is not None:
+            params["InstanceType"] = instance_type
+        if availability_zone is not None:
+            params["Placement.AvailabilityZone"] = availability_zone
+        if kernel_id is not None:
+            params["KernelId"] = kernel_id
+        if ramdisk_id is not None:
+            params["RamdiskId"] = ramdisk_id
+        q = self.query_factory(
+            "RunInstances", self.creds, self.endpoint, params)
+        d = q.submit()
+        return d.addCallback(self._parse_run_instances)
+
+    def _parse_run_instances(self, xml_bytes):
+        """
+        Parse the reservations XML payload that is returned from an AWS
+        RunInstances API call.
+        """
+        root = XML(xml_bytes)
+        # Get the security group information.
+        groups = []
+        for group_data in root.find("groupSet"):
+            group_id = group_data.findtext("groupId")
+            groups.append(group_id)
+        # Create a reservation object with the parsed data.
+        reservation = model.Reservation(
+            reservation_id=root.findtext("reservationId"),
+            owner_id=root.findtext("ownerId"),
+            groups=groups)
+        # Get the list of instances.
+        instances = self._parse_instances_set(root, reservation)
+        return instances
 
     def terminate_instances(self, *instance_ids):
         """Terminate some instances.
@@ -184,14 +241,6 @@ class EC2Client(object):
             allowed_ips = []
             ip_permissions = group_info.find("ipPermissions") or []
             for ip_permission in ip_permissions:
-                ip_protocol = ip_permission.findtext("ipProtocol")
-                from_port = int(ip_permission.findtext("fromPort"))
-                to_port = int(ip_permission.findtext("toPort"))
-                cidr_ip = ip_permission.findtext("ipRanges/item/cidrIp")
-                allowed_ips.append(
-                    model.IPPermission(
-                        ip_protocol, from_port, to_port, cidr_ip))
-
                 user_id = ip_permission.findtext("groups/item/userId")
                 group_name = ip_permission.findtext("groups/item/groupName")
                 if user_id and group_name:
@@ -200,6 +249,14 @@ class EC2Client(object):
                         user_group_pair = model.UserIDGroupPair(
                             user_id, group_name)
                         allowed_groups.setdefault(user_id, user_group_pair)
+                else:
+                    ip_protocol = ip_permission.findtext("ipProtocol")
+                    from_port = int(ip_permission.findtext("fromPort"))
+                    to_port = int(ip_permission.findtext("toPort"))
+                    cidr_ip = ip_permission.findtext("ipRanges/item/cidrIp")
+                    allowed_ips.append(
+                        model.IPPermission(
+                            ip_protocol, from_port, to_port, cidr_ip))
 
             security_group = model.SecurityGroup(
                 name, description, owner_id=owner_id,
@@ -215,7 +272,6 @@ class EC2Client(object):
         @return: A C{Deferred} that will fire with a truth value for the
             success of the operation.
         """
-        group_names = None
         parameters = {"GroupName":  name, "GroupDescription": description}
         query = self.query_factory("CreateSecurityGroup", self.creds,
                                    self.endpoint, parameters)
@@ -686,7 +742,7 @@ class EC2Client(object):
                                    self.endpoint, zone_names)
         d = query.submit()
         return d.addCallback(self._parse_describe_availability_zones)
-        
+
     def _parse_describe_availability_zones(self, xml_bytes):
         results = []
         root = XML(xml_bytes)
@@ -712,7 +768,7 @@ class Query(object):
         self.params = {
             "Version": api_version,
             "SignatureVersion": "2",
-            "SignatureMethod": "HmacSHA1",
+            "SignatureMethod": "HmacSHA256",
             "Action": action,
             "AWSAccessKeyId": self.creds.access_key,
             "Timestamp": iso8601time(time_tuple),
