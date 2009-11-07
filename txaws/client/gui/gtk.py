@@ -154,7 +154,7 @@ class AWSStatusIcon(gtk.StatusIcon):
     def showhide(self, reservation):
         active = 0
         for instance in reservation:
-            if instance.instanceState == "running":
+            if instance.instance_state == "running":
                 active += 1
         self.set_tooltip("AWS Status - %d instances" % active)
         self.set_visible(active != 0)
@@ -162,7 +162,7 @@ class AWSStatusIcon(gtk.StatusIcon):
 
     def shutdown_instances(self, reservation):
         d = self.client.terminate_instances(
-            *[instance.instanceId for instance in reservation])
+            *[instance.instance_id for instance in reservation])
         d.addCallbacks(self.on_activate, self.show_error)
 
     def queue_check(self):
