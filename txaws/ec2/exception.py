@@ -89,6 +89,10 @@ class EC2Error(AWSError):
         tree = XML(xml_bytes.strip())
         self._check_for_html(tree)
         self._set_request_id(tree)
+        if self.status:
+            status = int(self.status)
+        else:
+            status = 400
         if self.status >= 500:
             self._set_500_error(tree)
         else:
