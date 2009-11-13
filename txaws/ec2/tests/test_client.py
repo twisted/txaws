@@ -1194,7 +1194,7 @@ class EC2ErrorWrapperTestCase(TXAWSTestCase):
     def setUp(self):
         TXAWSTestCase.setUp(self)
 
-    def get_failure(self, status=None, type=None, message="", response=""):
+    def make_failure(self, status=None, type=None, message="", response=""):
         if type == TwistedWebError:
             error = type(status)
         elif message:
@@ -1209,7 +1209,7 @@ class EC2ErrorWrapperTestCase(TXAWSTestCase):
         return failure
 
     def test_302_error(self):
-        failure = self.get_failure(302, Exception, "found")
+        failure = self.make_failure(302, Exception, "found")
         error = self.assertRaises(Exception, client.ec2_error_wrapper, failure)
         self.assertEquals(failure.type, type(error))
         self.assertFalse(isinstance(error, EC2Error))
@@ -1217,7 +1217,7 @@ class EC2ErrorWrapperTestCase(TXAWSTestCase):
         self.assertEquals(error.message, "found")
 
     def test_400_error(self):
-        failure = self.get_failure(400, TwistedWebError)
+        failure = self.make_failure(400, TwistedWebError)
         error = self.assertRaises(EC2Error, client.ec2_error_wrapper, failure)
         self.assertNotEquals(failure.type, type(error))
         self.assertTrue(isinstance(error, EC2Error))
@@ -1225,7 +1225,7 @@ class EC2ErrorWrapperTestCase(TXAWSTestCase):
         self.assertEquals(error.get_error_messages(), "Message for Error.Code")
 
     def test_404_error(self):
-        failure = self.get_failure(404, TwistedWebError)
+        failure = self.make_failure(404, TwistedWebError)
         error = self.assertRaises(EC2Error, client.ec2_error_wrapper, failure)
         self.assertNotEquals(failure.type, type(error))
         self.assertTrue(isinstance(error, EC2Error))
@@ -1238,7 +1238,7 @@ class EC2ErrorWrapperTestCase(TXAWSTestCase):
         non-EC2 404.
         """
         some_html = "<html><body>404</body></html>"
-        failure = self.get_failure(404, TwistedWebError, "not found",
+        failure = self.make_failure(404, TwistedWebError, "not found",
                                    some_html)
         error = self.assertRaises(
             TwistedWebError, client.ec2_error_wrapper, failure)
@@ -1247,7 +1247,7 @@ class EC2ErrorWrapperTestCase(TXAWSTestCase):
         self.assertEquals(str(error), "404 Not Found")
 
     def test_500_error(self):
-        failure = self.get_failure(
+        failure = self.make_failure(
             500, type=TwistedWebError,
             response=payload.sample_server_internal_error_result)
         error = self.assertRaises(EC2Error, client.ec2_error_wrapper, failure)
@@ -1262,21 +1262,21 @@ class EC2ErrorWrapperTestCase(TXAWSTestCase):
             "f691zulHNsUqonsZkjhILnvWwD3ZnmOM4ObM1wXTc6xuS3GzPmjArp8QC/sGsn6K")
 
     def test_non_EC2_500_error(self):
-        failure = self.get_failure(500, Exception, "A server error occurred")
+        failure = self.make_failure(500, Exception, "A server error occurred")
         error = self.assertRaises(Exception, client.ec2_error_wrapper, failure)
         self.assertFalse(isinstance(error, EC2Error))
         self.assertTrue(isinstance(error, Exception))
         self.assertEquals(error.message, "A server error occurred")
 
     def test_timeout_error(self):
-        failure = self.get_failure(type=Exception, message="timeout")
+        failure = self.make_failure(type=Exception, message="timeout")
         error = self.assertRaises(Exception, client.ec2_error_wrapper, failure)
         self.assertFalse(isinstance(error, EC2Error))
         self.assertTrue(isinstance(error, Exception))
         self.assertEquals(error.message, "timeout")
 
     def test_connection_error(self):
-        failure = self.get_failure(type=ConnectionRefusedError)
+        failure = self.make_failure(type=ConnectionRefusedError)
         error = self.assertRaises(ConnectionRefusedError,
                                   client.ec2_error_wrapper, failure)
         self.assertFalse(isinstance(error, EC2Error))
@@ -1284,7 +1284,7 @@ class EC2ErrorWrapperTestCase(TXAWSTestCase):
 
     def test_response_parse_error(self):
         bad_payload = "<bad></xml>"
-        failure = self.get_failure(400, type=TwistedWebError,
+        failure = self.make_failure(400, type=TwistedWebError,
                                    response=bad_payload)
         error = self.assertRaises(Exception, client.ec2_error_wrapper, failure)
         self.assertEquals(str(error), "400 Bad Request")
