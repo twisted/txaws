@@ -42,6 +42,15 @@ class EC2ErrorTestCase(TestCase):
         self.assertEquals(error.errors[0]["Code"], "1")
         self.assertEquals(error.errors[0]["Message"], "2")
 
+    def test_set_string_400_error(self):
+        errorsXML = "<Error><Code>1</Code><Message>2</Message></Error>"
+        xml = "<a><Errors>%s</Errors><b /></a>" % errorsXML
+        error = EC2Error(errorsXML, "400")
+        error.parse()
+        self.assertEquals(error.status, 400)
+        self.assertEquals(error.errors[0]["Code"], "1")
+        self.assertEquals(error.errors[0]["Message"], "2")
+
     def test_set_host_id(self):
         host_id = "ASD@#FDG$E%FG"
         xml = "<a><b /><HostID>%s</HostID></a>" % host_id
@@ -203,3 +212,9 @@ class EC2ErrorTestCase(TestCase):
             error.get_error_messages(),
             ("The AWS Access Key Id you provided does not exist in our "
              "records."))
+
+    def test_restricted_resource_access_attempt(self):
+        error = EC2Error(payload.sample_restricted_resource_result)
+        self.assertEquals(
+            error.get_error_messages(), 
+            "Unauthorized attempt to access restricted resource")

@@ -665,3 +665,17 @@ sample_server_internal_error_result = """\
   <HostID>f691zulHNsUqonsZkjhILnvWwD3ZnmOM4ObM1wXTc6xuS3GzPmjArp8QC/sGsn6K</HostID>
 </Error>
 """
+
+
+sample_restricted_resource_result = """\
+<?xml version="1.0"?>
+<Response>
+  <Errors>
+    <Error>
+      <Code>AuthFailure</Code>
+      <Message>Unauthorized attempt to access restricted resource</Message>
+    </Error>
+  </Errors>
+  <RequestID>a99e832e-e6e0-416a-9a35-81798ea521b4</RequestID>
+</Response>
+"""
