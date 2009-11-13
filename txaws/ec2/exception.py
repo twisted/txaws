@@ -93,7 +93,7 @@ class EC2Error(AWSError):
             status = int(self.status)
         else:
             status = 400
-        if self.status >= 500:
+        if status >= 500:
             self._set_500_error(tree)
         else:
             self._set_400_errors(tree)
