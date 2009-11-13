@@ -82,7 +82,7 @@ class EC2Error(AWSError):
         if tree.tag == "html":
             message = "Could not parse HTML in the response."
             raise AWSResponseParseError(message)
-        
+
     def parse(self, xml_bytes=""):
         if not xml_bytes:
             xml_bytes = self.original
