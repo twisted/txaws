@@ -57,8 +57,8 @@ class EC2Client(object):
         instanceset = {}
         for pos, instance_id in enumerate(instance_ids):
             instanceset["InstanceId.%d" % (pos + 1)] = instance_id
-        query = self.query_factory("DescribeInstances", self.creds, self.endpoint,
-            instanceset)
+        query = self.query_factory("DescribeInstances", self.creds,
+            self.endpoint, instanceset)
         d = query.submit()
         return d.addCallback(self._parse_describe_instances)
 

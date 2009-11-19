@@ -83,6 +83,10 @@ class AWSServiceRegion(object):
         if not creds:
             creds = AWSCredentials(access_key, secret_key)
         self.creds = creds
+        if not ec2_endpoint and region == REGION_US:
+            ec2_endpoint = EC2_ENDPOINT_US
+        elif not ec2_endpoint and region == REGION_EU:
+            ec2_endpoint = EC2_ENDPOINT_EU
         self._clients = {}
         self.ec2_endpoint = AWSServiceEndpoint(uri=ec2_endpoint)
         self.s3_endpoint = AWSServiceEndpoint(uri=s3_endpoint)

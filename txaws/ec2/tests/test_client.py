@@ -1315,7 +1315,9 @@ class QueryTestCase(TXAWSTestCase):
         self.endpoint = AWSServiceEndpoint(uri=EC2_ENDPOINT_US)
 
     def test_init_minimum(self):
-        query = client.Query("DescribeInstances", self.creds, self.endpoint)
+        query = client.Query(
+            action="DescribeInstances", creds=self.creds,
+            endpoint=self.endpoint)
         self.assertTrue("Timestamp" in query.params)
         del query.params["Timestamp"]
         self.assertEqual(
@@ -1326,15 +1328,10 @@ class QueryTestCase(TXAWSTestCase):
              "Version": "2008-12-01"},
             query.params)
 
-    def test_init_requires_action(self):
-        self.assertRaises(TypeError, client.Query)
-
-    def test_init_requires_creds(self):
-        self.assertRaises(TypeError, client.Query, None)
-
     def test_init_other_args_are_params(self):
-        query = client.Query("DescribeInstances", self.creds, self.endpoint,
-            {"InstanceId.0": "12345"},
+        query = client.Query(
+            action="DescribeInstances", creds=self.creds,
+            endpoint=self.endpoint, other_params={"InstanceId.0": "12345"},
             time_tuple=(2007,11,12,13,14,15,0,0,0))
         self.assertEqual(
             {"AWSAccessKeyId": "foo",
@@ -1347,8 +1344,9 @@ class QueryTestCase(TXAWSTestCase):
             query.params)
 
     def test_sorted_params(self):
-        query = client.Query("DescribeInstances", self.creds, self.endpoint,
-            {"fun": "games"},
+        query = client.Query(
+            action="DescribeInstances", creds=self.creds,
+            endpoint=self.endpoint, other_params={"fun": "games"},
             time_tuple=(2007,11,12,13,14,15,0,0,0))
         self.assertEqual([
             ("AWSAccessKeyId", "foo"),
@@ -1363,18 +1361,24 @@ class QueryTestCase(TXAWSTestCase):
     def test_encode_unreserved(self):
         all_unreserved = ("ABCDEFGHIJKLMNOPQRSTUVWXYZ"
             "abcdefghijklmnopqrstuvwxyz0123456789-_.~")
-        query = client.Query("DescribeInstances", self.creds, self.endpoint)
+        query = client.Query(
+            action="DescribeInstances", creds=self.creds,
+            endpoint=self.endpoint)
         self.assertEqual(all_unreserved, query.encode(all_unreserved))
 
     def test_encode_space(self):
         """This may be just "url encode", but the AWS manual isn't clear."""
-        query = client.Query("DescribeInstances", self.creds, self.endpoint)
+        query = client.Query(
+            action="DescribeInstances", creds=self.creds,
+            endpoint=self.endpoint)
         self.assertEqual("a%20space", query.encode("a space"))
 
     def test_canonical_query(self):
-        query = client.Query("DescribeInstances", self.creds, self.endpoint,
-            {"fu n": "g/ames", "argwithnovalue":"",
-             "InstanceId.1": "i-1234"},
+        query = client.Query(
+            action="DescribeInstances", creds=self.creds,
+            endpoint=self.endpoint,
+            other_params={"fu n": "g/ames", "argwithnovalue":"",
+                          "InstanceId.1": "i-1234"},
             time_tuple=(2007,11,12,13,14,15,0,0,0))
         expected_query = ("AWSAccessKeyId=foo&Action=DescribeInstances"
             "&InstanceId.1=i-1234"
@@ -1384,8 +1388,9 @@ class QueryTestCase(TXAWSTestCase):
         self.assertEqual(expected_query, query.get_canonical_query_params())
 
     def test_signing_text(self):
-        query = client.Query("DescribeInstances", self.creds, self.endpoint,
-            time_tuple=(2007,11,12,13,14,15,0,0,0))
+        query = client.Query(
+            action="DescribeInstances", creds=self.creds,
+            endpoint=self.endpoint, time_tuple=(2007,11,12,13,14,15,0,0,0))
         signing_text = ("GET\n%s\n/\n" % self.endpoint.host +
             "AWSAccessKeyId=foo&Action=DescribeInstances&"
             "SignatureMethod=HmacSHA256&SignatureVersion=2&"
@@ -1393,7 +1398,9 @@ class QueryTestCase(TXAWSTestCase):
         self.assertEqual(signing_text, query.signing_text())
 
     def test_sign(self):
-        query = client.Query("DescribeInstances", self.creds, self.endpoint,
+        query = client.Query(
+            action="DescribeInstances", creds=self.creds,
+            endpoint=self.endpoint,
             time_tuple=(2007, 11, 12, 13, 14, 15, 0, 0, 0))
         query.sign()
         self.assertEqual("aDmLr0Ktjsmt17UJD/EZf6DrfKWT1JW0fq2FDUCOPic=",
@@ -1418,7 +1425,7 @@ class QueryTestCase(TXAWSTestCase):
             self.assertEquals(error.response, payload.sample_ec2_error_message)
 
         query = client.Query(
-            'BadQuery', self.creds, self.endpoint,
+            action='BadQuery', creds=self.creds, endpoint=self.endpoint,
             time_tuple=(2009,8,15,13,14,15,0,0,0))
 
         failure = query.submit()
@@ -1444,7 +1451,7 @@ class QueryTestCase(TXAWSTestCase):
             self.assertEquals(str(error), "500 There's been an error")
 
         query = client.Query(
-            'BadQuery', self.creds, self.endpoint,
+            action='BadQuery', creds=self.creds, endpoint=self.endpoint,
             time_tuple=(2009,8,15,13,14,15,0,0,0))
 
         failure = query.submit()
