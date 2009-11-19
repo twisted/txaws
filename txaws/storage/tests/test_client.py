@@ -72,14 +72,15 @@ class S3ClientTestCase(TXAWSTestCase):
                 return succeed(payload.sample_list_buckets_result)
 
         def check_list_buckets(results):
-            self.assertEqual(
-                list(results),
-                [{"name": u"quotes",
-                  "created": Time.fromDatetime(
-                    datetime(2006, 2, 3, 16, 45, 9))},
-                 {"name": u"samples",
-                  "created": Time.fromDatetime(
-                    datetime(2006, 2, 3, 16, 41, 58))}])
+            bucket1, bucket2 = results
+            self.assertEquals(bucket1.name, "quotes")
+            self.assertEquals(
+                bucket1.creation_date.timetuple(),
+                (2006, 2, 3, 16, 45, 9, 4, 34, 0))
+            self.assertEquals(bucket2.name, "samples")
+            self.assertEquals(
+                bucket2.creation_date.timetuple(),
+                (2006, 2, 3, 16, 41, 58, 4, 34, 0))
 
         creds = AWSCredentials("foo", "bar")
         s3 = client.S3Client(creds, query_factory=StubQuery)
@@ -90,14 +91,15 @@ class S3ClientTestCase(TXAWSTestCase):
 
         class StubQuery(client.Query):
 
-            def __init__(query, action, creds, bucket=None):
+            def __init__(query, action, creds, endpoint, bucket=None):
                 super(StubQuery, query).__init__(
                     action=action, creds=creds, bucket=bucket)
                 self.assertEquals(action, "PUT")
                 self.assertEqual(creds.access_key, "foo")
                 self.assertEqual(creds.secret_key, "bar")
-                self.assertEqual(query.get_uri(), "/mybucket")
-                self.assertEqual(query.get_path(), "/mybucket")
+                self.assertEqual(
+                    query.get_uri(), "https://mybucket.s3.amazonaws.com/")
+                self.assertEqual(query.get_path(), "/")
                 self.assertEqual(query.bucket, "mybucket")
                 self.assertEqual(query.object_name, None)
                 self.assertEqual(query.data, "")
@@ -111,12 +113,29 @@ class S3ClientTestCase(TXAWSTestCase):
         return s3.create_bucket("mybucket")
 
     def test_delete_bucket(self):
-        self.s3.delete_bucket("foo")
-        req = self.s3._lastRequest
-        self.assertTrue(req.submitted)
-        self.assertEqual(req.action, "DELETE")
-        self.assertEqual(req.bucket, "foo")
-        self.assertEqual(req.object_name, None)
+
+        class StubQuery(client.Query):
+
+            def __init__(query, action, creds, endpoint, bucket=None):
+                super(StubQuery, query).__init__(
+                    action=action, creds=creds, bucket=bucket)
+                self.assertEquals(action, "DELETE")
+                self.assertEqual(creds.access_key, "foo")
+                self.assertEqual(creds.secret_key, "bar")
+                self.assertEqual(
+                    query.get_uri(), "https://mybucket.s3.amazonaws.com/")
+                self.assertEqual(query.get_path(), "/")
+                self.assertEqual(query.bucket, "mybucket")
+                self.assertEqual(query.object_name, None)
+                self.assertEqual(query.data, "")
+                self.assertEqual(query.metadata, {})
+
+            def submit(query):
+                return succeed(payload.sample_list_buckets_result)
+
+        creds = AWSCredentials("foo", "bar")
+        s3 = client.S3Client(creds, query_factory=StubQuery)
+        return s3.delete_bucket("mybucket")
 
     def test_put_object(self):
         self.s3.put_object(
