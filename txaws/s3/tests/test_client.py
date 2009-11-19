@@ -20,38 +20,6 @@ class S3ClientTestCase(TXAWSTestCase):
             access_key="accessKey", secret_key="secretKey")
         self.endpoint = AWSServiceEndpoint()
 
-    # we're getting rid of make_request
-    def XXX_test_make_request(self):
-        """
-        Test that make_request passes in the credentials object.
-        """
-        """
-        marker = object()
-
-        def _cb(*a, **kw):
-            self.assertEqual(kw["creds"], self.creds)
-            self.assertEqual(kw["endpoint"], self.endpoint)
-            return marker
-
-        self.s3.request_factory = _cb
-        self.assertIdentical(self.s3.make_request("GET"), marker)
-        """
-        class StubQuery(object):
-
-            def __init__(stub, action, creds, endpoint):
-                self.assertEquals(action, "")
-                self.assertEqual(creds.access_key, "foo")
-                self.assertEqual(creds.secret_key, "bar")
-
-            def submit(self):
-                return succeed()
-
-        creds = AWSCredentials("foo", "bar")
-        ec2 = client.S3Client(creds, query_factory=StubQuery)
-        d = ec2.describe_availability_zones(["us-east-1a"])
-        d.addCallback(check_parsed_availability_zone)
-        return d
-
     def test_list_buckets(self):
 
         class StubQuery(client.Query):

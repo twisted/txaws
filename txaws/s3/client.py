@@ -28,16 +28,6 @@ class S3Client(object):
         self.creds = creds
         self.endpoint = endpoint
 
-    def make_request(self, *a, **kw):
-        """
-        Create a request with the arguments passed in.
-
-        This uses the request_factory attribute, adding the creds and endpoint
-        to the arguments passed in.
-        """
-        return self.request_factory(creds=self.creds, endpoint=self.endpoint,
-                                    *a, **kw)
-
     def list_buckets(self):
         """
         List all buckets.
