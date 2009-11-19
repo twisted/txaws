@@ -1499,7 +1499,7 @@ class QueryPageGetterTestCase(TXAWSTestCase):
     def test_get_page(self):
         """Copied from twisted.web.test.test_webclient."""
         query = client.Query(
-            'DummyQuery', self.creds, self.endpoint,
+            action="DummyQuery", creds=self.creds, endpoint=self.endpoint,
             time_tuple=(2009,8,17,13,14,15,0,0,0))
         deferred = query.get_page(self.get_url("file"))
         deferred.addCallback(self.assertEquals, "0123456789")
