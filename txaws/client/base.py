@@ -4,6 +4,8 @@ from twisted.web.client import HTTPClientFactory
 from txaws.util import parse
 
 
+# XXX this will be filled in with the work from generalizing the s3 and ec2
+# clients
 class BaseClient(object):
     pass
 
@@ -11,6 +13,8 @@ class BaseClient(object):
 class BaseQuery(object):
 
     def __init__(self, action=None, creds=None, endpoint=None):
+        if not action:
+            raise TypeError("The query requires an action parameter.")
         self.factory = HTTPClientFactory
         self.action = action
         self.creds = creds

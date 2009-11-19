@@ -52,6 +52,12 @@ class BaseQueryTestCase(TXAWSTestCase):
         self.assertEquals(query.creds, "creds")
         self.assertEquals(query.endpoint, "http://endpoint")
 
+    def test_init_requires_action(self):
+        self.assertRaises(TypeError, BaseQuery)
+
+    def test_init_requires_creds(self):
+        self.assertRaises(TypeError, BaseQuery, None)
+
     def test_get_page(self):
         query = BaseQuery("an action", "creds", "http://endpoint")
         d = query.get_page(self._get_url("file"))
