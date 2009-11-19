@@ -3,7 +3,7 @@
 
 from txaws.credentials import AWSCredentials
 from txaws.ec2.client import EC2Client
-from txaws.storage.client import S3Client
+from txaws.s3.client import S3Client
 from txaws.service import (AWSServiceEndpoint, AWSServiceRegion,
                            EC2_ENDPOINT_EU, EC2_ENDPOINT_US, REGION_EU)
 from txaws.testing.base import TXAWSTestCase

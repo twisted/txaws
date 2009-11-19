@@ -13,8 +13,8 @@ from twisted.web.http import datetimeToString
 from epsilon.extime import Time
 
 from txaws.client.base import BaseQuery
+from txaws.s3 import model
 from txaws.service import AWSServiceEndpoint, S3_ENDPOINT
-from txaws.storage import model
 from txaws.util import XML, calculate_md5
 
 
@@ -91,8 +91,11 @@ class S3Client(object):
 
         Any existing object of the same name will be replaced.
         """
-        return self.make_request("PUT", bucket, object_name, data,
-                                 content_type, metadata).submit()
+        query = self.query_factory(
+            action="PUT", creds=self.creds, endpoint=self.endpoint,
+            bucket=bucket, object_name=object_name, data=data,
+            content_type=content_type, metadata=metadata)
+        return query.submit()
 
     def get_object(self, bucket, object_name):
         """
@@ -206,7 +209,7 @@ class Query(BaseQuery):
             self.get_uri(), method=self.action, postdata=self.data,
             headers=self.get_headers())
         # XXX - we need an error wrapper like we have for ec2... but let's wait
-        # until the new error-wrapper brach has landed, and possibly generalize
+        # until the new error-wrapper branch has landed, and possibly generalize
         # a base class for all clients.
         #d.addErrback(s3_error_wrapper)
         return d
