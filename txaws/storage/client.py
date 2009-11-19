@@ -14,6 +14,7 @@ from epsilon.extime import Time
 
 from txaws.client.base import BaseQuery
 from txaws.service import AWSServiceEndpoint, S3_ENDPOINT
+from txaws.storage import model
 from txaws.util import XML, calculate_md5
 
 
@@ -44,8 +45,8 @@ class S3Client(object):
         Returns a list of all the buckets owned by the authenticated sender of
         the request.
         """
-        query = self.query_factory(action="GET", creds=self.creds,
-                                   endpoint=self.endpoint)
+        query = self.query_factory(
+            action="GET", creds=self.creds, endpoint=self.endpoint)
         d = query.submit()
         return d.addCallback(self._parse_list_buckets)
 
@@ -54,19 +55,22 @@ class S3Client(object):
         Parse XML bucket list response.
         """
         root = XML(xml_bytes)
-        for bucket in root.find("Buckets"):
-            timeText = bucket.findtext("CreationDate")
-            yield {
-                "name": bucket.findtext("Name"),
-                "created": Time.fromISO8601TimeAndDate(timeText),
-                }
+        buckets = []
+        for bucket_data in root.find("Buckets"):
+            name = bucket_data.findtext("Name")
+            date_text = bucket_data.findtext("CreationDate")
+            date_time = Time.fromISO8601TimeAndDate(date_text).asDatetime()
+            bucket = model.Bucket(name, date_time)
+            buckets.append(bucket)
+        return buckets
 
     def create_bucket(self, bucket):
         """
         Create a new bucket.
         """
-        query = self.query_factory("PUT", self.creds, self.endpoint,
-                                   bucket=bucket)
+        query = self.query_factory(
+            action="PUT", creds=self.creds, endpoint=self.endpoint,
+            bucket=bucket)
         return query.submit()
 
     def delete_bucket(self, bucket):
@@ -75,7 +79,10 @@ class S3Client(object):
 
         The bucket must be empty before it can be deleted.
         """
-        return self.make_request("DELETE", bucket).submit()
+        query = self.query_factory(
+            action="DELETE", creds=self.creds, endpoint=self.endpoint,
+            bucket=bucket)
+        return query.submit()
 
     def put_object(self, bucket, object_name, data, content_type=None,
                    metadata={}):
