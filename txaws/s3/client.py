@@ -101,7 +101,10 @@ class S3Client(object):
         """
         Get an object from a bucket.
         """
-        return self.make_request("GET", bucket, object_name).submit()
+        query = self.query_factory(
+            action="GET", creds=self.creds, endpoint=self.endpoint,
+            bucket=bucket, object_name=object_name)
+        return query.submit()
 
     def head_object(self, bucket, object_name):
         """
