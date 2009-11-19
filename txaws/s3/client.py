@@ -114,7 +114,10 @@ class S3Client(object):
         Currently the metadata is not returned to the caller either, so this
         method is mostly useless, and only provided for completeness.
         """
-        return self.make_request("HEAD", bucket, object_name).submit()
+        query = self.query_factory(
+            action="HEAD", creds=self.creds, endpoint=self.endpoint,
+            bucket=bucket, object_name=object_name)
+        return query.submit()
 
     def delete_object(self, bucket, object_name):
         """
