@@ -19,6 +19,7 @@ class BaseQuery(object):
         self.action = action
         self.creds = creds
         self.endpoint = endpoint
+        self.client = None
 
     def get_page(self, url, *args, **kwds):
         """
@@ -29,10 +30,10 @@ class BaseQuery(object):
         """
         contextFactory = None
         scheme, host, port, path = parse(url)
-        factory = self.factory(url, *args, **kwds)
+        self.client = self.factory(url, *args, **kwds)
         if scheme == 'https':
             contextFactory = ssl.ClientContextFactory()
-            reactor.connectSSL(host, port, factory, contextFactory)
+            reactor.connectSSL(host, port, self.client, contextFactory)
         else:
-            reactor.connectTCP(host, port, factory)
-        return factory.deferred
+            reactor.connectTCP(host, port, self.client)
+        return self.client.deferred
