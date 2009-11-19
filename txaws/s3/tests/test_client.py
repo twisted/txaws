@@ -171,12 +171,32 @@ class S3ClientTestCase(TXAWSTestCase):
             metadata={"key": "some meta data"})
 
     def test_get_object(self):
-        self.s3.get_object("foobucket", "foo")
-        req = self.s3._lastRequest
-        self.assertTrue(req.submitted)
-        self.assertEqual(req.action, "GET")
-        self.assertEqual(req.bucket, "foobucket")
-        self.assertEqual(req.object_name, "foo")
+
+        class StubQuery(client.Query):
+
+            def __init__(query, action, creds, endpoint, bucket=None,
+                object_name=None, data=None, content_type=None,
+                metadata=None):
+                super(StubQuery, query).__init__(
+                    action=action, creds=creds, bucket=bucket,
+                    object_name=object_name, data=data,
+                    content_type=content_type, metadata=metadata)
+                self.assertEqual(action, "GET")
+                self.assertEqual(creds.access_key, "foo")
+                self.assertEqual(creds.secret_key, "bar")
+                self.assertEqual(
+                    query.get_uri(),
+                    "https://mybucket.s3.amazonaws.com/objectname")
+                self.assertEqual(query.get_path(), "/objectname")
+                self.assertEqual(query.bucket, "mybucket")
+                self.assertEqual(query.object_name, "objectname")
+
+            def submit(query):
+                return succeed(None)
+
+        creds = AWSCredentials("foo", "bar")
+        s3 = client.S3Client(creds, query_factory=StubQuery)
+        return s3.get_object("mybucket", "objectname")
 
     def test_head_object(self):
         self.s3.head_object("foobucket", "foo")
