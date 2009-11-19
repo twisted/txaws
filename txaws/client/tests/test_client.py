@@ -2,6 +2,7 @@ import os
 
 from twisted.internet import reactor
 from twisted.protocols.policies import WrappingFactory
+from twisted.python import log
 from twisted.python.filepath import FilePath
 from twisted.web.client import HTTPClientFactory
 from twisted.web import server, static
@@ -32,10 +33,10 @@ class BaseQueryTestCase(TXAWSTestCase):
         # the connection and cleaned up after themselves.
         for n in range(min(len(connections), self.cleanupServerConnections)):
             proto = connections.pop()
-            msg("Closing %r" % (proto,))
+            log.msg("Closing %r" % (proto,))
             proto.transport.loseConnection()
         if connections:                                                                                              
-            msg("Some left-over connections; this test is probably buggy.")
+            log.msg("Some left-over connections; this test is probably buggy.")
         return self.port.stopListening()
 
     def _listen(self, site):
