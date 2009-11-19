@@ -13,7 +13,7 @@ from twisted.web.http import datetimeToString
 from epsilon.extime import Time
 
 from txaws.client.base import BaseQuery
-from txaws.service import AWSServiceEndpoint
+from txaws.service import AWSServiceEndpoint, S3_ENDPOINT
 from txaws.util import XML, calculate_md5
 
 
@@ -124,10 +124,9 @@ class Query(BaseQuery):
         self.content_type = content_type
         self.metadata = metadata
         self.date = datetimeToString()
-        self.default_endpoint_url = "https://s3.amazonaws.com"
         # XXX add unit test
         if not self.endpoint or not self.endpoint.host:
-            self.endpoint = AWSServiceEndpoint(self.default_endpoint_url)
+            self.endpoint = AWSServiceEndpoint(S3_ENDPOINT)
         # XXX add unit test
         self.endpoint.set_method(self.action)
 

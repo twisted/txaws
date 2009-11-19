@@ -12,6 +12,7 @@ REGION_US = "US"
 REGION_EU = "EU"
 EC2_ENDPOINT_US = "https://us-east-1.ec2.amazonaws.com/"
 EC2_ENDPOINT_EU = "https://eu-west-1.ec2.amazonaws.com/"
+S3_ENDPOINT = "https://s3.amazonaws.com/"
 DEFAULT_PORT = 80
 
 
@@ -87,6 +88,8 @@ class AWSServiceRegion(object):
             ec2_endpoint = EC2_ENDPOINT_US
         elif not ec2_endpoint and region == REGION_EU:
             ec2_endpoint = EC2_ENDPOINT_EU
+        if not s3_endpoint:
+            s3_endpoint = S3_ENDPOINT
         self._clients = {}
         self.ec2_endpoint = AWSServiceEndpoint(uri=ec2_endpoint)
         self.s3_endpoint = AWSServiceEndpoint(uri=s3_endpoint)
