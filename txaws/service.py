@@ -117,7 +117,7 @@ class AWSServiceRegion(object):
                                endpoint=self.ec2_endpoint, query_factory=None)
 
     def get_s3_client(self, creds=None):
-        from txaws.storage.client import S3Client
+        from txaws.s3.client import S3Client
 
         if creds:
             self.creds = creds

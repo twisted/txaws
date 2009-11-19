@@ -5,8 +5,8 @@ from epsilon.extime import Time
 from twisted.internet.defer import succeed
 
 from txaws.credentials import AWSCredentials
+from txaws.s3 import client
 from txaws.service import AWSServiceEndpoint
-from txaws.storage import client
 from txaws.testing import payload
 from txaws.testing.base import TXAWSTestCase
 from txaws.util import calculate_md5
@@ -106,7 +106,7 @@ class S3ClientTestCase(TXAWSTestCase):
                 self.assertEqual(query.metadata, {})
 
             def submit(query):
-                return succeed(payload.sample_list_buckets_result)
+                return succeed(None)
 
         creds = AWSCredentials("foo", "bar")
         s3 = client.S3Client(creds, query_factory=StubQuery)
@@ -131,23 +131,44 @@ class S3ClientTestCase(TXAWSTestCase):
                 self.assertEqual(query.metadata, {})
 
             def submit(query):
-                return succeed(payload.sample_list_buckets_result)
+                return succeed(None)
 
         creds = AWSCredentials("foo", "bar")
         s3 = client.S3Client(creds, query_factory=StubQuery)
         return s3.delete_bucket("mybucket")
 
     def test_put_object(self):
-        self.s3.put_object(
-            "foobucket", "foo", "data", "text/plain", {"foo": "bar"})
-        req = self.s3._lastRequest
-        self.assertTrue(req.submitted)
-        self.assertEqual(req.action, "PUT")
-        self.assertEqual(req.bucket, "foobucket")
-        self.assertEqual(req.object_name, "foo")
-        self.assertEqual(req.data, "data")
-        self.assertEqual(req.content_type, "text/plain")
-        self.assertEqual(req.metadata, {"foo": "bar"})
+
+        class StubQuery(client.Query):
+
+            def __init__(query, action, creds, endpoint, bucket=None,
+                object_name=None, data=None, content_type=None,
+                metadata=None):
+                super(StubQuery, query).__init__(
+                    action=action, creds=creds, bucket=bucket,
+                    object_name=object_name, data=data,
+                    content_type=content_type, metadata=metadata)
+                self.assertEqual(action, "PUT")
+                self.assertEqual(creds.access_key, "foo")
+                self.assertEqual(creds.secret_key, "bar")
+                self.assertEqual(
+                    query.get_uri(),
+                    "https://mybucket.s3.amazonaws.com/objectname")
+                self.assertEqual(query.get_path(), "/objectname")
+                self.assertEqual(query.bucket, "mybucket")
+                self.assertEqual(query.object_name, "objectname")
+                self.assertEqual(query.data, "some data")
+                self.assertEqual(query.content_type, "text/plain")
+                self.assertEqual(query.metadata, {"key": "some meta data"})
+
+            def submit(query):
+                return succeed(None)
+
+        creds = AWSCredentials("foo", "bar")
+        s3 = client.S3Client(creds, query_factory=StubQuery)
+        return s3.put_object(
+            "mybucket", "objectname", "some data", content_type="text/plain",
+            metadata={"key": "some meta data"})
 
     def test_get_object(self):
         self.s3.get_object("foobucket", "foo")
