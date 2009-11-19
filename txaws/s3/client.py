@@ -125,7 +125,10 @@ class S3Client(object):
 
         Once deleted, there is no method to restore or undelete an object.
         """
-        return self.make_request("DELETE", bucket, object_name).submit()
+        query = self.query_factory(
+            action="DELETE", creds=self.creds, endpoint=self.endpoint,
+            bucket=bucket, object_name=object_name)
+        return query.submit()
 
 
 class Query(BaseQuery):
