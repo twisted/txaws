@@ -52,7 +52,6 @@ class S3ClientTestCase(TXAWSTestCase):
         d.addCallback(check_parsed_availability_zone)
         return d
 
-
     def test_list_buckets(self):
 
         class StubQuery(client.Query):
@@ -237,7 +236,8 @@ class QueryTestCase(TXAWSTestCase):
         self.assertTrue(len(headers.get("Authorization")) > 40)
 
     def test_get_canonicalized_amz_headers(self):
-        query = client.Query(metadata={"a": 1, "b": 2, "c": 3})
+        query = client.Query(
+            action="SomeThing", metadata={"a": 1, "b": 2, "c": 3})
         headers = query.get_headers()
         self.assertEquals(
             sorted(headers.keys()),
@@ -323,7 +323,8 @@ class QueryTestCase(TXAWSTestCase):
         return query.submit()
 
     def test_authentication(self):
-        query = client.Query("GET", creds=self.creds, endpoint=self.endpoint)
+        query = client.Query(
+            action="GET", creds=self.creds, endpoint=self.endpoint)
         query.sign = lambda headers: "TESTINGSIG="
         query.date = "Wed, 28 Mar 2007 01:29:59 +0000"
 
