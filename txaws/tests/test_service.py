@@ -133,12 +133,10 @@ class AWSServiceRegionTestCase(TXAWSTestCase):
         self.assertNotEquals(client1, client2)
 
     def test_get_s3_client_with_empty_cache(self):
-        # XXX need to fix the endpoint usage here... not appropriate for S3
-        # clients...
-        key = str(S3Client) + str(self.creds) + str(self.region.ec2_endpoint)
+        key = str(S3Client) + str(self.creds) + str(self.region.s3_endpoint)
         original_client = self.region._clients.get(key)
         new_client = self.region.get_client(
-            S3Client, creds=self.creds, endpoint=self.region.ec2_endpoint)
+            S3Client, creds=self.creds, endpoint=self.region.s3_endpoint)
         self.assertEquals(original_client, None)
         self.assertTrue(isinstance(new_client, S3Client))
         self.assertNotEquals(original_client, new_client)
