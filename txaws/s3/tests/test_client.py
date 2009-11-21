@@ -256,7 +256,22 @@ class S3ClientTestCase(TXAWSTestCase):
 class QueryTestCase(TXAWSTestCase):
 
     creds = AWSCredentials(access_key="fookeyid", secret_key="barsecretkey")
-    endpoint = AWSServiceEndpoint("https://s3.amazonaws.com/")
+    endpoint = AWSServiceEndpoint("https://choopy.s3.amazonaws.com/")
+
+    def test_default_creation(self):
+        query = client.Query(action="PUT")
+        self.assertEquals(query.bucket, None)
+        self.assertEquals(query.object_name, None)
+        self.assertEquals(query.data, "")
+        self.assertEquals(query.content_type, None)
+        self.assertEquals(query.metadata, {})
+
+    def test_default_endpoint(self):
+        query = client.Query(action="PUT")
+        self.assertEquals(self.endpoint.host, "choopy.s3.amazonaws.com")
+        self.assertEquals(query.endpoint.host, "s3.amazonaws.com")
+        self.assertEquals(self.endpoint.method, "GET")
+        self.assertEquals(query.endpoint.method, "PUT")
 
     def test_get_headers(self):
         query = client.Query(

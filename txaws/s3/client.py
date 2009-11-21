@@ -185,10 +185,8 @@ class Query(BaseQuery):
         self.content_type = content_type
         self.metadata = metadata
         self.date = datetimeToString()
-        # XXX add unit test
         if not self.endpoint or not self.endpoint.host:
             self.endpoint = AWSServiceEndpoint(S3_ENDPOINT)
-        # XXX add unit test
         self.endpoint.set_method(self.action)
 
     # XXX needs unit tests
