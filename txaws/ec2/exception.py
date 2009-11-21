@@ -66,6 +66,7 @@ class EC2Error(AWSError):
     def parse(self, xml_bytes=""):
         if not xml_bytes:
             xml_bytes = self.original
+        self.original = xml_bytes
         tree = XML(xml_bytes.strip())
         self._set_request_id(tree)
         self._set_errors(tree)

@@ -214,7 +214,6 @@ class Query(BaseQuery):
         return headers
 
     def get_canonicalized_amz_headers(self, headers):
-        result = ""
         headers = [
             (name.lower(), value) for name, value in headers.iteritems()
             if name.lower().startswith("x-amz-")]

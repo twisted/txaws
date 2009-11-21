@@ -1,7 +1,3 @@
-from datetime import datetime
-
-from epsilon.extime import Time
-
 from twisted.internet.defer import succeed
 
 from txaws.credentials import AWSCredentials
