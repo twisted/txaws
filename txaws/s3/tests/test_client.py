@@ -59,12 +59,12 @@ class URLContextTestCase(TXAWSTestCase):
             "http://mydocs.localhost/notes.txt")
 
 
-class CreateBucketURLContextTestCase(TXAWSTestCase):
+class BucketURLContextTestCase(TXAWSTestCase):
 
     endpoint = AWSServiceEndpoint("https://s3.amazonaws.com/")
 
     def test_get_host_with_bucket(self):
-        url_context = client.CreateBucketURLContext(self.endpoint, "mystuff")
+        url_context = client.BucketURLContext(self.endpoint, "mystuff")
         self.assertEquals(url_context.get_host(), "s3.amazonaws.com")
         self.assertEquals(url_context.get_path(), "/mystuff")
 
@@ -148,7 +148,7 @@ class S3ClientTestCase(TXAWSTestCase):
                 self.assertEqual(query.data, "")
                 self.assertEqual(query.metadata, {})
 
-            def submit(query):
+            def submit(query, url_context=None):
                 return succeed(None)
 
         creds = AWSCredentials("foo", "bar")

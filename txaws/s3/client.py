@@ -50,13 +50,13 @@ class URLContext(object):
             self.endpoint.scheme, self.get_host(), self.get_path())
 
 
-class CreateBucketURLContext(URLContext):
+class BucketURLContext(URLContext):
     """
     This URL context class provides a means of overriding the standard
-    behaviour of the URLContext object so that when creating a bucket, the
-    appropriate URL is obtained.
+    behaviour of the URLContext object so that when creating or deleting a
+    bucket, the appropriate URL is obtained.
 
-    When creating buckets on AWS, if the host is set as documented
+    When creating and deleting buckets on AWS, if the host is set as documented
     (bucketname.s3.amazonaws.com), a 403 error is returned. When, however, one
     sets the host without the bucket name prefix, the operation is completed
     successfully.
@@ -111,7 +111,7 @@ class S3Client(object):
         query = self.query_factory(
             action="PUT", creds=self.creds, endpoint=self.endpoint,
             bucket=bucket)
-        url_context = CreateBucketURLContext(self.endpoint, bucket)
+        url_context = BucketURLContext(self.endpoint, bucket)
         return query.submit(url_context)
 
     def delete_bucket(self, bucket):
@@ -123,7 +123,8 @@ class S3Client(object):
         query = self.query_factory(
             action="DELETE", creds=self.creds, endpoint=self.endpoint,
             bucket=bucket)
-        return query.submit()
+        url_context = BucketURLContext(self.endpoint, bucket)
+        return query.submit(url_context)
 
     def put_object(self, bucket, object_name, data, content_type=None,
                    metadata={}):
