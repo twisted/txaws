@@ -231,7 +231,6 @@ class Query(BaseQuery):
                 resource += "/%s" % self.object_name
         return resource
 
-    # XXX add unit test
     def sign(self, headers):
 
         text = (self.action + "\n" +

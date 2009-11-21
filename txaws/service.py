@@ -39,11 +39,9 @@ class AWSServiceEndpoint(object):
         self.port = port
         self.path = path
 
-    # XXX add unit test
     def set_host(self, host):
         self.host = host
 
-    # XXX add unit test
     def get_host(self):
         return self.host
 
@@ -57,7 +55,6 @@ class AWSServiceEndpoint(object):
             uri = "%s:%s" % (uri, self.port)
         return uri + self.path
 
-    # XXX add unit test
     def set_method(self, method):
         self.method = method
 
