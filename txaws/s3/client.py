@@ -17,7 +17,7 @@ from twisted.web.http import datetimeToString
 
 from epsilon.extime import Time
 
-from txaws.client.base import BaseQuery
+from txaws.client.base import BaseClient, BaseQuery
 from txaws.s3 import model
 from txaws.service import AWSServiceEndpoint, S3_ENDPOINT
 from txaws.util import XML, calculate_md5
@@ -73,15 +73,13 @@ class BucketURLContext(URLContext):
         return "/%s" % (self.bucket)
 
 
-class S3Client(object):
+class S3Client(BaseClient):
+    """A client for S3."""
 
     def __init__(self, creds=None, endpoint=None, query_factory=None):
         if query_factory is None:
             query_factory = Query
-        self.query_factory = query_factory
-
-        self.creds = creds
-        self.endpoint = endpoint
+        super(S3Client, self).__init__(creds, endpoint, query_factory)
 
     def list_buckets(self):
         """

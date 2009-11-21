@@ -4,10 +4,18 @@ from twisted.web.client import HTTPClientFactory
 from txaws.util import parse
 
 
-# XXX this will be filled in with the work from generalizing the s3 and ec2
-# clients
 class BaseClient(object):
-    pass
+    """Create an AWS client.
+
+    @param creds: User authentication credentials to use.
+    @param endpoint: The service endpoint URI.
+    @param query_factory: The class or function that produces a query
+        object for making requests to the EC2 service.
+    """
+    def __init__(self, creds=None, endpoint=None, query_factory=None):
+        self.creds = creds
+        self.endpoint = endpoint
+        self.query_factory = query_factory
 
 
 class BaseQuery(object):
