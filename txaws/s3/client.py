@@ -223,7 +223,6 @@ class Query(BaseQuery):
         # 2) txAWS doesn't currently unfold long headers
         return "".join("%s:%s\n" % (name, value) for name, value in headers)
 
-    # XXX add unit test
     def get_canonicalized_resource(self):
         resource = "/"
         if self.bucket:
@@ -232,6 +231,7 @@ class Query(BaseQuery):
                 resource += "/%s" % self.object_name
         return resource
 
+    # XXX add unit test
     def sign(self, headers):
 
         text = (self.action + "\n" +
