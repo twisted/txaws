@@ -1,3 +1,8 @@
+# Copyright (C) 2008 Tristan Seligmann <mithrandi@mithrandi.net>
+# Copyright (C) 2009 Canonical Ltd
+# Copyright (C) 2009 Duncan McGreggor <oubiwann@adytum.us>
+# Licenced under the txaws licence available at /LICENSE in the txaws source.
+
 """
 Client wrapper for Amazon's Simple Storage Service.
 
