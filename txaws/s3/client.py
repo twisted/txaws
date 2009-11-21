@@ -52,7 +52,14 @@ class URLContext(object):
 
 class CreateBucketURLContext(URLContext):
     """
-    XXX
+    This URL context class provides a means of overriding the standard
+    behaviour of the URLContext object so that when creating a bucket, the
+    appropriate URL is obtained.
+
+    When creating buckets on AWS, if the host is set as documented
+    (bucketname.s3.amazonaws.com), a 403 error is returned. When, however, one
+    sets the host without the bucket name prefix, the operation is completed
+    successfully.
     """
     def get_host(self):
         return self.endpoint.get_host()
