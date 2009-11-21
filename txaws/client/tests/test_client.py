@@ -89,3 +89,22 @@ class BaseQueryTestCase(TXAWSTestCase):
         d = query.get_page(self._get_url("file"))
         d.addCallback(query.get_request_headers)
         return d.addCallback(check_results)
+
+    def test_get_response_headers_no_client(self):
+
+        query = BaseQuery("an action", "creds", "http://endpoint")
+        results = query.get_response_headers()
+        self.assertEquals(results, None)
+
+    def test_get_response_headers_with_client(self):
+
+        def check_results(results):
+            self.assertEquals(sorted(results.keys()), [
+                "accept-ranges", "content-length", "content-type", "date",
+                "last-modified", "server"])
+            self.assertEquals(len(results.values()), 6)
+
+        query = BaseQuery("an action", "creds", "http://endpoint")
+        d = query.get_page(self._get_url("file"))
+        d.addCallback(query.get_response_headers)
+        return d.addCallback(check_results)
