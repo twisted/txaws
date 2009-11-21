@@ -329,6 +329,17 @@ class QueryTestCase(TXAWSTestCase):
             amz_headers,
             "x-amz-meta-a:1\nx-amz-meta-b:2\nx-amz-meta-c:3\n")
 
+    def test_get_canonicalized_resource(self):
+        query = client.Query(action="PUT", bucket="images")
+        result = query.get_canonicalized_resource()
+        self.assertEquals(result, "/images")
+
+    def test_get_canonicalized_resource_with_object_name(self):
+        query = client.Query(
+            action="PUT", bucket="images", object_name="advicedog.jpg")
+        result = query.get_canonicalized_resource()
+        self.assertEquals(result, "/images/advicedog.jpg")
+        
     def test_object_query(self):
         """
         Test that a request addressing an object is created correctly.
