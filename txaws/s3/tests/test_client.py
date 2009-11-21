@@ -273,6 +273,23 @@ class QueryTestCase(TXAWSTestCase):
         self.assertEquals(self.endpoint.method, "GET")
         self.assertEquals(query.endpoint.method, "PUT")
 
+    def test_set_content_type_no_object_name(self):
+        query = client.Query(action="PUT")
+        query.set_content_type()
+        self.assertEquals(query.content_type, None)
+
+    def test_set_content_type(self):
+        query = client.Query(action="PUT", object_name="advicedog.jpg")
+        query.set_content_type()
+        self.assertEquals(query.content_type, "image/jpeg")
+
+    def test_set_content_type_with_content_type_already_set(self):
+        query = client.Query(
+            action="PUT", object_name="data.txt", content_type="text/csv")
+        query.set_content_type()
+        self.assertNotEquals(query.content_type, "text/plain")
+        self.assertEquals(query.content_type, "text/csv")
+
     def test_get_headers(self):
         query = client.Query(
             action="GET", creds=self.creds, bucket="mystuff",
