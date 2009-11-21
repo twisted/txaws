@@ -72,3 +72,20 @@ class BaseQueryTestCase(TXAWSTestCase):
         d = query.get_page(self._get_url("file"))
         d.addCallback(self.assertEquals, "0123456789")
         return d
+
+    def test_get_request_headers_no_client(self):
+
+        query = BaseQuery("an action", "creds", "http://endpoint")
+        results = query.get_request_headers()
+        self.assertEquals(results, None)
+
+    def test_get_request_headers_with_client(self):
+
+        def check_results(results):
+            self.assertEquals(results.keys(), [])
+            self.assertEquals(results.values(), [])
+
+        query = BaseQuery("an action", "creds", "http://endpoint")
+        d = query.get_page(self._get_url("file"))
+        d.addCallback(query.get_request_headers)
+        return d.addCallback(check_results)

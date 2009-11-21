@@ -52,8 +52,7 @@ class BaseQuery(object):
             reactor.connectTCP(host, port, self.client)
         return self.client.deferred
 
-    # XXX needs unit test
-    def get_request_headers(self):
+    def get_request_headers(self, *args, **kwds):
         """
         A convenience method for obtaining the headers that were sent to the
         S3 server.
