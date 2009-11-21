@@ -63,7 +63,6 @@ class BaseQuery(object):
         if self.client:
             return self.client.headers
 
-    # XXX needs unit test
     def get_response_headers(self, *args, **kwargs):
         """
         A convenience method for obtaining the headers that were sent from the
