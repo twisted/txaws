@@ -12,6 +12,63 @@ from txaws.testing.base import TXAWSTestCase
 from txaws.util import calculate_md5
 
 
+class URLContextTestCase(TXAWSTestCase):
+
+    endpoint = AWSServiceEndpoint("https://s3.amazonaws.com/")
+
+    def test_get_host_with_no_bucket(self):
+        url_context = client.URLContext(self.endpoint)
+        self.assertEquals(url_context.get_host(), "s3.amazonaws.com")
+
+    def test_get_host_with_bucket(self):
+        url_context = client.URLContext(self.endpoint, "mystuff")
+        self.assertEquals(url_context.get_host(), "mystuff.s3.amazonaws.com")
+
+    def test_get_path_with_no_bucket(self):
+        url_context = client.URLContext(self.endpoint)
+        self.assertEquals(url_context.get_path(), "/")
+
+    def test_get_path_with_bucket(self):
+        url_context = client.URLContext(self.endpoint, bucket="mystuff")
+        self.assertEquals(url_context.get_path(), "/")
+
+    def test_get_path_with_bucket_and_object(self):
+        url_context = client.URLContext(
+            self.endpoint, bucket="mystuff", object_name="/images/thing.jpg")
+        self.assertEquals(url_context.get_host(), "mystuff.s3.amazonaws.com")
+        self.assertEquals(url_context.get_path(), "/images/thing.jpg")
+
+    def test_get_path_with_bucket_and_object_without_slash(self):
+        url_context = client.URLContext(
+            self.endpoint, bucket="mystuff", object_name="images/thing.jpg")
+        self.assertEquals(url_context.get_host(), "mystuff.s3.amazonaws.com")
+        self.assertEquals(url_context.get_path(), "/images/thing.jpg")
+
+    def test_get_url_with_custom_endpoint(self):
+        endpoint = AWSServiceEndpoint("http://localhost/")
+        url_context = client.URLContext(endpoint)
+        self.assertEquals(url_context.endpoint.get_uri(), "http://localhost/")
+        self.assertEquals( url_context.get_url(), "http://localhost/")
+
+    def test_get_uri_with_endpoint_bucket_and_object(self):
+        endpoint = AWSServiceEndpoint("http://localhost/")
+        url_context = client.URLContext(
+            endpoint, bucket="mydocs", object_name="notes.txt")
+        self.assertEquals(
+            url_context.get_url(),
+            "http://mydocs.localhost/notes.txt")
+
+
+class CreateBucketURLContextTestCase(TXAWSTestCase):
+
+    endpoint = AWSServiceEndpoint("https://s3.amazonaws.com/")
+
+    def test_get_host_with_bucket(self):
+        url_context = client.CreateBucketURLContext(self.endpoint, "mystuff")
+        self.assertEquals(url_context.get_host(), "s3.amazonaws.com")
+        self.assertEquals(url_context.get_path(), "/mystuff")
+
+
 class S3ClientTestCase(TXAWSTestCase):
 
     def setUp(self):
@@ -30,7 +87,6 @@ class S3ClientTestCase(TXAWSTestCase):
                 self.assertEquals(action, "GET")
                 self.assertEqual(creds.access_key, "foo")
                 self.assertEqual(creds.secret_key, "bar")
-                self.assertEqual(query.get_path(), "/")
                 self.assertEqual(query.bucket, None)
                 self.assertEqual(query.object_name, None)
                 self.assertEqual(query.data, "")
@@ -65,15 +121,12 @@ class S3ClientTestCase(TXAWSTestCase):
                 self.assertEquals(action, "PUT")
                 self.assertEqual(creds.access_key, "foo")
                 self.assertEqual(creds.secret_key, "bar")
-                self.assertEqual(
-                    query.get_uri(), "https://mybucket.s3.amazonaws.com/")
-                self.assertEqual(query.get_path(), "/")
                 self.assertEqual(query.bucket, "mybucket")
                 self.assertEqual(query.object_name, None)
                 self.assertEqual(query.data, "")
                 self.assertEqual(query.metadata, {})
 
-            def submit(query):
+            def submit(query, url_context=None):
                 return succeed(None)
 
         creds = AWSCredentials("foo", "bar")
@@ -90,9 +143,6 @@ class S3ClientTestCase(TXAWSTestCase):
                 self.assertEquals(action, "DELETE")
                 self.assertEqual(creds.access_key, "foo")
                 self.assertEqual(creds.secret_key, "bar")
-                self.assertEqual(
-                    query.get_uri(), "https://mybucket.s3.amazonaws.com/")
-                self.assertEqual(query.get_path(), "/")
                 self.assertEqual(query.bucket, "mybucket")
                 self.assertEqual(query.object_name, None)
                 self.assertEqual(query.data, "")
@@ -119,10 +169,6 @@ class S3ClientTestCase(TXAWSTestCase):
                 self.assertEqual(action, "PUT")
                 self.assertEqual(creds.access_key, "foo")
                 self.assertEqual(creds.secret_key, "bar")
-                self.assertEqual(
-                    query.get_uri(),
-                    "https://mybucket.s3.amazonaws.com/objectname")
-                self.assertEqual(query.get_path(), "/objectname")
                 self.assertEqual(query.bucket, "mybucket")
                 self.assertEqual(query.object_name, "objectname")
                 self.assertEqual(query.data, "some data")
@@ -152,10 +198,6 @@ class S3ClientTestCase(TXAWSTestCase):
                 self.assertEqual(action, "GET")
                 self.assertEqual(creds.access_key, "foo")
                 self.assertEqual(creds.secret_key, "bar")
-                self.assertEqual(
-                    query.get_uri(),
-                    "https://mybucket.s3.amazonaws.com/objectname")
-                self.assertEqual(query.get_path(), "/objectname")
                 self.assertEqual(query.bucket, "mybucket")
                 self.assertEqual(query.object_name, "objectname")
 
@@ -180,10 +222,6 @@ class S3ClientTestCase(TXAWSTestCase):
                 self.assertEqual(action, "HEAD")
                 self.assertEqual(creds.access_key, "foo")
                 self.assertEqual(creds.secret_key, "bar")
-                self.assertEqual(
-                    query.get_uri(),
-                    "https://mybucket.s3.amazonaws.com/objectname")
-                self.assertEqual(query.get_path(), "/objectname")
                 self.assertEqual(query.bucket, "mybucket")
                 self.assertEqual(query.object_name, "objectname")
 
@@ -208,10 +246,6 @@ class S3ClientTestCase(TXAWSTestCase):
                 self.assertEqual(action, "DELETE")
                 self.assertEqual(creds.access_key, "foo")
                 self.assertEqual(creds.secret_key, "bar")
-                self.assertEqual(
-                    query.get_uri(),
-                    "https://mybucket.s3.amazonaws.com/objectname")
-                self.assertEqual(query.get_path(), "/objectname")
                 self.assertEqual(query.bucket, "mybucket")
                 self.assertEqual(query.object_name, "objectname")
 
@@ -227,55 +261,6 @@ class QueryTestCase(TXAWSTestCase):
 
     creds = AWSCredentials(access_key="fookeyid", secret_key="barsecretkey")
     endpoint = AWSServiceEndpoint("https://s3.amazonaws.com/")
-
-    def test_get_host_with_no_bucket(self):
-        query = client.Query(action="GET")
-        self.assertEquals(query.get_host(), "s3.amazonaws.com")
-
-    def test_get_host_with_bucket(self):
-        query = client.Query(action="GET", bucket="mystuff")
-        self.assertEquals(query.get_host(), "mystuff.s3.amazonaws.com")
-
-    def test_get_path_with_no_bucket(self):
-        query = client.Query(action="GET")
-        self.assertEquals(query.get_path(), "/")
-
-    def test_get_path_with_bucket(self):
-        query = client.Query(action="GET", bucket="mystuff")
-        self.assertEquals(query.get_path(), "/")
-
-    def test_get_path_with_bucket_and_object(self):
-        query = client.Query(
-            action="GET", bucket="mystuff", object_name="/images/thing.jpg")
-        self.assertEquals(query.get_host(), "mystuff.s3.amazonaws.com")
-        self.assertEquals(query.get_path(), "/images/thing.jpg")
-
-    def test_get_path_with_bucket_and_object_without_slash(self):
-        query = client.Query(
-            action="GET", bucket="mystuff", object_name="images/thing.jpg")
-        self.assertEquals(query.get_host(), "mystuff.s3.amazonaws.com")
-        self.assertEquals(query.get_path(), "/images/thing.jpg")
-
-    def test_get_uri_with_no_endpoint(self):
-        query = client.Query(action="GET")
-        self.assertEquals(
-            query.endpoint.get_uri(), "https://s3.amazonaws.com/")
-        self.assertEquals(query.get_uri(), "https://s3.amazonaws.com/")
-
-    def test_get_uri_with_endpoint(self):
-        endpoint = AWSServiceEndpoint("http://localhost/")
-        query = client.Query(action="PUT", endpoint=endpoint)
-        self.assertEquals(query.endpoint.get_uri(), "http://localhost/")
-        self.assertEquals(query.get_uri(), "http://localhost/")
-
-    def test_get_uri_with_endpoint_bucket_and_object(self):
-        endpoint = AWSServiceEndpoint("http://localhost/")
-        query = client.Query(
-            action="PUT", bucket="mydocs", object_name="notes.txt",
-            endpoint=endpoint)
-        self.assertEquals(
-            query.get_uri(),
-            "http://mydocs.localhost/notes.txt")
 
     def test_get_headers(self):
         query = client.Query(
@@ -329,9 +314,6 @@ class QueryTestCase(TXAWSTestCase):
             creds=self.creds, endpoint=self.endpoint)
         request.sign = lambda headers: "TESTINGSIG="
         self.assertEqual(request.action, "PUT")
-        self.assertEqual(
-            request.get_uri(),
-            "https://somebucket.s3.amazonaws.com/object/name/here")
         headers = request.get_headers()
         self.assertNotEqual(headers.pop("Date"), "")
         self.assertEqual(
@@ -354,8 +336,6 @@ class QueryTestCase(TXAWSTestCase):
             endpoint=self.endpoint)
         query.sign = lambda headers: "TESTINGSIG="
         self.assertEqual(query.action, "GET")
-        self.assertEqual(
-            query.get_uri(), "https://somebucket.s3.amazonaws.com/")
         headers = query.get_headers()
         self.assertNotEqual(headers.pop("Date"), "")
         self.assertEqual(
@@ -377,7 +357,6 @@ class QueryTestCase(TXAWSTestCase):
                 self.assertEquals(action, "GET")
                 self.assertEqual(creds.access_key, "fookeyid")
                 self.assertEqual(creds.secret_key, "barsecretkey")
-                self.assertEqual(query.get_path(), "/")
                 self.assertEqual(query.bucket, "somebucket")
                 self.assertEqual(query.object_name, None)
                 self.assertEqual(query.data, "")

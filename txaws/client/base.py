@@ -37,3 +37,27 @@ class BaseQuery(object):
         else:
             reactor.connectTCP(host, port, self.client)
         return self.client.deferred
+
+    # XXX needs unit test
+    def get_request_headers(self):
+        """
+        A convenience method for obtaining the headers that were sent to the
+        S3 server.
+
+        The AWS S3 API depends upon setting headers. This method is provided as
+        a convenience for debugging issues with the S3 communications.
+        """
+        if self.client:
+            return self.client.headers
+
+    # XXX needs unit test
+    def get_response_headers(self):
+        """
+        A convenience method for obtaining the headers that were sent from the
+        S3 server.
+
+        The AWS S3 API depends upon setting headers. This method is provided as
+        a convenience for debugging issues with the S3 communications.
+        """
+        if self.client:
+            return self.client.response_headers

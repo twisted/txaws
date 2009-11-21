@@ -18,6 +18,49 @@ from txaws.service import AWSServiceEndpoint, S3_ENDPOINT
 from txaws.util import XML, calculate_md5
 
 
+class URLContext(object):
+    """
+    The hosts and the paths that form an S3 endpoint change depending upon the
+    context in which they are called. Sometimes the bucket name is in the host,
+    sometimes in the path. What's more, the behaviour against live AWS
+    resources doesn't seem to match the AWS documentation.
+    """
+    def __init__(self, service_endpoint, bucket="", object_name=""):
+        self.endpoint = service_endpoint
+        self.bucket = bucket
+        self.object_name = object_name
+
+    def get_host(self):
+        if not self.bucket:
+            return self.endpoint.get_host()
+        else:
+            return "%s.%s" % (self.bucket, self.endpoint.get_host())
+
+    def get_path(self):
+        path = "/"
+        if self.bucket is not None and self.object_name:
+            if self.object_name.startswith("/"):
+                path = self.object_name
+            else:
+                path += self.object_name
+        return path
+
+    def get_url(self):
+        return "%s://%s%s" % (
+            self.endpoint.scheme, self.get_host(), self.get_path())
+
+
+class CreateBucketURLContext(URLContext):
+    """
+    XXX
+    """
+    def get_host(self):
+        return self.endpoint.get_host()
+
+    def get_path(self):
+        return "/%s" % (self.bucket)
+
+
 class S3Client(object):
 
     def __init__(self, creds=None, endpoint=None, query_factory=None):
@@ -61,7 +104,8 @@ class S3Client(object):
         query = self.query_factory(
             action="PUT", creds=self.creds, endpoint=self.endpoint,
             bucket=bucket)
-        return query.submit()
+        url_context = CreateBucketURLContext(self.endpoint, bucket)
+        return query.submit(url_context)
 
     def delete_bucket(self, bucket):
         """
@@ -139,25 +183,6 @@ class Query(BaseQuery):
         # XXX add unit test
         self.endpoint.set_method(self.action)
 
-    def get_host(self):
-        if not self.bucket:
-            return self.endpoint.get_host()
-        else:
-            return "%s.%s" % (self.bucket, self.endpoint.get_host())
-
-    def get_path(self):
-        path = "/"
-        if self.bucket is not None and self.object_name:
-            if self.object_name.startswith("/"):
-                path = self.object_name
-            else:
-                path += self.object_name
-        return path
-
-    def get_uri(self):
-        return "%s://%s%s" % (
-            self.endpoint.scheme, self.get_host(), self.get_path())
-
     # XXX needs unit tests
     def set_content_type(self):
         if self.object_name and not self.content_type:
@@ -173,7 +198,7 @@ class Query(BaseQuery):
         for key, value in self.metadata.iteritems():
             headers["x-amz-meta-" + key] = value
         # Before we check if the content type is set, let's see if we can set
-        # if by guessing the the mimetype.
+        # it by guessing the the mimetype.
         self.set_content_type()
         if self.content_type is not None:
             headers["Content-Type"] = self.content_type
@@ -194,21 +219,34 @@ class Query(BaseQuery):
         # 2) txAWS doesn't currently unfold long headers
         return "".join("%s:%s\n" % (name, value) for name, value in headers)
 
+    # XXX add unit test
+    def get_canonicalized_resource(self):
+        resource = "/"
+        if self.bucket:
+            resource += self.bucket
+            if self.object_name:
+                resource += "/%s" % self.object_name
+        return resource
+
     def sign(self, headers):
+
         text = (self.action + "\n" +
                 headers.get("Content-MD5", "") + "\n" +
                 headers.get("Content-Type", "") + "\n" +
                 headers.get("Date", "") + "\n" +
                 self.get_canonicalized_amz_headers(headers) +
-                self.get_path())
+                self.get_canonicalized_resource())
         return self.creds.sign(text, hash_type="sha1")
 
-    def submit(self):
+    def submit(self, url_context=None):
+        if not url_context:
+            url_context = URLContext(
+                self.endpoint, self.bucket, self.object_name)
         d = self.get_page(
-            self.get_uri(), method=self.action, postdata=self.data,
+            url_context.get_url(), method=self.action, postdata=self.data,
             headers=self.get_headers())
-        # XXX - we need an error wrapper like we have for ec2... but let's wait
-        # until the new error-wrapper branch has landed, and possibly generalize
-        # a base class for all clients.
+        # XXX - we need an error wrapper like we have for ec2... but let's
+        # wait until the new error-wrapper branch has landed, and possibly
+        # generalize a base class for all clients.
         #d.addErrback(s3_error_wrapper)
         return d
