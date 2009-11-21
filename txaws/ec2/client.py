@@ -10,7 +10,7 @@ from urllib import quote
 from base64 import b64encode
 
 from txaws import version
-from txaws.client.base import BaseQuery
+from txaws.client.base import BaseClient, BaseQuery
 from txaws.credentials import AWSCredentials
 from txaws.ec2 import model
 from txaws.ec2.exception import EC2Error
@@ -34,23 +34,17 @@ def ec2_error_wrapper(error):
         error.raiseException()
 
 
-class EC2Client(object):
+class EC2Client(BaseClient):
     """A client for EC2."""
 
     def __init__(self, creds=None, endpoint=None, query_factory=None):
-        """Create an EC2Client.
-
-        @param creds: User authentication credentials to use.
-        @param endpoint: The service endpoint URI.
-        @param query_factory: The class or function that produces a query
-            object for making requests to the EC2 service.
-        """
-        self.creds = creds or AWSCredentials()
-        self.endpoint = endpoint or AWSServiceEndpoint()
+        if creds is None:
+            creds = AWSCredentials()
+        if endpoint is None:
+            endpoint = AWSServiceEndpoint()
         if query_factory is None:
             self.query_factory = Query
-        else:
-            self.query_factory = query_factory
+        super(EC2Client, self).__init__(creds, endpoint, query_factory)
 
     def describe_instances(self, *instance_ids):
         """Describe current instances."""

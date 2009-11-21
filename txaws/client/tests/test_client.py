@@ -7,8 +7,17 @@ from twisted.python.filepath import FilePath
 from twisted.web.client import HTTPClientFactory
 from twisted.web import server, static
 
-from txaws.client.base import BaseQuery
+from txaws.client.base import BaseClient, BaseQuery
 from txaws.testing.base import TXAWSTestCase
+
+
+class BaseClientTestCase(TXAWSTestCase):
+
+    def test_creation(self):
+        client = BaseClient("creds", "endpoint", "query factory")
+        self.assertEquals(client.creds, "creds")
+        self.assertEquals(client.endpoint, "endpoint")
+        self.assertEquals(client.query_factory, "query factory")
 
 
 class BaseQueryTestCase(TXAWSTestCase):
