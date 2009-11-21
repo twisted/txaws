@@ -22,6 +22,11 @@ class AWSServiceEndpointTestCase(TXAWSTestCase):
         self.assertEquals(endpoint.path, "/")
         self.assertEquals(endpoint.method, "GET")
 
+    def test_custom_method(self):
+        endpoint = AWSServiceEndpoint(
+            uri="http://service/endpoint", method="PUT")
+        self.assertEquals(endpoint.method, "PUT")
+
     def test_parse_uri(self):
         self.assertEquals(self.endpoint.scheme, "http")
         self.assertEquals(self.endpoint.host, "my.service")
@@ -35,11 +40,6 @@ class AWSServiceEndpointTestCase(TXAWSTestCase):
         self.assertEquals(endpoint.port, 8080)
         self.assertEquals(endpoint.path, "/endpoint")
 
-    def test_custom_method(self):
-        endpoint = AWSServiceEndpoint(uri="http://service/endpoint",
-                                      method="PUT")
-        self.assertEquals(endpoint.method, "PUT")
-
     def test_get_uri(self):
         uri = self.endpoint.get_uri()
         self.assertEquals(uri, "http://my.service/da_endpoint")
@@ -50,11 +50,24 @@ class AWSServiceEndpointTestCase(TXAWSTestCase):
         new_uri = endpoint.get_uri()
         self.assertEquals(new_uri, uri)
 
+    def test_set_host(self):
+        self.assertEquals(self.endpoint.host, "my.service")
+        self.endpoint.set_host("newhost.com")
+        self.assertEquals(self.endpoint.host, "newhost.com")
+
+    def test_get_host(self):
+        self.assertEquals(self.endpoint.host, self.endpoint.get_host())
+
     def test_set_path(self):
         self.endpoint.set_path("/newpath")
         self.assertEquals(
             self.endpoint.get_uri(),
             "http://my.service/newpath")
+
+    def test_set_method(self):
+        self.assertEquals(self.endpoint.method, "GET")
+        self.endpoint.set_method("PUT")
+        self.assertEquals(self.endpoint.method, "PUT")
 
 
 class AWSServiceRegionTestCase(TXAWSTestCase):
