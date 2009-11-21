@@ -2,6 +2,8 @@ from twisted.internet import reactor, ssl
 from twisted.web.client import HTTPClientFactory
 
 from txaws.util import parse
+from txaws.credentials import AWSCredentials
+from txaws.service import AWSServiceEndpoint
 
 
 class BaseClient(object):
@@ -13,6 +15,10 @@ class BaseClient(object):
         object for making requests to the EC2 service.
     """
     def __init__(self, creds=None, endpoint=None, query_factory=None):
+        if creds is None:
+            creds = AWSCredentials()
+        if endpoint is None:
+            endpoint = AWSServiceEndpoint()
         self.creds = creds
         self.endpoint = endpoint
         self.query_factory = query_factory
