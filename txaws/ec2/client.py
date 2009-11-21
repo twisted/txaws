@@ -38,10 +38,6 @@ class EC2Client(BaseClient):
     """A client for EC2."""
 
     def __init__(self, creds=None, endpoint=None, query_factory=None):
-        if creds is None:
-            creds = AWSCredentials()
-        if endpoint is None:
-            endpoint = AWSServiceEndpoint()
         if query_factory is None:
             self.query_factory = Query
         super(EC2Client, self).__init__(creds, endpoint, query_factory)
