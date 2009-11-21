@@ -189,7 +189,6 @@ class Query(BaseQuery):
             self.endpoint = AWSServiceEndpoint(S3_ENDPOINT)
         self.endpoint.set_method(self.action)
 
-    # XXX needs unit tests
     def set_content_type(self):
         if self.object_name and not self.content_type:
             # XXX nothing is currently done with the encoding... we may
