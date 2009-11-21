@@ -151,15 +151,12 @@ class S3Client(object):
     def head_object(self, bucket, object_name):
         """
         Retrieve object metadata only.
-
-        This is like get_object, but the object's content is not retrieved.
-        Currently the metadata is not returned to the caller either, so this
-        method is mostly useless, and only provided for completeness.
         """
         query = self.query_factory(
             action="HEAD", creds=self.creds, endpoint=self.endpoint,
             bucket=bucket, object_name=object_name)
-        return query.submit()
+        d = query.submit()
+        return d.addCallback(query.get_response_headers)
 
     def delete_object(self, bucket, object_name):
         """
