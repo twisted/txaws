@@ -339,6 +339,11 @@ class QueryTestCase(TXAWSTestCase):
             action="PUT", bucket="images", object_name="advicedog.jpg")
         result = query.get_canonicalized_resource()
         self.assertEquals(result, "/images/advicedog.jpg")
+
+    def test_sign(self):
+        query = client.Query(action="PUT", creds=self.creds)
+        signed = query.sign({})
+        self.assertEquals(signed, "H6UJCNHizzXZCGPl7wM6nL6tQdo=")
         
     def test_object_query(self):
         """
