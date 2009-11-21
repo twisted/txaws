@@ -51,7 +51,6 @@ class AWSServiceEndpointTestCase(TXAWSTestCase):
         self.assertEquals(new_uri, uri)
 
     def test_set_path(self):
-        original_path = self.endpoint.path
         self.endpoint.set_path("/newpath")
         self.assertEquals(
             self.endpoint.get_uri(),
@@ -75,10 +74,13 @@ class AWSServiceRegionTestCase(TXAWSTestCase):
         self.assertEquals(region.creds.secret_key, "quux")
 
     def test_creation_with_keys_and_creds(self):
+        """
+        creds take precedence over individual access key/secret key pairs.
+        """
         region = AWSServiceRegion(self.creds, access_key="baz",
                                   secret_key="quux")
-        self.assertEquals(self.creds.access_key, "foo")
-        self.assertEquals(self.creds.secret_key, "bar")
+        self.assertEquals(region.creds.access_key, "foo")
+        self.assertEquals(region.creds.secret_key, "bar")
 
     def test_creation_with_uri(self):
         region = AWSServiceRegion(
