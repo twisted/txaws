@@ -44,7 +44,7 @@ class BaseQueryTestCase(TXAWSTestCase):
             proto = connections.pop()
             log.msg("Closing %r" % (proto,))
             proto.transport.loseConnection()
-        if connections:                                                                                              
+        if connections:
             log.msg("Some left-over connections; this test is probably buggy.")
         return self.port.stopListening()
 

@@ -8,8 +8,8 @@ class Bucket(object):
 
 class FileChunk(object):
     """
-    An Amazon S3 file chunk. 
-    
+    An Amazon S3 file chunk.
+
     S3 returns file chunks, 10 MB at a time, until the entire file is returned.
     These chunks need to be assembled once they are all returned.
     """
