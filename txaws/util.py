@@ -98,7 +98,8 @@ def parse(url, defaultPort=None):
 
 def get_exitcode_reactor():
     """
-    This is only neccesary until a fix like the one outlined here is implemented for Twisted:
+    This is only neccesary until a fix like the one outlined here is
+    implemented for Twisted:
         http://twistedmatrix.com/trac/ticket/2182
     """
     from twisted.internet.main import installReactor
@@ -119,4 +120,7 @@ def get_exitcode_reactor():
     return reactor
 
 
-reactor = get_exitcode_reactor()
+try:
+    reactor = get_exitcode_reactor()
+except:
+    from twisted.internet import reactor
