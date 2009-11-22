@@ -3,7 +3,6 @@
 %prog [options]
 """
 
-import os
 import sys
 
 from txaws.credentials import AWSCredentials
@@ -13,6 +12,7 @@ from txaws.util import reactor
 
 
 def printResults(results):
+    print results
     return 0
 
 
@@ -29,16 +29,7 @@ options, args = parse_options(__doc__.strip())
 if options.bucket is None:
     print "Error Message: A bucket name is required."
     sys.exit(1)
-filename = options.object_filename
-if filename:
-    options.object_name = os.path.basename(filename)
-    try:
-        options.object_data = open(filename).read()
-        print len(options.object_data)
-    except Exception, error:
-        print error
-        sys.exit(1)
-elif options.object_name is None:
+if options.object_name is None:
     print "Error Message: An object name is required."
     sys.exit(1)
 creds = AWSCredentials(options.access_key, options.secret_key)
@@ -46,9 +37,7 @@ region = AWSServiceRegion(
     creds=creds, region=options.region, s3_endpoint=options.url)
 client = region.get_s3_client()
 
-d = client.put_object(
-    options.bucket, options.object_name, options.object_data,
-    options.content_type)
+d = client.get_object(options.bucket, options.object_name)
 d.addCallback(printResults)
 d.addErrback(printError)
 d.addCallback(finish)

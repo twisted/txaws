@@ -33,9 +33,6 @@ def parse_options(usage):
         "-c", "--content-type", dest="content_type",
         help="content type of the object")
     options, args = parser.parse_args()
-    #if len(args) != 1:
-    #    parser.error("incorrect number of arguments")
-    # XXX check for creds defined in env
     if not (options.access_key and options.secret_key):
         parser.error(
             "both the access key ID and the secret key must be supplied")
