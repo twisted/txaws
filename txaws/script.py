@@ -17,6 +17,8 @@ def parse_options(usage):
         "-r", "--region", dest="region", help="US or EU (valid for AWS only)")
     parser.add_option(
         "-U", "--url", dest="url", help="service URL/endpoint")
+    parser.add_option(
+        "-b", "--bucket", dest="bucket", help="name of the bucket")
     options, args = parser.parse_args()
     #if len(args) != 1:
     #    parser.error("incorrect number of arguments")
