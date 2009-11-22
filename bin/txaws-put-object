@@ -34,7 +34,6 @@ if filename:
     options.object_name = os.path.basename(filename)
     try:
         options.object_data = open(filename).read()
-        print len(options.object_data)
     except Exception, error:
         print error
         sys.exit(1)
