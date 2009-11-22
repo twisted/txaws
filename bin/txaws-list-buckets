@@ -3,11 +3,12 @@
 %prog [options]
 """
 
-from twisted.internet import reactor
+import sys
 
 from txaws.credentials import AWSCredentials
 from txaws.script import parse_options
 from txaws.service import AWSServiceRegion
+from txaws.util import reactor
 
 
 def printResults(results):
@@ -15,17 +16,16 @@ def printResults(results):
     for bucket in results:
         print "\t%s (created on %s)" % (bucket.name, bucket.creation_date)
     print "Total buckets: %s\n" % len(list(results))
+    return 0
 
 
 def printError(error):
-    print error.getErrorMessage()
     print error.value
-    # XXX we need the s3 error handling!
-    import pdb;pdb.set_trace()
+    return 1
 
 
-def finish(ignore):
-    reactor.stop()
+def finish(return_code):
+    reactor.stop(exitStatus=return_code)
 
 
 options, args = parse_options(__doc__.strip())
@@ -38,4 +38,5 @@ d = client.list_buckets()
 d.addCallback(printResults)
 d.addErrback(printError)
 d.addCallback(finish)
-reactor.run()
+# We use a custom reactor so that we can return the exit status from reactor.run().
+sys.exit(reactor.run())
