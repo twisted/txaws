@@ -12,10 +12,6 @@ from txaws.util import reactor
 
 
 def printResults(results):
-    print "\nBuckets:"
-    for bucket in results:
-        print "\t%s (created on %s)" % (bucket.name, bucket.creation_date)
-    print "Total buckets: %s\n" % len(list(results))
     return 0
 
 
@@ -29,12 +25,15 @@ def finish(return_code):
 
 
 options, args = parse_options(__doc__.strip())
+if options.bucket is None:
+    print "Error Message: A bucket name is required."
+    sys.exit(1)
 creds = AWSCredentials(options.access_key, options.secret_key)
 region = AWSServiceRegion(
     creds=creds, region=options.region, s3_endpoint=options.url)
 client = region.get_s3_client()
 
-d = client.list_buckets()
+d = client.create_bucket(options.bucket)
 d.addCallback(printResults)
 d.addErrback(printError)
 d.addCallback(finish)
