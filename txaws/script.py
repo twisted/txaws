@@ -36,7 +36,7 @@ def parse_options(usage):
     if not (options.access_key and options.secret_key):
         parser.error(
             "both the access key ID and the secret key must be supplied")
-    region = options.region.upper()
-    if region and region not in ["US", "EU"]:
+    region = options.region
+    if region and region.upper() not in ["US", "EU"]:
         parser.error("region must be one of 'US' or 'EU'")
     return (options, args)
