@@ -93,4 +93,4 @@ def parse(url, defaultPort=None):
             port = defaultPort
     if path == "":
         path = "/"
-    return scheme, host, port, path
+    return (str(scheme), str(host), port, str(path))

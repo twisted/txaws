@@ -70,7 +70,6 @@ class AWSStatusIcon(gtk.StatusIcon):
 
     def from_gnomekeyring(self):
         # Try for gtk gui specific credentials.
-        creds = None
         try:
             items = gnomekeyring.find_items_sync(
                 gnomekeyring.ITEM_GENERIC_SECRET,
@@ -129,8 +128,6 @@ class AWSStatusIcon(gtk.StatusIcon):
         deferred.addCallbacks(self.shutdown_instances, self.show_error)
 
     def save_key(self, response_id, data):
-        # handle the dialog
-        dialog = self.password_dialog
         try:
             if data != gtk.RESPONSE_ACCEPT:
                 # User cancelled. They can ask for the password again somehow.
@@ -204,6 +201,6 @@ def main(argv, reactor=None):
         from twisted.internet import gtk2reactor
         gtk2reactor.install()
         from twisted.internet import reactor
-    status = AWSStatusIcon(reactor)
+    AWSStatusIcon(reactor)
     gobject.set_application_name("aws-status")
     reactor.run()
