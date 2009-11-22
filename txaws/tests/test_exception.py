@@ -5,7 +5,6 @@ from twisted.trial.unittest import TestCase
 
 from txaws.exception import AWSError
 from txaws.exception import AWSResponseParseError
-from txaws.testing import payload
 from txaws.util import XML
 
 

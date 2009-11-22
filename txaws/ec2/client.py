@@ -9,9 +9,6 @@ from datetime import datetime
 from urllib import quote
 from base64 import b64encode
 
-from twisted.web import http
-from twisted.web.error import Error as TwistedWebError
-
 from txaws import version
 from txaws.client.base import BaseClient, BaseQuery, error_wrapper
 from txaws.ec2 import model

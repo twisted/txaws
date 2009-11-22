@@ -3,7 +3,6 @@
 
 from twisted.trial.unittest import TestCase
 
-from txaws.exception import AWSResponseParseError
 from txaws.s3.exception import S3Error
 from txaws.testing import payload
 from txaws.util import XML
