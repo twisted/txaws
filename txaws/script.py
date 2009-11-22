@@ -19,6 +19,19 @@ def parse_options(usage):
         "-U", "--url", dest="url", help="service URL/endpoint")
     parser.add_option(
         "-b", "--bucket", dest="bucket", help="name of the bucket")
+    parser.add_option(
+        "-o", "--object-name", dest="object_name", help="name of the object")
+    parser.add_option(
+        "-d", "--object-data", dest="object_data",
+        help="content data of the object")
+    parser.add_option(
+        "--object-file", dest="object_filename",
+        help=("the path to the file that will be saved as an object; if "
+               "provided, the --object-name and --object-data options are "
+               "not necessary"))
+    parser.add_option(
+        "-c", "--content-type", dest="content_type",
+        help="content type of the object")
     options, args = parser.parse_args()
     #if len(args) != 1:
     #    parser.error("incorrect number of arguments")
