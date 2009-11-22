@@ -4,11 +4,21 @@ from twisted.internet import reactor
 from twisted.protocols.policies import WrappingFactory
 from twisted.python import log
 from twisted.python.filepath import FilePath
-from twisted.web.client import HTTPClientFactory
+from twisted.python.failure import Failure
 from twisted.web import server, static
+from twisted.web.client import HTTPClientFactory
+from twisted.web.error import Error as TwistedWebError
 
-from txaws.client.base import BaseClient, BaseQuery
+from txaws.client.base import BaseClient, BaseQuery, error_wrapper
 from txaws.testing.base import TXAWSTestCase
+
+
+class ErrorWrapperTestCase(TXAWSTestCase):
+
+    def test_error_wrapper(self):
+        error = TwistedWebError(204, "No content")
+        wrapped = error_wrapper(Failure(error), None)
+        self.assertEquals(wrapped, "204 No content")
 
 
 class BaseClientTestCase(TXAWSTestCase):
