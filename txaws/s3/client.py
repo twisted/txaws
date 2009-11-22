@@ -17,10 +17,15 @@ from twisted.web.http import datetimeToString
 
 from epsilon.extime import Time
 
-from txaws.client.base import BaseClient, BaseQuery
+from txaws.client.base import BaseClient, BaseQuery, error_wrapper
 from txaws.s3 import model
+from txaws.s3.exception import S3Error
 from txaws.service import AWSServiceEndpoint, S3_ENDPOINT
 from txaws.util import XML, calculate_md5
+
+
+def s3_error_wrapper(error):
+    error_wrapper(error, S3Error)
 
 
 class URLContext(object):
@@ -248,8 +253,4 @@ class Query(BaseQuery):
         d = self.get_page(
             url_context.get_url(), method=self.action, postdata=self.data,
             headers=self.get_headers())
-        # XXX - we need an error wrapper like we have for ec2... but let's
-        # wait until the new error-wrapper branch has landed, and possibly
-        # generalize a base class for all clients.
-        #d.addErrback(s3_error_wrapper)
-        return d
+        return d.addErrback(s3_error_wrapper)
