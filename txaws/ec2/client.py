@@ -198,8 +198,8 @@ class EC2Client(BaseClient):
         instanceset = {}
         for pos, instance_id in enumerate(instance_ids):
             instanceset["InstanceId.%d" % (pos+1)] = instance_id
-        query = self.query_factory("TerminateInstances", self.creds, self.endpoint,
-                               instanceset)
+        query = self.query_factory(
+            "TerminateInstances", self.creds, self.endpoint, instanceset)
         d = query.submit()
         return d.addCallback(self._parse_terminate_instances)
 
@@ -623,8 +623,8 @@ class EC2Client(BaseClient):
         keypair_set = {}
         for pos, keypair_name in enumerate(keypair_names):
             keypair_set["KeyPair.%d" % (pos + 1)] = keypair_name
-        query = self.query_factory("DescribeKeyPairs", self.creds, self.endpoint,
-                               keypair_set)
+        query = self.query_factory(
+            "DescribeKeyPairs", self.creds, self.endpoint, keypair_set)
         d = query.submit()
         return d.addCallback(self._parse_describe_keypairs)
 
