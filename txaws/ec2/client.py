@@ -801,5 +801,4 @@ class Query(BaseQuery):
         url = "%s?%s" % (self.endpoint.get_uri(),
                          self.get_canonical_query_params())
         d = self.get_page(url, method=self.endpoint.method)
-        d.addErrback(ec2_error_wrapper)
-        return d
+        return d.addErrback(ec2_error_wrapper)
