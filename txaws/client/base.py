@@ -30,6 +30,8 @@ def error_wrapper(error, errorClass):
     else:
         error.raiseException()
     if http_status >= 400:
+        if not xml_payload:
+            error.raiseException()
         try:
             fallback_error = errorClass(
                 xml_payload, error.value.status, error.value.message,
