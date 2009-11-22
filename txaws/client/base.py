@@ -41,6 +41,8 @@ def error_wrapper(error, errorClass):
             fallback_error = TwistedWebError(
                 http_status, error_message, error.value.response)
         raise fallback_error
+    if 200 <= http_status < 300:
+        return str(error.value)
     else:
         error.raiseException()
 
