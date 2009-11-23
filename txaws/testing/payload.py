@@ -705,7 +705,7 @@ sample_list_buckets_result = """\
 sample_get_bucket_result = """\
 <?xml version="1.0" encoding="UTF-8"?>
 <ListBucketResult xmlns="http://s3.amazonaws.com/doc/%s/">
-  <Name>quotes</Name>
+  <Name>mybucket</Name>
   <Prefix>N</Prefix>
   <Marker>Ned</Marker>
   <MaxKeys>40</MaxKeys>

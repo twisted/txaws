@@ -134,6 +134,49 @@ class S3Client(BaseClient):
         url_context = BucketURLContext(self.endpoint, bucket)
         return query.submit(url_context)
 
+    def get_bucket(self, bucket):
+        """
+        Get a list of all the objects in a bucket.
+        """
+        query = self.query_factory(
+            action="GET", creds=self.creds, endpoint=self.endpoint,
+            bucket=bucket)
+        url_context = BucketURLContext(self.endpoint, bucket)
+        d = query.submit(url_context)
+        return d.addCallback(self._parse_get_bucket)
+
+    def _parse_get_bucket(self, xml_bytes):
+        root = XML(xml_bytes)
+        name = root.findtext("Name")
+        prefix = root.findtext("Prefix")
+        marker = root.findtext("Marker")
+        max_keys = root.findtext("MaxKeys")
+        is_truncated = root.findtext("IsTruncated")
+        contents = []
+
+        for content_data in root.findall("Contents"):
+            key = content_data.findtext("Key")
+            date_text = content_data.findtext("LastModified")
+            modification_date = Time.fromISO8601TimeAndDate(
+                date_text).asDatetime()
+            etag = content_data.findtext("ETag")
+            size = content_data.findtext("Size")
+            storage_class = content_data.findtext("StorageClass")
+            owner_id = content_data.findtext("Owner/ID")
+            owner_display_name = content_data.findtext("Owner/DisplayName")
+            owner = model.ItemOwner(owner_id, owner_display_name)
+            content_item = model.BucketItem(
+                key, modification_date, etag, size, storage_class, owner)
+            contents.append(content_item)
+
+        common_prefixes = []
+        for prefix_data in root.findall("CommonPrefixes"):
+            common_prefixes.append(prefix_data.text)
+
+        return model.BucketListing(
+            name, prefix, marker, max_keys, is_truncated, contents,
+            common_prefixes)
+
     def put_object(self, bucket, object_name, data, content_type=None,
                    metadata={}):
         """
