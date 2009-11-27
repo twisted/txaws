@@ -231,8 +231,9 @@ class EC2Client(BaseClient):
         if names:
             group_names = dict([("GroupName.%d" % (i+1), name)
                                 for i, name in enumerate(names)])
-        query = self.query_factory("DescribeSecurityGroups", self.creds,
-                                   self.endpoint, group_names)
+        query = self.query_factory(
+            action="DescribeSecurityGroups", creds=self.creds,
+            endpoint=self.endpoint, other_params=group_names)
         d = query.submit()
         return d.addCallback(self._parse_describe_security_groups)
 
