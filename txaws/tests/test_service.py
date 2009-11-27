@@ -100,6 +100,11 @@ class AWSServiceRegionTestCase(TXAWSTestCase):
             creds=self.creds, ec2_uri="http://foo/bar")
         self.assertEquals(region.ec2_endpoint.get_uri(), "http://foo/bar")
 
+    def test_creation_with_uri_backwards_compatible(self):
+        region = AWSServiceRegion(
+            creds=self.creds, uri="http://foo/bar")
+        self.assertEquals(region.ec2_endpoint.get_uri(), "http://foo/bar")
+
     def test_creation_with_uri_and_region(self):
         region = AWSServiceRegion(
             creds=self.creds, region=REGION_EU, ec2_uri="http://foo/bar")
