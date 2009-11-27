@@ -65,11 +65,12 @@ class EC2Client(BaseClient):
 
     def describe_instances(self, *instance_ids):
         """Describe current instances."""
-        instanceset = {}
+        instances= {}
         for pos, instance_id in enumerate(instance_ids):
-            instanceset["InstanceId.%d" % (pos + 1)] = instance_id
-        query = self.query_factory("DescribeInstances", self.creds,
-            self.endpoint, instanceset)
+            instances["InstanceId.%d" % (pos + 1)] = instance_id
+        query = self.query_factory(
+            action="DescribeInstances", creds=self.creds,
+            endpoint=self.endpoint, other_params=instances)
         d = query.submit()
         return d.addCallback(self._parse_describe_instances)
 
@@ -164,7 +165,8 @@ class EC2Client(BaseClient):
         if ramdisk_id is not None:
             params["RamdiskId"] = ramdisk_id
         query = self.query_factory(
-            "RunInstances", self.creds, self.endpoint, params)
+            action="RunInstances", creds=self.creds, endpoint=self.endpoint, 
+            other_params=params)
         d = query.submit()
         return d.addCallback(self._parse_run_instances)
 
@@ -195,11 +197,12 @@ class EC2Client(BaseClient):
         @return: A deferred which on success gives an iterable of
             (id, old-state, new-state) tuples.
         """
-        instanceset = {}
+        instances = {}
         for pos, instance_id in enumerate(instance_ids):
-            instanceset["InstanceId.%d" % (pos+1)] = instance_id
+            instances["InstanceId.%d" % (pos+1)] = instance_id
         query = self.query_factory(
-            "TerminateInstances", self.creds, self.endpoint, instanceset)
+            action="TerminateInstances", creds=self.creds,
+            endpoint=self.endpoint, other_params=instances)
         d = query.submit()
         return d.addCallback(self._parse_terminate_instances)
 
@@ -282,8 +285,9 @@ class EC2Client(BaseClient):
             success of the operation.
         """
         parameters = {"GroupName":  name, "GroupDescription": description}
-        query = self.query_factory("CreateSecurityGroup", self.creds,
-                                   self.endpoint, parameters)
+        query = self.query_factory(
+            action="CreateSecurityGroup", creds=self.creds,
+            endpoint=self.endpoint, other_params=parameters)
         d = query.submit()
         return d.addCallback(self._parse_truth_return)
 
@@ -298,8 +302,9 @@ class EC2Client(BaseClient):
             success of the operation.
         """
         parameter = {"GroupName":  name}
-        query = self.query_factory("DeleteSecurityGroup", self.creds,
-                                   self.endpoint, parameter)
+        query = self.query_factory(
+            action="DeleteSecurityGroup", creds=self.creds,
+            endpoint=self.endpoint, other_params=parameter)
         d = query.submit()
         return d.addCallback(self._parse_truth_return)
 
@@ -354,8 +359,9 @@ class EC2Client(BaseClient):
                    "all the ip parameters.")
             raise ValueError(msg)
         parameters["GroupName"] = group_name
-        query = self.query_factory("AuthorizeSecurityGroupIngress", self.creds,
-                                   self.endpoint, parameters)
+        query = self.query_factory(
+            action="AuthorizeSecurityGroupIngress", creds=self.creds,
+            endpoint=self.endpoint, other_params=parameters)
         d = query.submit()
         return d.addCallback(self._parse_truth_return)
 
@@ -438,8 +444,9 @@ class EC2Client(BaseClient):
                    "all the ip parameters.")
             raise ValueError(msg)
         parameters["GroupName"] = group_name
-        query = self.query_factory("RevokeSecurityGroupIngress", self.creds,
-                                   self.endpoint, parameters)
+        query = self.query_factory(
+            action="RevokeSecurityGroupIngress", creds=self.creds,
+            endpoint=self.endpoint, other_params=parameters)
         d = query.submit()
         return d.addCallback(self._parse_truth_return)
 
@@ -477,7 +484,8 @@ class EC2Client(BaseClient):
         for pos, volume_id in enumerate(volume_ids):
             volumeset["VolumeId.%d" % (pos + 1)] = volume_id
         query = self.query_factory(
-            "DescribeVolumes", self.creds, self.endpoint, volumeset)
+            action="DescribeVolumes", creds=self.creds, endpoint=self.endpoint,
+            other_params=volumeset)
         d = query.submit()
         return d.addCallback(self._parse_describe_volumes)
 
@@ -520,7 +528,8 @@ class EC2Client(BaseClient):
         if snapshot_id is not None:
             params["SnapshotId"] = snapshot_id
         query = self.query_factory(
-            "CreateVolume", self.creds, self.endpoint, params)
+            action="CreateVolume", creds=self.creds, endpoint=self.endpoint,
+            other_params=params)
         d = query.submit()
         return d.addCallback(self._parse_create_volume)
 
@@ -541,7 +550,8 @@ class EC2Client(BaseClient):
 
     def delete_volume(self, volume_id):
         query = self.query_factory(
-            "DeleteVolume", self.creds, self.endpoint, {"VolumeId": volume_id})
+            action="DeleteVolume", creds=self.creds, endpoint=self.endpoint,
+            other_params={"VolumeId": volume_id})
         d = query.submit()
         return d.addCallback(self._parse_truth_return)
 
@@ -551,7 +561,8 @@ class EC2Client(BaseClient):
         for pos, snapshot_id in enumerate(snapshot_ids):
             snapshot_set["SnapshotId.%d" % (pos + 1)] = snapshot_id
         query = self.query_factory(
-            "DescribeSnapshots", self.creds, self.endpoint, snapshot_set)
+            action="DescribeSnapshots", creds=self.creds,
+            endpoint=self.endpoint, other_params=snapshot_set)
         d = query.submit()
         return d.addCallback(self._parse_snapshots)
 
@@ -575,8 +586,8 @@ class EC2Client(BaseClient):
     def create_snapshot(self, volume_id):
         """Create a new snapshot of an existing volume."""
         query = self.query_factory(
-            "CreateSnapshot", self.creds, self.endpoint,
-            {"VolumeId": volume_id})
+            action="CreateSnapshot", creds=self.creds, endpoint=self.endpoint,
+            other_params={"VolumeId": volume_id})
         d = query.submit()
         return d.addCallback(self._parse_create_snapshot)
 
@@ -596,17 +607,17 @@ class EC2Client(BaseClient):
     def delete_snapshot(self, snapshot_id):
         """Remove a previously created snapshot."""
         query = self.query_factory(
-            "DeleteSnapshot", self.creds, self.endpoint,
-            {"SnapshotId": snapshot_id})
+            action="DeleteSnapshot", creds=self.creds, endpoint=self.endpoint,
+            other_params={"SnapshotId": snapshot_id})
         d = query.submit()
         return d.addCallback(self._parse_truth_return)
 
     def attach_volume(self, volume_id, instance_id, device):
         """Attach the given volume to the specified instance at C{device}."""
         query = self.query_factory(
-            "AttachVolume", self.creds, self.endpoint,
-            {"VolumeId": volume_id, "InstanceId": instance_id,
-             "Device": device})
+            action="AttachVolume", creds=self.creds, endpoint=self.endpoint,
+            other_params={"VolumeId": volume_id, "InstanceId": instance_id,
+                          "Device": device})
         d = query.submit()
         return d.addCallback(self._parse_attach_volume)
 
@@ -624,7 +635,8 @@ class EC2Client(BaseClient):
         for pos, keypair_name in enumerate(keypair_names):
             keypair_set["KeyPair.%d" % (pos + 1)] = keypair_name
         query = self.query_factory(
-            "DescribeKeyPairs", self.creds, self.endpoint, keypair_set)
+            action="DescribeKeyPairs", creds=self.creds,
+            endpoint=self.endpoint, other_params=keypair_set)
         d = query.submit()
         return d.addCallback(self._parse_describe_keypairs)
 
@@ -646,8 +658,8 @@ class EC2Client(BaseClient):
         used to reference the created key pair when launching new instances.
         """
         query = self.query_factory(
-            "CreateKeyPair", self.creds, self.endpoint,
-            {"KeyName": keypair_name})
+            action="CreateKeyPair", creds=self.creds, endpoint=self.endpoint,
+            other_params={"KeyName": keypair_name})
         d = query.submit()
         return d.addCallback(self._parse_create_keypair)
 
@@ -661,8 +673,8 @@ class EC2Client(BaseClient):
     def delete_keypair(self, keypair_name):
         """Delete a given keypair."""
         query = self.query_factory(
-            "DeleteKeyPair", self.creds, self.endpoint,
-            {"KeyName": keypair_name})
+            action="DeleteKeyPair", creds=self.creds, endpoint=self.endpoint,
+            other_params={"KeyName": keypair_name})
         d = query.submit()
         return d.addCallback(self._parse_truth_return)
 
@@ -673,8 +685,10 @@ class EC2Client(BaseClient):
 
         @return: the IP address allocated.
         """
+        # XXX remove empty other_params
         query = self.query_factory(
-            "AllocateAddress", self.creds, self.endpoint, {})
+            action="AllocateAddress", creds=self.creds, endpoint=self.endpoint, 
+            other_params={})
         d = query.submit()
         return d.addCallback(self._parse_allocate_address)
 
@@ -689,8 +703,8 @@ class EC2Client(BaseClient):
         @return: C{True} if the operation succeeded.
         """
         query = self.query_factory(
-            "ReleaseAddress", self.creds, self.endpoint,
-            {"PublicIp": address})
+            action="ReleaseAddress", creds=self.creds, endpoint=self.endpoint,
+            other_params={"PublicIp": address})
         d = query.submit()
         return d.addCallback(self._parse_truth_return)
 
@@ -702,8 +716,9 @@ class EC2Client(BaseClient):
         @return: C{True} if the operation succeeded.
         """
         query = self.query_factory(
-            "AssociateAddress", self.creds, self.endpoint,
-            {"InstanceId": instance_id, "PublicIp": address})
+            action="AssociateAddress", creds=self.creds,
+            endpoint=self.endpoint,
+            other_params={"InstanceId": instance_id, "PublicIp": address})
         d = query.submit()
         return d.addCallback(self._parse_truth_return)
 
@@ -714,8 +729,8 @@ class EC2Client(BaseClient):
         called several times without error.
         """
         query = self.query_factory(
-            "DisassociateAddress", self.creds, self.endpoint,
-            {"PublicIp": address})
+            action="DisassociateAddress", creds=self.creds,
+            endpoint=self.endpoint, other_params={"PublicIp": address})
         d = query.submit()
         return d.addCallback(self._parse_truth_return)
 
@@ -732,7 +747,8 @@ class EC2Client(BaseClient):
         for pos, address in enumerate(addresses):
             address_set["PublicIp.%d" % (pos + 1)] = address
         query = self.query_factory(
-            "DescribeAddresses", self.creds, self.endpoint, address_set)
+            action="DescribeAddresses", creds=self.creds,
+            endpoint=self.endpoint, other_params=address_set)
         d = query.submit()
         return d.addCallback(self._parse_describe_addresses)
 
@@ -750,8 +766,9 @@ class EC2Client(BaseClient):
         if names:
             zone_names = dict([("ZoneName.%d" % (i+1), name)
                                 for i, name in enumerate(names)])
-        query = self.query_factory("DescribeAvailabilityZones", self.creds,
-                                   self.endpoint, zone_names)
+        query = self.query_factory(
+            action="DescribeAvailabilityZones", creds=self.creds,
+            endpoint=self.endpoint, other_params=zone_names)
         d = query.submit()
         return d.addCallback(self._parse_describe_availability_zones)
 
