@@ -633,8 +633,8 @@ class EC2Client(BaseClient):
     def describe_keypairs(self, *keypair_names):
         """Returns information about key pairs available."""
         keypairs = {}
-        for index, keypair_name in enumerate(keypairs):
-            keypair_set["KeyPair.%d" % (index + 1)] = keypair_name
+        for index, keypair_name in enumerate(keypair_names):
+            keypairs["KeyPair.%d" % (index + 1)] = keypair_name
         query = self.query_factory(
             action="DescribeKeyPairs", creds=self.creds,
             endpoint=self.endpoint, other_params=keypairs)

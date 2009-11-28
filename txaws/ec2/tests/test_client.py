@@ -360,7 +360,7 @@ class EC2ClientSecurityGroupsTestCase(TXAWSTestCase):
                 self.assertEqual(action, "DescribeSecurityGroups")
                 self.assertEqual(creds.access_key, "foo")
                 self.assertEqual(creds.secret_key, "bar")
-                self.assertEqual(other_params, None)
+                self.assertEqual(other_params, {})
 
             def submit(self):
                 return succeed(payload.sample_describe_security_groups_result)
@@ -395,7 +395,7 @@ class EC2ClientSecurityGroupsTestCase(TXAWSTestCase):
                 self.assertEqual(action, "DescribeSecurityGroups")
                 self.assertEqual(creds.access_key, "foo")
                 self.assertEqual(creds.secret_key, "bar")
-                self.assertEqual(other_params, None)
+                self.assertEqual(other_params, {})
 
             def submit(self):
                 return succeed(
