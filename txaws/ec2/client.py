@@ -60,7 +60,7 @@ class EC2Client(BaseClient):
 
     def __init__(self, creds=None, endpoint=None, query_factory=None):
         if query_factory is None:
-            self.query_factory = Query
+            query_factory = Query
         super(EC2Client, self).__init__(creds, endpoint, query_factory)
 
     def describe_instances(self, *instance_ids):
@@ -227,7 +227,7 @@ class EC2Client(BaseClient):
         @return: A C{Deferred} that will fire with a list of L{SecurityGroup}s
             retrieved from the cloud.
         """
-        group_names = None
+        group_names = {}
         if names:
             group_names = dict([("GroupName.%d" % (i+1), name)
                                 for i, name in enumerate(names)])
@@ -632,12 +632,12 @@ class EC2Client(BaseClient):
 
     def describe_keypairs(self, *keypair_names):
         """Returns information about key pairs available."""
-        keypair_set = {}
-        for pos, keypair_name in enumerate(keypair_names):
-            keypair_set["KeyPair.%d" % (pos + 1)] = keypair_name
+        keypairs = {}
+        for index, keypair_name in enumerate(keypairs):
+            keypair_set["KeyPair.%d" % (index + 1)] = keypair_name
         query = self.query_factory(
             action="DescribeKeyPairs", creds=self.creds,
-            endpoint=self.endpoint, other_params=keypair_set)
+            endpoint=self.endpoint, other_params=keypairs)
         d = query.submit()
         return d.addCallback(self._parse_describe_keypairs)
 
