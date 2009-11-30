@@ -654,3 +654,28 @@ sample_invalid_client_token_result = """\
   <RequestID>47bfd77d-78d6-446d-be0d-f7621795dded</RequestID>
 </Response>
 """
+
+
+sample_server_internal_error_result = """\
+<?xml version="1.0" encoding="UTF-8"?>
+<Error>
+  <Code>InternalError</Code>
+  <Message>We encountered an internal error. Please try again.</Message>
+  <RequestID>A2A7E5395E27DFBB</RequestID>
+  <HostID>f691zulHNsUqonsZkjhILnvWwD3ZnmOM4ObM1wXTc6xuS3GzPmjArp8QC/sGsn6K</HostID>
+</Error>
+"""
+
+
+sample_restricted_resource_result = """\
+<?xml version="1.0"?>
+<Response>
+  <Errors>
+    <Error>
+      <Code>AuthFailure</Code>
+      <Message>Unauthorized attempt to access restricted resource</Message>
+    </Error>
+  </Errors>
+  <RequestID>a99e832e-e6e0-416a-9a35-81798ea521b4</RequestID>
+</Response>
+"""

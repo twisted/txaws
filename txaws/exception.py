@@ -8,3 +8,9 @@ class AWSError(Error):
     """
     A base class for txAWS errors.
     """
+
+
+class AWSResponseParseError(Exception):
+    """
+    txAWS was unable to parse the server response.
+    """

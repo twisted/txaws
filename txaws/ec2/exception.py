@@ -1,7 +1,7 @@
 # Copyright (c) 2009 Canonical Ltd <duncan.mcgreggor@canonical.com>
 # Licenced under the txaws licence available at /LICENSE in the txaws source.
 
-from txaws.exception import AWSError
+from txaws.exception import AWSError, AWSResponseParseError
 from txaws.util import XML
 
 
@@ -16,6 +16,7 @@ class EC2Error(AWSError):
         self.original = xml_bytes
         self.errors = []
         self.request_id = ""
+        self.host_id = ""
         self.parse()
 
     def __str__(self):
@@ -26,19 +27,33 @@ class EC2Error(AWSError):
             self.__class__.__name__, self._get_error_code_string())
 
     def _set_request_id(self, tree):
-        requestIDNode = tree.find(".//RequestID")
-        if hasattr(requestIDNode, "text"):
-            text = requestIDNode.text
+        request_id_node = tree.find(".//RequestID")
+        if hasattr(request_id_node, "text"):
+            text = request_id_node.text
             if text:
-                self.requestID = text
+                self.request_id = text
 
-    def _set_errors(self, tree):
-        errorsNode = tree.find(".//Errors")
-        if errorsNode:
-            for error in errorsNode:
+    def _set_400_errors(self, tree):
+        errors_node = tree.find(".//Errors")
+        if errors_node:
+            for error in errors_node:
                 data = self._node_to_dict(error)
                 if data:
                     self.errors.append(data)
+
+    def _set_host_id(self, tree):
+        host_id = tree.find(".//HostID")
+        if hasattr(host_id, "text"):
+            text = host_id.text
+            if text:
+                self.host_id = text
+
+    def _set_500_error(self, tree):
+        self._set_request_id(tree)
+        self._set_host_id(tree)
+        data = self._node_to_dict(tree)
+        if data:
+            self.errors.append(data)
 
     def _get_error_code_string(self):
         count = len(self.errors)
@@ -63,12 +78,25 @@ class EC2Error(AWSError):
                 data[child.tag] = child.text
         return data
 
+    def _check_for_html(self, tree):
+        if tree.tag == "html":
+            message = "Could not parse HTML in the response."
+            raise AWSResponseParseError(message)
+
     def parse(self, xml_bytes=""):
         if not xml_bytes:
             xml_bytes = self.original
         tree = XML(xml_bytes.strip())
+        self._check_for_html(tree)
         self._set_request_id(tree)
-        self._set_errors(tree)
+        if self.status:
+            status = int(self.status)
+        else:
+            status = 400
+        if status >= 500:
+            self._set_500_error(tree)
+        else:
+            self._set_400_errors(tree)
 
     def has_error(self, errorString):
         for error in self.errors:
