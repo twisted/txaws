@@ -129,6 +129,51 @@ class S3ClientTestCase(TXAWSTestCase):
         s3 = client.S3Client(creds, query_factory=StubQuery)
         return s3.create_bucket("mybucket")
 
+    def test_get_bucket(self):
+
+        class StubQuery(client.Query):
+
+            def __init__(query, action, creds, endpoint, bucket=None):
+                super(StubQuery, query).__init__(
+                    action=action, creds=creds, bucket=bucket)
+                self.assertEquals(action, "GET")
+                self.assertEqual(creds.access_key, "foo")
+                self.assertEqual(creds.secret_key, "bar")
+                self.assertEqual(query.bucket, "mybucket")
+                self.assertEqual(query.object_name, None)
+                self.assertEqual(query.data, "")
+                self.assertEqual(query.metadata, {})
+
+            def submit(query, url_context=None):
+                return succeed(payload.sample_get_bucket_result)
+
+        def check_results(listing):
+            self.assertEquals(listing.name, "mybucket")
+            self.assertEquals(listing.prefix, "N")
+            self.assertEquals(listing.marker, "Ned")
+            self.assertEquals(listing.max_keys, "40")
+            self.assertEquals(listing.is_truncated, "false")
+            self.assertEquals(len(listing.contents), 2)
+            content1 = listing.contents[0]
+            self.assertEquals(content1.key, "Nelson")
+            self.assertEquals(
+                content1.modification_date.timetuple(),
+                (2006, 1, 1, 12, 0, 0, 6, 1, 0))
+            self.assertEquals(
+                content1.etag, '"828ef3fdfa96f00ad9f27c383fc9ac7f"')
+            self.assertEquals(content1.size, "5")
+            self.assertEquals(content1.storage_class, "STANDARD")
+            owner = content1.owner
+            self.assertEquals(
+                owner.id,
+                "bcaf1ffd86f41caff1a493dc2ad8c2c281e37522a640e161ca5fb16fd081034f")
+            self.assertEquals(owner.display_name, "webfile")
+
+        creds = AWSCredentials("foo", "bar")
+        s3 = client.S3Client(creds, query_factory=StubQuery)
+        d = s3.get_bucket("mybucket")
+        return d.addCallback(check_results)
+
     def test_delete_bucket(self):
 
         class StubQuery(client.Query):
@@ -344,7 +389,7 @@ class QueryTestCase(TXAWSTestCase):
         query = client.Query(action="PUT", creds=self.creds)
         signed = query.sign({})
         self.assertEquals(signed, "H6UJCNHizzXZCGPl7wM6nL6tQdo=")
-        
+
     def test_object_query(self):
         """
         Test that a request addressing an object is created correctly.
@@ -421,7 +466,7 @@ class QueryTestCase(TXAWSTestCase):
 
         headers = query.get_headers()
         self.assertEqual(
-            headers["Authorization"], 
+            headers["Authorization"],
             "AWS fookeyid:TESTINGSIG=")
 
 
