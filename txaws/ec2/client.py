@@ -8,16 +8,11 @@
 from datetime import datetime
 from urllib import quote
 from base64 import b64encode
-from xml.parsers.expat import ExpatError
-
-from twisted.web import http
-from twisted.web.error import Error as TwistedWebError
 
 from txaws import version
-from txaws.client.base import BaseClient, BaseQuery
+from txaws.client.base import BaseClient, BaseQuery, error_wrapper
 from txaws.ec2 import model
 from txaws.ec2.exception import EC2Error
-from txaws.exception import AWSResponseParseError
 from txaws.util import iso8601time, XML
 
 
@@ -25,34 +20,7 @@ __all__ = ["EC2Client"]
 
 
 def ec2_error_wrapper(error):
-    """
-    We want to see all error messages from cloud services. Amazon's EC2 says
-    that their errors are accompanied either by a 400-series or 500-series HTTP
-    response code. As such, the first thing we want to do is check to see if
-    the error is in that range. If it is, we then need to see if the error
-    message is an EC2 one.
-
-    In the event that an error is not a Twisted web error nor an EC2 one, the
-    original exception is raised.
-    """
-    http_status = 0
-    if error.check(TwistedWebError):
-        xml_payload = error.value.response
-        if error.value.status:
-            http_status = int(error.value.status)
-    else:
-        error.raiseException()
-    if http_status >= 400:
-        try:
-            fallback_error = EC2Error(xml_payload, error.value.status,
-                                 error.value.message, error.value.response)
-        except (ExpatError, AWSResponseParseError):
-            error_message = http.RESPONSES.get(http_status)
-            fallback_error = TwistedWebError(http_status, error_message,
-                                        error.value.response)
-        raise fallback_error
-    else:
-        error.raiseException()
+    error_wrapper(error, EC2Error)
 
 
 class EC2Client(BaseClient):
@@ -848,5 +816,4 @@ class Query(BaseQuery):
         url = "%s?%s" % (self.endpoint.get_uri(),
                          self.get_canonical_query_params())
         d = self.get_page(url, method=self.endpoint.method)
-        d.addErrback(ec2_error_wrapper)
-        return d
+        return d.addErrback(ec2_error_wrapper)
