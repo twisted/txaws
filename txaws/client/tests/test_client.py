@@ -1,14 +1,53 @@
 import os
 
 from twisted.internet import reactor
+from twisted.internet.error import ConnectionRefusedError
 from twisted.protocols.policies import WrappingFactory
 from twisted.python import log
 from twisted.python.filepath import FilePath
-from twisted.web.client import HTTPClientFactory
+from twisted.python.failure import Failure
 from twisted.web import server, static
+from twisted.web.client import HTTPClientFactory
+from twisted.web.error import Error as TwistedWebError
 
-from txaws.client.base import BaseClient, BaseQuery
+from txaws.client.base import BaseClient, BaseQuery, error_wrapper
 from txaws.testing.base import TXAWSTestCase
+
+
+class ErrorWrapperTestCase(TXAWSTestCase):
+
+    def test_204_no_content(self):
+        failure = Failure(TwistedWebError(204, "No content"))
+        wrapped = error_wrapper(failure, None)
+        self.assertEquals(wrapped, "204 No content")
+
+    def test_302_found(self):
+        # XXX I'm not sure we want to raise for 300s...
+        failure = Failure(TwistedWebError(302, "found"))
+        error = self.assertRaises(
+            Exception, error_wrapper, failure, None)
+        self.assertEquals(failure.type, type(error))
+        self.assertTrue(isinstance(error, TwistedWebError))
+        self.assertEquals(str(error), "302 found")
+
+    def test_500(self):
+        failure = Failure(TwistedWebError(500, "internal error"))
+        error = self.assertRaises(
+            Exception, error_wrapper, failure, None)
+        self.assertTrue(isinstance(error, TwistedWebError))
+        self.assertEquals(str(error), "500 internal error")
+
+    def test_timeout_error(self):
+        failure = Failure(Exception("timeout"))
+        error = self.assertRaises(Exception, error_wrapper, failure, None)
+        self.assertTrue(isinstance(error, Exception))
+        self.assertEquals(error.message, "timeout")
+
+    def test_connection_error(self):
+        failure = Failure(ConnectionRefusedError("timeout"))
+        error = self.assertRaises(
+            Exception, error_wrapper, failure, ConnectionRefusedError)
+        self.assertTrue(isinstance(error, ConnectionRefusedError))
 
 
 class BaseClientTestCase(TXAWSTestCase):
