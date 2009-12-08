@@ -63,7 +63,7 @@ class ParseUrlTestCase(TestCase):
         elements of its return tuple, even when passed an URL which has
         previously been passed to L{urlparse} as a C{unicode} string.
         """
-        badInput = u"http://example.com/path"
+        badInput = u"http://example1.com/path"
         goodInput = badInput.encode("ascii")
         urlparse(badInput)
         scheme, host, port, path = parse(goodInput)

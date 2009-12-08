@@ -77,7 +77,7 @@ class EC2ErrorTestCase(TestCase):
     def test_parse_with_xml(self):
         xml1 = "<dummy1 />"
         xml2 = "<dummy2 />"
-        error = EC2Error(xml2)
+        error = EC2Error(xml1)
         error.parse(xml2)
         self.assertEquals(error.original, xml2)
 
