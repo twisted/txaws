@@ -656,6 +656,31 @@ sample_invalid_client_token_result = """\
 """
 
 
+sample_restricted_resource_result = """\
+<?xml version="1.0"?>
+<Response>
+  <Errors>
+    <Error>
+      <Code>AuthFailure</Code>
+      <Message>Unauthorized attempt to access restricted resource</Message>
+    </Error>
+  </Errors>
+  <RequestID>a99e832e-e6e0-416a-9a35-81798ea521b4</RequestID>
+</Response>
+"""
+
+
+sample_server_internal_error_result = """\
+<?xml version="1.0" encoding="UTF-8"?>
+<Error>
+  <Code>InternalError</Code>
+  <Message>We encountered an internal error. Please try again.</Message>
+  <RequestID>A2A7E5395E27DFBB</RequestID>
+  <HostID>f691zulHNsUqonsZkjhILnvWwD3ZnmOM4ObM1wXTc6xuS3GzPmjArp8QC/sGsn6K</HostID>
+</Error>
+"""
+
+
 sample_list_buckets_result = """\
 <?xml version="1.0" encoding="UTF-8"?>
 <ListAllMyBucketsResult xmlns="http://s3.amazonaws.com/doc/%s/">
@@ -692,26 +717,13 @@ sample_s3_signature_mismatch = """\
 """
 
 
-sample_server_internal_error_result = """\
+sample_s3_invalid_access_key_result = """\
 <?xml version="1.0" encoding="UTF-8"?>
 <Error>
-  <Code>InternalError</Code>
-  <Message>We encountered an internal error. Please try again.</Message>
-  <RequestID>A2A7E5395E27DFBB</RequestID>
-  <HostID>f691zulHNsUqonsZkjhILnvWwD3ZnmOM4ObM1wXTc6xuS3GzPmjArp8QC/sGsn6K</HostID>
+  <Code>InvalidAccessKeyId</Code>
+  <Message>The AWS Access Key Id you provided does not exist in our records.</Message>
+  <RequestId>0223AD81A94821CE</RequestId>
+  <HostId>HAw5g9P1VkN8ztgLKFTK20CY5LmCfTwXcSths1O7UQV6NuJx2P4tmFnpuOsziwOE</HostId>
+  <AWSAccessKeyId>SOMEKEYID</AWSAccessKeyId>
 </Error>
-"""
-
-
-sample_restricted_resource_result = """\
-<?xml version="1.0"?>
-<Response>
-  <Errors>
-    <Error>
-      <Code>AuthFailure</Code>
-      <Message>Unauthorized attempt to access restricted resource</Message>
-    </Error>
-  </Errors>
-  <RequestID>a99e832e-e6e0-416a-9a35-81798ea521b4</RequestID>
-</Response>
 """

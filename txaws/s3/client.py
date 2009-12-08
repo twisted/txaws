@@ -17,10 +17,15 @@ from twisted.web.http import datetimeToString
 
 from epsilon.extime import Time
 
-from txaws.client.base import BaseClient, BaseQuery
+from txaws.client.base import BaseClient, BaseQuery, error_wrapper
 from txaws.s3 import model
+from txaws.s3.exception import S3Error
 from txaws.service import AWSServiceEndpoint, S3_ENDPOINT
 from txaws.util import XML, calculate_md5
+
+
+def s3_error_wrapper(error):
+    error_wrapper(error, S3Error)
 
 
 class URLContext(object):
@@ -190,6 +195,10 @@ class Query(BaseQuery):
         self.endpoint.set_method(self.action)
 
     def set_content_type(self):
+        """
+        Set the content type based on the file extension used in the object
+        name.
+        """
         if self.object_name and not self.content_type:
             # XXX nothing is currently done with the encoding... we may
             # need to in the future
@@ -197,6 +206,9 @@ class Query(BaseQuery):
                 self.object_name, strict=False)
 
     def get_headers(self):
+        """
+        Build the list of headers needed in order to perform S3 operations.
+        """
         headers = {"Content-Length": len(self.data),
                    "Content-MD5": calculate_md5(self.data),
                    "Date": self.date}
@@ -214,6 +226,9 @@ class Query(BaseQuery):
         return headers
 
     def get_canonicalized_amz_headers(self, headers):
+        """
+        Get the headers defined by Amazon S3.
+        """
         headers = [
             (name.lower(), value) for name, value in headers.iteritems()
             if name.lower().startswith("x-amz-")]
@@ -224,6 +239,9 @@ class Query(BaseQuery):
         return "".join("%s:%s\n" % (name, value) for name, value in headers)
 
     def get_canonicalized_resource(self):
+        """
+        Get an S3 resource path.
+        """
         resource = "/"
         if self.bucket:
             resource += self.bucket
@@ -232,7 +250,7 @@ class Query(BaseQuery):
         return resource
 
     def sign(self, headers):
-
+        """Sign this query using its built in credentials."""
         text = (self.action + "\n" +
                 headers.get("Content-MD5", "") + "\n" +
                 headers.get("Content-Type", "") + "\n" +
@@ -242,14 +260,14 @@ class Query(BaseQuery):
         return self.creds.sign(text, hash_type="sha1")
 
     def submit(self, url_context=None):
+        """Submit this query.
+
+        @return: A deferred from get_page
+        """
         if not url_context:
             url_context = URLContext(
                 self.endpoint, self.bucket, self.object_name)
         d = self.get_page(
             url_context.get_url(), method=self.action, postdata=self.data,
             headers=self.get_headers())
-        # XXX - we need an error wrapper like we have for ec2... but let's
-        # wait until the new error-wrapper branch has landed, and possibly
-        # generalize a base class for all clients.
-        #d.addErrback(s3_error_wrapper)
-        return d
+        return d.addErrback(s3_error_wrapper)
