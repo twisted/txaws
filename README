@@ -14,3 +14,9 @@ Things present here
 * The txaws python package. (No installer at the moment)
 
 * bin/aws-status, a GUI status program for aws resources.
+
+License
+-------
+
+txAWS is open source software, MIT License. See the LICENSE file for more
+details.
