@@ -3,6 +3,7 @@
 
 from txaws.credentials import AWSCredentials
 from txaws.ec2.client import EC2Client
+from txaws.s3.client import S3Client
 from txaws.service import (AWSServiceEndpoint, AWSServiceRegion,
                            EC2_ENDPOINT_EU, EC2_ENDPOINT_US, REGION_EU)
 from txaws.testing.base import TXAWSTestCase
@@ -21,6 +22,11 @@ class AWSServiceEndpointTestCase(TXAWSTestCase):
         self.assertEquals(endpoint.path, "/")
         self.assertEquals(endpoint.method, "GET")
 
+    def test_custom_method(self):
+        endpoint = AWSServiceEndpoint(
+            uri="http://service/endpoint", method="PUT")
+        self.assertEquals(endpoint.method, "PUT")
+
     def test_parse_uri(self):
         self.assertEquals(self.endpoint.scheme, "http")
         self.assertEquals(self.endpoint.host, "my.service")
@@ -34,11 +40,6 @@ class AWSServiceEndpointTestCase(TXAWSTestCase):
         self.assertEquals(endpoint.port, 8080)
         self.assertEquals(endpoint.path, "/endpoint")
 
-    def test_custom_method(self):
-        endpoint = AWSServiceEndpoint(uri="http://service/endpoint",
-                                      method="PUT")
-        self.assertEquals(endpoint.method, "PUT")
-
     def test_get_uri(self):
         uri = self.endpoint.get_uri()
         self.assertEquals(uri, "http://my.service/da_endpoint")
@@ -49,12 +50,24 @@ class AWSServiceEndpointTestCase(TXAWSTestCase):
         new_uri = endpoint.get_uri()
         self.assertEquals(new_uri, uri)
 
+    def test_set_host(self):
+        self.assertEquals(self.endpoint.host, "my.service")
+        self.endpoint.set_host("newhost.com")
+        self.assertEquals(self.endpoint.host, "newhost.com")
+
+    def test_get_host(self):
+        self.assertEquals(self.endpoint.host, self.endpoint.get_host())
+
     def test_set_path(self):
-        original_path = self.endpoint.path
         self.endpoint.set_path("/newpath")
         self.assertEquals(
             self.endpoint.get_uri(),
             "http://my.service/newpath")
+
+    def test_set_method(self):
+        self.assertEquals(self.endpoint.method, "GET")
+        self.endpoint.set_method("PUT")
+        self.assertEquals(self.endpoint.method, "PUT")
 
 
 class AWSServiceRegionTestCase(TXAWSTestCase):
@@ -74,25 +87,34 @@ class AWSServiceRegionTestCase(TXAWSTestCase):
         self.assertEquals(region.creds.secret_key, "quux")
 
     def test_creation_with_keys_and_creds(self):
+        """
+        creds take precedence over individual access key/secret key pairs.
+        """
         region = AWSServiceRegion(self.creds, access_key="baz",
                                   secret_key="quux")
-        self.assertEquals(self.creds.access_key, "foo")
-        self.assertEquals(self.creds.secret_key, "bar")
+        self.assertEquals(region.creds.access_key, "foo")
+        self.assertEquals(region.creds.secret_key, "bar")
 
     def test_creation_with_uri(self):
-        region = AWSServiceRegion(creds=self.creds, uri="http://foo/bar")
+        region = AWSServiceRegion(
+            creds=self.creds, ec2_uri="http://foo/bar")
+        self.assertEquals(region.ec2_endpoint.get_uri(), "http://foo/bar")
+
+    def test_creation_with_uri_backwards_compatible(self):
+        region = AWSServiceRegion(
+            creds=self.creds, uri="http://foo/bar")
         self.assertEquals(region.ec2_endpoint.get_uri(), "http://foo/bar")
 
     def test_creation_with_uri_and_region(self):
-        region = AWSServiceRegion(creds=self.creds, region=REGION_EU,
-                                  uri="http://foo/bar")
+        region = AWSServiceRegion(
+            creds=self.creds, region=REGION_EU, ec2_uri="http://foo/bar")
         self.assertEquals(region.ec2_endpoint.get_uri(), "http://foo/bar")
 
     def test_creation_with_region_override(self):
         region = AWSServiceRegion(creds=self.creds, region=REGION_EU)
         self.assertEquals(region.ec2_endpoint.get_uri(), EC2_ENDPOINT_EU)
 
-    def test_get_client_with_empty_cache(self):
+    def test_get_ec2_client_with_empty_cache(self):
         key = str(EC2Client) + str(self.creds) + str(self.region.ec2_endpoint)
         original_client = self.region._clients.get(key)
         new_client = self.region.get_client(
@@ -101,7 +123,14 @@ class AWSServiceRegionTestCase(TXAWSTestCase):
         self.assertTrue(isinstance(new_client, EC2Client))
         self.assertNotEquals(original_client, new_client)
 
-    def test_get_client_from_cache(self):
+    def test_get_ec2_client_from_cache_default(self):
+        client1 = self.region.get_ec2_client()
+        client2 = self.region.get_ec2_client()
+        self.assertTrue(isinstance(client1, EC2Client))
+        self.assertTrue(isinstance(client2, EC2Client))
+        self.assertEquals(client1, client2)
+
+    def test_get_ec2_client_from_cache(self):
         client1 = self.region.get_client(
             EC2Client, creds=self.creds, endpoint=self.region.ec2_endpoint)
         client2 = self.region.get_client(
@@ -110,7 +139,7 @@ class AWSServiceRegionTestCase(TXAWSTestCase):
         self.assertTrue(isinstance(client2, EC2Client))
         self.assertEquals(client1, client2)
 
-    def test_get_client_from_cache_with_purge(self):
+    def test_get_ec2_client_from_cache_with_purge(self):
         client1 = self.region.get_client(
             EC2Client, creds=self.creds, endpoint=self.region.ec2_endpoint,
             purge_cache=True)
@@ -121,10 +150,11 @@ class AWSServiceRegionTestCase(TXAWSTestCase):
         self.assertTrue(isinstance(client2, EC2Client))
         self.assertNotEquals(client1, client2)
 
-    def test_get_ec2_client_from_cache(self):
-        client1 = self.region.get_ec2_client(self.creds)
-        client2 = self.region.get_ec2_client(self.creds)
-        self.assertEquals(self.creds, self.region.creds)
-        self.assertTrue(isinstance(client1, EC2Client))
-        self.assertTrue(isinstance(client2, EC2Client))
-        self.assertEquals(client1, client2)
+    def test_get_s3_client_with_empty_cache(self):
+        key = str(S3Client) + str(self.creds) + str(self.region.s3_endpoint)
+        original_client = self.region._clients.get(key)
+        new_client = self.region.get_client(
+            S3Client, creds=self.creds, endpoint=self.region.s3_endpoint)
+        self.assertEquals(original_client, None)
+        self.assertTrue(isinstance(new_client, S3Client))
+        self.assertNotEquals(original_client, new_client)

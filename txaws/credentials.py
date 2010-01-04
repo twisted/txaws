@@ -5,7 +5,7 @@
 
 import os
 
-from txaws.util import hmac_sha256
+from txaws.util import hmac_sha256, hmac_sha1
 
 
 __all__ = ["AWSCredentials"]
@@ -38,6 +38,9 @@ class AWSCredentials(object):
         if not self.secret_key:
             raise ValueError("Could not find %s" % ENV_SECRET_KEY)
 
-    def sign(self, bytes):
+    def sign(self, bytes, hash_type="sha256"):
         """Sign some bytes."""
-        return hmac_sha256(self.secret_key, bytes)
+        if hash_type == "sha256":
+            return hmac_sha256(self.secret_key, bytes)
+        elif hash_type == "sha1":
+            return hmac_sha1(self.secret_key, bytes)
