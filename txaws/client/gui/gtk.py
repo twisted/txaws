@@ -201,6 +201,10 @@ def main(argv, reactor=None):
         from twisted.internet import gtk2reactor
         gtk2reactor.install()
         from twisted.internet import reactor
-    AWSStatusIcon(reactor)
-    gobject.set_application_name("aws-status")
-    reactor.run()
+    try:
+        AWSStatusIcon(reactor)
+        gobject.set_application_name("aws-status")
+        reactor.run()
+    except ValueError:
+        # In this case, the user cancelled, and the exception bubbled to here.
+        pass
