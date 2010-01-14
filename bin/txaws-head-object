@@ -9,7 +9,7 @@ from pprint import pprint
 from txaws.credentials import AWSCredentials
 from txaws.script import parse_options
 from txaws.service import AWSServiceRegion
-from txaws.util import reactor
+from txaws.reactor import reactor
 
 
 def printResults(results):
