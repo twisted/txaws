@@ -45,17 +45,12 @@ setup(
     classifiers=[
         "Development Status :: 4 - Beta",
         "Intended Audience :: Developers",
-        "Intended Audience :: by End-User Class :: Advanced End Users",
-        "Intended Audience :: by End-User Class :: System Administrators",
-        "Intended Audience :: by Industry or Sector :: Information Technology",
+        "Intended Audience :: System Administrators",
+        "Intended Audience :: Information Technology",
         "Programming Language :: Python",
         "Topic :: Database",
-        "Topic :: Formats and Protocols :: Data Formats",
-        "Topic :: Multimedia :: Graphics :: Presentation",
-        "Topic :: Software Development :: Object Oriented",
-        "Topic :: System :: Networking :: Monitoring",
-        "Topic :: System :: Systems Administration",
-        "License :: OSI Approved :: BSD License",
+        "Topic :: Internet :: WWW/HTTP",
+        "License :: OSI Approved :: MIT License",
        ],
     )
 
