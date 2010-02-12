@@ -22,7 +22,6 @@ class AWSStatusIcon(gtk.StatusIcon):
     """A status icon shown when instances are running."""
 
     def __init__(self, reactor):
-        from txaws.service import AWSServiceRegion
         gtk.StatusIcon.__init__(self)
         self.set_from_stock(gtk.STOCK_NETWORK)
         self.set_visible(True)
@@ -31,11 +30,13 @@ class AWSStatusIcon(gtk.StatusIcon):
         self.probing = False
         # Nested import because otherwise we get "reactor already installed".
         self.password_dialog = None
+        self.region = None
         try:
             creds = AWSCredentials()
         except ValueError:
             creds = self.from_gnomekeyring()
-        self.region = AWSServiceRegion(creds)
+        if self.region is None:
+            self.set_region(creds)
         self.create_client(creds)
         menu = """
             <ui>
@@ -60,8 +61,14 @@ class AWSStatusIcon(gtk.StatusIcon):
             "/Menubar/Menu/Stop instances").props.parent
         self.connect("popup-menu", self.on_popup_menu)
 
+    def set_region(self, creds):
+        from txaws.service import AWSServiceRegion
+	self.region = AWSServiceRegion(creds)
+
     def create_client(self, creds):
         if creds is not None:
+            if self.region is None:
+                self.set_region(creds)
             self.client = self.region.get_ec2_client()
             self.on_activate(None)
         else:
