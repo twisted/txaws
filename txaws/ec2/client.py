@@ -218,18 +218,16 @@ class EC2Client(BaseClient):
             name = group_info.findtext("groupName")
             description = group_info.findtext("groupDescription")
             owner_id = group_info.findtext("ownerId")
-            allowed_groups = {}
+            allowed_groups = []
             allowed_ips = []
             ip_permissions = group_info.find("ipPermissions") or []
             for ip_permission in ip_permissions:
                 user_id = ip_permission.findtext("groups/item/userId")
                 group_name = ip_permission.findtext("groups/item/groupName")
                 if user_id and group_name:
-                    key = (user_id, group_name)
-                    if key not in allowed_groups:
-                        user_group_pair = model.UserIDGroupPair(
-                            user_id, group_name)
-                        allowed_groups.setdefault(user_id, user_group_pair)
+                    user_group_pair = model.UserIDGroupPair(
+                        user_id, group_name)
+                    allowed_groups.append(user_group_pair)
                 else:
                     ip_protocol = ip_permission.findtext("ipProtocol")
                     from_port = int(ip_permission.findtext("fromPort"))
@@ -241,7 +239,7 @@ class EC2Client(BaseClient):
 
             security_group = model.SecurityGroup(
                 name, description, owner_id=owner_id,
-                groups=allowed_groups.values(), ips=allowed_ips)
+                groups=allowed_groups, ips=allowed_ips)
             result.append(security_group)
         return result
 
