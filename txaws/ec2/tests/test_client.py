@@ -107,7 +107,7 @@ class EC2ClientTestCase(TXAWSTestCase):
         class StubQuery(object):
 
             def __init__(stub, action="", creds=None, endpoint=None,
-                         other_params={}): 
+                         other_params={}):
                 self.assertEqual(action, "DescribeAvailabilityZones")
                 self.assertEqual(creds.access_key, "foo")
                 self.assertEqual(creds.secret_key, "bar")
@@ -202,7 +202,7 @@ class EC2ClientInstancesTestCase(TXAWSTestCase):
         class StubQuery(object):
 
             def __init__(stub, action="", creds=None, endpoint=None,
-                         other_params={}): 
+                         other_params={}):
                 self.assertEqual(action, "DescribeInstances")
                 self.assertEqual(creds.access_key, "foo")
                 self.assertEqual(creds.secret_key, "bar")
@@ -222,7 +222,7 @@ class EC2ClientInstancesTestCase(TXAWSTestCase):
         class StubQuery(object):
 
             def __init__(stub, action="", creds=None, endpoint=None,
-                         other_params={}): 
+                         other_params={}):
                 self.assertEqual(action, "DescribeInstances")
                 self.assertEqual(creds.access_key, "foo")
                 self.assertEqual(creds.secret_key, "bar")
@@ -243,7 +243,7 @@ class EC2ClientInstancesTestCase(TXAWSTestCase):
         class StubQuery(object):
 
             def __init__(stub, action="", creds=None, endpoint=None,
-                         other_params={}): 
+                         other_params={}):
                 self.assertEqual(action, "DescribeInstances")
                 self.assertEqual(creds.access_key, "foo")
                 self.assertEqual(creds.secret_key, "bar")
@@ -267,7 +267,7 @@ class EC2ClientInstancesTestCase(TXAWSTestCase):
         class StubQuery(object):
 
             def __init__(stub, action="", creds=None, endpoint=None,
-                         other_params={}): 
+                         other_params={}):
                 self.assertEqual(action, "TerminateInstances")
                 self.assertEqual(creds.access_key, "foo")
                 self.assertEqual(creds.secret_key, "bar")
@@ -320,7 +320,7 @@ class EC2ClientInstancesTestCase(TXAWSTestCase):
         class StubQuery(object):
 
             def __init__(stub, action="", creds=None, endpoint=None,
-                         other_params={}): 
+                         other_params={}):
                 self.assertEqual(action, "RunInstances")
                 self.assertEqual(creds.access_key, "foo")
                 self.assertEqual(creds.secret_key, "bar")
@@ -356,7 +356,7 @@ class EC2ClientSecurityGroupsTestCase(TXAWSTestCase):
         class StubQuery(object):
 
             def __init__(stub, action="", creds=None, endpoint=None,
-                         other_params={}): 
+                         other_params={}):
                 self.assertEqual(action, "DescribeSecurityGroups")
                 self.assertEqual(creds.access_key, "foo")
                 self.assertEqual(creds.secret_key, "bar")
@@ -391,7 +391,7 @@ class EC2ClientSecurityGroupsTestCase(TXAWSTestCase):
         class StubQuery(object):
 
             def __init__(stub, action="", creds=None, endpoint=None,
-                         other_params={}): 
+                         other_params={}):
                 self.assertEqual(action, "DescribeSecurityGroups")
                 self.assertEqual(creds.access_key, "foo")
                 self.assertEqual(creds.secret_key, "bar")
@@ -442,7 +442,7 @@ class EC2ClientSecurityGroupsTestCase(TXAWSTestCase):
         class StubQuery(object):
 
             def __init__(stub, action="", creds=None, endpoint=None,
-                         other_params={}): 
+                         other_params={}):
                 self.assertEqual(action, "DescribeSecurityGroups")
                 self.assertEqual(creds.access_key, "foo")
                 self.assertEqual(creds.secret_key, "bar")
@@ -469,7 +469,7 @@ class EC2ClientSecurityGroupsTestCase(TXAWSTestCase):
         class StubQuery(object):
 
             def __init__(stub, action="", creds=None, endpoint=None,
-                         other_params={}): 
+                         other_params={}):
                 self.assertEqual(action, "CreateSecurityGroup")
                 self.assertEqual(creds.access_key, "foo")
                 self.assertEqual(creds.secret_key, "bar")
@@ -497,7 +497,7 @@ class EC2ClientSecurityGroupsTestCase(TXAWSTestCase):
         class StubQuery(object):
 
             def __init__(stub, action="", creds=None, endpoint=None,
-                         other_params={}): 
+                         other_params={}):
                 self.assertEqual(action, "DeleteSecurityGroup")
                 self.assertEqual(creds.access_key, "foo")
                 self.assertEqual(creds.secret_key, "bar")
@@ -522,7 +522,7 @@ class EC2ClientSecurityGroupsTestCase(TXAWSTestCase):
         class StubQuery(object):
 
             def __init__(stub, action="", creds=None, endpoint=None,
-                         other_params={}): 
+                         other_params={}):
                 self.assertEqual(action, "DeleteSecurityGroup")
                 self.assertEqual(creds.access_key, "foo")
                 self.assertEqual(creds.secret_key, "bar")
@@ -557,7 +557,7 @@ class EC2ClientSecurityGroupsTestCase(TXAWSTestCase):
         class StubQuery(object):
 
             def __init__(stub, action="", creds=None, endpoint=None,
-                         other_params={}): 
+                         other_params={}):
                 self.assertEqual(action, "AuthorizeSecurityGroupIngress")
                 self.assertEqual(creds.access_key, "foo")
                 self.assertEqual(creds.secret_key, "bar")
@@ -588,7 +588,7 @@ class EC2ClientSecurityGroupsTestCase(TXAWSTestCase):
         class StubQuery(object):
 
             def __init__(stub, action="", creds=None, endpoint=None,
-                         other_params={}): 
+                         other_params={}):
                 self.assertEqual(action, "AuthorizeSecurityGroupIngress")
                 self.assertEqual(creds.access_key, "foo")
                 self.assertEqual(creds.secret_key, "bar")
@@ -639,7 +639,7 @@ class EC2ClientSecurityGroupsTestCase(TXAWSTestCase):
         class StubQuery(object):
 
             def __init__(stub, action="", creds=None, endpoint=None,
-                         other_params={}): 
+                         other_params={}):
                 self.assertEqual(action, "AuthorizeSecurityGroupIngress")
                 self.assertEqual(creds.access_key, "foo")
                 self.assertEqual(creds.secret_key, "bar")
@@ -668,7 +668,7 @@ class EC2ClientSecurityGroupsTestCase(TXAWSTestCase):
         class StubQuery(object):
 
             def __init__(stub, action="", creds=None, endpoint=None,
-                         other_params={}): 
+                         other_params={}):
                 self.assertEqual(action, "AuthorizeSecurityGroupIngress")
                 self.assertEqual(creds.access_key, "foo")
                 self.assertEqual(creds.secret_key, "bar")
@@ -699,7 +699,7 @@ class EC2ClientSecurityGroupsTestCase(TXAWSTestCase):
         class StubQuery(object):
 
             def __init__(stub, action="", creds=None, endpoint=None,
-                         other_params={}): 
+                         other_params={}):
                 self.assertEqual(action, "RevokeSecurityGroupIngress")
                 self.assertEqual(creds.access_key, "foo")
                 self.assertEqual(creds.secret_key, "bar")
@@ -730,7 +730,7 @@ class EC2ClientSecurityGroupsTestCase(TXAWSTestCase):
         class StubQuery(object):
 
             def __init__(stub, action="", creds=None, endpoint=None,
-                         other_params={}): 
+                         other_params={}):
                 self.assertEqual(action, "RevokeSecurityGroupIngress")
                 self.assertEqual(creds.access_key, "foo")
                 self.assertEqual(creds.secret_key, "bar")
@@ -781,7 +781,7 @@ class EC2ClientSecurityGroupsTestCase(TXAWSTestCase):
         class StubQuery(object):
 
             def __init__(stub, action="", creds=None, endpoint=None,
-                         other_params={}): 
+                         other_params={}):
                 self.assertEqual(action, "RevokeSecurityGroupIngress")
                 self.assertEqual(creds.access_key, "foo")
                 self.assertEqual(creds.secret_key, "bar")
@@ -810,7 +810,7 @@ class EC2ClientSecurityGroupsTestCase(TXAWSTestCase):
         class StubQuery(object):
 
             def __init__(stub, action="", creds=None, endpoint=None,
-                         other_params={}): 
+                         other_params={}):
                 self.assertEqual(action, "RevokeSecurityGroupIngress")
                 self.assertEqual(creds.access_key, "foo")
                 self.assertEqual(creds.secret_key, "bar")
@@ -861,7 +861,7 @@ class EC2ClientEBSTestCase(TXAWSTestCase):
         class StubQuery(object):
 
             def __init__(stub, action="", creds=None, endpoint=None,
-                         other_params={}): 
+                         other_params={}):
                 self.assertEqual(action, "DescribeVolumes")
                 self.assertEqual(self.creds, creds)
                 self.assertEqual(self.endpoint, endpoint)
@@ -881,7 +881,7 @@ class EC2ClientEBSTestCase(TXAWSTestCase):
         class StubQuery(object):
 
             def __init__(stub, action="", creds=None, endpoint=None,
-                         other_params={}): 
+                         other_params={}):
                 self.assertEqual(action, "DescribeVolumes")
                 self.assertEqual(self.creds, creds)
                 self.assertEqual(self.endpoint, endpoint)
@@ -913,7 +913,7 @@ class EC2ClientEBSTestCase(TXAWSTestCase):
         class StubQuery(object):
 
             def __init__(stub, action="", creds=None, endpoint=None,
-                         other_params={}): 
+                         other_params={}):
                 self.assertEqual(action, "DescribeSnapshots")
                 self.assertEqual(self.creds, creds)
                 self.assertEqual(self.endpoint, endpoint)
@@ -933,7 +933,7 @@ class EC2ClientEBSTestCase(TXAWSTestCase):
         class StubQuery(object):
 
             def __init__(stub, action="", creds=None, endpoint=None,
-                         other_params={}): 
+                         other_params={}):
                 self.assertEqual(action, "DescribeSnapshots")
                 self.assertEqual(self.creds, creds)
                 self.assertEqual(self.endpoint, endpoint)
@@ -955,7 +955,7 @@ class EC2ClientEBSTestCase(TXAWSTestCase):
         class StubQuery(object):
 
             def __init__(stub, action="", creds=None, endpoint=None,
-                         other_params={}): 
+                         other_params={}):
                 self.assertEqual(action, "CreateVolume")
                 self.assertEqual(self.creds, creds)
                 self.assertEqual(self.endpoint, endpoint)
@@ -984,7 +984,7 @@ class EC2ClientEBSTestCase(TXAWSTestCase):
         class StubQuery(object):
 
             def __init__(stub, action="", creds=None, endpoint=None,
-                         other_params={}): 
+                         other_params={}):
                 self.assertEqual(action, "CreateVolume")
                 self.assertEqual(self.creds, creds)
                 self.assertEqual(self.endpoint, endpoint)
@@ -1028,7 +1028,7 @@ class EC2ClientEBSTestCase(TXAWSTestCase):
         class StubQuery(object):
 
             def __init__(stub, action="", creds=None, endpoint=None,
-                         other_params={}): 
+                         other_params={}):
                 self.assertEqual(action, "DeleteVolume")
                 self.assertEqual(self.creds, creds)
                 self.assertEqual(self.endpoint, endpoint)
@@ -1050,7 +1050,7 @@ class EC2ClientEBSTestCase(TXAWSTestCase):
         class StubQuery(object):
 
             def __init__(stub, action="", creds=None, endpoint=None,
-                         other_params={}): 
+                         other_params={}):
                 self.assertEqual(action, "CreateSnapshot")
                 self.assertEqual(self.creds, creds)
                 self.assertEqual(self.endpoint, endpoint)
@@ -1080,7 +1080,7 @@ class EC2ClientEBSTestCase(TXAWSTestCase):
         class StubQuery(object):
 
             def __init__(stub, action="", creds=None, endpoint=None,
-                         other_params={}): 
+                         other_params={}):
                 self.assertEqual(action, "DeleteSnapshot")
                 self.assertEqual(self.creds, creds)
                 self.assertEqual(self.endpoint, endpoint)
@@ -1102,7 +1102,7 @@ class EC2ClientEBSTestCase(TXAWSTestCase):
         class StubQuery(object):
 
             def __init__(stub, action="", creds=None, endpoint=None,
-                         other_params={}): 
+                         other_params={}):
                 self.assertEqual(action, "AttachVolume")
                 self.assertEqual(self.creds, creds)
                 self.assertEqual(self.endpoint, endpoint)
@@ -1139,7 +1139,7 @@ class EC2ClientEBSTestCase(TXAWSTestCase):
         class StubQuery(object):
 
             def __init__(stub, action="", creds=None, endpoint=None,
-                         other_params={}): 
+                         other_params={}):
                 self.assertEqual(action, "DescribeKeyPairs")
                 self.assertEqual("foo", creds)
                 self.assertEquals(other_params, {})
@@ -1169,7 +1169,7 @@ class EC2ClientEBSTestCase(TXAWSTestCase):
         class StubQuery(object):
 
             def __init__(stub, action="", creds=None, endpoint=None,
-                         other_params={}): 
+                         other_params={}):
                 self.assertEqual(action, "DescribeKeyPairs")
                 self.assertEqual("foo", creds)
                 self.assertEquals(other_params, {})
@@ -1188,7 +1188,7 @@ class EC2ClientEBSTestCase(TXAWSTestCase):
         class StubQuery(object):
 
             def __init__(stub, action="", creds=None, endpoint=None,
-                         other_params={}): 
+                         other_params={}):
                 self.assertEqual(action, "DescribeKeyPairs")
                 self.assertEqual("foo", creds)
                 self.assertEquals(
@@ -1219,7 +1219,7 @@ class EC2ClientEBSTestCase(TXAWSTestCase):
         class StubQuery(object):
 
             def __init__(stub, action="", creds=None, endpoint=None,
-                         other_params={}): 
+                         other_params={}):
                 self.assertEqual(action, "CreateKeyPair")
                 self.assertEqual("foo", creds)
                 self.assertEquals(
@@ -1239,7 +1239,7 @@ class EC2ClientEBSTestCase(TXAWSTestCase):
         class StubQuery(object):
 
             def __init__(stub, action="", creds=None, endpoint=None,
-                         other_params={}): 
+                         other_params={}):
                 self.assertEqual(action, "DeleteKeyPair")
                 self.assertEqual("foo", creds)
                 self.assertEqual("http:///", endpoint.get_uri())
@@ -1260,7 +1260,7 @@ class EC2ClientEBSTestCase(TXAWSTestCase):
         class StubQuery(object):
 
             def __init__(stub, action="", creds=None, endpoint=None,
-                         other_params={}): 
+                         other_params={}):
                 self.assertEqual(action, "DeleteKeyPair")
                 self.assertEqual("foo", creds)
                 self.assertEqual("http:///", endpoint.get_uri())
@@ -1281,7 +1281,7 @@ class EC2ClientEBSTestCase(TXAWSTestCase):
         class StubQuery(object):
 
             def __init__(stub, action="", creds=None, endpoint=None,
-                         other_params={}): 
+                         other_params={}):
                 self.assertEqual(action, "DeleteKeyPair")
                 self.assertEqual("foo", creds)
                 self.assertEqual("http:///", endpoint.get_uri())
@@ -1645,7 +1645,7 @@ class EC2ClientAddressTestCase(TXAWSTestCase):
         class StubQuery(object):
 
             def __init__(stub, action="", creds=None, endpoint=None,
-                         other_params={}): 
+                         other_params={}):
                 self.assertEqual(action, "DescribeAddresses")
                 self.assertEqual(self.creds, creds)
                 self.assertEqual(self.endpoint, endpoint)
@@ -1667,7 +1667,7 @@ class EC2ClientAddressTestCase(TXAWSTestCase):
         class StubQuery(object):
 
             def __init__(stub, action="", creds=None, endpoint=None,
-                         other_params={}): 
+                         other_params={}):
                 self.assertEqual(action, "DescribeAddresses")
                 self.assertEqual(self.creds, creds)
                 self.assertEqual(self.endpoint, endpoint)
@@ -1691,7 +1691,7 @@ class EC2ClientAddressTestCase(TXAWSTestCase):
         class StubQuery(object):
 
             def __init__(stub, action="", creds=None, endpoint=None,
-                         other_params={}): 
+                         other_params={}):
                 self.assertEqual(action, "AssociateAddress")
                 self.assertEqual(self.creds, creds)
                 self.assertEqual(self.endpoint, endpoint)
@@ -1713,7 +1713,7 @@ class EC2ClientAddressTestCase(TXAWSTestCase):
         class StubQuery(object):
 
             def __init__(stub, action="", creds=None, endpoint=None,
-                         other_params={}): 
+                         other_params={}):
                 self.assertEqual(action, "AllocateAddress")
                 self.assertEqual(self.creds, creds)
                 self.assertEqual(self.endpoint, endpoint)
@@ -1733,7 +1733,7 @@ class EC2ClientAddressTestCase(TXAWSTestCase):
         class StubQuery(object):
 
             def __init__(stub, action="", creds=None, endpoint=None,
-                         other_params={}): 
+                         other_params={}):
                 self.assertEqual(action, "ReleaseAddress")
                 self.assertEqual(self.creds, creds)
                 self.assertEqual(self.endpoint, endpoint)
@@ -1753,7 +1753,7 @@ class EC2ClientAddressTestCase(TXAWSTestCase):
         class StubQuery(object):
 
             def __init__(stub, action="", creds=None, endpoint=None,
-                         other_params={}): 
+                         other_params={}):
                 self.assertEqual(action, "DisassociateAddress")
                 self.assertEqual(self.creds, creds)
                 self.assertEqual(self.endpoint, endpoint)
