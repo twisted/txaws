@@ -133,7 +133,7 @@ class EC2Client(BaseClient):
         if ramdisk_id is not None:
             params["RamdiskId"] = ramdisk_id
         query = self.query_factory(
-            action="RunInstances", creds=self.creds, endpoint=self.endpoint, 
+            action="RunInstances", creds=self.creds, endpoint=self.endpoint,
             other_params=params)
         d = query.submit()
         return d.addCallback(self._parse_run_instances)
@@ -218,18 +218,15 @@ class EC2Client(BaseClient):
             name = group_info.findtext("groupName")
             description = group_info.findtext("groupDescription")
             owner_id = group_info.findtext("ownerId")
-            allowed_groups = {}
+            allowed_groups = []
             allowed_ips = []
             ip_permissions = group_info.find("ipPermissions") or []
             for ip_permission in ip_permissions:
                 user_id = ip_permission.findtext("groups/item/userId")
                 group_name = ip_permission.findtext("groups/item/groupName")
                 if user_id and group_name:
-                    key = (user_id, group_name)
-                    if key not in allowed_groups:
-                        user_group_pair = model.UserIDGroupPair(
-                            user_id, group_name)
-                        allowed_groups.setdefault(user_id, user_group_pair)
+                    if (user_id, group_name) not in allowed_groups:
+                        allowed_groups.append((user_id, group_name))
                 else:
                     ip_protocol = ip_permission.findtext("ipProtocol")
                     from_port = int(ip_permission.findtext("fromPort"))
@@ -239,9 +236,12 @@ class EC2Client(BaseClient):
                         model.IPPermission(
                             ip_protocol, from_port, to_port, cidr_ip))
 
+            allowed_groups = [model.UserIDGroupPair(user_id, group_name)
+                              for user_id, group_name in allowed_groups]
+
             security_group = model.SecurityGroup(
                 name, description, owner_id=owner_id,
-                groups=allowed_groups.values(), ips=allowed_ips)
+                groups=allowed_groups, ips=allowed_ips)
             result.append(security_group)
         return result
 
@@ -656,7 +656,7 @@ class EC2Client(BaseClient):
         """
         # XXX remove empty other_params
         query = self.query_factory(
-            action="AllocateAddress", creds=self.creds, endpoint=self.endpoint, 
+            action="AllocateAddress", creds=self.creds, endpoint=self.endpoint,
             other_params={})
         d = query.submit()
         return d.addCallback(self._parse_allocate_address)
