@@ -10,7 +10,7 @@ class AWSError(Error):
     """
     A base class for txAWS errors.
     """
-    def __init__(self, xml_bytes, status=None, message=None, response=None):
+    def __init__(self, xml_bytes, status, message=None, response=None):
         super(AWSError, self).__init__(status, message, response)
         if not xml_bytes:
             raise ValueError("XML cannot be empty.")
