@@ -531,7 +531,8 @@ class EC2ClientSecurityGroupsTestCase(TXAWSTestCase):
                     })
 
             def submit(self):
-                error = EC2Error(payload.sample_delete_security_group_failure)
+                error = EC2Error(
+                    payload.sample_delete_security_group_failure, 400)
                 return fail(error)
 
         def check_error(error):
