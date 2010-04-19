@@ -246,18 +246,98 @@ sample_describe_security_groups_multiple_result = """\
           </ipRanges>
         </item>
         <item>
-          <ipProtocol>udp</ipProtocol>
-          <fromPort>81</fromPort>
-          <toPort>81</toPort>
+          <ipProtocol>tcp</ipProtocol>
+          <fromPort>0</fromPort>
+          <toPort>65535</toPort>
           <groups>
             <item>
               <userId>group-user-id</userId>
-              <groupName>group-name</groupName>
+              <groupName>group-name1</groupName>
             </item>
           </groups>
           <ipRanges>
             <item>
-              <cidrIp>0.0.0.0/16</cidrIp>
+              <cidrIp>0.0.0.0/0</cidrIp>
+            </item>
+          </ipRanges>
+        </item>
+        <item>
+          <ipProtocol>udp</ipProtocol>
+          <fromPort>0</fromPort>
+          <toPort>65535</toPort>
+          <groups>
+            <item>
+              <userId>group-user-id</userId>
+              <groupName>group-name1</groupName>
+            </item>
+          </groups>
+          <ipRanges>
+            <item>
+              <cidrIp>0.0.0.0/0</cidrIp>
+            </item>
+          </ipRanges>
+        </item>
+        <item>
+          <ipProtocol>icmp</ipProtocol>
+          <fromPort>-1</fromPort>
+          <toPort>-1</toPort>
+          <groups>
+            <item>
+              <userId>group-user-id</userId>
+              <groupName>group-name1</groupName>
+            </item>
+          </groups>
+          <ipRanges>
+            <item>
+              <cidrIp>0.0.0.0/0</cidrIp>
+            </item>
+          </ipRanges>
+        </item>
+        <item>
+          <ipProtocol>tcp</ipProtocol>
+          <fromPort>0</fromPort>
+          <toPort>65535</toPort>
+          <groups>
+            <item>
+              <userId>group-user-id</userId>
+              <groupName>group-name2</groupName>
+            </item>
+          </groups>
+          <ipRanges>
+            <item>
+              <cidrIp>0.0.0.0/0</cidrIp>
+            </item>
+          </ipRanges>
+        </item>
+        <item>
+          <ipProtocol>udp</ipProtocol>
+          <fromPort>0</fromPort>
+          <toPort>65535</toPort>
+          <groups>
+            <item>
+              <userId>group-user-id</userId>
+              <groupName>group-name2</groupName>
+            </item>
+          </groups>
+          <ipRanges>
+            <item>
+              <cidrIp>0.0.0.0/0</cidrIp>
+            </item>
+          </ipRanges>
+        </item>
+        <item>
+          <ipProtocol>icmp</ipProtocol>
+          <fromPort>-1</fromPort>
+          <toPort>-1</toPort>
+          <groups>
+            <item>
+              <userId>group-user-id</userId>
+              <groupName>group-name2</groupName>
+            </item>
+          </groups>
+          <ipRanges>
+            <item>
+              <cidrIp>0.0.0.0/0</cidrIp>
             </item>
           </ipRanges>
         </item>
