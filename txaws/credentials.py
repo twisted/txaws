@@ -44,3 +44,5 @@ class AWSCredentials(object):
             return hmac_sha256(self.secret_key, bytes)
         elif hash_type == "sha1":
             return hmac_sha1(self.secret_key, bytes)
+        else:
+            raise RuntimeError("Unsupported hash type: '%s'" % hash_type)

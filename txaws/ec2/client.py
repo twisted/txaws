@@ -764,7 +764,6 @@ class Query(BaseQuery):
         self.params = {
             "Version": api_version,
             "SignatureVersion": "2",
-            "SignatureMethod": "HmacSHA256",
             "Action": self.action,
             "AWSAccessKeyId": self.creds.access_key,
             "Timestamp": iso8601time(time_tuple),
@@ -794,18 +793,38 @@ class Query(BaseQuery):
                                      self.get_canonical_query_params())
         return result
 
+    def old_signing_text(self):
+        """Return the text needed for signing using SignatureVersion 1."""
+        result = []
+        lower_cmp = lambda x, y: cmp(x[0].lower(), y[0].lower())
+        for key, value in sorted(self.params.items(), cmp=lower_cmp):
+            result.append("%s%s" % (key, value))
+        return "".join(result)
+
     def sorted_params(self):
         """Return the query parameters sorted appropriately for signing."""
         return sorted(self.params.items())
 
-    def sign(self):
+    def sign(self, hash_type="sha256"):
         """Sign this query using its built in credentials.
+
+        @param hash_type: if the SignatureVersion is 2, specify the type of
+            hash to use, either "sha1" or "sha256". It defaults to the latter.
 
         This prepares it to be sent, and should be done as the last step before
         submitting the query. Signing is done automatically - this is a public
         method to facilitate testing.
         """
-        self.params["Signature"] = self.creds.sign(self.signing_text())
+        version = self.params["SignatureVersion"]
+        if version == "1":
+            self.params["Signature"] = self.creds.sign(
+                self.old_signing_text(), "sha1")
+        elif version == "2":
+            self.params["SignatureMethod"] = "Hmac%s" % hash_type.upper()
+            self.params["Signature"] = self.creds.sign(
+                self.signing_text(), hash_type)
+        else:
+            raise RuntimeError("Unsupported SignatureVersion: '%s'" % version)
 
     def submit(self):
         """Submit this query.
