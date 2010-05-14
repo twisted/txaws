@@ -1493,8 +1493,8 @@ class QueryTestCase(TXAWSTestCase):
             endpoint=self.endpoint, time_tuple=(2007,11,12,13,14,15,0,0,0),
             other_params={"SignatureVersion": "1"})
         signing_text = (
-            "AWSAccessKeyIdfooActionDescribeInstancesSignatureVersion1"
-            "Timestamp2007-11-12T13%3A14%3A15ZVersion2008-12-01")
+            "ActionDescribeInstancesAWSAccessKeyIdfooSignatureVersion1"
+            "Timestamp2007-11-12T13:14:15ZVersion2008-12-01")
         self.assertEqual(signing_text, query.old_signing_text())
 
     def test_sign(self):
@@ -1513,7 +1513,7 @@ class QueryTestCase(TXAWSTestCase):
             other_params={"SignatureVersion": "1"})
         query.sign()
         self.assertEqual(
-            "PzUDq25Wa0MPnw9YXhuVlxSz2wU=", query.params["Signature"])
+            "MBKyHoxqCd/lBQLVkCZYpwAtNJg=", query.params["Signature"])
 
     def test_unsupported_sign(self):
         query = client.Query(

@@ -796,8 +796,9 @@ class Query(BaseQuery):
     def old_signing_text(self):
         """Return the text needed for signing using SignatureVersion 1."""
         result = []
-        for key, value in self.sorted_params():
-            result.append("%s%s" % (self.encode(key), self.encode(value)))
+        lower_cmp = lambda x, y: cmp(x[0].lower(), y[0].lower())
+        for key, value in sorted(self.params.items(), cmp=lower_cmp):
+            result.append("%s%s" % (key, value))
         return "".join(result)
 
     def sorted_params(self):
