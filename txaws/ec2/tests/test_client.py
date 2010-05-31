@@ -1417,7 +1417,6 @@ class QueryTestCase(TXAWSTestCase):
             query.params,
             {"AWSAccessKeyId": "foo",
              "Action": "DescribeInstances",
-             "SignatureMethod": "HmacSHA256",
              "SignatureVersion": "2",
              "Version": "2008-12-01"})
 
@@ -1431,7 +1430,6 @@ class QueryTestCase(TXAWSTestCase):
             {"AWSAccessKeyId": "foo",
              "Action": "DescribeInstances",
              "InstanceId.0": "12345",
-             "SignatureMethod": "HmacSHA256",
              "SignatureVersion": "2",
              "Timestamp": "2007-11-12T13:14:15Z",
              "Version": "2008-12-01"})
@@ -1444,7 +1442,6 @@ class QueryTestCase(TXAWSTestCase):
         self.assertEqual([
             ("AWSAccessKeyId", "foo"),
             ("Action", "DescribeInstances"),
-            ("SignatureMethod", "HmacSHA256"),
             ("SignatureVersion", "2"),
             ("Timestamp", "2007-11-12T13:14:15Z"),
             ("Version", "2008-12-01"),
@@ -1475,7 +1472,7 @@ class QueryTestCase(TXAWSTestCase):
             time_tuple=(2007,11,12,13,14,15,0,0,0))
         expected_query = ("AWSAccessKeyId=foo&Action=DescribeInstances"
             "&InstanceId.1=i-1234"
-            "&SignatureMethod=HmacSHA256&SignatureVersion=2&"
+            "&SignatureVersion=2&"
             "Timestamp=2007-11-12T13%3A14%3A15Z&Version=2008-12-01&"
             "argwithnovalue=&fu%20n=g%2Fames")
         self.assertEqual(expected_query, query.get_canonical_query_params())
@@ -1486,9 +1483,19 @@ class QueryTestCase(TXAWSTestCase):
             endpoint=self.endpoint, time_tuple=(2007,11,12,13,14,15,0,0,0))
         signing_text = ("GET\n%s\n/\n" % self.endpoint.host +
             "AWSAccessKeyId=foo&Action=DescribeInstances&"
-            "SignatureMethod=HmacSHA256&SignatureVersion=2&"
+            "SignatureVersion=2&"
             "Timestamp=2007-11-12T13%3A14%3A15Z&Version=2008-12-01")
         self.assertEqual(signing_text, query.signing_text())
+
+    def test_old_signing_text(self):
+        query = client.Query(
+            action="DescribeInstances", creds=self.creds,
+            endpoint=self.endpoint, time_tuple=(2007,11,12,13,14,15,0,0,0),
+            other_params={"SignatureVersion": "1"})
+        signing_text = (
+            "ActionDescribeInstancesAWSAccessKeyIdfooSignatureVersion1"
+            "Timestamp2007-11-12T13:14:15ZVersion2008-12-01")
+        self.assertEqual(signing_text, query.old_signing_text())
 
     def test_sign(self):
         query = client.Query(
@@ -1498,6 +1505,22 @@ class QueryTestCase(TXAWSTestCase):
         query.sign()
         self.assertEqual("aDmLr0Ktjsmt17UJD/EZf6DrfKWT1JW0fq2FDUCOPic=",
             query.params["Signature"])
+
+    def test_old_sign(self):
+        query = client.Query(
+            action="DescribeInstances", creds=self.creds,
+            endpoint=self.endpoint, time_tuple=(2007,11,12,13,14,15,0,0,0),
+            other_params={"SignatureVersion": "1"})
+        query.sign()
+        self.assertEqual(
+            "MBKyHoxqCd/lBQLVkCZYpwAtNJg=", query.params["Signature"])
+
+    def test_unsupported_sign(self):
+        query = client.Query(
+            action="DescribeInstances", creds=self.creds,
+            endpoint=self.endpoint, time_tuple=(2007,11,12,13,14,15,0,0,0),
+            other_params={"SignatureVersion": "0"})
+        self.assertRaises(RuntimeError, query.sign)
 
     def test_submit_400(self):
         """A 4xx response status from EC2 should raise a txAWS EC2Error."""
