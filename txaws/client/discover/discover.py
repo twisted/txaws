@@ -3,25 +3,61 @@
 
 """A command-line client for discovering how the EC2 API works."""
 
+import os
 import sys
 
 
-class ConfigurationError(Exception):
+class OptionError(Exception):
     """
     Raised if insufficient command-line arguments are provided when creating a
     L{Command}.
     """
 
 
+class UsageError(Exception):
+    """Raised if the usage message should be shown."""
+
+
 def parse_options(arguments):
-    options = {}
+    """Parse command line arguments.
+
+    The parsing logic is fairly simple.  It can only parse long-style
+    parameters of the form::
+
+      --key value
+
+    @param arguments: A list of command-line arguments.  The first item is
+        expected to be the name of the program being run.
+    @return: A C{dict} with key/value pairs extracted from the argument list.
+    """
     arguments = arguments[1:]
+    options = {}
     while arguments:
         key = arguments.pop(0)
         if key.startswith("--"):
             key = key[2:]
-            value = arguments.pop(0)
+            try:
+                value = arguments.pop(0)
+            except IndexError:
+                raise OptionError("'--%s' is missing a value." % key)
             options[key] = value
+        else:
+            raise OptionError("Encountered unexpected value '%s'." % key)
+
+    default_key = os.environ.get("AWS_ACCESS_KEY_ID")
+    if "key" not in options and default_key:
+        options["key"] = default_key
+    default_secret = os.environ.get("AWS_SECRET_ACCESS_KEY")
+    if "secret" not in options and default_secret:
+        options["secret"] = default_secret
+    default_endpoint = os.environ.get("AWS_ENDPOINT")
+    if "endpoint" not in options and default_endpoint:
+        options["endpoint"] = default_endpoint
+
+    for name in ("key", "secret", "endpoint", "action"):
+        if name not in options:
+            raise OptionError("'%s' command-line argument is required." % name)
+
     return options
 
 
@@ -38,14 +74,15 @@ def get_command(arguments):
 
     @param arguments: The command-line arguments to parse.
     @return: A L{Command} instance configured to make an EC2 API call.
-    @raises ConfigurationError: Raised if C{arguments} can't be used to create
-        a L{Command} object.
+    @raises OptionError: Raised if C{arguments} can't be used to create a
+        L{Command} object.
     """
-    if len(arguments) < 2:
-        raise ConfigurationError("Need to provide command-line arguments.")
     options = parse_options(arguments)
-    return Command(options["key"], options["secret"], options["endpoint"],
-                   options["action"], [])
+    key = options.pop("key")
+    secret = options.pop("secret")
+    endpoint = options.pop("endpoint")
+    action = options.pop("action")
+    return Command(key, secret, endpoint, action, options)
 
 
 class Command(object):
