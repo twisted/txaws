@@ -5,7 +5,7 @@
 
 import os
 
-from txaws.client.discover.discover import (
+from txaws.client.discover.entry_point import (
     OptionError, UsageError, parse_options, get_command)
 from txaws.testing.base import TXAWSTestCase
 
