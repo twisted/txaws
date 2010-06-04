@@ -4,6 +4,7 @@
 """A command-line client for discovering how the EC2 API works."""
 
 import os
+import sys
 
 from txaws.client.discover.command import Command
 
@@ -17,6 +18,46 @@ class OptionError(Exception):
 
 class UsageError(Exception):
     """Raised if the usage message should be shown."""
+
+
+USAGE_MESSAGE = """\
+Purpose: Invoke an EC2 API method with arbitrary parameters.
+Usage:   txaws-discover [--key KEY] [--secret SECRET] [--endpoint ENDPOINT]
+             --action ACTION [PARAMETERS, ...]
+
+Options:
+  --key                 The AWS access key to use when making the API request.
+  --secret              The AWS secret key to use when making the API request.
+  --endpoint            The region endpoint to make the API request against.
+  --action              The name of the EC2 API to invoke.
+  -h, --help            Show help message.
+
+Description:
+  The purpose of this program is to aid discovery of the EC2 API.  It can run
+  any EC2 API method, with arbitrary parameters.  The response received from
+  the backend cloud is printed to the screen, to show exactly what happened in
+  response to the request.  The --key, --secret, --endpoint and --action
+  command-line arguments are required.  If AWS_ENDPOINT, AWS_ACCESS_KEY_ID or
+  AWS_SECRET_ACCESS_KEY environment variables are defined the corresponding
+  options can be omitted and the values defined in the environment variables
+  will be used.
+
+  Any additional parameters, beyond those defined above, will be included with
+  the request as method parameters.
+
+Examples:
+  The following examples omit the --key, --secret and --endpoint command-line
+  arguments for brevity.  They must be included unless corresponding values
+  are available from the environment.
+
+  Run the DescribeRegions method, without any optional parameters:
+
+    txaws-discover --action DescribeRegions
+
+  Run the DescribeRegions method, with an optional RegionName.0 parameter:
+
+    txaws-discover --action DescribeRegions --RegionName.0 us-west-1
+"""
 
 
 def parse_options(arguments):
@@ -44,7 +85,7 @@ def parse_options(arguments):
     options = {}
     while arguments:
         key = arguments.pop(0)
-        if key == "--help":
+        if key in ("-h", "--help"):
             raise UsageError("--help specified.")
         if key.startswith("--"):
             key = key[2:]
@@ -77,8 +118,9 @@ def get_command(arguments, output=None):
 
     An access key, secret key, endpoint and action are required.  Additional
     parameters included with the request are passed as parameters to the
-    method call.  For example, the following command will invoke the
-    C{DescribeRegions} method with a C{RegionName.0} parameter::
+    method call.  For example, the following command will create a L{Command}
+    object that can invoke the C{DescribeRegions} method with the optional
+    C{RegionName.0} parameter included in the request::
 
       txaws-discover --key KEY --secret SECRET --endpoint URL \
                      --action DescribeRegions --RegionName.0 us-west-1
@@ -96,12 +138,20 @@ def get_command(arguments, output=None):
     return Command(key, secret, endpoint, action, options, output)
 
 
-def main(arguments):
+def main(arguments, output=None):
     """
     Entry point parses command-line arguments, runs the specified EC2 API
     method and prints the response to the screen.
 
     @param arguments: Command-line arguments, typically retrieved from
         C{sys.argv}.
+    @param output: Optionally, a stream to write output to.
     """
-    return 0
+    if output is None:
+        output = sys.stdout
+    try:
+        command = get_command(arguments, output)
+    except UsageError:
+        print >>output, USAGE_MESSAGE.strip()
+    else:
+        command.run()
