@@ -27,6 +27,11 @@ def parse_options(arguments):
 
       --key value
 
+    Several parameters can be defined in the environment and will be used
+    unless explicitly overridden with command-line arguments.  The access key,
+    secret and endpoint values will be loaded from C{AWS_ACCESS_KEY_ID},
+    C{AWS_SECRET_ACCESS_KEY} and C{AWS_ENDPOINT} environment variables.
+
     @param arguments: A list of command-line arguments.  The first item is
         expected to be the name of the program being run.
     @raises OptionError: Raised if incorrectly formed command-line arguments
@@ -60,7 +65,6 @@ def parse_options(arguments):
     default_endpoint = os.environ.get("AWS_ENDPOINT")
     if "endpoint" not in options and default_endpoint:
         options["endpoint"] = default_endpoint
-
     for name in ("key", "secret", "endpoint", "action"):
         if name not in options:
             raise OptionError("'%s' command-line argument is required." % name)
@@ -68,7 +72,7 @@ def parse_options(arguments):
     return options
 
 
-def get_command(arguments):
+def get_command(arguments, output=None):
     """Parse C{arguments} and configure a L{Command} instance.
 
     An access key, secret key, endpoint and action are required.  Additional
@@ -80,16 +84,16 @@ def get_command(arguments):
                      --action DescribeRegions --RegionName.0 us-west-1
 
     @param arguments: The command-line arguments to parse.
-    @return: A L{Command} instance configured to make an EC2 API call.
     @raises OptionError: Raised if C{arguments} can't be used to create a
         L{Command} object.
+    @return: A L{Command} instance configured to make an EC2 API method call.
     """
     options = parse_options(arguments)
     key = options.pop("key")
     secret = options.pop("secret")
     endpoint = options.pop("endpoint")
     action = options.pop("action")
-    return Command(key, secret, endpoint, action, options)
+    return Command(key, secret, endpoint, action, options, output)
 
 
 def main(arguments):
