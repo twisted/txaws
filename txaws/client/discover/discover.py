@@ -28,12 +28,18 @@ def parse_options(arguments):
 
     @param arguments: A list of command-line arguments.  The first item is
         expected to be the name of the program being run.
+    @raises OptionError: Raised if incorrectly formed command-line arguments
+        are specified, or if required command-line arguments are not present.
+    @raises UsageError: Raised if C{--help} is present in command-line
+        arguments.
     @return: A C{dict} with key/value pairs extracted from the argument list.
     """
     arguments = arguments[1:]
     options = {}
     while arguments:
         key = arguments.pop(0)
+        if key == "--help":
+            raise UsageError("--help specified.")
         if key.startswith("--"):
             key = key[2:]
             try:
