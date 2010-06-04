@@ -1,13 +1,14 @@
 # Copyright (C) 2010 Jamu Kakar <jkakar@kakar.ca>
 # Licenced under the txaws licence available at /LICENSE in the txaws source.
 
-"""Unit tests for L{get_command}, L{parse_options} and L{main}."""
+"""Unit tests for L{get_command}, L{parse_options} and L{main} functions."""
 
+from cStringIO import StringIO
 import os
 import sys
 
 from txaws.client.discover.entry_point import (
-    OptionError, UsageError, parse_options, get_command)
+    OptionError, UsageError, get_command, main, parse_options, USAGE_MESSAGE)
 from txaws.testing.base import TXAWSTestCase
 
 
@@ -151,9 +152,11 @@ class ParseOptionsTest(TXAWSTestCase):
 
     def test_parse_options_raises_usage_error_when_help_specified(self):
         """
-        L{UsageError} is raised if C{--help} appears in command-line
+        L{UsageError} is raised if C{-h} or C{--help} appears in command-line
         arguments.
         """
+        self.assertRaises(UsageError, parse_options,
+                          ["txaws-discover", "-h"])
         self.assertRaises(UsageError, parse_options,
                           ["txaws-discover", "--help"])
         self.assertRaises(UsageError, parse_options,
@@ -183,11 +186,11 @@ class GetCommandTest(TXAWSTestCase):
         self.assertIdentical(sys.stdout, command.output)
 
     def test_get_command_with_custom_output_stream(self):
-        stream = object()
+        output = StringIO()
         command = get_command([
             "txaws-discover", "--key", "key", "--secret", "secret",
-            "--endpoint", "endpoint", "--action", "action"], stream)
-        self.assertIdentical(stream, command.output)
+            "--endpoint", "endpoint", "--action", "action"], output)
+        self.assertIdentical(output, command.output)
 
     def test_get_command_without_required_arguments(self):
         """
@@ -218,3 +221,15 @@ class GetCommandTest(TXAWSTestCase):
             "--endpoint", "endpoint", "--action", "DescribeRegions",
             "--Region.Name.0", "us-west-1"])
         self.assertEqual({"Region.Name.0": "us-west-1"}, command.parameters)
+
+
+class MainTest(TXAWSTestCase):
+
+    def test_usage_message(self):
+        """
+        If a L{UsageError} is raised, the help screen is written to the output
+        screen.
+        """
+        output = StringIO()
+        main(["txaws-discover", "--help"], output)
+        self.assertEqual(USAGE_MESSAGE, output.getvalue())
