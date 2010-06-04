@@ -16,6 +16,16 @@ class Command(object):
     """
     An EC2 API method call command that can make a request and display the
     response received from the backend cloud.
+
+    @param key: The AWS access key ID to use when making the method call.
+    @param secret: The AWS secret key to sign the method call with.
+    @param endpoint: The URL of the cloud to invoke the method on.
+    @param parameters: A C{dict} with parameters to include with the method
+        call.
+    @param output: Optionally, a stream to write output to.  Defaults to
+        C{sys.stdout}.
+    @param query_factory: Optionally, a factory to create the L{Query} object
+        used to invoke the method.  Defaults to returning a L{Query} instance.
     """
 
     def __init__(self, key, secret, endpoint, action, parameters, output=None,
