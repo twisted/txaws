@@ -108,7 +108,8 @@ def parse_options(arguments):
         options["endpoint"] = default_endpoint
     for name in ("key", "secret", "endpoint", "action"):
         if name not in options:
-            raise OptionError("'%s' command-line argument is required." % name)
+            raise OptionError(
+                "The '--%s' command-line argument is required." % name)
 
     return options
 
@@ -138,7 +139,7 @@ def get_command(arguments, output=None):
     return Command(key, secret, endpoint, action, options, output)
 
 
-def main(arguments, output=None):
+def main(arguments, output=None, testing_mode=None):
     """
     Entry point parses command-line arguments, runs the specified EC2 API
     method and prints the response to the screen.
@@ -147,11 +148,28 @@ def main(arguments, output=None):
         C{sys.argv}.
     @param output: Optionally, a stream to write output to.
     """
-    if output is None:
-        output = sys.stdout
-    try:
-        command = get_command(arguments, output)
-    except UsageError:
-        print >>output, USAGE_MESSAGE.strip()
+
+    def run_command(arguments, output, reactor):
+        if output is None:
+            output = sys.stdout
+        try:
+            command = get_command(arguments, output)
+        except UsageError:
+            print >>output, USAGE_MESSAGE.strip()
+            if reactor:
+                reactor.callLater(0, reactor.stop)
+        except Exception, e:
+            print >>output, "ERROR:", str(e)
+            if reactor:
+                reactor.callLater(0, reactor.stop)
+        else:
+            deferred = command.run()
+            if reactor:
+                deferred.addCallback(lambda ignored: reactor.stop())
+
+    if not testing_mode:
+        from twisted.internet import reactor
+        reactor.callLater(0, run_command, arguments, output, reactor)
+        reactor.run()
     else:
-        command.run()
+        run_command(arguments, output, None)
