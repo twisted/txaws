@@ -6,7 +6,7 @@
 import os
 
 from txaws.client.discover.discover import (
-    OptionError, parse_options, get_command)
+    OptionError, UsageError, parse_options, get_command)
 from txaws.testing.base import TXAWSTestCase
 
 
@@ -147,6 +147,18 @@ class ParseOptionsTest(TXAWSTestCase):
         self.assertEqual({"key": "key", "secret": "secret",
                           "endpoint": "endpoint", "action": "action"},
                          options)
+
+    def test_parse_options_raises_usage_error_when_help_specified(self):
+        """
+        L{UsageError} is raised if C{--help} appears in command-line
+        arguments.
+        """
+        self.assertRaises(UsageError, parse_options,
+                          ["txaws-discover", "--help"])
+        self.assertRaises(UsageError, parse_options,
+                          ["txaws-discover", "--key", "key",
+                           "--secret", "secret", "--endpoint", "endpoint",
+                           "--action", "action", "--help"])
 
 
 class GetCommandTest(TXAWSTestCase):
