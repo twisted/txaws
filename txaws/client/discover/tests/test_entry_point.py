@@ -228,8 +228,19 @@ class MainTest(TXAWSTestCase):
     def test_usage_message(self):
         """
         If a L{UsageError} is raised, the help screen is written to the output
-        screen.
+        stream.
         """
         output = StringIO()
-        main(["txaws-discover", "--help"], output)
+        main(["txaws-discover", "--help"], output, True)
         self.assertEqual(USAGE_MESSAGE, output.getvalue())
+
+    def test_error_message(self):
+        """
+        If an exception is raised, its message is written to the output
+        stream.
+        """
+        output = StringIO()
+        main(["txaws-discover"], output, True)
+        self.assertEqual(
+            "ERROR: The '--key' command-line argument is required.\n",
+            output.getvalue())
