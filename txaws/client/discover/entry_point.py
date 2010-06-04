@@ -86,7 +86,7 @@ def parse_options(arguments):
     while arguments:
         key = arguments.pop(0)
         if key in ("-h", "--help"):
-            raise UsageError("--help specified.")
+            raise UsageError("Help requested.")
         if key.startswith("--"):
             key = key[2:]
             try:
@@ -147,6 +147,9 @@ def main(arguments, output=None, testing_mode=None):
     @param arguments: Command-line arguments, typically retrieved from
         C{sys.argv}.
     @param output: Optionally, a stream to write output to.
+    @param testing_mode: Optionally, a condition that specifies whether or not
+        to run in test mode.  When the value is true a reactor will not be run
+        or stopped, to prevent interfering with the test suite.
     """
 
     def run_command(arguments, output, reactor):
