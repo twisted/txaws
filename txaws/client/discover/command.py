@@ -9,6 +9,7 @@ response received from the backend cloud.
 import sys
 
 from txaws.ec2.client import Query
+from txaws.exception import AWSError
 from txaws.service import AWSServiceRegion
 
 
@@ -59,9 +60,12 @@ class Command(object):
             print >>self.output, response
 
         def write_error(failure):
-            message = failure.getErrorMessage()
-            if message.startswith("Error Message: "):
-                message = message[len("Error Message: "):]
+            if failure.check(AWSError):
+                message = failure.value.original
+            else:
+                message = failure.getErrorMessage()
+                if message.startswith("Error Message: "):
+                    message = message[len("Error Message: "):]
             print >>self.output, "HTTP status code: %s" % query.client.status
             print >>self.output
             print >>self.output, message
