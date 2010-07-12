@@ -1,0 +1,15 @@
+#!/usr/bin/env python
+
+# Copyright (C) 2010 Jamu Kakar <jkakar@kakar.ca>
+# Licenced under the txaws licence available at /LICENSE in the txaws source.
+
+import os
+import sys
+
+if os.path.isdir("txaws"):
+    sys.path.insert(0, ".")
+
+from txaws.client.discover.entry_point import main
+
+
+sys.exit(main(sys.argv))
