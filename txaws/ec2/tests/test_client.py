@@ -434,6 +434,43 @@ class EC2ClientSecurityGroupsTestCase(TXAWSTestCase):
         d = ec2.describe_security_groups()
         return d.addCallback(check_results)
 
+    def test_describe_security_groups_with_multiple_groups(self):
+        """
+        Several groups can be contained in a single ip permissions content, and
+        there are recognized by the group parser.
+        """
+        class StubQuery(object):
+
+            def __init__(stub, action="", creds=None, endpoint=None,
+                         other_params={}):
+                self.assertEqual(action, "DescribeSecurityGroups")
+                self.assertEqual(creds.access_key, "foo")
+                self.assertEqual(creds.secret_key, "bar")
+                self.assertEqual(other_params, {})
+
+            def submit(self):
+                return succeed(
+                    payload.sample_describe_security_groups_multiple_groups)
+
+        def check_results(security_groups):
+            self.assertEquals(len(security_groups), 1)
+
+            security_group = security_groups[0]
+            self.assertEquals(security_group.name, "web/ssh")
+            self.assertEquals([(pair.user_id, pair.group_name)
+                               for pair in security_group.allowed_groups],
+                              [("170723411662", "default"),
+                               ("175723011368", "test1")])
+            self.assertEquals(
+                [(ip.ip_protocol, ip.from_port, ip.to_port, ip.cidr_ip)
+                 for ip in security_group.allowed_ips],
+                [('tcp', 22, 22, '0.0.0.0/0'), ("tcp", 80, 80, "0.0.0.0/0")])
+
+        creds = AWSCredentials("foo", "bar")
+        ec2 = client.EC2Client(creds, query_factory=StubQuery)
+        d = ec2.describe_security_groups()
+        return d.addCallback(check_results)
+
     def test_describe_security_groups_with_name(self):
         """
         L{EC2Client.describe_security_groups} optionally takes a list of
