@@ -255,11 +255,7 @@ sample_describe_security_groups_multiple_result = """\
               <groupName>group-name1</groupName>
             </item>
           </groups>
-          <ipRanges>
-            <item>
-              <cidrIp>0.0.0.0/0</cidrIp>
-            </item>
-          </ipRanges>
+          <ipRanges />
         </item>
         <item>
           <ipProtocol>udp</ipProtocol>
@@ -271,11 +267,7 @@ sample_describe_security_groups_multiple_result = """\
               <groupName>group-name1</groupName>
             </item>
           </groups>
-          <ipRanges>
-            <item>
-              <cidrIp>0.0.0.0/0</cidrIp>
-            </item>
-          </ipRanges>
+          <ipRanges />
         </item>
         <item>
           <ipProtocol>icmp</ipProtocol>
@@ -287,11 +279,7 @@ sample_describe_security_groups_multiple_result = """\
               <groupName>group-name1</groupName>
             </item>
           </groups>
-          <ipRanges>
-            <item>
-              <cidrIp>0.0.0.0/0</cidrIp>
-            </item>
-          </ipRanges>
+          <ipRanges />
         </item>
         <item>
           <ipProtocol>tcp</ipProtocol>
@@ -303,11 +291,7 @@ sample_describe_security_groups_multiple_result = """\
               <groupName>group-name2</groupName>
             </item>
           </groups>
-          <ipRanges>
-            <item>
-              <cidrIp>0.0.0.0/0</cidrIp>
-            </item>
-          </ipRanges>
+          <ipRanges />
         </item>
         <item>
           <ipProtocol>udp</ipProtocol>
@@ -319,11 +303,7 @@ sample_describe_security_groups_multiple_result = """\
               <groupName>group-name2</groupName>
             </item>
           </groups>
-          <ipRanges>
-            <item>
-              <cidrIp>0.0.0.0/0</cidrIp>
-            </item>
-          </ipRanges>
+          <ipRanges />
         </item>
         <item>
           <ipProtocol>icmp</ipProtocol>
@@ -335,15 +315,98 @@ sample_describe_security_groups_multiple_result = """\
               <groupName>group-name2</groupName>
             </item>
           </groups>
-          <ipRanges>
-            <item>
-              <cidrIp>0.0.0.0/0</cidrIp>
-            </item>
-          </ipRanges>
+          <ipRanges />
         </item>
       </ipPermissions>
     </item>
   </securityGroupInfo>
+</DescribeSecurityGroupsResponse>
+""" % (version.ec2_api,)
+
+
+sample_describe_security_groups_multiple_groups = """\
+<?xml version="1.0"?>
+<DescribeSecurityGroupsResponse xmlns="http://ec2.amazonaws.com/doc/%s/">
+<requestId>481987ac-07e2-4f34-99b9-38bcce029ce9</requestId>
+<securityGroupInfo>
+  <item>
+    <ownerId>170743011661</ownerId>
+    <groupName>web/ssh</groupName>
+    <groupDescription>Web and SSH access</groupDescription>
+    <ipPermissions>
+      <item>
+        <ipProtocol>icmp</ipProtocol>
+        <fromPort>-1</fromPort>
+        <toPort>-1</toPort>
+        <groups>
+          <item>
+            <userId>170723411662</userId>
+            <groupName>default</groupName>
+          </item>
+          <item>
+            <userId>175723011368</userId>
+            <groupName>test1</groupName>
+          </item>
+        </groups>
+        <ipRanges/>
+      </item>
+      <item>
+        <ipProtocol>tcp</ipProtocol>
+        <fromPort>1</fromPort>
+        <toPort>65535</toPort>
+        <groups>
+          <item>
+            <userId>170723411662</userId>
+            <groupName>default</groupName>
+          </item>
+          <item>
+            <userId>175723011368</userId>
+            <groupName>test1</groupName>
+          </item>
+        </groups>
+        <ipRanges/>
+      </item>
+      <item>
+        <ipProtocol>udp</ipProtocol>
+        <fromPort>1</fromPort>
+        <toPort>65535</toPort>
+        <groups>
+          <item>
+            <userId>170723411662</userId>
+            <groupName>default</groupName>
+          </item>
+          <item>
+            <userId>175723011368</userId>
+            <groupName>test1</groupName>
+          </item>
+        </groups>
+        <ipRanges/>
+      </item>
+      <item>
+        <ipProtocol>tcp</ipProtocol>
+        <fromPort>22</fromPort>
+        <toPort>22</toPort>
+        <groups/>
+        <ipRanges>
+          <item>
+            <cidrIp>0.0.0.0/0</cidrIp>
+          </item>
+        </ipRanges>
+      </item>
+      <item>
+        <ipProtocol>tcp</ipProtocol>
+        <fromPort>80</fromPort>
+        <toPort>80</toPort>
+        <groups/>
+        <ipRanges>
+          <item>
+            <cidrIp>0.0.0.0/0</cidrIp>
+          </item>
+        </ipRanges>
+      </item>
+    </ipPermissions>
+  </item>
+</securityGroupInfo>
 </DescribeSecurityGroupsResponse>
 """ % (version.ec2_api,)
 
