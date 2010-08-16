@@ -220,18 +220,19 @@ class EC2Client(BaseClient):
             owner_id = group_info.findtext("ownerId")
             allowed_groups = []
             allowed_ips = []
-            ip_permissions = group_info.find("ipPermissions") or []
+            ip_permissions = group_info.find("ipPermissions") or ()
             for ip_permission in ip_permissions:
-                user_id = ip_permission.findtext("groups/item/userId")
-                group_name = ip_permission.findtext("groups/item/groupName")
-                if user_id and group_name:
-                    if (user_id, group_name) not in allowed_groups:
-                        allowed_groups.append((user_id, group_name))
-                else:
-                    ip_protocol = ip_permission.findtext("ipProtocol")
-                    from_port = int(ip_permission.findtext("fromPort"))
-                    to_port = int(ip_permission.findtext("toPort"))
-                    cidr_ip = ip_permission.findtext("ipRanges/item/cidrIp")
+                ip_protocol = ip_permission.findtext("ipProtocol")
+                from_port = int(ip_permission.findtext("fromPort"))
+                to_port = int(ip_permission.findtext("toPort"))
+                for groups in ip_permission.findall("groups/item") or ():
+                    user_id = groups.findtext("userId")
+                    group_name = groups.findtext("groupName")
+                    if user_id and group_name:
+                        if (user_id, group_name) not in allowed_groups:
+                            allowed_groups.append((user_id, group_name))
+                for ip_ranges in ip_permission.findall("ipRanges/item") or ():
+                    cidr_ip = ip_ranges.findtext("cidrIp")
                     allowed_ips.append(
                         model.IPPermission(
                             ip_protocol, from_port, to_port, cidr_ip))
