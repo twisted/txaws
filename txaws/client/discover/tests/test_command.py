@@ -68,17 +68,19 @@ class CommandTest(TXAWSTestCase):
         self.prepare_command("The response", 200, "DescribeRegions")
 
         def check(result):
-            self.assertEqual("GET", self.method)
-            self.assertEqual(
+            url = (
                 "http://endpoint?AWSAccessKeyId=key&"
                 "Action=DescribeRegions&"
                 "Signature=uAlV2ALkp7qTxZrTNNuJhHl0i9xiTK5faZOhJTgGS1E%3D&"
                 "SignatureMethod=HmacSHA256&SignatureVersion=2&"
-                "Timestamp=2010-06-04T23%3A40%3A00Z&Version=2008-12-01",
-                self.url)
-            self.assertEqual("HTTP status code: 200\n"
+                "Timestamp=2010-06-04T23%3A40%3A00Z&Version=2008-12-01")
+            self.assertEqual("GET", self.method)
+            self.assertEqual(url, self.url)
+            self.assertEqual("URL: %s\n"
                              "\n"
-                             "The response\n",
+                             "HTTP status code: 200\n"
+                             "\n"
+                             "The response\n" % url,
                              self.output.getvalue())
 
         deferred = self.command.run()
@@ -91,17 +93,19 @@ class CommandTest(TXAWSTestCase):
                              {"RegionName.0": "us-west-1"})
 
         def check(result):
-            self.assertEqual("GET", self.method)
-            self.assertEqual(
+            url = (
                 "http://endpoint?AWSAccessKeyId=key&"
                 "Action=DescribeRegions&RegionName.0=us-west-1&"
                 "Signature=P6C7cQJ7j93uIJyv2dTbpQG3EI7ArGBJT%2FzVH%2BDFhyY%3D&"
                 "SignatureMethod=HmacSHA256&SignatureVersion=2&"
-                "Timestamp=2010-06-04T23%3A40%3A00Z&Version=2008-12-01",
-                self.url)
-            self.assertEqual("HTTP status code: 200\n"
+                "Timestamp=2010-06-04T23%3A40%3A00Z&Version=2008-12-01")
+            self.assertEqual("GET", self.method)
+            self.assertEqual(url, self.url)
+            self.assertEqual("URL: %s\n"
                              "\n"
-                             "The response\n",
+                             "HTTP status code: 200\n"
+                             "\n"
+                             "The response\n" % url,
                              self.output.getvalue())
 
         deferred = self.command.run()
@@ -118,22 +122,23 @@ class CommandTest(TXAWSTestCase):
                              self.get_error_page)
 
         def check(result):
-            self.assertEqual("GET", self.method)
-            self.assertEqual(
+            url = (
                 "http://endpoint?AWSAccessKeyId=key&"
                 "Action=DescribeRegions&RegionName.0=us-west-1&"
                 "Signature=P6C7cQJ7j93uIJyv2dTbpQG3EI7ArGBJT%2FzVH%2BDFhyY%3D&"
                 "SignatureMethod=HmacSHA256&SignatureVersion=2&"
-                "Timestamp=2010-06-04T23%3A40%3A00Z&Version=2008-12-01",
-                self.url)
-            self.assertEqual("HTTP status code: 400\n"
+                "Timestamp=2010-06-04T23%3A40%3A00Z&Version=2008-12-01")
+            self.assertEqual("GET", self.method)
+            self.assertEqual(url, self.url)
+            self.assertEqual("URL: %s\n"
                              "\n"
-                             "The error response\n",
+                             "HTTP status code: 400\n"
+                             "\n"
+                             "The error response\n" % url,
                              self.output.getvalue())
 
         deferred = self.command.run()
-        deferred.addErrback(check)
-        return deferred
+        return self.assertFailure(deferred, Exception).addErrback(check)
 
     def test_run_with_error_strips_non_response_text(self):
         """
@@ -146,17 +151,19 @@ class CommandTest(TXAWSTestCase):
                              self.get_error_page)
 
         def check(result):
-            self.assertEqual("GET", self.method)
-            self.assertEqual(
+            url = (
                 "http://endpoint?AWSAccessKeyId=key&"
                 "Action=DescribeRegions&RegionName.0=us-west-1&"
                 "Signature=P6C7cQJ7j93uIJyv2dTbpQG3EI7ArGBJT%2FzVH%2BDFhyY%3D&"
                 "SignatureMethod=HmacSHA256&SignatureVersion=2&"
-                "Timestamp=2010-06-04T23%3A40%3A00Z&Version=2008-12-01",
-                self.url)
-            self.assertEqual("HTTP status code: 400\n"
+                "Timestamp=2010-06-04T23%3A40%3A00Z&Version=2008-12-01")
+            self.assertEqual("GET", self.method)
+            self.assertEqual(url, self.url)
+            self.assertEqual("URL: %s\n"
                              "\n"
-                             "The error response\n",
+                             "HTTP status code: 400\n"
+                             "\n"
+                             "The error response\n" % url,
                              self.output.getvalue())
 
         deferred = self.command.run()

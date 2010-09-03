@@ -55,6 +55,10 @@ class Command(object):
                                    other_params=self.parameters)
 
         def write_response(response):
+            url = "%s?%s" % (region.ec2_endpoint.get_uri(),
+                             query.get_canonical_query_params())
+            print >>self.output, "URL: %s" % url
+            print >>self.output
             print >>self.output, "HTTP status code: %s" % query.client.status
             print >>self.output
             print >>self.output, response
@@ -66,6 +70,11 @@ class Command(object):
                 message = failure.getErrorMessage()
                 if message.startswith("Error Message: "):
                     message = message[len("Error Message: "):]
+
+            url = "%s?%s" % (region.ec2_endpoint.get_uri(),
+                             query.get_canonical_query_params())
+            print >>self.output, "URL: %s" % url
+            print >>self.output
             print >>self.output, "HTTP status code: %s" % query.client.status
             print >>self.output
             print >>self.output, message
