@@ -767,8 +767,11 @@ class Query(BaseQuery):
             "SignatureVersion": "2",
             "Action": self.action,
             "AWSAccessKeyId": self.creds.access_key,
-            "Timestamp": iso8601time(time_tuple),
             }
+        if other_params is None or "Expires" not in other_params:
+            # Only add a Timestamp parameter, if Expires isn't used,
+            # since both can't be used in the same request.
+            self.params["Timestamp"] = iso8601time(time_tuple)
         if other_params:
             self.params.update(other_params)
 
