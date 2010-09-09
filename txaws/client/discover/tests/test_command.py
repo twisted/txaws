@@ -14,8 +14,9 @@ from txaws.testing.base import TXAWSTestCase
 
 class FakeHTTPClient(object):
 
-    def __init__(self, status):
+    def __init__(self, status, url):
         self.status = status
+        self.url = url
 
 
 class CommandTest(TXAWSTestCase):
@@ -50,14 +51,14 @@ class CommandTest(TXAWSTestCase):
         """Fake C{get_page} method simulates a successful request."""
         self.url = url
         self.method = method
-        self.query.client = FakeHTTPClient(self.status)
+        self.query.client = FakeHTTPClient(self.status, url)
         return succeed(self.response)
 
     def get_error_page(self, url, method=None):
         """Fake C{get_page} method simulates an error."""
         self.url = url
         self.method = method
-        self.query.client = FakeHTTPClient(self.status)
+        self.query.client = FakeHTTPClient(self.status, url)
         return fail(Exception(self.response))
 
     def test_run(self):
