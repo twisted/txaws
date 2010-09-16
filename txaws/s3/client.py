@@ -190,6 +190,25 @@ class S3Client(BaseClient):
             content_type=content_type, metadata=metadata, amz_headers=amz_headers)
         return query.submit()
 
+
+    def copy_object(self, src_bucket, src_object_name, dest_bucket=None, dest_object_name=None,
+                    metadata={}, amz_headers={}):
+        """
+        Copy source object stored in s3 to destination bucket. If destination bucket is not given, this
+        is assumed to be the same as the source bucket. The same applies to the destination object
+        name. The copy-source header is derived from source bucket and object name, but additional
+        x-amz-* headers can be passed in amz_headers dict.
+        """
+        dest_bucket = dest_bucket or src_bucket
+        dest_object_name = dest_object_name or src_object_name
+        amz_headers['copy-source'] = '/%s/%s' % (src_bucket, src_object_name)
+        query = self.query_factory(
+            action="PUT", creds=self.creds, endpoint=self.endpoint,
+            bucket=dest_bucket, object_name=dest_object_name,
+            metadata=metadata, amz_headers=amz_headers)
+        return query.submit()
+        
+
     def get_object(self, bucket, object_name):
         """
         Get an object from a bucket.
