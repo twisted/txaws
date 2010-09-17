@@ -221,6 +221,17 @@ class S3Client(BaseClient):
         return query.submit()
 
 
+    def put_request_payment(self, bucket, payer):
+        """
+        Set request payment configuration on bucket to payer.
+        """
+        data = model.RequestPayment(payer).to_xml()
+        query = self.query_factory(
+            action='PUT', creds=self.creds, endpoint=self.endpoint,
+            bucket=bucket, object_name='?requestPayment', data=data)
+        return query.submit()
+
+
 class Query(BaseQuery):
     """A query for submission to the S3 service."""
 
