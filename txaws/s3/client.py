@@ -178,7 +178,7 @@ class S3Client(BaseClient):
             common_prefixes)
 
     def put_object(self, bucket, object_name, data, content_type=None,
-                   metadata={}):
+                   metadata={}, amz_headers={}):
         """
         Put an object in a bucket.
 
@@ -187,7 +187,7 @@ class S3Client(BaseClient):
         query = self.query_factory(
             action="PUT", creds=self.creds, endpoint=self.endpoint,
             bucket=bucket, object_name=object_name, data=data,
-            content_type=content_type, metadata=metadata)
+            content_type=content_type, metadata=metadata, amz_headers=amz_headers)
         return query.submit()
 
     def get_object(self, bucket, object_name):
@@ -225,13 +225,14 @@ class Query(BaseQuery):
     """A query for submission to the S3 service."""
 
     def __init__(self, bucket=None, object_name=None, data="",
-                 content_type=None, metadata={}, *args, **kwargs):
+                 content_type=None, metadata={}, amz_headers={}, *args, **kwargs):
         super(Query, self).__init__(*args, **kwargs)
         self.bucket = bucket
         self.object_name = object_name
         self.data = data
         self.content_type = content_type
         self.metadata = metadata
+        self.amz_headers = amz_headers
         self.date = datetimeToString()
         if not self.endpoint or not self.endpoint.host:
             self.endpoint = AWSServiceEndpoint(S3_ENDPOINT)
@@ -257,6 +258,8 @@ class Query(BaseQuery):
                    "Date": self.date}
         for key, value in self.metadata.iteritems():
             headers["x-amz-meta-" + key] = value
+        for key, value in self.amz_headers.iteritems():
+            headers["x-amz-" + key] = value
         # Before we check if the content type is set, let's see if we can set
         # it by guessing the the mimetype.
         self.set_content_type()
