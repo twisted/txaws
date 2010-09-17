@@ -173,6 +173,33 @@ class S3ClientTestCase(TXAWSTestCase):
         s3 = client.S3Client(creds, query_factory=StubQuery)
         d = s3.get_bucket("mybucket")
         return d.addCallback(check_results)
+    
+    def test_get_bucket_location(self):
+
+        class StubQuery(client.Query):
+
+            def __init__(query, action, creds, endpoint, bucket=None, object_name=None):
+                super(StubQuery, query).__init__(
+                    action=action, creds=creds, bucket=bucket, object_name=object_name)
+                self.assertEquals(action, "GET")
+                self.assertEqual(creds.access_key, "foo")
+                self.assertEqual(creds.secret_key, "bar")
+                self.assertEqual(query.bucket, "mybucket")
+                self.assertEqual(query.object_name, '?location')
+                self.assertEqual(query.data, "")
+                self.assertEqual(query.metadata, {})
+                self.assertEqual(query.amz_headers, {})
+
+            def submit(query, url_context=None):
+                return succeed(payload.sample_get_bucket_location_result)
+
+        def check_results(location_constraint):
+            self.assertEquals(location_constraint, 'EU')
+
+        creds = AWSCredentials("foo", "bar")
+        s3 = client.S3Client(creds, query_factory=StubQuery)
+        d = s3.get_bucket_location("mybucket")
+        return d.addCallback(check_results)
 
     def test_delete_bucket(self):
 

@@ -177,6 +177,19 @@ class S3Client(BaseClient):
             name, prefix, marker, max_keys, is_truncated, contents,
             common_prefixes)
 
+
+    def get_bucket_location(self, bucket):
+        query = self.query_factory(
+            action='GET', creds=self.creds, endpoint=self.endpoint,
+            bucket=bucket, object_name='?location')
+        d = query.submit()
+        return d.addCallback(self._parse_bucket_location)
+
+    def _parse_bucket_location(self, xml_bytes):
+        root = XML(xml_bytes)
+        return root.text or '' 
+
+
     def put_object(self, bucket, object_name, data, content_type=None,
                    metadata={}, amz_headers={}):
         """
