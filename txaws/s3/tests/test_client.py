@@ -2,6 +2,7 @@ from twisted.internet.defer import succeed
 
 from txaws.credentials import AWSCredentials
 from txaws.s3 import client
+from txaws.s3 import model
 from txaws.service import AWSServiceEndpoint
 from txaws.testing import payload
 from txaws.testing.base import TXAWSTestCase
@@ -214,7 +215,7 @@ class S3ClientTestCase(TXAWSTestCase):
                 self.assertEqual(query.bucket, "mybucket")
                 self.assertEqual(query.object_name, "?requestPayment")
                 self.assertEqual(query.data, ('<RequestPaymentConfiguration xmlns="http://s3.amazonaws.com/doc/2006-03-01/">\n'
-                                              '  <Payer>bob</Payer>\n'
+                                              '  <Payer>Requester</Payer>\n'
                                               '</RequestPaymentConfiguration>'))
                 self.assertEqual(query.metadata, None)
 
@@ -223,7 +224,7 @@ class S3ClientTestCase(TXAWSTestCase):
 
         creds = AWSCredentials("foo", "bar")
         s3 = client.S3Client(creds, query_factory=StubQuery)
-        return s3.put_request_payment("mybucket", "bob")
+        return s3.put_request_payment("mybucket", "Requester")
 
         
 
@@ -505,3 +506,10 @@ class MiscellaneousTests(TXAWSTestCase):
 
     def test_content_md5(self):
         self.assertEqual(calculate_md5("somedata"), "rvr3UC1SmUw7AZV2NqPN0g==")
+
+    def test_request_payment_enum(self):
+        model.RequestPayment('Requester')
+        model.RequestPayment('BucketOwner')
+        self.assertRaises(ValueError, model.RequestPayment, 'Bob')
+
+ 

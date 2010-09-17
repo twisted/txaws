@@ -232,6 +232,8 @@ class S3Client(BaseClient):
         return query.submit()
 
 
+        
+
 class Query(BaseQuery):
     """A query for submission to the S3 service."""
 

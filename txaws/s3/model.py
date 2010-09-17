@@ -54,7 +54,12 @@ class FileChunk(object):
 
 class RequestPayment(object):
 
+    payer_choices = ('Requester', 'BucketOwner')
+
     def __init__(self, payer):
+        if payer not in self.payer_choices:
+            raise ValueError('Invalid value for payer: `%s`. Must be one of %s' %
+                             (payer, ','.join(self.payer_choices)))
         self.payer = payer
 
     def to_xml(self):
