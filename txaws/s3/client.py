@@ -231,7 +231,18 @@ class S3Client(BaseClient):
             bucket=bucket, object_name='?requestPayment', data=data)
         return query.submit()
 
+    def get_request_payment(self, bucket):
+        """
+        Get the request payment configuration on a bucket.
+        """
+        query = self.query_factory(
+            action='GET', creds=self.creds, endpoint=self.endpoint,
+            bucket=bucket, object_name='?requestPayment')
+        return query.submit().addCallback(self._parse_get_request_payment)
 
+    
+    def _parse_get_request_payment(self, xml_bytes):
+        return model.RequestPayment.from_xml(xml_bytes).payer
         
 
 class Query(BaseQuery):

@@ -226,6 +226,33 @@ class S3ClientTestCase(TXAWSTestCase):
         s3 = client.S3Client(creds, query_factory=StubQuery)
         return s3.put_request_payment("mybucket", "Requester")
 
+    def test_data_request_payment(self):
+
+        class StubQuery(client.Query):
+
+            def __init__(query, action, creds, endpoint, bucket=None,
+                object_name=None, data=None, content_type=None,
+                metadata=None):
+                super(StubQuery, query).__init__(
+                    action=action, creds=creds, bucket=bucket,
+                    object_name=object_name, data=data,
+                    content_type=content_type, metadata=metadata)
+                self.assertEqual(action, "GET")
+                self.assertEqual(creds.access_key, "foo")
+                self.assertEqual(creds.secret_key, "bar")
+                self.assertEqual(query.bucket, "mybucket")
+                self.assertEqual(query.object_name, "?requestPayment")
+                self.assertEqual(query.metadata, None)
+
+            def submit(query):
+                return succeed(payload.sample_request_payment)
+
+        def check_request_payment(result):
+            self.assertEquals(result, 'Requester')
+
+        creds = AWSCredentials("foo", "bar")
+        s3 = client.S3Client(creds, query_factory=StubQuery)
+        return s3.get_request_payment("mybucket").addCallback(check_request_payment)
         
 
     def test_put_object(self):
