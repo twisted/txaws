@@ -186,7 +186,7 @@ class S3Client(BaseClient):
         query = self.query_factory(
             action='GET', creds=self.creds, endpoint=self.endpoint,
             bucket=bucket, object_name='?acl')
-        return query.submit().addCallback(self._parse_bucket_acl)
+        return query.submit().addCallback(self._parse_acl)
 
     def put_bucket_acl(self, bucket, access_control_policy):
         """
@@ -196,10 +196,10 @@ class S3Client(BaseClient):
         query = self.query_factory(
             action='PUT', creds=self.creds, endpoint=self.endpoint,
             bucket=bucket, object_name='?acl', data=data)
-        return query.submit().addCallback(self._parse_bucket_acl)
+        return query.submit().addCallback(self._parse_acl)
 
 
-    def _parse_bucket_acl(self, xml_bytes):
+    def _parse_acl(self, xml_bytes):
         return acls.AccessControlPolicy.from_xml(xml_bytes)        
 
 
@@ -246,6 +246,14 @@ class S3Client(BaseClient):
             bucket=bucket, object_name=object_name)
         return query.submit()
 
+    def get_object_acl(self, bucket, object_name):
+        """
+        Get the access control policy for an object.
+        """
+        query = self.query_factory(
+            action='GET', creds=self.creds, endpoint=self.endpoint,
+            bucket=bucket, object_name='%s?acl' % object_name)
+        return query.submit().addCallback(self._parse_acl)
 
 class Query(BaseQuery):
     """A query for submission to the S3 service."""
