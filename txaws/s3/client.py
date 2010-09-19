@@ -19,6 +19,7 @@ from epsilon.extime import Time
 
 from txaws.client.base import BaseClient, BaseQuery, error_wrapper
 from txaws.s3 import model
+from txaws.s3 import acls
 from txaws.s3.exception import S3Error
 from txaws.service import AWSServiceEndpoint, S3_ENDPOINT
 from txaws.util import XML, calculate_md5
@@ -176,6 +177,21 @@ class S3Client(BaseClient):
         return model.BucketListing(
             name, prefix, marker, max_keys, is_truncated, contents,
             common_prefixes)
+
+    def put_bucket_acl(self, bucket, access_control_policy):
+        """
+        Set access control policy on a bucket.
+        """
+        data = access_control_policy.to_xml()
+        query = self.query_factory(
+            action='PUT', creds=self.creds, endpoint=self.endpoint,
+            bucket=bucket, object_name='?acl', data=data)
+        return query.submit().addCallback(self._parse_put_bucket_acl)
+
+
+    def _parse_put_bucket_acl(self, xml_bytes):
+        return acls.AccessControlPolicy.from_xml(xml_bytes)        
+
 
     def put_object(self, bucket, object_name, data, content_type=None,
                    metadata={}):
