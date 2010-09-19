@@ -33,6 +33,22 @@ class AccessControlPolicy(XMLMixin):
                    '</AccessControlPolicy>')
         return buffer
 
+    @classmethod
+    def from_xml(cls, xml_bytes):
+        root = XML(xml_bytes)
+        owner_node = root.find('Owner')
+        owner = Owner(owner_node.findtext('ID'),
+                      owner_node.findtext('DisplayName'))
+        acl_node = root.find('AccessControlList')
+        acl = []
+        for grant_node in acl_node.findall('Grant'):
+            grantee_node = grant_node.find('Grantee')
+            grantee = Grantee(grantee_node.findtext('ID'),
+                              grantee_node.findtext('DisplayName'))
+            permission = grant_node.findtext('Permission')
+            acl.append(Grant(grantee, permission))
+        return cls(owner, acl)
+
 
 class Grant(XMLMixin):
 
