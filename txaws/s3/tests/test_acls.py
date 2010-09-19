@@ -1,5 +1,6 @@
 from twisted.trial.unittest import TestCase
 
+from txaws.testing import payload
 from txaws.s3 import acls
 
 
@@ -56,29 +57,7 @@ class ACLTests(TestCase):
                            display_name='baz@example.net')
         acp = acls.AccessControlPolicy(owner=owner, access_control_list=[grant1, grant2])
         xml_bytes = acp.to_xml()
-        self.assertEquals(xml_bytes, """\
-<AccessControlPolicy>
-  <Owner>
-    <ID>8a6925ce4adf588a4f21c32aa37900beef</ID>
-    <DisplayName>baz@example.net</DisplayName>
-  </Owner>
-  <AccessControlList>
-    <Grant>
-      <Grantee xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:type="CanonicalUser">
-        <ID>8a6925ce4adf588a4f21c32aa379004fef</ID>
-        <DisplayName>foo@example.net</DisplayName>
-      </Grantee>
-      <Permission>FULL_CONTROL</Permission>
-    </Grant>
-    <Grant>
-      <Grantee xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:type="CanonicalUser">
-        <ID>8a6925ce4adf588a4f21c32aa37900feed</ID>
-        <DisplayName>bar@example.net</DisplayName>
-      </Grantee>
-      <Permission>READ</Permission>
-    </Grant>
-  </AccessControlList>
-</AccessControlPolicy>""") 
+        self.assertEquals(xml_bytes, payload.sample_access_control_policy_result)
 
 
     def test_permission_enum(self):
@@ -90,4 +69,18 @@ class ACLTests(TestCase):
         acls.Grant(grantee, 'READ')
         acls.Grant(grantee, 'READ_ACP')
         self.assertRaises(ValueError, acls.Grant, grantee, 'GO_HOG_WILD')
+
+    def test_from_xml(self):
+        policy = acls.AccessControlPolicy.from_xml(payload.sample_access_control_policy_result)
+        self.assertEquals(policy.owner.id, '8a6925ce4adf588a4f21c32aa37900beef')
+        self.assertEquals(policy.owner.display_name, 'baz@example.net')
+        self.assertEquals(len(policy.access_control_list), 2)
+        grant1 = policy.access_control_list[0]
+        self.assertEquals(grant1.grantee.id, '8a6925ce4adf588a4f21c32aa379004fef')
+        self.assertEquals(grant1.grantee.display_name, 'foo@example.net')
+        self.assertEquals(grant1.permission, 'FULL_CONTROL')
+        grant2 = policy.access_control_list[1]
+        self.assertEquals(grant2.grantee.id, '8a6925ce4adf588a4f21c32aa37900feed')
+        self.assertEquals(grant2.grantee.display_name, 'bar@example.net')
+        self.assertEquals(grant2.permission, 'READ')
 
