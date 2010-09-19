@@ -178,6 +178,16 @@ class S3Client(BaseClient):
             name, prefix, marker, max_keys, is_truncated, contents,
             common_prefixes)
 
+
+    def get_bucket_acl(self, bucket):
+        """
+        Get the access control policy for a bucket.
+        """
+        query = self.query_factory(
+            action='GET', creds=self.creds, endpoint=self.endpoint,
+            bucket=bucket, object_name='?acl')
+        return query.submit().addCallback(self._parse_bucket_acl)
+
     def put_bucket_acl(self, bucket, access_control_policy):
         """
         Set access control policy on a bucket.
@@ -186,10 +196,10 @@ class S3Client(BaseClient):
         query = self.query_factory(
             action='PUT', creds=self.creds, endpoint=self.endpoint,
             bucket=bucket, object_name='?acl', data=data)
-        return query.submit().addCallback(self._parse_put_bucket_acl)
+        return query.submit().addCallback(self._parse_bucket_acl)
 
 
-    def _parse_put_bucket_acl(self, xml_bytes):
+    def _parse_bucket_acl(self, xml_bytes):
         return acls.AccessControlPolicy.from_xml(xml_bytes)        
 
 
