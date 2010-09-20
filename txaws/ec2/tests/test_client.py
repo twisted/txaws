@@ -1471,6 +1471,24 @@ class QueryTestCase(TXAWSTestCase):
              "Timestamp": "2007-11-12T13:14:15Z",
              "Version": "2008-12-01"})
 
+    def test_no_timestamp_if_expires_in_other_params(self):
+        """
+        If Expires is present in other_params, Timestamp won't be added,
+        since a request should contain either Expires or Timestamp, but
+        not both.
+        """
+        query = client.Query(
+            action="DescribeInstances", creds=self.creds,
+            endpoint=self.endpoint,
+            other_params={"Expires": "2007-11-12T13:14:15Z"})
+        self.assertEqual(
+            query.params,
+            {"AWSAccessKeyId": "foo",
+             "Action": "DescribeInstances",
+             "SignatureVersion": "2",
+             "Expires": "2007-11-12T13:14:15Z",
+             "Version": "2008-12-01"})
+
     def test_sorted_params(self):
         query = client.Query(
             action="DescribeInstances", creds=self.creds,
