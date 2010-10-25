@@ -838,12 +838,13 @@ class Query(BaseQuery):
         self.sign()
         url = self.endpoint.get_uri()
         method = self.endpoint.method
+        params = self.get_canonical_query_params()
+        kwargs = {"method": method}
         if method == "POST":
-            data = self.get_canonical_query_params()
-            headers = {"Content-Type": "application/x-www-form-urlencoded"}
-            d = self.get_page(
-                url, method=method, postdata=data, headers=headers)
+            kwargs["headers"] = {
+                "Content-Type": "application/x-www-form-urlencoded"}
+            kwargs["postdata"] = params
         else:
-            url += "?%s" % (self.get_canonical_query_params(),)
-            d = self.get_page(url, method=method)
+            url += "?%s" % params
+        d = self.get_page(url, **kwargs)
         return d.addErrback(ec2_error_wrapper)
