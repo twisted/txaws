@@ -83,7 +83,6 @@ class EC2ClientTestCase(TXAWSTestCase):
 
         client.Query.get_page = get_page
 
-
         creds = AWSCredentials("foo", "bar")
         endpoint = AWSServiceEndpoint(uri=EC2_ENDPOINT_US, method="POST")
         ec2 = client.EC2Client(creds=creds, endpoint=endpoint)
