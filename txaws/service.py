@@ -74,6 +74,7 @@ class AWSServiceRegion(object):
         associated creds will be used against a collection of services.
     @param uri: an endpoint URI that, if provided, will override the region
         parameter.
+    @param method: The method argument forwarded to L{AWSServiceEndpoint}.
     """
     # XXX update unit test to check for both ec2 and s3 endpoints
     def __init__(self, creds=None, access_key="", secret_key="",
