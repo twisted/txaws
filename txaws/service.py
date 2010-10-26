@@ -74,10 +74,12 @@ class AWSServiceRegion(object):
         associated creds will be used against a collection of services.
     @param uri: an endpoint URI that, if provided, will override the region
         parameter.
+    @param method: The method argument forwarded to L{AWSServiceEndpoint}.
     """
     # XXX update unit test to check for both ec2 and s3 endpoints
     def __init__(self, creds=None, access_key="", secret_key="",
-                 region=REGION_US, uri="", ec2_uri="", s3_uri=""):
+                 region=REGION_US, uri="", ec2_uri="", s3_uri="",
+                 method="GET"):
         if not creds:
             creds = AWSCredentials(access_key, secret_key)
         self.creds = creds
@@ -91,8 +93,8 @@ class AWSServiceRegion(object):
         if not s3_uri:
             s3_uri = S3_ENDPOINT
         self._clients = {}
-        self.ec2_endpoint = AWSServiceEndpoint(uri=ec2_uri)
-        self.s3_endpoint = AWSServiceEndpoint(uri=s3_uri)
+        self.ec2_endpoint = AWSServiceEndpoint(uri=ec2_uri, method=method)
+        self.s3_endpoint = AWSServiceEndpoint(uri=s3_uri, method=method)
 
     def get_client(self, cls, purge_cache=False, *args, **kwds):
         """
