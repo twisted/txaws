@@ -836,7 +836,15 @@ class Query(BaseQuery):
         @return: A deferred from get_page
         """
         self.sign()
-        url = "%s?%s" % (self.endpoint.get_uri(),
-                         self.get_canonical_query_params())
-        d = self.get_page(url, method=self.endpoint.method)
+        url = self.endpoint.get_uri()
+        method = self.endpoint.method
+        params = self.get_canonical_query_params()
+        kwargs = {"method": method}
+        if method == "POST":
+            kwargs["headers"] = {
+                "Content-Type": "application/x-www-form-urlencoded"}
+            kwargs["postdata"] = params
+        else:
+            url += "?%s" % params
+        d = self.get_page(url, **kwargs)
         return d.addErrback(ec2_error_wrapper)

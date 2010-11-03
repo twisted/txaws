@@ -64,6 +64,30 @@ class EC2ClientTestCase(TXAWSTestCase):
         ec2 = client.EC2Client()
         self.assertNotEqual(None, ec2.creds)
 
+    def test_post_method(self):
+        """
+        If the method of the endpoint is POST, the parameters are passed in the
+        body.
+        """
+        self.addCleanup(setattr, client.Query, "get_page",
+                        client.Query.get_page)
+
+        def get_page(query, url, *args, **kwargs):
+            self.assertEquals(args, ())
+            self.assertEquals(
+                kwargs["headers"],
+                {"Content-Type": "application/x-www-form-urlencoded"})
+            self.assertIn("postdata", kwargs)
+            self.assertEquals(kwargs["method"], "POST")
+            return succeed(payload.sample_describe_instances_result)
+
+        client.Query.get_page = get_page
+
+        creds = AWSCredentials("foo", "bar")
+        endpoint = AWSServiceEndpoint(uri=EC2_ENDPOINT_US, method="POST")
+        ec2 = client.EC2Client(creds=creds, endpoint=endpoint)
+        return ec2.describe_instances()
+
     def test_init_no_creds_non_available_errors(self):
         self.assertRaises(ValueError, client.EC2Client)
 
