@@ -79,6 +79,7 @@ class EC2ClientTestCase(TXAWSTestCase):
                 {"Content-Type": "application/x-www-form-urlencoded"})
             self.assertIn("postdata", kwargs)
             self.assertEquals(kwargs["method"], "POST")
+            self.assertEquals(kwargs["timeout"], 30)
             return succeed(payload.sample_describe_instances_result)
 
         client.Query.get_page = get_page
