@@ -755,6 +755,8 @@ class EC2Client(BaseClient):
 class Query(BaseQuery):
     """A query that may be submitted to EC2."""
 
+    timeout = 30
+
     def __init__(self, other_params=None, time_tuple=None, api_version=None,
                  *args, **kwargs):
         """Create a Query to submit to EC2."""
@@ -846,5 +848,7 @@ class Query(BaseQuery):
             kwargs["postdata"] = params
         else:
             url += "?%s" % params
+        if self.timeout:
+            kwargs["timeout"] = self.timeout
         d = self.get_page(url, **kwargs)
         return d.addErrback(ec2_error_wrapper)
