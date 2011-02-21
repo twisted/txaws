@@ -797,6 +797,8 @@ class Query(BaseQuery):
         result = "%s\n%s\n%s\n%s" % (self.endpoint.method, self.endpoint.host,
                                      self.endpoint.path,
                                      self.get_canonical_query_params())
+        import traceback; traceback.print_stack()
+        print repr(result)
         return result
 
     def old_signing_text(self):
