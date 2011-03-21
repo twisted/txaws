@@ -120,7 +120,6 @@ class EC2ClientTestCase(TXAWSTestCase):
             self.assertEquals(zone.name, "us-east-1a")
             self.assertEquals(zone.state, "available")
 
-
         creds = AWSCredentials("foo", "bar")
         ec2 = client.EC2Client(creds, query_factory=StubQuery)
         d = ec2.describe_availability_zones(["us-east-1a"])
@@ -1360,6 +1359,47 @@ class EC2ClientEBSTestCase(TXAWSTestCase):
         d.addCallback(self.assertFalse)
         return d
 
+    def test_import_keypair(self):
+        """
+        L{client.EC2Client.import_keypair} calls the C{ImportKeyPair} method
+        with the given arguments, encoding the key material in base64, and
+        returns a C{Keypair} instance.
+        """
+
+        def check_parsed_import_keypair(keypair):
+            self.assertEquals(keypair.name, "example-key-name")
+            self.assertEquals(
+                keypair.fingerprint,
+                "1f:51:ae:28:bf:89:e9:d8:1f:25:5d:37:2d:7d:b8:ca:9f:f5:f1:6f")
+            self.assertEquals(keypair.material, material)
+
+        class StubQuery(object):
+
+            def __init__(stub, action="", creds=None, endpoint=None,
+                         other_params={}):
+                self.assertEqual(action, "ImportKeyPair")
+                self.assertEqual("foo", creds)
+                self.assertEquals(
+                    other_params,
+                    {"KeyName": "example-key-name",
+                     "PublicKeyMaterial":
+                        "c3NoLWRzcyBBQUFBQjNOemFDMWtjM01BQUFDQkFQNmFjakFQeitUR"
+                        "jJkREtmZGlhcnp2cXBBcjhlbUl6UElBWUp6QXNoTFgvUTJCZ2tWc0"
+                        "42eGI2QUlIUGE1MUFtWXVieU5PYjMxeVhWS2FRQTF6L213SHZtRld"
+                        "LQ1ZFQ0wwPSkgdXNlckBob3N0"})
+
+            def submit(self):
+                return succeed(payload.sample_import_keypair_result)
+
+        ec2 = client.EC2Client(creds="foo", query_factory=StubQuery)
+        material = (
+            "ssh-dss AAAAB3NzaC1kc3MAAACBAP6acjAPz+TF2dDKfdiarzvqpAr8emIzPIAY"
+            "JzAshLX/Q2BgkVsN6xb6AIHPa51AmYubyNOb31yXVKaQA1z/mwHvmFWKCVECL0=)"
+            " user@host")
+        d = ec2.import_keypair("example-key-name", material)
+        d.addCallback(check_parsed_import_keypair)
+        return d
+
 
 class EC2ErrorWrapperTestCase(TXAWSTestCase):
 
@@ -1486,7 +1526,7 @@ class QueryTestCase(TXAWSTestCase):
         query = client.Query(
             action="DescribeInstances", creds=self.creds,
             endpoint=self.endpoint, other_params={"InstanceId.0": "12345"},
-            time_tuple=(2007,11,12,13,14,15,0,0,0))
+            time_tuple=(2007, 11, 12, 13, 14, 15, 0, 0, 0))
         self.assertEqual(
             query.params,
             {"AWSAccessKeyId": "foo",
@@ -1518,7 +1558,7 @@ class QueryTestCase(TXAWSTestCase):
         query = client.Query(
             action="DescribeInstances", creds=self.creds,
             endpoint=self.endpoint, other_params={"fun": "games"},
-            time_tuple=(2007,11,12,13,14,15,0,0,0))
+            time_tuple=(2007, 11, 12, 13, 14, 15, 0, 0, 0))
         self.assertEqual([
             ("AWSAccessKeyId", "foo"),
             ("Action", "DescribeInstances"),
@@ -1547,9 +1587,9 @@ class QueryTestCase(TXAWSTestCase):
         query = client.Query(
             action="DescribeInstances", creds=self.creds,
             endpoint=self.endpoint,
-            other_params={"fu n": "g/ames", "argwithnovalue":"",
+            other_params={"fu n": "g/ames", "argwithnovalue": "",
                           "InstanceId.1": "i-1234"},
-            time_tuple=(2007,11,12,13,14,15,0,0,0))
+            time_tuple=(2007, 11, 12, 13, 14, 15, 0, 0, 0))
         expected_query = ("AWSAccessKeyId=foo&Action=DescribeInstances"
             "&InstanceId.1=i-1234"
             "&SignatureVersion=2&"
@@ -1560,7 +1600,8 @@ class QueryTestCase(TXAWSTestCase):
     def test_signing_text(self):
         query = client.Query(
             action="DescribeInstances", creds=self.creds,
-            endpoint=self.endpoint, time_tuple=(2007,11,12,13,14,15,0,0,0))
+            endpoint=self.endpoint,
+            time_tuple=(2007, 11, 12, 13, 14, 15, 0, 0, 0))
         signing_text = ("GET\n%s\n/\n" % self.endpoint.host +
             "AWSAccessKeyId=foo&Action=DescribeInstances&"
             "SignatureVersion=2&"
@@ -1570,7 +1611,8 @@ class QueryTestCase(TXAWSTestCase):
     def test_old_signing_text(self):
         query = client.Query(
             action="DescribeInstances", creds=self.creds,
-            endpoint=self.endpoint, time_tuple=(2007,11,12,13,14,15,0,0,0),
+            endpoint=self.endpoint,
+            time_tuple=(2007, 11, 12, 13, 14, 15, 0, 0, 0),
             other_params={"SignatureVersion": "1"})
         signing_text = (
             "ActionDescribeInstancesAWSAccessKeyIdfooSignatureVersion1"
@@ -1589,7 +1631,8 @@ class QueryTestCase(TXAWSTestCase):
     def test_old_sign(self):
         query = client.Query(
             action="DescribeInstances", creds=self.creds,
-            endpoint=self.endpoint, time_tuple=(2007,11,12,13,14,15,0,0,0),
+            endpoint=self.endpoint,
+            time_tuple=(2007, 11, 12, 13, 14, 15, 0, 0, 0),
             other_params={"SignatureVersion": "1"})
         query.sign()
         self.assertEqual(
@@ -1598,7 +1641,8 @@ class QueryTestCase(TXAWSTestCase):
     def test_unsupported_sign(self):
         query = client.Query(
             action="DescribeInstances", creds=self.creds,
-            endpoint=self.endpoint, time_tuple=(2007,11,12,13,14,15,0,0,0),
+            endpoint=self.endpoint,
+            time_tuple=(2007, 11, 12, 13, 14, 15, 0, 0, 0),
             other_params={"SignatureVersion": "0"})
         self.assertRaises(RuntimeError, query.sign)
 
@@ -1622,7 +1666,7 @@ class QueryTestCase(TXAWSTestCase):
 
         query = client.Query(
             action='BadQuery', creds=self.creds, endpoint=self.endpoint,
-            time_tuple=(2009,8,15,13,14,15,0,0,0))
+            time_tuple=(2009, 8, 15, 13, 14, 15, 0, 0, 0))
 
         failure = query.submit()
         d = self.assertFailure(failure, TwistedWebError)
@@ -1647,7 +1691,7 @@ class QueryTestCase(TXAWSTestCase):
 
         query = client.Query(
             action='BadQuery', creds=self.creds, endpoint=self.endpoint,
-            time_tuple=(2009,8,15,13,14,15,0,0,0))
+            time_tuple=(2009, 8, 15, 13, 14, 15, 0, 0, 0))
 
         failure = query.submit()
         d = self.assertFailure(failure, TwistedWebError)
@@ -1676,7 +1720,7 @@ class QueryTestCase(TXAWSTestCase):
 
         query = client.Query(
             action='BadQuery', creds=self.creds, endpoint=self.endpoint,
-            time_tuple=(2009,8,15,13,14,15,0,0,0))
+            time_tuple=(2009, 8, 15, 13, 14, 15, 0, 0, 0))
 
         failure = query.submit()
         d = self.assertFailure(failure, TwistedWebError)
@@ -1731,7 +1775,7 @@ class QueryPageGetterTestCase(TXAWSTestCase):
         """Copied from twisted.web.test.test_webclient."""
         query = client.Query(
             action="DummyQuery", creds=self.creds, endpoint=self.endpoint,
-            time_tuple=(2009,8,17,13,14,15,0,0,0))
+            time_tuple=(2009, 8, 15, 13, 14, 15, 0, 0, 0))
         deferred = query.get_page(self.get_url("file"))
         deferred.addCallback(self.assertEquals, "0123456789")
         return deferred
