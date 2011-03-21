@@ -655,6 +655,12 @@ class EC2Client(BaseClient):
               ~/.ssh/authorized_keys)
             * Base64 encoded DER format
             * SSH public key file format as specified in RFC4716
+
+        @param keypair_name: The name of the key to create.
+        @param key_material: The material in one of the supported format.
+
+        @return: A L{Deferred} firing with a L{model.Keypair} instance if
+            successful.
         """
         query = self.query_factory(
             action="ImportKeyPair", creds=self.creds, endpoint=self.endpoint,
@@ -664,6 +670,7 @@ class EC2Client(BaseClient):
         return d.addCallback(self._parse_import_keypair, key_material)
 
     def _parse_import_keypair(self, xml_bytes, key_material):
+        """Extract the key name and the fingerprint from the result."""
         keypair_data = XML(xml_bytes)
         key_name = keypair_data.findtext("keyName")
         key_fingerprint = keypair_data.findtext("keyFingerprint")

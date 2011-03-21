@@ -1360,6 +1360,11 @@ class EC2ClientEBSTestCase(TXAWSTestCase):
         return d
 
     def test_import_keypair(self):
+        """
+        L{client.EC2Client.import_keypair} calls the C{ImportKeyPair} method
+        with the given arguments, encoding the key material in base64, and
+        returns a C{Keypair} instance.
+        """
 
         def check_parsed_import_keypair(keypair):
             self.assertEquals(keypair.name, "example-key-name")
