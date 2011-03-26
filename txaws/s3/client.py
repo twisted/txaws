@@ -196,7 +196,6 @@ class S3Client(BaseClient):
         root = XML(xml_bytes)
         return root.text or ""
 
-
     def get_bucket_acl(self, bucket):
         """
         Get the access control policy for a bucket.
@@ -216,17 +215,27 @@ class S3Client(BaseClient):
             bucket=bucket, object_name='?acl', data=data)
         return query.submit().addCallback(self._parse_acl)
 
-
     def _parse_acl(self, xml_bytes):
+        """
+        Parse an C{AccessControlPolicy} XML document and convert it into an
+        L{AccessControlPolicy} instance.
+        """
         return AccessControlPolicy.from_xml(xml_bytes)
-
 
     def put_object(self, bucket, object_name, data, content_type=None,
                    metadata={}, amz_headers={}):
         """
         Put an object in a bucket.
 
-        Any existing object of the same name will be replaced.
+        An existing object with the same name will be replaced.
+
+        @param bucket: The name of the bucket.
+        @param object: The name of the object.
+        @param data: The data to write.
+        @param content_type: The type of data being written.
+        @param metadata: A C{dict} used to build C{x-amz-meta-*} headers.
+        @param amz_headers: A C{dict} used to build C{x-amz-*} headers.
+        @return: A C{Deferred} that will fire with the result of request.
         """
         query = self.query_factory(
             action="PUT", creds=self.creds, endpoint=self.endpoint,
@@ -294,6 +303,8 @@ class S3Client(BaseClient):
     def get_object_acl(self, bucket, object_name):
         """
         Get the access control policy for an object.
+
+        @
         """
         query = self.query_factory(
             action='GET', creds=self.creds, endpoint=self.endpoint,
