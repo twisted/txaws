@@ -924,3 +924,28 @@ sample_s3_invalid_access_key_result = """\
   <AWSAccessKeyId>SOMEKEYID</AWSAccessKeyId>
 </Error>
 """
+
+sample_access_control_policy_result = """\
+<AccessControlPolicy>
+  <Owner>
+    <ID>8a6925ce4adf588a4f21c32aa37900beef</ID>
+    <DisplayName>baz@example.net</DisplayName>
+  </Owner>
+  <AccessControlList>
+    <Grant>
+      <Grantee xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:type="CanonicalUser">
+        <ID>8a6925ce4adf588a4f21c32aa379004fef</ID>
+        <DisplayName>foo@example.net</DisplayName>
+      </Grantee>
+      <Permission>FULL_CONTROL</Permission>
+    </Grant>
+    <Grant>
+      <Grantee xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:type="CanonicalUser">
+        <ID>8a6925ce4adf588a4f21c32aa37900feed</ID>
+        <DisplayName>bar@example.net</DisplayName>
+      </Grantee>
+      <Permission>READ</Permission>
+    </Grant>
+  </AccessControlList>
+</AccessControlPolicy>"""
+
