@@ -187,27 +187,35 @@ class S3Client(BaseClient):
         query = self.query_factory(
             action="PUT", creds=self.creds, endpoint=self.endpoint,
             bucket=bucket, object_name=object_name, data=data,
-            content_type=content_type, metadata=metadata, amz_headers=amz_headers)
+            content_type=content_type, metadata=metadata,
+            amz_headers=amz_headers)
         return query.submit()
 
+    def copy_object(self, source_bucket, source_object_name, dest_bucket=None,
+                    dest_object_name=None, metadata={}, amz_headers={}):
+        """
+        Copy an object stored in S3 from a source bucket to a destination
+        bucket.
 
-    def copy_object(self, src_bucket, src_object_name, dest_bucket=None, dest_object_name=None,
-                    metadata={}, amz_headers={}):
+        @param source_bucket: The S3 bucket to copy the object from.
+        @param source_object_name: The name of the object to copy.
+        @param dest_bucket: Optionally, the S3 bucket to copy the object to.
+            Defaults to C{source_bucket}.
+        @param dest_object_name: Optionally, the name of the new object.
+            Defaults to C{source_object_name}.
+        @param metadata: A C{dict} used to build C{x-amz-meta-*} headers.
+        @param amz_headers: A C{dict} used to build C{x-amz-*} headers.
+        @return: A C{Deferred} that will fire with the result of request.
         """
-        Copy source object stored in s3 to destination bucket. If destination bucket is not given, this
-        is assumed to be the same as the source bucket. The same applies to the destination object
-        name. The copy-source header is derived from source bucket and object name, but additional
-        x-amz-* headers can be passed in amz_headers dict.
-        """
-        dest_bucket = dest_bucket or src_bucket
-        dest_object_name = dest_object_name or src_object_name
-        amz_headers['copy-source'] = '/%s/%s' % (src_bucket, src_object_name)
+        dest_bucket = dest_bucket or source_bucket
+        dest_object_name = dest_object_name or source_object_name
+        amz_headers["copy-source"] = "/%s/%s" % (source_bucket,
+                                                 source_object_name)
         query = self.query_factory(
             action="PUT", creds=self.creds, endpoint=self.endpoint,
             bucket=dest_bucket, object_name=dest_object_name,
             metadata=metadata, amz_headers=amz_headers)
         return query.submit()
-        
 
     def get_object(self, bucket, object_name):
         """
@@ -244,7 +252,8 @@ class Query(BaseQuery):
     """A query for submission to the S3 service."""
 
     def __init__(self, bucket=None, object_name=None, data="",
-                 content_type=None, metadata={}, amz_headers={}, *args, **kwargs):
+                 content_type=None, metadata={}, amz_headers={}, *args,
+                 **kwargs):
         super(Query, self).__init__(*args, **kwargs)
         self.bucket = bucket
         self.object_name = object_name

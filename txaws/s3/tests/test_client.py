@@ -44,7 +44,7 @@ class URLContextTestCase(TXAWSTestCase):
         endpoint = AWSServiceEndpoint("http://localhost/")
         url_context = client.URLContext(endpoint)
         self.assertEquals(url_context.endpoint.get_uri(), "http://localhost/")
-        self.assertEquals( url_context.get_url(), "http://localhost/")
+        self.assertEquals(url_context.get_url(), "http://localhost/")
 
     def test_get_uri_with_endpoint_bucket_and_object(self):
         endpoint = AWSServiceEndpoint("http://localhost/")
@@ -164,9 +164,9 @@ class S3ClientTestCase(TXAWSTestCase):
             self.assertEquals(content1.size, "5")
             self.assertEquals(content1.storage_class, "STANDARD")
             owner = content1.owner
-            self.assertEquals(
-                owner.id,
-                "bcaf1ffd86f41caff1a493dc2ad8c2c281e37522a640e161ca5fb16fd081034f")
+            self.assertEquals(owner.id,
+                              "bcaf1ffd86f41caff1a493dc2ad8c2c281e37522a640e16"
+                              "1ca5fb16fd081034f")
             self.assertEquals(owner.display_name, "webfile")
 
         creds = AWSCredentials("foo", "bar")
@@ -223,11 +223,16 @@ class S3ClientTestCase(TXAWSTestCase):
 
         creds = AWSCredentials("foo", "bar")
         s3 = client.S3Client(creds, query_factory=StubQuery)
-        return s3.put_object(
-            "mybucket", "objectname", "some data", content_type="text/plain",
-            metadata={"key": "some meta data"}, amz_headers={'acl':'public-read'})
+        return s3.put_object("mybucket", "objectname", "some data",
+                             content_type="text/plain",
+                             metadata={"key": "some meta data"},
+                             amz_headers={"acl": "public-read"})
 
     def test_copy_object(self):
+        """
+        L{S3Client.copy_object} creates a L{Query} to copy an object from one
+        bucket to another.
+        """
 
         class StubQuery(client.Query):
 
@@ -247,16 +252,17 @@ class S3ClientTestCase(TXAWSTestCase):
                 self.assertEqual(query.data, None)
                 self.assertEqual(query.content_type, None)
                 self.assertEqual(query.metadata, {"key": "some meta data"})
-                self.assertEqual(query.amz_headers, {"copy-source": "/mybucket/objectname"})
+                self.assertEqual(query.amz_headers,
+                                 {"copy-source": "/mybucket/objectname"})
 
             def submit(query):
                 return succeed(None)
 
         creds = AWSCredentials("foo", "bar")
         s3 = client.S3Client(creds, query_factory=StubQuery)
-        return s3.copy_object(
-            "mybucket", "objectname", "newbucket", "newobjectname",
-            metadata={"key": "some meta data"})
+        return s3.copy_object("mybucket", "objectname", "newbucket",
+                              "newobjectname",
+                              metadata={"key": "some meta data"})
 
     def test_get_object(self):
 
@@ -433,19 +439,18 @@ class QueryTestCase(TXAWSTestCase):
         request = client.Query(
             action="PUT", bucket="somebucket", object_name="object/name/here",
             data=DATA, content_type="text/plain", metadata={"foo": "bar"},
-            amz_headers={"acl":"public-read"}, creds=self.creds, endpoint=self.endpoint)
+            amz_headers={"acl": "public-read"}, creds=self.creds,
+            endpoint=self.endpoint)
         request.sign = lambda headers: "TESTINGSIG="
         self.assertEqual(request.action, "PUT")
         headers = request.get_headers()
         self.assertNotEqual(headers.pop("Date"), "")
-        self.assertEqual(
-            headers, {
-                "Authorization": "AWS fookeyid:TESTINGSIG=",
-                "Content-Type": "text/plain",
-                "Content-Length": len(DATA),
-                "Content-MD5": DIGEST,
-                "x-amz-meta-foo": "bar",
-                "x-amz-acl": "public-read"})
+        self.assertEqual(headers, {"Authorization": "AWS fookeyid:TESTINGSIG=",
+                                   "Content-Type": "text/plain",
+                                   "Content-Length": len(DATA),
+                                   "Content-MD5": DIGEST,
+                                   "x-amz-meta-foo": "bar",
+                                   "x-amz-acl": "public-read"})
         self.assertEqual(request.data, "objectData")
 
     def test_bucket_query(self):
