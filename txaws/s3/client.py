@@ -303,8 +303,6 @@ class S3Client(BaseClient):
     def get_object_acl(self, bucket, object_name):
         """
         Get the access control policy for an object.
-
-        @
         """
         query = self.query_factory(
             action='GET', creds=self.creds, endpoint=self.endpoint,
