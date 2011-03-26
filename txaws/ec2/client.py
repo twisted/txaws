@@ -33,7 +33,7 @@ class EC2Client(BaseClient):
 
     def describe_instances(self, *instance_ids):
         """Describe current instances."""
-        instances= {}
+        instances = {}
         for pos, instance_id in enumerate(instance_ids):
             instances["InstanceId.%d" % (pos + 1)] = instance_id
         query = self.query_factory(
@@ -167,7 +167,7 @@ class EC2Client(BaseClient):
         """
         instances = {}
         for pos, instance_id in enumerate(instance_ids):
-            instances["InstanceId.%d" % (pos+1)] = instance_id
+            instances["InstanceId.%d" % (pos + 1)] = instance_id
         query = self.query_factory(
             action="TerminateInstances", creds=self.creds,
             endpoint=self.endpoint, other_params=instances)
@@ -197,7 +197,7 @@ class EC2Client(BaseClient):
         """
         group_names = {}
         if names:
-            group_names = dict([("GroupName.%d" % (i+1), name)
+            group_names = dict([("GroupName.%d" % (i + 1), name)
                                 for i, name in enumerate(names)])
         query = self.query_factory(
             action="DescribeSecurityGroups", creds=self.creds,
@@ -648,6 +648,34 @@ class EC2Client(BaseClient):
         d = query.submit()
         return d.addCallback(self._parse_truth_return)
 
+    def import_keypair(self, keypair_name, key_material):
+        """
+        Import an existing SSH key into EC2. It supports:
+            * OpenSSH public key format (e.g., the format in
+              ~/.ssh/authorized_keys)
+            * Base64 encoded DER format
+            * SSH public key file format as specified in RFC4716
+
+        @param keypair_name: The name of the key to create.
+        @param key_material: The material in one of the supported format.
+
+        @return: A L{Deferred} firing with a L{model.Keypair} instance if
+            successful.
+        """
+        query = self.query_factory(
+            action="ImportKeyPair", creds=self.creds, endpoint=self.endpoint,
+            other_params={"KeyName": keypair_name,
+                          "PublicKeyMaterial": b64encode(key_material)})
+        d = query.submit()
+        return d.addCallback(self._parse_import_keypair, key_material)
+
+    def _parse_import_keypair(self, xml_bytes, key_material):
+        """Extract the key name and the fingerprint from the result."""
+        keypair_data = XML(xml_bytes)
+        key_name = keypair_data.findtext("keyName")
+        key_fingerprint = keypair_data.findtext("keyFingerprint")
+        return model.Keypair(key_name, key_fingerprint, key_material)
+
     def allocate_address(self):
         """
         Acquire an elastic IP address to be attached subsequently to EC2
@@ -734,7 +762,7 @@ class EC2Client(BaseClient):
     def describe_availability_zones(self, names=None):
         zone_names = None
         if names:
-            zone_names = dict([("ZoneName.%d" % (i+1), name)
+            zone_names = dict([("ZoneName.%d" % (i + 1), name)
                                 for i, name in enumerate(names)])
         query = self.query_factory(
             action="DescribeAvailabilityZones", creds=self.creds,
@@ -754,6 +782,8 @@ class EC2Client(BaseClient):
 
 class Query(BaseQuery):
     """A query that may be submitted to EC2."""
+
+    timeout = 30
 
     def __init__(self, other_params=None, time_tuple=None, api_version=None,
                  *args, **kwargs):
@@ -836,7 +866,17 @@ class Query(BaseQuery):
         @return: A deferred from get_page
         """
         self.sign()
-        url = "%s?%s" % (self.endpoint.get_uri(),
-                         self.get_canonical_query_params())
-        d = self.get_page(url, method=self.endpoint.method)
+        url = self.endpoint.get_uri()
+        method = self.endpoint.method
+        params = self.get_canonical_query_params()
+        kwargs = {"method": method}
+        if method == "POST":
+            kwargs["headers"] = {
+                "Content-Type": "application/x-www-form-urlencoded"}
+            kwargs["postdata"] = params
+        else:
+            url += "?%s" % params
+        if self.timeout:
+            kwargs["timeout"] = self.timeout
+        d = self.get_page(url, **kwargs)
         return d.addErrback(ec2_error_wrapper)
