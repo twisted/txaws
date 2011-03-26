@@ -187,7 +187,8 @@ class S3Client(BaseClient):
         query = self.query_factory(
             action="PUT", creds=self.creds, endpoint=self.endpoint,
             bucket=bucket, object_name=object_name, data=data,
-            content_type=content_type, metadata=metadata, amz_headers=amz_headers)
+            content_type=content_type, metadata=metadata,
+            amz_headers=amz_headers)
         return query.submit()
 
     def get_object(self, bucket, object_name):
@@ -225,7 +226,8 @@ class Query(BaseQuery):
     """A query for submission to the S3 service."""
 
     def __init__(self, bucket=None, object_name=None, data="",
-                 content_type=None, metadata={}, amz_headers={}, *args, **kwargs):
+                 content_type=None, metadata={}, amz_headers={}, *args,
+                 **kwargs):
         super(Query, self).__init__(*args, **kwargs)
         self.bucket = bucket
         self.object_name = object_name
