@@ -887,6 +887,11 @@ sample_get_bucket_result = """\
 </ListBucketResult>
 """ % (version.s3_api,)
 
+sample_get_bucket_location_result = """\
+<?xml version="1.0" encoding="UTF-8"?>
+<LocationConstraint xmlns="http://s3.amazonaws.com/doc/2006-03-01/">EU</LocationConstraint>
+"""
+
 sample_s3_signature_mismatch = """\
 <?xml version="1.0" encoding="UTF-8"?>
 <Error>
