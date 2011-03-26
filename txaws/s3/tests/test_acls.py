@@ -17,7 +17,6 @@ class ACLTests(TestCase):
 </Owner>
 """)
 
-
     def test_grantee_to_xml(self):
         grantee = acls.Grantee(id='8a6925ce4adf588a4f21c32aa379004fef',
                                display_name='BucketOwnersEmail@amazon.com')
@@ -28,7 +27,6 @@ class ACLTests(TestCase):
   <DisplayName>BucketOwnersEmail@amazon.com</DisplayName>
 </Grantee>
 """)
-
 
     def test_grant_to_xml(self):
         grantee = acls.Grantee(id='8a6925ce4adf588a4f21c32aa379004fef',
@@ -46,7 +44,6 @@ class ACLTests(TestCase):
 """)
 
     def test_access_control_policy_to_xml(self):
-        
         grantee = acls.Grantee(id='8a6925ce4adf588a4f21c32aa379004fef',
                                display_name='foo@example.net')
         grant1 = acls.Grant(grantee, 'FULL_CONTROL')
@@ -55,10 +52,11 @@ class ACLTests(TestCase):
         grant2 = acls.Grant(grantee, 'READ')
         owner = acls.Owner(id='8a6925ce4adf588a4f21c32aa37900beef',
                            display_name='baz@example.net')
-        acp = acls.AccessControlPolicy(owner=owner, access_control_list=[grant1, grant2])
+        acp = acls.AccessControlPolicy(owner=owner,
+                                       access_control_list=[grant1, grant2])
         xml_bytes = acp.to_xml()
-        self.assertEquals(xml_bytes, payload.sample_access_control_policy_result)
-
+        self.assertEquals(xml_bytes,
+                          payload.sample_access_control_policy_result)
 
     def test_permission_enum(self):
         grantee = acls.Grantee(id='8a6925ce4adf588a4f21c32aa379004fef',
@@ -71,16 +69,19 @@ class ACLTests(TestCase):
         self.assertRaises(ValueError, acls.Grant, grantee, 'GO_HOG_WILD')
 
     def test_from_xml(self):
-        policy = acls.AccessControlPolicy.from_xml(payload.sample_access_control_policy_result)
-        self.assertEquals(policy.owner.id, '8a6925ce4adf588a4f21c32aa37900beef')
+        policy = acls.AccessControlPolicy.from_xml(
+            payload.sample_access_control_policy_result)
+        self.assertEquals(policy.owner.id,
+                          '8a6925ce4adf588a4f21c32aa37900beef')
         self.assertEquals(policy.owner.display_name, 'baz@example.net')
         self.assertEquals(len(policy.access_control_list), 2)
         grant1 = policy.access_control_list[0]
-        self.assertEquals(grant1.grantee.id, '8a6925ce4adf588a4f21c32aa379004fef')
+        self.assertEquals(grant1.grantee.id,
+                          '8a6925ce4adf588a4f21c32aa379004fef')
         self.assertEquals(grant1.grantee.display_name, 'foo@example.net')
         self.assertEquals(grant1.permission, 'FULL_CONTROL')
         grant2 = policy.access_control_list[1]
-        self.assertEquals(grant2.grantee.id, '8a6925ce4adf588a4f21c32aa37900feed')
+        self.assertEquals(grant2.grantee.id,
+                          '8a6925ce4adf588a4f21c32aa37900feed')
         self.assertEquals(grant2.grantee.display_name, 'bar@example.net')
         self.assertEquals(grant2.permission, 'READ')
-
