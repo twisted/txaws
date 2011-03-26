@@ -18,7 +18,8 @@ from twisted.web.http import datetimeToString
 from epsilon.extime import Time
 
 from txaws.client.base import BaseClient, BaseQuery, error_wrapper
-from txaws.s3 import model
+from txaws.s3.model import (
+    Bucket, BucketItem, BucketListing, ItemOwner, RequestPayment)
 from txaws.s3.exception import S3Error
 from txaws.service import AWSServiceEndpoint, S3_ENDPOINT
 from txaws.util import XML, calculate_md5
@@ -108,7 +109,7 @@ class S3Client(BaseClient):
             name = bucket_data.findtext("Name")
             date_text = bucket_data.findtext("CreationDate")
             date_time = Time.fromISO8601TimeAndDate(date_text).asDatetime()
-            bucket = model.Bucket(name, date_time)
+            bucket = Bucket(name, date_time)
             buckets.append(bucket)
         return buckets
 
@@ -164,18 +165,17 @@ class S3Client(BaseClient):
             storage_class = content_data.findtext("StorageClass")
             owner_id = content_data.findtext("Owner/ID")
             owner_display_name = content_data.findtext("Owner/DisplayName")
-            owner = model.ItemOwner(owner_id, owner_display_name)
-            content_item = model.BucketItem(
-                key, modification_date, etag, size, storage_class, owner)
+            owner = ItemOwner(owner_id, owner_display_name)
+            content_item = BucketItem(key, modification_date, etag, size,
+                                      storage_class, owner)
             contents.append(content_item)
 
         common_prefixes = []
         for prefix_data in root.findall("CommonPrefixes"):
             common_prefixes.append(prefix_data.text)
 
-        return model.BucketListing(
-            name, prefix, marker, max_keys, is_truncated, contents,
-            common_prefixes)
+        return BucketListing(name, prefix, marker, max_keys, is_truncated,
+                             contents, common_prefixes)
 
     def get_bucket_location(self, bucket):
         """
@@ -264,6 +264,39 @@ class S3Client(BaseClient):
             action="DELETE", creds=self.creds, endpoint=self.endpoint,
             bucket=bucket, object_name=object_name)
         return query.submit()
+
+    def put_request_payment(self, bucket, payer):
+        """
+        Set request payment configuration on bucket to payer.
+
+        @param bucket: The name of the bucket.
+        @param payer: The name of the payer.
+        @return: A C{Deferred} that will fire with the result of the request.
+        """
+        data = RequestPayment(payer).to_xml()
+        query = self.query_factory(
+            action="PUT", creds=self.creds, endpoint=self.endpoint,
+            bucket=bucket, object_name="?requestPayment", data=data)
+        return query.submit()
+
+    def get_request_payment(self, bucket):
+        """
+        Get the request payment configuration on a bucket.
+
+        @param bucket: The name of the bucket.
+        @return: A C{Deferred} that will fire with the name of the payer.
+        """
+        query = self.query_factory(
+            action="GET", creds=self.creds, endpoint=self.endpoint,
+            bucket=bucket, object_name="?requestPayment")
+        return query.submit().addCallback(self._parse_get_request_payment)
+
+    def _parse_get_request_payment(self, xml_bytes):
+        """
+        Parse a C{RequestPaymentConfiguration} XML document and extract the
+        payer.
+        """
+        return RequestPayment.from_xml(xml_bytes).payer
 
 
 class Query(BaseQuery):
