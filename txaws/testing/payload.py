@@ -706,6 +706,15 @@ sample_duplicate_keypair_result = """\
 """
 
 
+sample_import_keypair_result = """\
+<?xml version="1.0"?>
+<ImportKeyPairResponse xmlns="http://ec2.amazonaws.com/doc/%s/">
+  <keyName>example-key-name</keyName>
+  <keyFingerprint>1f:51:ae:28:bf:89:e9:d8:1f:25:5d:37:2d:7d:b8:ca:9f:f5:f1:6f</keyFingerprint>
+</ImportKeyPairResponse>
+""" % (version.ec2_api,)
+
+
 sample_allocate_address_result = """\
 <?xml version="1.0"?>
 <AllocateAddressResponse xmlns="http://ec2.amazonaws.com/doc/%s/">
@@ -879,11 +888,16 @@ sample_get_bucket_result = """\
 """ % (version.s3_api,)
 
 
+sample_get_bucket_location_result = """\
+<LocationConstraint xmlns="http://s3.amazonaws.com/doc/2006-03-01/">EU</LocationConstraint>
+
+"""
 sample_request_payment = """\
 <?xml version="1.0" encoding="UTF-8"?>
 <RequestPaymentConfiguration xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
   <Payer>Requester</Payer>
-</RequestPaymentConfiguration>"""
+</RequestPaymentConfiguration>
+"""
 
 sample_s3_signature_mismatch = """\
 <?xml version="1.0" encoding="UTF-8"?>

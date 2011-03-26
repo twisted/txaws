@@ -47,14 +47,14 @@ class CommandTest(TXAWSTestCase):
         self.query.get_page = self.get_page_function
         return self.query
 
-    def get_page(self, url, method=None):
+    def get_page(self, url, method=None, timeout=0):
         """Fake C{get_page} method simulates a successful request."""
         self.url = url
         self.method = method
         self.query.client = FakeHTTPClient(self.status, url)
         return succeed(self.response)
 
-    def get_error_page(self, url, method=None):
+    def get_error_page(self, url, method=None, timeout=0):
         """Fake C{get_page} method simulates an error."""
         self.url = url
         self.method = method
