@@ -917,5 +917,3 @@ sample_s3_invalid_access_key_result = """\
   <AWSAccessKeyId>SOMEKEYID</AWSAccessKeyId>
 </Error>
 """
-
-
