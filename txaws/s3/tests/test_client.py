@@ -1,7 +1,13 @@
 from twisted.internet.defer import succeed
 
 from txaws.credentials import AWSCredentials
-from txaws.s3 import client
+try:
+    from txaws.s3 import client
+except ImportError:
+    s3clientSkip = ("S3Client couldn't be imported (perhaps because epsilon, "
+                    "on which it depends, isn't present)")
+else:
+    s3clientSkip = None
 from txaws.s3 import model
 from txaws.service import AWSServiceEndpoint
 from txaws.testing import payload
@@ -45,7 +51,7 @@ class URLContextTestCase(TXAWSTestCase):
         endpoint = AWSServiceEndpoint("http://localhost/")
         url_context = client.URLContext(endpoint)
         self.assertEquals(url_context.endpoint.get_uri(), "http://localhost/")
-        self.assertEquals( url_context.get_url(), "http://localhost/")
+        self.assertEquals(url_context.get_url(), "http://localhost/")
 
     def test_get_uri_with_endpoint_bucket_and_object(self):
         endpoint = AWSServiceEndpoint("http://localhost/")
@@ -54,6 +60,8 @@ class URLContextTestCase(TXAWSTestCase):
         self.assertEquals(
             url_context.get_url(),
             "http://mydocs.localhost/notes.txt")
+
+URLContextTestCase.skip = s3clientSkip
 
 
 class BucketURLContextTestCase(TXAWSTestCase):
@@ -64,6 +72,8 @@ class BucketURLContextTestCase(TXAWSTestCase):
         url_context = client.BucketURLContext(self.endpoint, "mystuff")
         self.assertEquals(url_context.get_host(), "s3.amazonaws.com")
         self.assertEquals(url_context.get_path(), "/mystuff")
+
+BucketURLContextTestCase.skip = s3clientSkip
 
 
 class S3ClientTestCase(TXAWSTestCase):
@@ -165,14 +175,48 @@ class S3ClientTestCase(TXAWSTestCase):
             self.assertEquals(content1.size, "5")
             self.assertEquals(content1.storage_class, "STANDARD")
             owner = content1.owner
-            self.assertEquals(
-                owner.id,
-                "bcaf1ffd86f41caff1a493dc2ad8c2c281e37522a640e161ca5fb16fd081034f")
+            self.assertEquals(owner.id,
+                              "bcaf1ffd86f41caff1a493dc2ad8c2c281e37522a640e16"
+                              "1ca5fb16fd081034f")
             self.assertEquals(owner.display_name, "webfile")
 
         creds = AWSCredentials("foo", "bar")
         s3 = client.S3Client(creds, query_factory=StubQuery)
         d = s3.get_bucket("mybucket")
+        return d.addCallback(check_results)
+
+    def test_get_bucket_location(self):
+        """
+        L{S3Client.get_bucket_location} creates a L{Query} to get a bucket's
+        location.  It parses the returned C{LocationConstraint} XML document
+        and returns a C{Deferred} that fires with the bucket's region.
+        """
+
+        class StubQuery(client.Query):
+
+            def __init__(query, action, creds, endpoint, bucket=None,
+                         object_name=None):
+                super(StubQuery, query).__init__(action=action, creds=creds,
+                                                 bucket=bucket,
+                                                 object_name=object_name)
+                self.assertEquals(action, "GET")
+                self.assertEqual(creds.access_key, "foo")
+                self.assertEqual(creds.secret_key, "bar")
+                self.assertEqual(query.bucket, "mybucket")
+                self.assertEqual(query.object_name, "?location")
+                self.assertEqual(query.data, "")
+                self.assertEqual(query.metadata, {})
+                self.assertEqual(query.amz_headers, {})
+
+            def submit(query, url_context=None):
+                return succeed(payload.sample_get_bucket_location_result)
+
+        def check_results(location_constraint):
+            self.assertEquals(location_constraint, "EU")
+
+        creds = AWSCredentials("foo", "bar")
+        s3 = client.S3Client(creds, query_factory=StubQuery)
+        d = s3.get_bucket_location("mybucket")
         return d.addCallback(check_results)
 
     def test_delete_bucket(self):
@@ -253,7 +297,7 @@ class S3ClientTestCase(TXAWSTestCase):
         creds = AWSCredentials("foo", "bar")
         s3 = client.S3Client(creds, query_factory=StubQuery)
         return s3.get_request_payment("mybucket").addCallback(check_request_payment)
-        
+
 
     def test_put_object(self):
 
@@ -261,11 +305,12 @@ class S3ClientTestCase(TXAWSTestCase):
 
             def __init__(query, action, creds, endpoint, bucket=None,
                 object_name=None, data=None, content_type=None,
-                metadata=None):
+                metadata=None, amz_headers=None):
                 super(StubQuery, query).__init__(
                     action=action, creds=creds, bucket=bucket,
                     object_name=object_name, data=data,
-                    content_type=content_type, metadata=metadata)
+                    content_type=content_type, metadata=metadata,
+                    amz_headers=amz_headers)
                 self.assertEqual(action, "PUT")
                 self.assertEqual(creds.access_key, "foo")
                 self.assertEqual(creds.secret_key, "bar")
@@ -274,15 +319,53 @@ class S3ClientTestCase(TXAWSTestCase):
                 self.assertEqual(query.data, "some data")
                 self.assertEqual(query.content_type, "text/plain")
                 self.assertEqual(query.metadata, {"key": "some meta data"})
+                self.assertEqual(query.amz_headers, {"acl": "public-read"})
 
             def submit(query):
                 return succeed(None)
 
         creds = AWSCredentials("foo", "bar")
         s3 = client.S3Client(creds, query_factory=StubQuery)
-        return s3.put_object(
-            "mybucket", "objectname", "some data", content_type="text/plain",
-            metadata={"key": "some meta data"})
+        return s3.put_object("mybucket", "objectname", "some data",
+                             content_type="text/plain",
+                             metadata={"key": "some meta data"},
+                             amz_headers={"acl": "public-read"})
+
+    def test_copy_object(self):
+        """
+        L{S3Client.copy_object} creates a L{Query} to copy an object from one
+        bucket to another.
+        """
+
+        class StubQuery(client.Query):
+
+            def __init__(query, action, creds, endpoint, bucket=None,
+                object_name=None, data=None, content_type=None,
+                metadata=None, amz_headers=None):
+                super(StubQuery, query).__init__(
+                    action=action, creds=creds, bucket=bucket,
+                    object_name=object_name, data=data,
+                    content_type=content_type, metadata=metadata,
+                    amz_headers=amz_headers)
+                self.assertEqual(action, "PUT")
+                self.assertEqual(creds.access_key, "foo")
+                self.assertEqual(creds.secret_key, "bar")
+                self.assertEqual(query.bucket, "newbucket")
+                self.assertEqual(query.object_name, "newobjectname")
+                self.assertEqual(query.data, None)
+                self.assertEqual(query.content_type, None)
+                self.assertEqual(query.metadata, {"key": "some meta data"})
+                self.assertEqual(query.amz_headers,
+                                 {"copy-source": "/mybucket/objectname"})
+
+            def submit(query):
+                return succeed(None)
+
+        creds = AWSCredentials("foo", "bar")
+        s3 = client.S3Client(creds, query_factory=StubQuery)
+        return s3.copy_object("mybucket", "objectname", "newbucket",
+                              "newobjectname",
+                              metadata={"key": "some meta data"})
 
     def test_get_object(self):
 
@@ -290,7 +373,7 @@ class S3ClientTestCase(TXAWSTestCase):
 
             def __init__(query, action, creds, endpoint, bucket=None,
                 object_name=None, data=None, content_type=None,
-                metadata=None):
+                metadata=None, amz_headers=None):
                 super(StubQuery, query).__init__(
                     action=action, creds=creds, bucket=bucket,
                     object_name=object_name, data=data,
@@ -355,6 +438,8 @@ class S3ClientTestCase(TXAWSTestCase):
         creds = AWSCredentials("foo", "bar")
         s3 = client.S3Client(creds, query_factory=StubQuery)
         return s3.delete_object("mybucket", "objectname")
+
+S3ClientTestCase.skip = s3clientSkip
 
 
 class QueryTestCase(TXAWSTestCase):
@@ -459,18 +544,18 @@ class QueryTestCase(TXAWSTestCase):
         request = client.Query(
             action="PUT", bucket="somebucket", object_name="object/name/here",
             data=DATA, content_type="text/plain", metadata={"foo": "bar"},
-            creds=self.creds, endpoint=self.endpoint)
+            amz_headers={"acl": "public-read"}, creds=self.creds,
+            endpoint=self.endpoint)
         request.sign = lambda headers: "TESTINGSIG="
         self.assertEqual(request.action, "PUT")
         headers = request.get_headers()
         self.assertNotEqual(headers.pop("Date"), "")
-        self.assertEqual(
-            headers, {
-                "Authorization": "AWS fookeyid:TESTINGSIG=",
-                "Content-Type": "text/plain",
-                "Content-Length": len(DATA),
-                "Content-MD5": DIGEST,
-                "x-amz-meta-foo": "bar"})
+        self.assertEqual(headers, {"Authorization": "AWS fookeyid:TESTINGSIG=",
+                                   "Content-Type": "text/plain",
+                                   "Content-Length": len(DATA),
+                                   "Content-MD5": DIGEST,
+                                   "x-amz-meta-foo": "bar",
+                                   "x-amz-acl": "public-read"})
         self.assertEqual(request.data, "objectData")
 
     def test_bucket_query(self):
@@ -528,6 +613,8 @@ class QueryTestCase(TXAWSTestCase):
             headers["Authorization"],
             "AWS fookeyid:TESTINGSIG=")
 
+QueryTestCase.skip = s3clientSkip
+
 
 class MiscellaneousTests(TXAWSTestCase):
 
@@ -538,5 +625,3 @@ class MiscellaneousTests(TXAWSTestCase):
         model.RequestPayment('Requester')
         model.RequestPayment('BucketOwner')
         self.assertRaises(ValueError, model.RequestPayment, 'Bob')
-
- 

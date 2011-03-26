@@ -3,7 +3,14 @@
 
 from txaws.credentials import AWSCredentials
 from txaws.ec2.client import EC2Client
-from txaws.s3.client import S3Client
+try:
+    from txaws.s3.client import S3Client
+except ImportError:
+    s3clientSkip = ("S3Client couldn't be imported (perhaps because epsilon, "
+                    "on which it depends, isn't present)")
+else:
+    s3clientSkip = None
+
 from txaws.service import (AWSServiceEndpoint, AWSServiceRegion,
                            EC2_ENDPOINT_EU, EC2_ENDPOINT_US, REGION_EU)
 from txaws.testing.base import TXAWSTestCase
@@ -158,3 +165,4 @@ class AWSServiceRegionTestCase(TXAWSTestCase):
         self.assertEquals(original_client, None)
         self.assertTrue(isinstance(new_client, S3Client))
         self.assertNotEquals(original_client, new_client)
+    test_get_s3_client_with_empty_cache.skip = s3clientSkip
