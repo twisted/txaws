@@ -11,7 +11,7 @@ PERMISSIONS = ("FULL_CONTROL",
 class XMLMixin(object):
 
     def to_xml(self):
-        return ''.join(self._to_xml())
+        return "".join(self._to_xml())
 
 
 class AccessControlPolicy(XMLMixin):
@@ -59,7 +59,7 @@ class Grant(XMLMixin):
     def _set_permission(self, perm):
         if perm not in PERMISSIONS:
             raise ValueError("Invalid permission '%s'. Must be one of %s" %
-                             (perm, ','.join(PERMISSIONS)))
+                             (perm, ",".join(PERMISSIONS)))
         self._permission = perm
 
     def _get_permission(self):
@@ -90,7 +90,7 @@ class Owner(XMLMixin):
     def _to_xml(self, buffer=None, indent=0):
         if buffer is None:
             buffer = []
-        ws = ' ' * (indent * 2)
+        ws = " " * (indent * 2)
         buffer.append("%s<Owner>\n"
                       "%s  <ID>%s</ID>\n"
                       "%s  <DisplayName>%s</DisplayName>\n"
@@ -104,12 +104,12 @@ class Grantee(Owner):
     def _to_xml(self, buffer=None, indent=0):
         if buffer is None:
             buffer = []
-        ws = ' ' * (indent * 2)
-        buffer.append('%s<Grantee '
+        ws = " " * (indent * 2)
+        buffer.append("%s<Grantee "
                       'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"'
                       ' xsi:type="CanonicalUser">\n'
-                      '%s  <ID>%s</ID>\n'
-                      '%s  <DisplayName>%s</DisplayName>\n'
-                      '%s</Grantee>\n' % (ws, ws, self.id, ws,
+                      "%s  <ID>%s</ID>\n"
+                      "%s  <DisplayName>%s</DisplayName>\n"
+                      "%s</Grantee>\n" % (ws, ws, self.id, ws,
                                           self.display_name, ws))
         return buffer
