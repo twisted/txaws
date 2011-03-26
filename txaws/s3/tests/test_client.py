@@ -1,7 +1,12 @@
 from twisted.internet.defer import succeed
 
 from txaws.credentials import AWSCredentials
-from txaws.s3 import client
+try:
+    from txaws.s3 import client
+except ImportError:
+    s3clientSkip = "S3Client couldn't be imported (perhaps because epsilon, on which it depends, isn't present)"
+else:
+    s3clientSkip = None
 from txaws.service import AWSServiceEndpoint
 from txaws.testing import payload
 from txaws.testing.base import TXAWSTestCase
@@ -54,6 +59,8 @@ class URLContextTestCase(TXAWSTestCase):
             url_context.get_url(),
             "http://mydocs.localhost/notes.txt")
 
+URLContextTestCase.skip = s3clientSkip
+
 
 class BucketURLContextTestCase(TXAWSTestCase):
 
@@ -64,6 +71,7 @@ class BucketURLContextTestCase(TXAWSTestCase):
         self.assertEquals(url_context.get_host(), "s3.amazonaws.com")
         self.assertEquals(url_context.get_path(), "/mystuff")
 
+BucketURLContextTestCase.skip = s3clientSkip
 
 class S3ClientTestCase(TXAWSTestCase):
 
@@ -297,6 +305,7 @@ class S3ClientTestCase(TXAWSTestCase):
         s3 = client.S3Client(creds, query_factory=StubQuery)
         return s3.delete_object("mybucket", "objectname")
 
+S3ClientTestCase.skip = s3clientSkip
 
 class QueryTestCase(TXAWSTestCase):
 
@@ -469,6 +478,7 @@ class QueryTestCase(TXAWSTestCase):
             headers["Authorization"],
             "AWS fookeyid:TESTINGSIG=")
 
+QueryTestCase.skip = s3clientSkip
 
 class MiscellaneousTests(TXAWSTestCase):
 
