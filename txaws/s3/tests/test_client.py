@@ -8,7 +8,7 @@ except ImportError:
                     "on which it depends, isn't present)")
 else:
     s3clientSkip = None
-from txaws.s3 import model
+from txaws.s3.model import RequestPayment
 from txaws.service import AWSServiceEndpoint
 from txaws.testing import payload
 from txaws.testing.base import TXAWSTestCase
@@ -241,8 +241,13 @@ class S3ClientTestCase(TXAWSTestCase):
         s3 = client.S3Client(creds, query_factory=StubQuery)
         return s3.delete_bucket("mybucket")
 
-
     def test_put_request_payment(self):
+        """
+        L{S3Client.put_request_payment} creates a L{Query} to set payment
+        information.  An C{RequestPaymentConfiguration} XML document is built
+        and sent to the endpoint and a C{Deferred} is returned that fires with
+        the results of the request.
+        """
 
         class StubQuery(client.Query):
 
@@ -258,9 +263,11 @@ class S3ClientTestCase(TXAWSTestCase):
                 self.assertEqual(creds.secret_key, "bar")
                 self.assertEqual(query.bucket, "mybucket")
                 self.assertEqual(query.object_name, "?requestPayment")
-                self.assertEqual(query.data, ('<RequestPaymentConfiguration xmlns="http://s3.amazonaws.com/doc/2006-03-01/">\n'
-                                              '  <Payer>Requester</Payer>\n'
-                                              '</RequestPaymentConfiguration>'))
+                xml = ("<RequestPaymentConfiguration "
+                         'xmlns="http://s3.amazonaws.com/doc/2006-03-01/">\n'
+                       "  <Payer>Requester</Payer>\n"
+                       "</RequestPaymentConfiguration>")
+                self.assertEqual(query.data, xml)
                 self.assertEqual(query.metadata, None)
 
             def submit(query):
@@ -270,7 +277,13 @@ class S3ClientTestCase(TXAWSTestCase):
         s3 = client.S3Client(creds, query_factory=StubQuery)
         return s3.put_request_payment("mybucket", "Requester")
 
-    def test_data_request_payment(self):
+    def test_get_request_payment(self):
+        """
+        L{S3Client.get_request_payment} creates a L{Query} to get payment
+        information.  It parses the returned C{RequestPaymentConfiguration}
+        XML document and returns a C{Deferred} that fires with the payer's
+        name.
+        """
 
         class StubQuery(client.Query):
 
@@ -292,12 +305,12 @@ class S3ClientTestCase(TXAWSTestCase):
                 return succeed(payload.sample_request_payment)
 
         def check_request_payment(result):
-            self.assertEquals(result, 'Requester')
+            self.assertEquals(result, "Requester")
 
         creds = AWSCredentials("foo", "bar")
         s3 = client.S3Client(creds, query_factory=StubQuery)
-        return s3.get_request_payment("mybucket").addCallback(check_request_payment)
-
+        deferred = s3.get_request_payment("mybucket")
+        return deferred.addCallback(check_request_payment)
 
     def test_put_object(self):
 
@@ -622,6 +635,10 @@ class MiscellaneousTests(TXAWSTestCase):
         self.assertEqual(calculate_md5("somedata"), "rvr3UC1SmUw7AZV2NqPN0g==")
 
     def test_request_payment_enum(self):
-        model.RequestPayment('Requester')
-        model.RequestPayment('BucketOwner')
-        self.assertRaises(ValueError, model.RequestPayment, 'Bob')
+        """
+        Only 'Requester' or 'BucketOwner' may be provided when a
+        L{RequestPayment} is instantiated.
+        """
+        RequestPayment("Requester")
+        RequestPayment("BucketOwner")
+        self.assertRaises(ValueError, RequestPayment, "Bob")
