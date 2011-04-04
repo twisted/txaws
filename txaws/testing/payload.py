@@ -887,6 +887,18 @@ sample_get_bucket_result = """\
 </ListBucketResult>
 """ % (version.s3_api,)
 
+
+sample_get_bucket_location_result = """\
+<LocationConstraint xmlns="http://s3.amazonaws.com/doc/2006-03-01/">EU</LocationConstraint>
+
+"""
+sample_request_payment = """\
+<?xml version="1.0" encoding="UTF-8"?>
+<RequestPaymentConfiguration xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
+  <Payer>Requester</Payer>
+</RequestPaymentConfiguration>
+"""
+
 sample_s3_signature_mismatch = """\
 <?xml version="1.0" encoding="UTF-8"?>
 <Error>
@@ -912,3 +924,28 @@ sample_s3_invalid_access_key_result = """\
   <AWSAccessKeyId>SOMEKEYID</AWSAccessKeyId>
 </Error>
 """
+
+sample_access_control_policy_result = """\
+<AccessControlPolicy>
+  <Owner>
+    <ID>8a6925ce4adf588a4f21c32aa37900beef</ID>
+    <DisplayName>baz@example.net</DisplayName>
+  </Owner>
+  <AccessControlList>
+    <Grant>
+      <Grantee xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:type="CanonicalUser">
+        <ID>8a6925ce4adf588a4f21c32aa379004fef</ID>
+        <DisplayName>foo@example.net</DisplayName>
+      </Grantee>
+      <Permission>FULL_CONTROL</Permission>
+    </Grant>
+    <Grant>
+      <Grantee xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:type="CanonicalUser">
+        <ID>8a6925ce4adf588a4f21c32aa37900feed</ID>
+        <DisplayName>bar@example.net</DisplayName>
+      </Grantee>
+      <Permission>READ</Permission>
+    </Grant>
+  </AccessControlList>
+</AccessControlPolicy>"""
+
