@@ -31,7 +31,7 @@ def finish(return_code):
 options, args = parse_options(__doc__.strip())
 creds = AWSCredentials(options.access_key, options.secret_key)
 region = AWSServiceRegion(
-    creds=creds, region=options.region, s3_endpoint=options.url)
+    creds=creds, region=options.region, s3_uri=options.url)
 client = region.get_s3_client()
 
 d = client.list_buckets()
