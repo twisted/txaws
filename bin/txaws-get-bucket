@@ -34,7 +34,7 @@ if options.bucket is None:
     sys.exit(1)
 creds = AWSCredentials(options.access_key, options.secret_key)
 region = AWSServiceRegion(
-    creds=creds, region=options.region, s3_endpoint=options.url)
+    creds=creds, region=options.region, s3_uri=options.url)
 client = region.get_s3_client()
 
 d = client.get_bucket(options.bucket)
