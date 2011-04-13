@@ -43,14 +43,12 @@ class URLContext(object):
         self.object_name = object_name
 
     def get_host(self):
-        if not self.bucket:
-            return self.endpoint.get_host()
-        else:
-            return "%s.%s" % (self.bucket, self.endpoint.get_host())
+        return self.endpoint.get_host()
 
     def get_path(self):
         path = "/"
         if self.bucket is not None and self.object_name:
+            path += self.bucket + "/"
             if self.object_name.startswith("/"):
                 path = self.object_name
             else:
