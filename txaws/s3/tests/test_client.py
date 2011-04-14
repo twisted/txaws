@@ -34,7 +34,7 @@ class URLContextTestCase(TXAWSTestCase):
 
     def test_get_path_with_bucket(self):
         url_context = client.URLContext(self.endpoint, bucket="mystuff")
-        self.assertEquals(url_context.get_path(), "/")
+        self.assertEquals(url_context.get_path(), "/mystuff")
 
     def test_get_path_with_bucket_and_object(self):
         url_context = client.URLContext(
