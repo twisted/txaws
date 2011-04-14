@@ -1,3 +1,4 @@
+from xml.etree.ElementTree import ParseError
 from xml.parsers.expat import ExpatError
 
 from twisted.internet import reactor, ssl
@@ -36,7 +37,7 @@ def error_wrapper(error, errorClass):
             fallback_error = errorClass(
                 xml_payload, error.value.status, error.value.message,
                 error.value.response)
-        except (ExpatError, AWSResponseParseError):
+        except (ExpatError, ParseError, AWSResponseParseError):
             error_message = http.RESPONSES.get(http_status)
             fallback_error = TwistedWebError(
                 http_status, error_message, error.value.response)
