@@ -1497,7 +1497,7 @@ class EC2ErrorWrapperTestCase(TXAWSTestCase):
     def test_response_parse_error(self):
         bad_payload = "<bad></xml>"
         failure = self.make_failure(400, type=TwistedWebError,
-                                   response=bad_payload)
+                                    response=bad_payload)
         error = self.assertRaises(Exception, client.ec2_error_wrapper, failure)
         self.assertEquals(str(error), "400 Bad Request")
 
