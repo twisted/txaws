@@ -10,11 +10,13 @@ from twisted.web.error import Error
 
 from txaws.ec2.model import Keypair, SecurityGroup
 
+
 class FakeEC2Client(object):
 
     def __init__(self, creds, endpoint, instances=None, keypairs=None,
                  volumes=None, key_material="", security_groups=None,
-                 snapshots=None, addresses=None, availability_zones=None):
+                 snapshots=None, addresses=None, availability_zones=None,
+                 **kw):
         self.creds = creds
         self.endpoint = endpoint
         self.instances = instances or []
@@ -141,4 +143,3 @@ class FakePageGetter(object):
         except:
             failure = Failure()
         return fail(failure)
-
