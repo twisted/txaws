@@ -45,32 +45,35 @@ class EC2Client(BaseClient):
     def _parse_instances_set(self, root, reservation):
         instances = []
         for instance_data in root.find("instancesSet"):
-            instance_id = instance_data.findtext("instanceId")
-            instance_state = instance_data.find(
-                "instanceState").findtext("name")
-            instance_type = instance_data.findtext("instanceType")
-            image_id = instance_data.findtext("imageId")
-            private_dns_name = instance_data.findtext("privateDnsName")
-            dns_name = instance_data.findtext("dnsName")
-            key_name = instance_data.findtext("keyName")
-            ami_launch_index = instance_data.findtext("amiLaunchIndex")
-            launch_time = instance_data.findtext("launchTime")
-            placement = instance_data.find("placement").findtext(
-                "availabilityZone")
-            products = []
-            product_codes = instance_data.find("productCodes")
-            if product_codes:
-                for product_data in instance_data.find("productCodes"):
-                    products.append(product_data.text)
-            kernel_id = instance_data.findtext("kernelId")
-            ramdisk_id = instance_data.findtext("ramdiskId")
-            instance = model.Instance(
-                instance_id, instance_state, instance_type, image_id,
-                private_dns_name, dns_name, key_name, ami_launch_index,
-                launch_time, placement, products, kernel_id, ramdisk_id,
-                reservation=reservation)
-            instances.append(instance)
+            instances.append(self._parse_instance(instance_data, reservation))
         return instances
+
+    def _parse_instance(self, instance_data, reservation):
+        instance_id = instance_data.findtext("instanceId")
+        instance_state = instance_data.find(
+            "instanceState").findtext("name")
+        instance_type = instance_data.findtext("instanceType")
+        image_id = instance_data.findtext("imageId")
+        private_dns_name = instance_data.findtext("privateDnsName")
+        dns_name = instance_data.findtext("dnsName")
+        key_name = instance_data.findtext("keyName")
+        ami_launch_index = instance_data.findtext("amiLaunchIndex")
+        launch_time = instance_data.findtext("launchTime")
+        placement = instance_data.find("placement").findtext(
+            "availabilityZone")
+        products = []
+        product_codes = instance_data.find("productCodes")
+        if product_codes:
+            for product_data in instance_data.find("productCodes"):
+                products.append(product_data.text)
+        kernel_id = instance_data.findtext("kernelId")
+        ramdisk_id = instance_data.findtext("ramdiskId")
+        instance = model.Instance(
+            instance_id, instance_state, instance_type, image_id,
+            private_dns_name, dns_name, key_name, ami_launch_index,
+            launch_time, placement, products, kernel_id, ramdisk_id,
+            reservation=reservation)
+        return instance
 
     def _parse_describe_instances(self, xml_bytes):
         """
