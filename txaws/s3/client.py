@@ -48,8 +48,9 @@ class URLContext(object):
 
     def get_path(self):
         path = "/"
-        if self.bucket is not None and self.object_name:
+        if self.bucket is not None:
             path += self.bucket
+        if self.bucket is not None and self.object_name:
             if not self.object_name.startswith("/"):
                 path += "/"
             path += self.object_name
