@@ -13,12 +13,13 @@ from txaws.ec2.model import Keypair, SecurityGroup
 
 class FakeEC2Client(object):
 
-    def __init__(self, creds, endpoint, instances=None, keypairs=None,
-                 volumes=None, key_material="", security_groups=None,
-                 snapshots=None, addresses=None, availability_zones=None,
-                 **kw):
+    def __init__(self, creds, endpoint, query_factory=None, instances=None,
+                 keypairs=None, volumes=None, key_material="",
+                 security_groups=None, snapshots=None, addresses=None,
+                 availability_zones=None):
         self.creds = creds
         self.endpoint = endpoint
+        query_factory = query_factory
         self.instances = instances or []
         self.keypairs = keypairs or []
         self.keypairs_deleted = []
