@@ -26,7 +26,7 @@ class URLContextTestCase(TXAWSTestCase):
 
     def test_get_host_with_bucket(self):
         url_context = client.URLContext(self.endpoint, "mystuff")
-        self.assertEquals(url_context.get_host(), "mystuff.s3.amazonaws.com")
+        self.assertEquals(url_context.get_host(), "s3.amazonaws.com")
 
     def test_get_path_with_no_bucket(self):
         url_context = client.URLContext(self.endpoint)
@@ -34,19 +34,19 @@ class URLContextTestCase(TXAWSTestCase):
 
     def test_get_path_with_bucket(self):
         url_context = client.URLContext(self.endpoint, bucket="mystuff")
-        self.assertEquals(url_context.get_path(), "/")
+        self.assertEquals(url_context.get_path(), "/mystuff")
 
     def test_get_path_with_bucket_and_object(self):
         url_context = client.URLContext(
             self.endpoint, bucket="mystuff", object_name="/images/thing.jpg")
-        self.assertEquals(url_context.get_host(), "mystuff.s3.amazonaws.com")
-        self.assertEquals(url_context.get_path(), "/images/thing.jpg")
+        self.assertEquals(url_context.get_host(), "s3.amazonaws.com")
+        self.assertEquals(url_context.get_path(), "/mystuff/images/thing.jpg")
 
     def test_get_path_with_bucket_and_object_without_slash(self):
         url_context = client.URLContext(
             self.endpoint, bucket="mystuff", object_name="images/thing.jpg")
-        self.assertEquals(url_context.get_host(), "mystuff.s3.amazonaws.com")
-        self.assertEquals(url_context.get_path(), "/images/thing.jpg")
+        self.assertEquals(url_context.get_host(), "s3.amazonaws.com")
+        self.assertEquals(url_context.get_path(), "/mystuff/images/thing.jpg")
 
     def test_get_url_with_custom_endpoint(self):
         endpoint = AWSServiceEndpoint("http://localhost/")
@@ -60,21 +60,9 @@ class URLContextTestCase(TXAWSTestCase):
             endpoint, bucket="mydocs", object_name="notes.txt")
         self.assertEquals(
             url_context.get_url(),
-            "http://mydocs.localhost/notes.txt")
+            "http://localhost/mydocs/notes.txt")
 
 URLContextTestCase.skip = s3clientSkip
-
-
-class BucketURLContextTestCase(TXAWSTestCase):
-
-    endpoint = AWSServiceEndpoint("https://s3.amazonaws.com/")
-
-    def test_get_host_with_bucket(self):
-        url_context = client.BucketURLContext(self.endpoint, "mystuff")
-        self.assertEquals(url_context.get_host(), "s3.amazonaws.com")
-        self.assertEquals(url_context.get_path(), "/mystuff")
-
-BucketURLContextTestCase.skip = s3clientSkip
 
 
 class S3ClientTestCase(TXAWSTestCase):
