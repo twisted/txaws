@@ -33,9 +33,10 @@ def s3_error_wrapper(error):
 class URLContext(object):
     """
     The hosts and the paths that form an S3 endpoint change depending upon the
-    context in which they are called. Sometimes the bucket name is in the host,
-    sometimes in the path. What's more, the behaviour against live AWS
-    resources doesn't seem to match the AWS documentation.
+    context in which they are called.  While S3 supports bucket names in the
+    host name, we use the convention of providing it in the path so that
+    using IP addresses and alternative implementations of S3 actually works
+    (e.g. Walrus).
     """
     def __init__(self, service_endpoint, bucket="", object_name=""):
         self.endpoint = service_endpoint
@@ -43,41 +44,21 @@ class URLContext(object):
         self.object_name = object_name
 
     def get_host(self):
-        if not self.bucket:
-            return self.endpoint.get_host()
-        else:
-            return "%s.%s" % (self.bucket, self.endpoint.get_host())
+        return self.endpoint.get_host()
 
     def get_path(self):
         path = "/"
+        if self.bucket is not None:
+            path += self.bucket
         if self.bucket is not None and self.object_name:
-            if self.object_name.startswith("/"):
-                path = self.object_name
-            else:
-                path += self.object_name
+            if not self.object_name.startswith("/"):
+                path += "/"
+            path += self.object_name
         return path
 
     def get_url(self):
         return "%s://%s%s" % (
             self.endpoint.scheme, self.get_host(), self.get_path())
-
-
-class BucketURLContext(URLContext):
-    """
-    This URL context class provides a means of overriding the standard
-    behaviour of the URLContext object so that when creating or deleting a
-    bucket, the appropriate URL is obtained.
-
-    When creating and deleting buckets on AWS, if the host is set as documented
-    (bucketname.s3.amazonaws.com), a 403 error is returned. When, however, one
-    sets the host without the bucket name prefix, the operation is completed
-    successfully.
-    """
-    def get_host(self):
-        return self.endpoint.get_host()
-
-    def get_path(self):
-        return "/%s" % (self.bucket)
 
 
 class S3Client(BaseClient):
@@ -121,8 +102,7 @@ class S3Client(BaseClient):
         query = self.query_factory(
             action="PUT", creds=self.creds, endpoint=self.endpoint,
             bucket=bucket)
-        url_context = BucketURLContext(self.endpoint, bucket)
-        return query.submit(url_context)
+        return query.submit()
 
     def delete_bucket(self, bucket):
         """
@@ -133,8 +113,7 @@ class S3Client(BaseClient):
         query = self.query_factory(
             action="DELETE", creds=self.creds, endpoint=self.endpoint,
             bucket=bucket)
-        url_context = BucketURLContext(self.endpoint, bucket)
-        return query.submit(url_context)
+        return query.submit()
 
     def get_bucket(self, bucket):
         """
@@ -143,8 +122,7 @@ class S3Client(BaseClient):
         query = self.query_factory(
             action="GET", creds=self.creds, endpoint=self.endpoint,
             bucket=bucket)
-        url_context = BucketURLContext(self.endpoint, bucket)
-        d = query.submit(url_context)
+        d = query.submit()
         return d.addCallback(self._parse_get_bucket)
 
     def _parse_get_bucket(self, xml_bytes):
