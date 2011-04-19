@@ -40,9 +40,9 @@ class EC2Client(BaseClient):
             action="DescribeInstances", creds=self.creds,
             endpoint=self.endpoint, other_params=instances)
         d = query.submit()
-        return d.addCallback(self.parse_describe_instances)
+        return d.addCallback(self._parse_describe_instances)
 
-    def parse_instances_set(self, root, reservation):
+    def _parse_instances_set(self, root, reservation):
         """Parse the instances data out of an XML payload.
         
            @param root: the root node of the XML payload.
@@ -52,10 +52,10 @@ class EC2Client(BaseClient):
         """
         instances = []
         for instance_data in root.find("instancesSet"):
-            instances.append(self.parse_instance(instance_data, reservation))
+            instances.append(self._parse_instance(instance_data, reservation))
         return instances
 
-    def parse_instance(self, instance_data, reservation):
+    def _parse_instance(self, instance_data, reservation):
         """Parse the instance data out of an XML payload.
         
            @param instance_data: an XML node containing instance data.
@@ -89,7 +89,7 @@ class EC2Client(BaseClient):
             reservation=reservation)
         return instance
 
-    def parse_describe_instances(self, xml_bytes):
+    def _parse_describe_instances(self, xml_bytes):
         """
         Parse the reservations XML payload that is returned from an AWS
         describeInstances API call.
@@ -122,7 +122,7 @@ class EC2Client(BaseClient):
                 owner_id=reservation_data.findtext("ownerId"),
                 groups=groups)
             # Get the list of instances.
-            instances = self.parse_instances_set(
+            instances = self._parse_instances_set(
                 reservation_data, reservation)
             results.extend(instances)
         return results
@@ -172,7 +172,7 @@ class EC2Client(BaseClient):
             owner_id=root.findtext("ownerId"),
             groups=groups)
         # Get the list of instances.
-        instances = self.parse_instances_set(root, reservation)
+        instances = self._parse_instances_set(root, reservation)
         return instances
 
     def terminate_instances(self, *instance_ids):
