@@ -40,15 +40,29 @@ class EC2Client(BaseClient):
             action="DescribeInstances", creds=self.creds,
             endpoint=self.endpoint, other_params=instances)
         d = query.submit()
-        return d.addCallback(self._parse_describe_instances)
+        return d.addCallback(self.parse_describe_instances)
 
-    def _parse_instances_set(self, root, reservation):
+    def parse_instances_set(self, root, reservation):
+        """Parse the instances data out of an XML payload.
+        
+           @param root: the root node of the XML payload.
+           @param reservation: the L{Reservation} associtated with the
+                  instances from the response.
+           @return a C{list} of L{Instance}.
+        """
         instances = []
         for instance_data in root.find("instancesSet"):
-            instances.append(self._parse_instance(instance_data, reservation))
+            instances.append(self.parse_instance(instance_data, reservation))
         return instances
 
-    def _parse_instance(self, instance_data, reservation):
+    def parse_instance(self, instance_data, reservation):
+        """Parse the instance data out of an XML payload.
+        
+           @param instance_data: an XML node containing instance data.
+           @param reservation: the L{Reservation} associatated with the
+                  instance.
+           @return an L{Instance}.
+        """
         instance_id = instance_data.findtext("instanceId")
         instance_state = instance_data.find(
             "instanceState").findtext("name")
@@ -75,7 +89,7 @@ class EC2Client(BaseClient):
             reservation=reservation)
         return instance
 
-    def _parse_describe_instances(self, xml_bytes):
+    def parse_describe_instances(self, xml_bytes):
         """
         Parse the reservations XML payload that is returned from an AWS
         describeInstances API call.
@@ -108,7 +122,7 @@ class EC2Client(BaseClient):
                 owner_id=reservation_data.findtext("ownerId"),
                 groups=groups)
             # Get the list of instances.
-            instances = self._parse_instances_set(
+            instances = self.parse_instances_set(
                 reservation_data, reservation)
             results.extend(instances)
         return results
@@ -158,7 +172,7 @@ class EC2Client(BaseClient):
             owner_id=root.findtext("ownerId"),
             groups=groups)
         # Get the list of instances.
-        instances = self._parse_instances_set(root, reservation)
+        instances = self.parse_instances_set(root, reservation)
         return instances
 
     def terminate_instances(self, *instance_ids):
