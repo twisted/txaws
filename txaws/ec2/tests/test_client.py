@@ -217,7 +217,7 @@ class EC2ClientInstancesTestCase(TXAWSTestCase):
     def test_parse_reservation(self):
         creds = AWSCredentials("foo", "bar")
         ec2 = client.EC2Client(creds=creds)
-        results = ec2._parse_describe_instances(
+        results = ec2.parse_describe_instances(
             payload.sample_describe_instances_result)
         self.check_parsed_instances(results)
 
