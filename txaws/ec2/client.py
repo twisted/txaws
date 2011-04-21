@@ -43,7 +43,7 @@ class EC2Client(BaseClient):
             action="DescribeInstances", creds=self.creds,
             endpoint=self.endpoint, other_params=instances)
         d = query.submit()
-        return d.addCallback(self.parser.parse_describe_instances)
+        return d.addCallback(self.parser.describe_instances)
 
     def run_instances(self, image_id, min_count, max_count,
         security_groups=None, key_name=None, instance_type=None,
@@ -71,7 +71,7 @@ class EC2Client(BaseClient):
             action="RunInstances", creds=self.creds, endpoint=self.endpoint,
             other_params=params)
         d = query.submit()
-        return d.addCallback(self.parser.parse_run_instances)
+        return d.addCallback(self.parser.run_instances)
 
     def terminate_instances(self, *instance_ids):
         """Terminate some instances.
@@ -87,7 +87,7 @@ class EC2Client(BaseClient):
             action="TerminateInstances", creds=self.creds,
             endpoint=self.endpoint, other_params=instances)
         d = query.submit()
-        return d.addCallback(self.parser.parse_terminate_instances)
+        return d.addCallback(self.parser.terminate_instances)
 
     def describe_security_groups(self, *names):
         """Describe security groups.
@@ -105,7 +105,7 @@ class EC2Client(BaseClient):
             action="DescribeSecurityGroups", creds=self.creds,
             endpoint=self.endpoint, other_params=group_names)
         d = query.submit()
-        return d.addCallback(self.parser.parse_describe_security_groups)
+        return d.addCallback(self.parser.describe_security_groups)
 
     def create_security_group(self, name, description):
         """Create security group.
@@ -120,7 +120,7 @@ class EC2Client(BaseClient):
             action="CreateSecurityGroup", creds=self.creds,
             endpoint=self.endpoint, other_params=parameters)
         d = query.submit()
-        return d.addCallback(self.parser.parse_truth_return)
+        return d.addCallback(self.parser.truth_return)
 
     def delete_security_group(self, name):
         """
@@ -133,7 +133,7 @@ class EC2Client(BaseClient):
             action="DeleteSecurityGroup", creds=self.creds,
             endpoint=self.endpoint, other_params=parameter)
         d = query.submit()
-        return d.addCallback(self.parser.parse_truth_return)
+        return d.addCallback(self.parser.truth_return)
 
     def authorize_security_group(
         self, group_name, source_group_name="", source_group_owner_id="",
@@ -190,7 +190,7 @@ class EC2Client(BaseClient):
             action="AuthorizeSecurityGroupIngress", creds=self.creds,
             endpoint=self.endpoint, other_params=parameters)
         d = query.submit()
-        return d.addCallback(self.parser.parse_truth_return)
+        return d.addCallback(self.parser.truth_return)
 
     def authorize_group_permission(
         self, group_name, source_group_name, source_group_owner_id):
@@ -275,7 +275,7 @@ class EC2Client(BaseClient):
             action="RevokeSecurityGroupIngress", creds=self.creds,
             endpoint=self.endpoint, other_params=parameters)
         d = query.submit()
-        return d.addCallback(self.parser.parse_truth_return)
+        return d.addCallback(self.parser.truth_return)
 
     def revoke_group_permission(
         self, group_name, source_group_name, source_group_owner_id):
@@ -314,7 +314,7 @@ class EC2Client(BaseClient):
             action="DescribeVolumes", creds=self.creds, endpoint=self.endpoint,
             other_params=volumeset)
         d = query.submit()
-        return d.addCallback(self.parser.parse_describe_volumes)
+        return d.addCallback(self.parser.describe_volumes)
 
     def create_volume(self, availability_zone, size=None, snapshot_id=None):
         """Create a new volume."""
@@ -330,14 +330,14 @@ class EC2Client(BaseClient):
             action="CreateVolume", creds=self.creds, endpoint=self.endpoint,
             other_params=params)
         d = query.submit()
-        return d.addCallback(self.parser.parse_create_volume)
+        return d.addCallback(self.parser.create_volume)
 
     def delete_volume(self, volume_id):
         query = self.query_factory(
             action="DeleteVolume", creds=self.creds, endpoint=self.endpoint,
             other_params={"VolumeId": volume_id})
         d = query.submit()
-        return d.addCallback(self.parser.parse_truth_return)
+        return d.addCallback(self.parser.truth_return)
 
     def describe_snapshots(self, *snapshot_ids):
         """Describe available snapshots."""
@@ -348,7 +348,7 @@ class EC2Client(BaseClient):
             action="DescribeSnapshots", creds=self.creds,
             endpoint=self.endpoint, other_params=snapshot_set)
         d = query.submit()
-        return d.addCallback(self.parser.parse_snapshots)
+        return d.addCallback(self.parser.snapshots)
 
     def create_snapshot(self, volume_id):
         """Create a new snapshot of an existing volume."""
@@ -356,7 +356,7 @@ class EC2Client(BaseClient):
             action="CreateSnapshot", creds=self.creds, endpoint=self.endpoint,
             other_params={"VolumeId": volume_id})
         d = query.submit()
-        return d.addCallback(self.parser.parse_create_snapshot)
+        return d.addCallback(self.parser.create_snapshot)
 
     def delete_snapshot(self, snapshot_id):
         """Remove a previously created snapshot."""
@@ -364,7 +364,7 @@ class EC2Client(BaseClient):
             action="DeleteSnapshot", creds=self.creds, endpoint=self.endpoint,
             other_params={"SnapshotId": snapshot_id})
         d = query.submit()
-        return d.addCallback(self.parser.parse_truth_return)
+        return d.addCallback(self.parser.truth_return)
 
     def attach_volume(self, volume_id, instance_id, device):
         """Attach the given volume to the specified instance at C{device}."""
@@ -373,7 +373,7 @@ class EC2Client(BaseClient):
             other_params={"VolumeId": volume_id, "InstanceId": instance_id,
                           "Device": device})
         d = query.submit()
-        return d.addCallback(self.parser.parse_attach_volume)
+        return d.addCallback(self.parser.attach_volume)
 
     def describe_keypairs(self, *keypair_names):
         """Returns information about key pairs available."""
@@ -384,7 +384,7 @@ class EC2Client(BaseClient):
             action="DescribeKeyPairs", creds=self.creds,
             endpoint=self.endpoint, other_params=keypairs)
         d = query.submit()
-        return d.addCallback(self.parser.parse_describe_keypairs)
+        return d.addCallback(self.parser.describe_keypairs)
 
     def create_keypair(self, keypair_name):
         """
@@ -395,7 +395,7 @@ class EC2Client(BaseClient):
             action="CreateKeyPair", creds=self.creds, endpoint=self.endpoint,
             other_params={"KeyName": keypair_name})
         d = query.submit()
-        return d.addCallback(self.parser.parse_create_keypair)
+        return d.addCallback(self.parser.create_keypair)
 
     def delete_keypair(self, keypair_name):
         """Delete a given keypair."""
@@ -403,7 +403,7 @@ class EC2Client(BaseClient):
             action="DeleteKeyPair", creds=self.creds, endpoint=self.endpoint,
             other_params={"KeyName": keypair_name})
         d = query.submit()
-        return d.addCallback(self.parser.parse_truth_return)
+        return d.addCallback(self.parser.truth_return)
 
     def import_keypair(self, keypair_name, key_material):
         """
@@ -424,7 +424,7 @@ class EC2Client(BaseClient):
             other_params={"KeyName": keypair_name,
                           "PublicKeyMaterial": b64encode(key_material)})
         d = query.submit()
-        return d.addCallback(self.parser.parse_import_keypair, key_material)
+        return d.addCallback(self.parser.import_keypair, key_material)
 
     def allocate_address(self):
         """
@@ -438,7 +438,7 @@ class EC2Client(BaseClient):
             action="AllocateAddress", creds=self.creds, endpoint=self.endpoint,
             other_params={})
         d = query.submit()
-        return d.addCallback(self.parser.parse_allocate_address)
+        return d.addCallback(self.parser.allocate_address)
 
     def release_address(self, address):
         """
@@ -450,7 +450,7 @@ class EC2Client(BaseClient):
             action="ReleaseAddress", creds=self.creds, endpoint=self.endpoint,
             other_params={"PublicIp": address})
         d = query.submit()
-        return d.addCallback(self.parser.parse_truth_return)
+        return d.addCallback(self.parser.truth_return)
 
     def associate_address(self, instance_id, address):
         """
@@ -464,7 +464,7 @@ class EC2Client(BaseClient):
             endpoint=self.endpoint,
             other_params={"InstanceId": instance_id, "PublicIp": address})
         d = query.submit()
-        return d.addCallback(self.parser.parse_truth_return)
+        return d.addCallback(self.parser.truth_return)
 
     def disassociate_address(self, address):
         """
@@ -476,7 +476,7 @@ class EC2Client(BaseClient):
             action="DisassociateAddress", creds=self.creds,
             endpoint=self.endpoint, other_params={"PublicIp": address})
         d = query.submit()
-        return d.addCallback(self.parser.parse_truth_return)
+        return d.addCallback(self.parser.truth_return)
 
     def describe_addresses(self, *addresses):
         """
@@ -494,7 +494,7 @@ class EC2Client(BaseClient):
             action="DescribeAddresses", creds=self.creds,
             endpoint=self.endpoint, other_params=address_set)
         d = query.submit()
-        return d.addCallback(self.parser.parse_describe_addresses)
+        return d.addCallback(self.parser.describe_addresses)
 
     def describe_availability_zones(self, names=None):
         zone_names = None
@@ -505,16 +505,13 @@ class EC2Client(BaseClient):
             action="DescribeAvailabilityZones", creds=self.creds,
             endpoint=self.endpoint, other_params=zone_names)
         d = query.submit()
-        return d.addCallback(self.parser.parse_describe_availability_zones)
+        return d.addCallback(self.parser.describe_availability_zones)
 
 
 class Parser(object):
     """A parser for EC2 responses"""
 
-    def __init__(self):
-        super(Parser, self).__init__()
-
-    def parse_instances_set(self, root, reservation):
+    def instances_set(self, root, reservation):
         """Parse instance data out of an XML payload.
 
         @param root: The root node of the XML payload.
@@ -524,10 +521,10 @@ class Parser(object):
         """
         instances = []
         for instance_data in root.find("instancesSet"):
-            instances.append(self.parse_instance(instance_data, reservation))
+            instances.append(self.instance(instance_data, reservation))
         return instances
 
-    def parse_instance(self, instance_data, reservation):
+    def instance(self, instance_data, reservation):
         """Parse instance data out of an XML payload.
 
         @param instance_data: An XML node containing instance data.
@@ -560,7 +557,7 @@ class Parser(object):
             reservation=reservation)
         return instance
 
-    def parse_describe_instances(self, xml_bytes):
+    def describe_instances(self, xml_bytes):
         """
         Parse the reservations XML payload that is returned from an AWS
         describeInstances API call.
@@ -595,12 +592,12 @@ class Parser(object):
                 owner_id=reservation_data.findtext("ownerId"),
                 groups=groups)
             # Get the list of instances.
-            instances = self.parse_instances_set(
+            instances = self.instances_set(
                 reservation_data, reservation)
             results.extend(instances)
         return results
 
-    def parse_run_instances(self, xml_bytes):
+    def run_instances(self, xml_bytes):
         """
         Parse the reservations XML payload that is returned from an AWS
         RunInstances API call.
@@ -619,10 +616,10 @@ class Parser(object):
             owner_id=root.findtext("ownerId"),
             groups=groups)
         # Get the list of instances.
-        instances = self.parse_instances_set(root, reservation)
+        instances = self.instances_set(root, reservation)
         return instances
 
-    def parse_terminate_instances(self, xml_bytes):
+    def terminate_instances(self, xml_bytes):
         """Parse the XML returned by the C{TerminateInstances} function.
 
         @param xml_bytes: XML bytes with a C{TerminateInstancesResponse} root
@@ -642,7 +639,7 @@ class Parser(object):
             result.append((instanceId, previousState, shutdownState))
         return result
 
-    def parse_describe_security_groups(self, xml_bytes):
+    def describe_security_groups(self, xml_bytes):
         """Parse the XML returned by the C{DescribeSecurityGroups} function.
 
         @param xml_bytes: XML bytes with a C{DescribeSecurityGroupsResponse}
@@ -683,7 +680,7 @@ class Parser(object):
             result.append(security_group)
         return result
 
-    def parse_truth_return(self, xml_bytes):
+    def truth_return(self, xml_bytes):
         """Parse the XML for a truth value.
 
         @param xml_bytes: XML bytes.
@@ -692,7 +689,7 @@ class Parser(object):
         root = XML(xml_bytes)
         return root.findtext("return") == "true"
 
-    def parse_describe_volumes(self, xml_bytes):
+    def describe_volumes(self, xml_bytes):
         """Parse the XML returned by the C{DescribeVolumes} function.
 
         @param xml_bytes: XML bytes with a C{DescribeVolumesResponse} root
@@ -726,7 +723,7 @@ class Parser(object):
                 volume.attachments.append(attachment)
         return result
 
-    def parse_create_volume(self, xml_bytes):
+    def create_volume(self, xml_bytes):
         """Parse the XML returned by the C{CreateVolume} function.
 
         @param xml_bytes: XML bytes with a C{CreateVolumeResponse} root
@@ -747,7 +744,7 @@ class Parser(object):
             snapshot_id)
         return volume
 
-    def parse_snapshots(self, xml_bytes):
+    def snapshots(self, xml_bytes):
         """Parse the XML returned by the C{DescribeSnapshots} function.
 
         @param xml_bytes: XML bytes with a C{DescribeSnapshotsResponse} root
@@ -770,7 +767,7 @@ class Parser(object):
             result.append(snapshot)
         return result
 
-    def parse_create_snapshot(self, xml_bytes):
+    def create_snapshot(self, xml_bytes):
         """Parse the XML returned by the C{CreateSnapshot} function.
 
         @param xml_bytes: XML bytes with a C{CreateSnapshotResponse} root
@@ -789,7 +786,7 @@ class Parser(object):
         return model.Snapshot(
             snapshot_id, volume_id, status, start_time, progress)
 
-    def parse_attach_volume(self, xml_bytes):
+    def attach_volume(self, xml_bytes):
         """Parse the XML returned by the C{AttachVolume} function.
 
         @param xml_bytes: XML bytes with a C{AttachVolumeResponse} root
@@ -803,7 +800,7 @@ class Parser(object):
             attach_time[:19], "%Y-%m-%dT%H:%M:%S")
         return {"status": status, "attach_time": attach_time}
 
-    def parse_describe_keypairs(self, xml_bytes):
+    def describe_keypairs(self, xml_bytes):
         """Parse the XML returned by the C{DescribeKeyPairs} function.
 
         @param xml_bytes: XML bytes with a C{DescribeKeyPairsResponse} root
@@ -821,7 +818,7 @@ class Parser(object):
             results.append(model.Keypair(key_name, key_fingerprint))
         return results
 
-    def parse_create_keypair(self, xml_bytes):
+    def create_keypair(self, xml_bytes):
         """Parse the XML returned by the C{CreateKeyPair} function.
 
         @param xml_bytes: XML bytes with a C{CreateKeyPairResponse} root
@@ -834,14 +831,14 @@ class Parser(object):
         key_material = keypair_data.findtext("keyMaterial")
         return model.Keypair(key_name, key_fingerprint, key_material)
 
-    def parse_import_keypair(self, xml_bytes, key_material):
+    def import_keypair(self, xml_bytes, key_material):
         """Extract the key name and the fingerprint from the result."""
         keypair_data = XML(xml_bytes)
         key_name = keypair_data.findtext("keyName")
         key_fingerprint = keypair_data.findtext("keyFingerprint")
         return model.Keypair(key_name, key_fingerprint, key_material)
 
-    def parse_allocate_address(self, xml_bytes):
+    def allocate_address(self, xml_bytes):
         """Parse the XML returned by the C{AllocateAddress} function.
 
         @param xml_bytes: XML bytes with a C{AllocateAddress} root element.
@@ -850,7 +847,7 @@ class Parser(object):
         address_data = XML(xml_bytes)
         return address_data.findtext("publicIp")
 
-    def parse_describe_addresses(self, xml_bytes):
+    def describe_addresses(self, xml_bytes):
         """Parse the XML returned by the C{DescribeAddresses} function.
 
         @param xml_bytes: XML bytes with a C{DescribeAddressesResponse} root
@@ -865,7 +862,7 @@ class Parser(object):
             results.append((address, instance_id))
         return results
 
-    def parse_describe_availability_zones(self, xml_bytes):
+    def describe_availability_zones(self, xml_bytes):
         """Parse the XML returned by the C{DescribeAvailibilityZones} function.
 
         @param xml_bytes: XML bytes with a C{DescribeAvailibilityZonesResponse}
