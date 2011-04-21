@@ -41,7 +41,7 @@ class ErrorWrapperTestCase(TXAWSTestCase):
         failure = Failure(Exception("timeout"))
         error = self.assertRaises(Exception, error_wrapper, failure, None)
         self.assertTrue(isinstance(error, Exception))
-        self.assertEquals(error.message, "timeout")
+        self.assertEquals(str(error), "timeout")
 
     def test_connection_error(self):
         failure = Failure(ConnectionRefusedError("timeout"))
