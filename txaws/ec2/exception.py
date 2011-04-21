@@ -10,7 +10,7 @@ class EC2Error(AWSError):
     """
     def _set_400_error(self, tree):
         errors_node = tree.find(".//Errors")
-        if errors_node:
+        if errors_node is not None:
             for error in errors_node:
                 data = self._node_to_dict(error)
                 if data:
