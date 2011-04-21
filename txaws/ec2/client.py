@@ -545,7 +545,7 @@ class Parser(object):
             "availabilityZone")
         products = []
         product_codes = instance_data.find("productCodes")
-        if product_codes:
+        if product_codes is not None:
             for product_data in instance_data.find("productCodes"):
                 products.append(product_data.text)
         kernel_id = instance_data.findtext("kernelId")
@@ -654,7 +654,9 @@ class Parser(object):
             owner_id = group_info.findtext("ownerId")
             allowed_groups = []
             allowed_ips = []
-            ip_permissions = group_info.find("ipPermissions") or ()
+            ip_permissions = group_info.find("ipPermissions")
+            if ip_permissions is None:
+                ip_permissions = ()
             for ip_permission in ip_permissions:
                 ip_protocol = ip_permission.findtext("ipProtocol")
                 from_port = int(ip_permission.findtext("fromPort"))
@@ -810,7 +812,7 @@ class Parser(object):
         results = []
         root = XML(xml_bytes)
         keypairs = root.find("keySet")
-        if not keypairs:
+        if keypairs is None:
             return results
         for keypair_data in keypairs:
             key_name = keypair_data.findtext("keyName")
