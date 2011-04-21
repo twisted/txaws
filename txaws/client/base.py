@@ -37,7 +37,7 @@ def error_wrapper(error, errorClass):
             error.raiseException()
         try:
             fallback_error = errorClass(
-                xml_payload, error.value.status, error.value.message,
+                xml_payload, error.value.status, str(error.value),
                 error.value.response)
         except (ParseError, AWSResponseParseError):
             error_message = http.RESPONSES.get(http_status)
