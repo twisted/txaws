@@ -16,7 +16,7 @@ from txaws.ec2.exception import EC2Error
 from txaws.util import iso8601time, XML
 
 
-__all__ = ["EC2Client"]
+__all__ = ["EC2Client", "Query", "Parser"]
 
 
 def ec2_error_wrapper(error):
