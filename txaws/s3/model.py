@@ -1,3 +1,6 @@
+from txaws.util import XML
+
+
 class Bucket(object):
     """
     An Amazon S3 storage bucket.
@@ -49,3 +52,37 @@ class FileChunk(object):
     S3 returns file chunks, 10 MB at a time, until the entire file is returned.
     These chunks need to be assembled once they are all returned.
     """
+
+
+class RequestPayment(object):
+    """
+    A payment request.
+
+    @param payer: One of 'Requester' or 'BucketOwner'.
+    """
+
+    payer_choices = ("Requester", "BucketOwner")
+
+    def __init__(self, payer):
+        if payer not in self.payer_choices:
+            raise ValueError("Invalid value for payer: `%s`. Must be one of "
+                             "%s." % (payer, ",".join(self.payer_choices)))
+        self.payer = payer
+
+    def to_xml(self):
+        """
+        Convert this request into a C{RequestPaymentConfiguration} XML
+        document.
+        """
+        return ("<RequestPaymentConfiguration "
+                  'xmlns="http://s3.amazonaws.com/doc/2006-03-01/">\n'
+                "  <Payer>%s</Payer>\n"
+                "</RequestPaymentConfiguration>" % self.payer)
+
+    @classmethod
+    def from_xml(cls, xml_bytes):
+        """
+        Create an instance from a C{RequestPaymentConfiguration} XML document.
+        """
+        root = XML(xml_bytes)
+        return cls(root.findtext("Payer"))

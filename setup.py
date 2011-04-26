@@ -4,6 +4,25 @@ import os
 
 from txaws import version
 
+# If setuptools is present, use it to find_packages(), and also
+# declare our dependency on epsilon.
+extra_setup_args = {}
+try:
+    import setuptools
+    from setuptools import find_packages
+    extra_setup_args['install_requires'] = ['Epsilon']
+except ImportError:
+    def find_packages():
+        """
+        Compatibility wrapper.
+
+        Taken from storm setup.py.
+        """
+        packages = []
+        for directory, subdirectories, files in os.walk("txaws"):
+            if '__init__.py' in files:
+                packages.append(directory.replace(os.sep, '.'))
+        return packages
 
 long_description = """
 Twisted-based Asynchronous Libraries for Amazon Web Services and Eucalyptus
@@ -11,24 +30,6 @@ private clouds This project's goal is to have a complete Twisted API
 representing the spectrum of Amazon's web services as well as support for
 Eucalyptus clouds.
 """
-
-
-def find_packages():
-    """
-    Compatibility wrapper.
-
-    Taken from storm setup.py.
-    """
-    try:
-        from setuptools import find_packages
-        return find_packages()
-    except ImportError:
-        pass
-    packages = []
-    for directory, subdirectories, files in os.walk("txaws"):
-        if '__init__.py' in files:
-            packages.append(directory.replace(os.sep, '.'))
-    return packages
 
 
 setup(
@@ -52,5 +53,6 @@ setup(
         "Topic :: Internet :: WWW/HTTP",
         "License :: OSI Approved :: MIT License",
        ],
+    **extra_setup_args
     )
 
