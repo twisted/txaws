@@ -217,7 +217,7 @@ class EC2ClientInstancesTestCase(TXAWSTestCase):
     def test_parse_reservation(self):
         creds = AWSCredentials("foo", "bar")
         ec2 = client.EC2Client(creds=creds)
-        results = ec2._parse_describe_instances(
+        results = ec2.parser.describe_instances(
             payload.sample_describe_instances_result)
         self.check_parsed_instances(results)
 
@@ -1426,7 +1426,7 @@ class EC2ErrorWrapperTestCase(TXAWSTestCase):
         self.assertEquals(failure.type, type(error))
         self.assertFalse(isinstance(error, EC2Error))
         self.assertTrue(isinstance(error, Exception))
-        self.assertEquals(error.message, "found")
+        self.assertEquals(str(error), "found")
 
     def test_400_error(self):
         failure = self.make_failure(400, TwistedWebError)
@@ -1478,14 +1478,14 @@ class EC2ErrorWrapperTestCase(TXAWSTestCase):
         error = self.assertRaises(Exception, client.ec2_error_wrapper, failure)
         self.assertFalse(isinstance(error, EC2Error))
         self.assertTrue(isinstance(error, Exception))
-        self.assertEquals(error.message, "A server error occurred")
+        self.assertEquals(str(error), "A server error occurred")
 
     def test_timeout_error(self):
         failure = self.make_failure(type=Exception, message="timeout")
         error = self.assertRaises(Exception, client.ec2_error_wrapper, failure)
         self.assertFalse(isinstance(error, EC2Error))
         self.assertTrue(isinstance(error, Exception))
-        self.assertEquals(error.message, "timeout")
+        self.assertEquals(str(error), "timeout")
 
     def test_connection_error(self):
         failure = self.make_failure(type=ConnectionRefusedError)
