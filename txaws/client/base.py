@@ -37,7 +37,7 @@ def error_wrapper(error, errorClass):
             error.raiseException()
         try:
             fallback_error = errorClass(
-                xml_payload, error.value.status, error.value.message,
+                xml_payload, error.value.status, str(error.value),
                 error.value.response)
         except (ParseError, AWSResponseParseError):
             error_message = http.RESPONSES.get(http_status)
@@ -57,8 +57,10 @@ class BaseClient(object):
     @param endpoint: The service endpoint URI.
     @param query_factory: The class or function that produces a query
         object for making requests to the EC2 service.
+    @param parser: A parser object for parsing responses from the EC2 service.
     """
-    def __init__(self, creds=None, endpoint=None, query_factory=None):
+    def __init__(self, creds=None, endpoint=None, query_factory=None,
+                 parser=None):
         if creds is None:
             creds = AWSCredentials()
         if endpoint is None:
@@ -66,6 +68,7 @@ class BaseClient(object):
         self.creds = creds
         self.endpoint = endpoint
         self.query_factory = query_factory
+        self.parser = parser
 
 
 class BaseQuery(object):
