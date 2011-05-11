@@ -9,10 +9,6 @@ from zope.datetime import parse, SyntaxError
 class SchemaError(Exception):
     """Raised when failing to extract or bundle L{Parameter}s."""
 
-    def __init__(self, message, details=None):
-        super(Schema, self).__init__(message)
-        self.details = details
-
 
 class MissingParameterError(SchemaError):
     """Raised when a parameter is missing.
@@ -22,9 +18,7 @@ class MissingParameterError(SchemaError):
 
     def __init__(self, name):
         message = "The request must contain the parameter %s" % name
-        super(MissingParameterError, self).__init__(
-            400, "MissingParameter", message)
-        self.parameter_name = name
+        super(MissingParameterError, self).__init__(message)
 
 
 class InvalidParameterValueError(SchemaError):
@@ -32,10 +26,6 @@ class InvalidParameterValueError(SchemaError):
 
     @param message: The error message to report.
     """
-
-    def __init__(self, message):
-        super(InvalidParameterValueError, self).__init__(
-            400, "InvalidParameterValue", message)
 
 
 class InvalidParameterCombinationError(SchemaError):
@@ -48,28 +38,29 @@ class InvalidParameterCombinationError(SchemaError):
 
     def __init__(self, name):
         message = "The parameter '%s' may only be specified once." % name
-        super(InvalidParameterCombinationError, self).__init__(
-            400, "InvalidParameterCombination", message)
-        self.parameter_name = name
+        super(InvalidParameterCombinationError, self).__init__(message)
 
 
-class UnknownParametersError(SchemaError):
-    """Raised when the value of a parameter is invalid.
+class UnknownParameterError(SchemaError):
+    """Raised when one or more of the parameters to extract are unknown.
 
-    @param name: The name of the parameter.
+    @param rest: A C{dict} holding all unknown parameter names and their
+        value.
+    @param arguments: An L{Arguments} object holding the data about the
+        parameter names that could be extracted.
     """
 
-    def __init__(self, details):
-        message = "The parameter %s is not recognized" % details.keys()[0]
-        super(UnknownParametersError, self).__init__(
-            400, "UnknownParameter", message)
-        self.details = details
+    def __init__(self, rest, arguments):
+        message = "The parameter %s is not recognized" % rest.keys()[0]
+        super(UnknownParameterError, self).__init__(message)
+        self.rest = rest
+        self.arguments = arguments
 
 
 class Parameter(object):
     """A single parameter in an HTTP request.
 
-    @param template: A template for the key of the parameter, as specified
+    @param name: A name for the key of the parameter, as specified
         in a request. For example, a single parameter would be specified
         simply as 'GroupName'.  If more than one group name was accepted,
         it would be specified as 'GroupName.n'.  A more complex example
@@ -81,9 +72,9 @@ class Parameter(object):
     @param allow_none: Whether the parameter may be C{None}.
     """
 
-    def __init__(self, template, optional=False, default=None,
+    def __init__(self, name, optional=False, default=None,
                  min=None, max=None, allow_none=False):
-        self.template = template
+        self.name = name
         self.optional = optional
         self.default = default
         self.min = min
@@ -104,7 +95,7 @@ class Parameter(object):
                 value = ""
         if value == "":
             if not self.allow_none:
-                raise MissingParameterError(self.template)
+                raise MissingParameterError(self.name)
             return self.default
         self._check_range(value)
         try:
@@ -122,25 +113,14 @@ class Parameter(object):
         prefix = "Value (%s) for parameter %s is invalid.  %s"
 
         if self.min is not None and measure < self.min:
-            message = prefix % (value, self.template,
+            message = prefix % (value, self.name,
                                 self.lower_than_min_template % self.min)
             raise InvalidParameterValueError(message)
 
         if self.max is not None and measure > self.max:
-            message = prefix % (value, self.template,
+            message = prefix % (value, self.name,
                                 self.greater_than_max_template % self.max)
             raise InvalidParameterValueError(message)
-
-    def expand(self, value):
-        """Expand a single values to a full-fledged request argument.
-
-        @values: A single value to expand.
-        @return: The expanded value, always a L{str}.
-        """
-        if value is None:
-            return ""
-        else:
-            return self.format(value)
 
     def parse(self, value):
         """
@@ -278,14 +258,14 @@ class Arguments(object):
     def __init__(self, tree):
         """Initialize a new L{Arguments} instance.
 
-        @param arguments: An iterable yielding C{(argument_name, value)}
-        tuples.
+        @param tree: The C{dict}-based structure of the L{Argument}instance
+            to create.
         """
         for key, value in tree.iteritems():
             self.__dict__[key] = self._wrap(value)
 
     def __iter__(self):
-        """Returns an iterator yielding C{(argument_name, value)} tuples."""
+        """Returns an iterator yielding C{(name, value)} tuples."""
         return self.__dict__.iteritems()
 
     def __getitem__(self, index):
@@ -342,23 +322,25 @@ class Schema(object):
         L{Schema.bundle} would look for a C{Name} attribute.
         """
         self._parameters = dict(
-            (self._get_template(parameter.template), parameter)
+            (self._get_template(parameter.name), parameter)
             for parameter in parameters)
 
     def extract(self, params):
         """Extract parameters from a raw C{dict} according to this schema.
 
         @param params: The raw parameters to parse.
-
         @return: An L{Arguments} object holding the extracted arguments.
+
+        @raises UnknownParameterError: If C{params} contains keys that this
+            schema doesn't know about.
         """
         tree = {}
-        unknown = {}
+        rest = {}
 
         # Extract from the given arguments and parse according to the
         # corresponding parameters.
-        for key, value in params.iteritems():
-            template = self._get_template(key)
+        for name, value in params.iteritems():
+            template = self._get_template(name)
             parameter = self._parameters.get(template)
 
             if template.endswith(".#") and parameter is None:
@@ -369,56 +351,56 @@ class Schema(object):
                 # allowed.
                 parameter = self._parameters.get(template[:-2])
                 if parameter is not None:
-                    key = key[:-2]
+                    name = name[:-2]
 
                 # At this point, we have a template that doesn't have the .#
                 # marker to indicate multiple values. We don't allow multiple
                 # "single" values for the same element.
-                if key in tree:
-                    raise InvalidParameterCombinationError(key)
+                if name in tree.keys():
+                    raise InvalidParameterCombinationError(name)
 
             if parameter is None:
-                unknown[key] = value
+                rest[name] = value
             else:
-                self._set_value(tree, key, parameter.coerce(value))
+                self._set_value(tree, name, parameter.coerce(value))
 
         # Ensure that the tree arguments are consistent with constraints
         # defined in the schema.
         for template, parameter in self._parameters.iteritems():
-            try:
-                self._ensure_tree(tree, parameter, *template.split("."))
-            except MissingParameterError:
-                raise MissingParameterError(parameter.template)
+            self._ensure_tree(tree, parameter, *template.split("."))
 
-        if unknown:
-            raise UnknownParametersError(unknown)
+        arguments = Arguments(tree)
 
-        return Arguments(tree)
+        if rest:
+            raise UnknownParameterError(rest, arguments)
+        else:
+            return arguments
 
     def bundle(self, *arguments, **extra):
         """Bundle the given arguments in a C{dict} with EC2-style format.
 
-        @param arguments: Objects to bundle, L{Arguments} instances for
-            example. Keys in later objects will override those in earlier
-            objects.
+        @param arguments: L{Arguments} instances to bundle. Keys in
+            later objects will override those in earlier objects.
         @param extra: Any number of additional parameters. These will override
             similarly named arguments in L{arguments}.
         """
-        bundled = {}
+        params = {}
 
-        flattened = []
-        for thing in arguments:
-            self._flatten(flattened, thing)
-        self._flatten(flattened, extra)
+        for argument in arguments:
+            self._flatten(params, argument)
+        self._flatten(params, extra)
 
-        for name, value in flattened:
+        for name, value in params.iteritems():
             parameter = self._parameters.get(self._get_template(name))
             if parameter is None:
                 raise RuntimeError("Parameter '%s' not in schema" % name)
             else:
-                bundled[name] = parameter.expand(value)
+                if value is None:
+                    params[name] = ""
+                else:
+                    params[name] = parameter.format(value)
 
-        return bundled
+        return params
 
     def _get_template(self, key):
         """Return the canonical template for a given parameter key.
@@ -437,8 +419,8 @@ class Schema(object):
             parts[index * 2 + 1] = "#"
         return ".".join(parts)
 
-    def _set_value(self, tree, key, value):
-        """Set C{value} at C{key} in the given C{tree}.
+    def _set_value(self, tree, path, value):
+        """Set C{value} at C{path} in the given C{tree}.
 
         For example::
 
@@ -450,11 +432,11 @@ class Schema(object):
           {'foo': {1: {'bar': {2: True}}}}
 
         @param tree: A L{dict}.
-        @param key: A L{str}.
+        @param path: A L{str}.
         @param value: The value to set. Can be anything.
         """
         nodes = tuple((int(node) if node.isdigit() else node)
-                      for node in key.split("."))
+                      for node in path.split("."))
         for node in nodes[:-1]:
             tree = tree.setdefault(node, {})
         tree[nodes[-1]] = value
@@ -468,7 +450,7 @@ class Schema(object):
         if node == "#":
             if len(nodes) == 0:
                 if len(tree.keys()) == 0 and not parameter.optional:
-                    raise MissingParameterError(node)
+                    raise MissingParameterError(parameter.name)
             else:
                 for subtree in tree.itervalues():
                     self._ensure_tree(subtree, parameter, *nodes)
@@ -484,26 +466,26 @@ class Schema(object):
                     tree[node] = {}
                 self._ensure_tree(tree[node], parameter, *nodes)
 
-    def _flatten(self, into, node, path=""):
+    def _flatten(self, params, tree, path=""):
         """
-        For every element in L{node}, append a C{(path, value)} tuple to
-        L{into}.
+        For every element in L{tree}, set C{path} to C{value} in the given
+        L{params} dictionary.
 
-        @param into: A L{list} into which the tuples will be appended.
-        @param node: A structure made up of L{Argument}s, L{list}s, L{dict}s
+        @param params: A L{dict} which will be populated.
+        @param tree: A structure made up of L{Argument}s, L{list}s, L{dict}s
             and leaf values.
         """
-        if isinstance(node, Arguments):
-            for name, value in node.__dict__.iteritems():
-                self._flatten(into, value, "%s.%s" % (path, name))
-        elif isinstance(node, dict):
-            for name, value in node.iteritems():
-                self._flatten(into, value, "%s.%s" % (path, name))
-        elif isinstance(node, list):
-            for index, value in enumerate(node):
-                self._flatten(into, value, "%s.%d" % (path, index + 1))
-        elif node is not None:
-            into.append((path.lstrip("."), node))
+        if isinstance(tree, Arguments):
+            for name, value in tree:
+                self._flatten(params, value, "%s.%s" % (path, name))
+        elif isinstance(tree, dict):
+            for name, value in tree.iteritems():
+                self._flatten(params, value, "%s.%s" % (path, name))
+        elif isinstance(tree, list):
+            for index, value in enumerate(tree):
+                self._flatten(params, value, "%s.%d" % (path, index + 1))
+        elif tree is not None:
+            params[path.lstrip(".")] = tree
         else:
             # None is discarded.
             pass

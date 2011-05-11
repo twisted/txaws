@@ -6,350 +6,262 @@ from twisted.trial.unittest import TestCase
 
 from txaws.server.schema import (
     Arguments, Bool, Date, Enum, Integer, Parameter, RawStr, Schema, Unicode,
-    InvalidParameterCombinationError, UnknownParametersError)
-
-
-# class ArgumentsTest(TestCase):
-
-#     def test_instantiate_empty(self):
-#         """Creating an L{Arguments} object."""
-#         arguments = Arguments({})
-#         self.assertIsInstance(arguments, Arguments)
-#         self.assertEqual({}, arguments.__dict__)
-
-#     def test_instantiate_non_empty(self):
-#         """Creating an L{Arguments} object with some arguments."""
-#         things = {"foo": 123, "bar": 456}
-#         arguments = Arguments(things)
-#         self.assertIsInstance(arguments, Arguments)
-#         self.assertEqual(things, arguments.__dict__)
-
-#     def test_iterate(self):
-#         """L{Arguments} returns an iterator with both keys and values."""
-#         things = {"foo": 123, "bar": 456}
-#         arguments = Arguments(things)
-#         self.assertEqual(things, dict(arguments))
-
-#     def test_getitem(self):
-#         """Values can be looked up using C{[index]} notation."""
-#         things = {1: "a", 2: "b", "foo": "bar"}
-#         arguments = Arguments(things)
-#         self.assertEqual("b", arguments[2])
-#         self.assertEqual("bar", arguments["foo"])
-
-#     def test_getitem_error(self):
-#         """L{KeyError} is raised when the argument is not found."""
-#         arguments = Arguments({})
-#         self.assertRaises(KeyError, arguments.__getitem__, 1)
-
-#     def test_len(self):
-#         """C{len()} can be used with an L{Arguments} instance."""
-#         self.assertEqual(0, len(Arguments({})))
-#         self.assertEqual(1, len(Arguments({1: 2})))
-
-#     def test_equal_with_self(self):
-#         """L{Arguments} instances are equal to themselves."""
-#         arguments = Arguments({})
-#         self.assertEqual(arguments, arguments)
-
-#     def test_equal_to_other_Arguments_instance(self):
-#         """
-#         L{Arguments} instances are equal to other instances with the same
-#         content.
-#         """
-#         arguments1 = Arguments({})
-#         arguments2 = Arguments({})
-#         self.assertEqual(arguments1, arguments2)
-
-#     def test_not_equal_to_other_Arguments_instance(self):
-#         """
-#         L{Arguments} instances are not equal to other instances with different
-#         content.
-#         """
-#         arguments1 = Arguments({"foo": 123})
-#         arguments2 = Arguments({"bar": 456})
-#         self.assertNotEqual(arguments1, arguments2)
-
-#     def test_not_equal_to_None(self):
-#         """L{Arguments} instances are not equal to L{None}."""
-#         arguments = Arguments({})
-#         self.assertNotEqual(arguments, None)
-
-#     def test_not_equal_to_other(self):
-#         """L{Arguments} instances are not equal to anything else."""
-#         arguments = Arguments({})
-#         self.assertNotEqual(arguments, object())
-#         self.assertNotEqual(arguments, "arguments")
-#         self.assertNotEqual(arguments, 12345)
-
-#     def test_repr(self):
-#         """L{Arguments.__repr__} helps with debugging and development."""
-#         things = {"foo": 123, "bar": 456}
-#         arguments = Arguments(things)
-#         self.assertEqual("Arguments({'bar': 456, 'foo': 123})",
-#                          repr(arguments))
-
-
-# class WrapTest(TestCase):
-#     """Tests for L{wrap}."""
-
-#     def test_wrap_without_data(self):
-#         """L{wrap} wraps its arguments with L{Arguments}."""
-#         self.assertEqual(Arguments({}), wrap({}))
-
-#     def test_wrap_with_data(self):
-#         """L{wrap} wraps its arguments with L{Arguments}."""
-#         self.assertEqual(Arguments({"foo": "bar"}), wrap({"foo": "bar"}))
-
-#     def test_wrap_with_nested_data(self):
-#         """L{wrap} can cope fine with nested data structures."""
-#         data = {"foo": {"bar": "baz"}}
-#         expected = Arguments({"foo": Arguments({"bar": "baz"})})
-#         observed = wrap(data)
-#         self.assertEqual(expected, observed)
-
-#     def test_wrap_list_with_all_int_keys(self):
-#         """Dictionaries with all L{int} keys are converted to lists."""
-#         data = {"foo": {1: "bar"}, "baz": 2}
-#         expected = Arguments({"foo": ["bar"], "baz": 2})
-#         observed = wrap(data)
-#         self.assertEqual(expected, observed)
-
-#     def test_wrap_list_without_all_int_keys(self):
-#         """
-#         L{wrap} raises an error when not all keys are L{int}s when one is an
-#         L{int}.
-#         """
-#         data = {1: "foo", "2": "bar"}
-#         self.assertRaises(AssertionError, wrap, data)
-
-
-# class ParameterTest(TestCase):
-
-#     def test_coerce(self):
-#         """
-#         L{Parameter.coerce} coerces a request argument with a single value.
-#         """
-#         parameter = Parameter("Test")
-#         parameter.parse = lambda value: value
-#         self.assertEqual("foo", parameter.coerce("foo"))
-
-#     def test_coerce_with_optional(self):
-#         """L{Parameter.coerce} returns C{None} if the parameter is optional."""
-#         parameter = Parameter("Test", optional=True)
-#         self.assertEqual(None, parameter.coerce(None))
-
-#     def test_coerce_with_required(self):
-#         """
-#         L{Parameter.coerce} raises L{APIError} if the parameter is
-#         required but not present in the request.
-#         """
-#         parameter = Parameter("Test")
-#         error = self.assertRaises(APIError, parameter.coerce, None)
-#         self.assertEqual("MissingParameter", error.code)
-#         self.assertEqual("The request must contain the parameter Test",
-#                          error.message)
-#         self.assertEqual("Test", error.parameter_name)
-
-#     def test_coerce_with_default(self):
-#         """
-#         L{Parameter.coerce} returns F{Parameter.default} if the parameter is
-#         optional and not present in the request.
-#         """
-#         parameter = Parameter("Test", optional=True, default=123)
-#         self.assertEqual(123, parameter.coerce(None))
-
-#     def test_coerce_with_parameter_error(self):
-#         """
-#         L{Parameter.coerce} raises L{APIError} if an invalid value is
-#         passed as request argument.
-#         """
-#         parameter = Parameter("Test")
-#         parameter.parse = lambda value: int(value)
-#         parameter.kind = "integer"
-#         error = self.assertRaises(APIError, parameter.coerce, "foo")
-#         self.assertEqual("InvalidParameterValue", error.code)
-#         self.assertEqual("Invalid integer value foo", error.message)
-
-#     def test_coerce_with_empty_strings(self):
-#         """
-#         L{Parameter.coerce} returns C{None} if the value is an empty string and
-#         C{allow_none} is C{True}.
-#         """
-#         parameter = Parameter("Test", allow_none=True)
-#         self.assertEqual(None, parameter.coerce(""))
-
-#     def test_coerce_with_empty_strings_error(self):
-#         """
-#         L{Parameter.coerce} raises an error if the value is an empty string and
-#         C{allow_none} is not C{True}.
-#         """
-#         parameter = Parameter("Test")
-#         error = self.assertRaises(APIError, parameter.coerce, "")
-#         self.assertEqual("The request must contain the parameter Test",
-#                          error.message)
-
-#     def test_coerce_with_min(self):
-#         """
-#         L{Parameter.coerce} raises an error if the given value is lower than
-#         the lower bound.
-#         """
-#         parameter = Parameter("Test", min=50)
-#         parameter.measure = lambda value: int(value)
-#         parameter.lower_than_min_template = "Please give me at least %s"
-#         error = self.assertRaises(APIError, parameter.coerce, "4")
-#         self.assertEqual("InvalidParameterValue", error.code)
-#         self.assertEqual("Value (4) for parameter Test is invalid.  "
-#                          "Please give me at least 50", error.message)
-
-#     def test_coerce_with_max(self):
-#         """
-#         L{Parameter.coerce} raises an error if the given value is greater than
-#         the upper bound.
-#         """
-#         parameter = Parameter("Test", max=3)
-#         parameter.measure = lambda value: len(value)
-#         parameter.greater_than_max_template = "%s should be enough for anybody"
-#         error = self.assertRaises(APIError, parameter.coerce, "longish")
-#         self.assertEqual("InvalidParameterValue", error.code)
-#         self.assertEqual("Value (longish) for parameter Test is invalid.  "
-#                          "3 should be enough for anybody", error.message)
-
-#     def test_expand_with_none(self):
-#         """
-#         L{Parameter.expand} returns an empty C{dict} if the value is C{None}.
-#         """
-#         parameter = Parameter("Test")
-#         self.assertEqual("", parameter.expand(None))
-
-
-# class ParameterTestCase(TestCase):
-
-#     def assertEqualAndString(self, actual, expected):
-#         """Assert that C{expected} equals C{actual} and is of type C{str}."""
-#         self.assertEqual(actual, expected)
-#         self.assertTrue(isinstance(expected, str))
-
-
-# class UnicodeTest(ParameterTestCase):
-
-#     def test_parse(self):
-#         """L{Unicode.parse} converts the given raw C{value} to C{unicode}."""
-#         parameter = Unicode("Test")
-#         self.assertEqual(u"foo", parameter.parse("foo"))
-
-#     def test_format(self):
-#         """L{Unicode.format} encodes the given C{unicode} with utf-8."""
-#         parameter = Unicode("Test")
-#         self.assertEqualAndString(
-#             "fo\xe1\x9d\xb0",
-#             parameter.format(u"fo\N{TAGBANWA LETTER SA}"))
-
-#     def test_min_and_max(self):
-#         """The L{Unicode} parameter properly supports ranges."""
-#         parameter = Unicode("Test", min=2, max=4)
-#         error = self.assertRaises(APIError, parameter.coerce, "a")
-#         self.assertIn("Length must be at least 2.", error.message)
-#         error = self.assertRaises(APIError, parameter.coerce, "abcde")
-#         self.assertIn("Length exceeds maximum of 4.", error.message)
-
-
-# class RawStrTest(ParameterTestCase):
-
-#     def test_parse(self):
-#         """L{RawStr.parse checks that the given raw C{value} is a string."""
-#         parameter = RawStr("Test")
-#         self.assertEqual("foo", parameter.parse("foo"))
-
-#     def test_format(self):
-#         """L{RawStr.format} simply returns the given string."""
-#         parameter = RawStr("Test")
-#         self.assertEqualAndString("foo", parameter.format("foo"))
-
-
-# class IntegerTest(ParameterTestCase):
-
-#     def test_parse(self):
-#         """L{Integer.parse} converts the given raw C{value} to C{int}."""
-#         parameter = Integer("Test")
-#         self.assertEqual(123, parameter.parse("123"))
-
-#     def test_parse_wiith_negative(self):
-#         """L{Integer.parse} converts the given raw C{value} to C{int}."""
-#         parameter = Integer("Test")
-#         self.assertRaises(ValueError, parameter.parse, "-1")
-
-#     def test_format(self):
-#         """L{Integer.format} converts the given integer to a string."""
-#         parameter = Integer("Test")
-#         self.assertEqualAndString("123", parameter.format(123))
-
-
-# class BoolTest(ParameterTestCase):
-
-#     def test_parse(self):
-#         """L{Bool.parse} converts 'true' to C{True}."""
-#         parameter = Bool("Test")
-#         self.assertEqual(True, parameter.parse("true"))
-
-#     def test_parse_with_false(self):
-#         """L{Bool.parse} converts 'false' to C{False}."""
-#         parameter = Bool("Test")
-#         self.assertEqual(False, parameter.parse("false"))
-
-#     def test_parse_with_error(self):
-#         """
-#         L{Bool.parse} raises C{ValueError} if the given value is neither 'true'
-#         or 'false'.
-#         """
-#         parameter = Bool("Test")
-#         self.assertRaises(ValueError, parameter.parse, "0")
-
-#     def test_format(self):
-#         """L{Bool.format} converts the given boolean to either '0' or '1'."""
-#         parameter = Bool("Test")
-#         self.assertEqualAndString("true", parameter.format(True))
-#         self.assertEqualAndString("false", parameter.format(False))
-
-
-# class EnumTest(ParameterTestCase):
-
-#     def test_parse(self):
-#         """L{Enum.parse} accepts a map for translating values."""
-#         parameter = Enum("Test", {"foo": "bar"})
-#         self.assertEqual("bar", parameter.parse("foo"))
-
-#     def test_parse_with_error(self):
-#         """
-#         L{Bool.parse} raises C{ValueError} if the given value is not
-#         present in the mapping.
-#         """
-#         parameter = Enum("Test", {})
-#         self.assertRaises(ValueError, parameter.parse, "bar")
-
-#     def test_format(self):
-#         """L{Enum.format} converts back the given value to the original map."""
-#         parameter = Enum("Test", {"foo": "bar"})
-#         self.assertEqualAndString("foo", parameter.format("bar"))
-
-
-# class DateTest(ParameterTestCase):
-
-#     def test_parse(self):
-#         """L{Date.parse checks that the given raw C{value} is a date/time."""
-#         parameter = Date("Test")
-#         date = datetime(2010, 9, 15, 23, 59, 59, tzinfo=UTC)
-#         self.assertEqual(date, parameter.parse("2010-09-15T23:59:59Z"))
-
-#     def test_format(self):
-#         """
-#         L{Date.format} returns a string representation of the given datetime
-#         instance.
-#         """
-#         parameter = Date("Test")
-#         date = datetime(2010, 9, 15, 23, 59, 59,
-#                         tzinfo=FixedOffset(120))
-#         self.assertEqual("2010-09-15T21:59:59Z", parameter.format(date))
+    InvalidParameterCombinationError, UnknownParameterError, SchemaError)
+
+
+class ArgumentsTest(TestCase):
+
+    def test_instantiate_empty(self):
+        """Creating an L{Arguments} object."""
+        arguments = Arguments({})
+        self.assertEqual({}, arguments.__dict__)
+
+    def test_instantiate_non_empty(self):
+        """Creating an L{Arguments} object with some arguments."""
+        arguments = Arguments({"foo": 123, "bar": 456})
+        self.assertEqual(123, arguments.foo)
+        self.assertEqual(456, arguments.bar)
+
+    def test_iterate(self):
+        """L{Arguments} returns an iterator with both keys and values."""
+        arguments = Arguments({"foo": 123, "bar": 456})
+        self.assertEqual([("foo", 123), ("bar", 456)], list(arguments))
+
+    def test_getitem(self):
+        """Values can be looked up using C{[index]} notation."""
+        arguments = Arguments({1: "a", 2: "b", "foo": "bar"})
+        self.assertEqual("b", arguments[2])
+        self.assertEqual("bar", arguments["foo"])
+
+    def test_getitem_error(self):
+        """L{KeyError} is raised when the argument is not found."""
+        arguments = Arguments({})
+        self.assertRaises(KeyError, arguments.__getitem__, 1)
+
+    def test_len(self):
+        """C{len()} can be used with an L{Arguments} instance."""
+        self.assertEqual(0, len(Arguments({})))
+        self.assertEqual(1, len(Arguments({1: 2})))
+
+    def test_nested_data(self):
+        """L{Arguments} can cope fine with nested data structures."""
+        arguments = Arguments({"foo": Arguments({"bar": "egg"})})
+        self.assertEqual("egg", arguments.foo.bar)
+
+    def test_nested_data_with_numbers(self):
+        """L{Arguments} can cope fine with list items."""
+        arguments = Arguments({"foo": {1: "egg"}})
+        self.assertEqual("egg", arguments.foo[0])
+
+
+class ParameterTest(TestCase):
+
+    def test_coerce(self):
+        """
+        L{Parameter.coerce} coerces a request argument with a single value.
+        """
+        parameter = Parameter("Test")
+        parameter.parse = lambda value: value
+        self.assertEqual("foo", parameter.coerce("foo"))
+
+    def test_coerce_with_optional(self):
+        """L{Parameter.coerce} returns C{None} if the parameter is optional."""
+        parameter = Parameter("Test", optional=True)
+        self.assertEqual(None, parameter.coerce(None))
+
+    def test_coerce_with_required(self):
+        """
+        L{Parameter.coerce} raises a L{SchemaError} if the parameter is
+        required but not present in the request.
+        """
+        parameter = Parameter("Test")
+        error = self.assertRaises(SchemaError, parameter.coerce, None)
+        self.assertEqual("The request must contain the parameter Test",
+                         error.message)
+
+    def test_coerce_with_default(self):
+        """
+        L{Parameter.coerce} returns F{Parameter.default} if the parameter is
+        optional and not present in the request.
+        """
+        parameter = Parameter("Test", optional=True, default=123)
+        self.assertEqual(123, parameter.coerce(None))
+
+    def test_coerce_with_parameter_error(self):
+        """
+        L{Parameter.coerce} raises a L{SchemaError} if an invalid value is
+        passed as request argument.
+        """
+        parameter = Parameter("Test")
+        parameter.parse = lambda value: int(value)
+        parameter.kind = "integer"
+        error = self.assertRaises(SchemaError, parameter.coerce, "foo")
+        self.assertEqual("Invalid integer value foo", error.message)
+
+    def test_coerce_with_empty_strings(self):
+        """
+        L{Parameter.coerce} returns C{None} if the value is an empty string and
+        C{allow_none} is C{True}.
+        """
+        parameter = Parameter("Test", allow_none=True)
+        self.assertEqual(None, parameter.coerce(""))
+
+    def test_coerce_with_empty_strings_error(self):
+        """
+        L{Parameter.coerce} raises an error if the value is an empty string and
+        C{allow_none} is not C{True}.
+        """
+        parameter = Parameter("Test")
+        error = self.assertRaises(SchemaError, parameter.coerce, "")
+        self.assertEqual("The request must contain the parameter Test",
+                         error.message)
+
+    def test_coerce_with_min(self):
+        """
+        L{Parameter.coerce} raises an error if the given value is lower than
+        the lower bound.
+        """
+        parameter = Parameter("Test", min=50)
+        parameter.measure = lambda value: int(value)
+        parameter.lower_than_min_template = "Please give me at least %s"
+        error = self.assertRaises(SchemaError, parameter.coerce, "4")
+        self.assertEqual("Value (4) for parameter Test is invalid.  "
+                         "Please give me at least 50", error.message)
+
+    def test_coerce_with_max(self):
+        """
+        L{Parameter.coerce} raises an error if the given value is greater than
+        the upper bound.
+        """
+        parameter = Parameter("Test", max=3)
+        parameter.measure = lambda value: len(value)
+        parameter.greater_than_max_template = "%s should be enough for anybody"
+        error = self.assertRaises(SchemaError, parameter.coerce, "longish")
+        self.assertEqual("Value (longish) for parameter Test is invalid.  "
+                         "3 should be enough for anybody", error.message)
+
+
+class UnicodeTest(TestCase):
+
+    def test_parse(self):
+        """L{Unicode.parse} converts the given raw C{value} to C{unicode}."""
+        parameter = Unicode("Test")
+        self.assertEqual(u"foo", parameter.parse("foo"))
+
+    def test_format(self):
+        """L{Unicode.format} encodes the given C{unicode} with utf-8."""
+        parameter = Unicode("Test")
+        value = parameter.format(u"fo\N{TAGBANWA LETTER SA}")
+        self.assertEqual("fo\xe1\x9d\xb0", value)
+        self.assertTrue(isinstance(value, str))
+
+    def test_min_and_max(self):
+        """The L{Unicode} parameter properly supports ranges."""
+        parameter = Unicode("Test", min=2, max=4)
+        error = self.assertRaises(SchemaError, parameter.coerce, "a")
+        self.assertIn("Length must be at least 2.", error.message)
+        error = self.assertRaises(SchemaError, parameter.coerce, "abcde")
+        self.assertIn("Length exceeds maximum of 4.", error.message)
+
+
+class RawStrTest(TestCase):
+
+    def test_parse(self):
+        """L{RawStr.parse checks that the given raw C{value} is a string."""
+        parameter = RawStr("Test")
+        self.assertEqual("foo", parameter.parse("foo"))
+
+    def test_format(self):
+        """L{RawStr.format} simply returns the given string."""
+        parameter = RawStr("Test")
+        value = parameter.format("foo")
+        self.assertEqual("foo", value)
+        self.assertTrue(isinstance(value, str))
+
+
+class IntegerTest(TestCase):
+
+    def test_parse(self):
+        """L{Integer.parse} converts the given raw C{value} to C{int}."""
+        parameter = Integer("Test")
+        self.assertEqual(123, parameter.parse("123"))
+
+    def test_parse_wiith_negative(self):
+        """L{Integer.parse} converts the given raw C{value} to C{int}."""
+        parameter = Integer("Test")
+        self.assertRaises(ValueError, parameter.parse, "-1")
+
+    def test_format(self):
+        """L{Integer.format} converts the given integer to a string."""
+        parameter = Integer("Test")
+        self.assertEqual("123", parameter.format(123))
+
+
+class BoolTest(TestCase):
+
+    def test_parse(self):
+        """L{Bool.parse} converts 'true' to C{True}."""
+        parameter = Bool("Test")
+        self.assertEqual(True, parameter.parse("true"))
+
+    def test_parse_with_false(self):
+        """L{Bool.parse} converts 'false' to C{False}."""
+        parameter = Bool("Test")
+        self.assertEqual(False, parameter.parse("false"))
+
+    def test_parse_with_error(self):
+        """
+        L{Bool.parse} raises C{ValueError} if the given value is neither 'true'
+        or 'false'.
+        """
+        parameter = Bool("Test")
+        self.assertRaises(ValueError, parameter.parse, "0")
+
+    def test_format(self):
+        """L{Bool.format} converts the given boolean to either '0' or '1'."""
+        parameter = Bool("Test")
+        self.assertEqual("true", parameter.format(True))
+        self.assertEqual("false", parameter.format(False))
+
+
+class EnumTest(TestCase):
+
+    def test_parse(self):
+        """L{Enum.parse} accepts a map for translating values."""
+        parameter = Enum("Test", {"foo": "bar"})
+        self.assertEqual("bar", parameter.parse("foo"))
+
+    def test_parse_with_error(self):
+        """
+        L{Bool.parse} raises C{ValueError} if the given value is not
+        present in the mapping.
+        """
+        parameter = Enum("Test", {})
+        self.assertRaises(ValueError, parameter.parse, "bar")
+
+    def test_format(self):
+        """L{Enum.format} converts back the given value to the original map."""
+        parameter = Enum("Test", {"foo": "bar"})
+        self.assertEqual("foo", parameter.format("bar"))
+
+
+class DateTest(TestCase):
+
+    def test_parse(self):
+        """L{Date.parse checks that the given raw C{value} is a date/time."""
+        parameter = Date("Test")
+        date = datetime(2010, 9, 15, 23, 59, 59, tzinfo=UTC)
+        self.assertEqual(date, parameter.parse("2010-09-15T23:59:59Z"))
+
+    def test_format(self):
+        """
+        L{Date.format} returns a string representation of the given datetime
+        instance.
+        """
+        parameter = Date("Test")
+        date = datetime(2010, 9, 15, 23, 59, 59,
+                        tzinfo=FixedOffset(120))
+        self.assertEqual("2010-09-15T21:59:59Z", parameter.format(date))
 
 
 class SchemaTest(TestCase):
@@ -368,9 +280,9 @@ class SchemaTest(TestCase):
         L{Schema.extract} raises an error if some parameters are unknown.
         """
         schema = Schema()
-        error = self.assertRaises(UnknownParametersError,
+        error = self.assertRaises(UnknownParameterError,
                                   schema.extract, {"name": "value"})
-        self.assertEqual(error.details, {"name": "value"})
+        self.assertEqual(error.rest, {"name": "value"})
 
     def test_extract_with_many_arguments(self):
         """L{Schema.extract} can handle multiple parameters."""
@@ -447,9 +359,9 @@ class SchemaTest(TestCase):
         """
         schema = Schema(Unicode("name.n"))
         params = {"name": "foo", "name.1": "bar"}
-        error = self.assertRaises(UnknownParametersError,
+        error = self.assertRaises(UnknownParameterError,
                                   schema.extract, params)
-        self.assertEqual(error.details, {"name": "foo"})
+        self.assertEqual(error.rest, {"name": "foo"})
 
     def test_extract_with_non_numbered_template(self):
         """
