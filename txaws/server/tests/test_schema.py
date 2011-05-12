@@ -4,9 +4,9 @@ from pytz import UTC, FixedOffset
 
 from twisted.trial.unittest import TestCase
 
+from txaws.server.exception import APIError
 from txaws.server.schema import (
-    Arguments, Bool, Date, Enum, Integer, Parameter, RawStr, Schema, Unicode,
-    InvalidParameterCombinationError, UnknownParameterError, SchemaError)
+    Arguments, Bool, Date, Enum, Integer, Parameter, RawStr, Schema, Unicode)
 
 
 class ArgumentsTest(TestCase):
@@ -71,11 +71,13 @@ class ParameterTest(TestCase):
 
     def test_coerce_with_required(self):
         """
-        L{Parameter.coerce} raises a L{SchemaError} if the parameter is
+        L{Parameter.coerce} raises an L{APIError} if the parameter is
         required but not present in the request.
         """
         parameter = Parameter("Test")
-        error = self.assertRaises(SchemaError, parameter.coerce, None)
+        error = self.assertRaises(APIError, parameter.coerce, None)
+        self.assertEqual(400, error.status)
+        self.assertEqual("MissingParameter", error.code)
         self.assertEqual("The request must contain the parameter Test",
                          error.message)
 
@@ -89,13 +91,15 @@ class ParameterTest(TestCase):
 
     def test_coerce_with_parameter_error(self):
         """
-        L{Parameter.coerce} raises a L{SchemaError} if an invalid value is
+        L{Parameter.coerce} raises an L{APIError} if an invalid value is
         passed as request argument.
         """
         parameter = Parameter("Test")
         parameter.parse = lambda value: int(value)
         parameter.kind = "integer"
-        error = self.assertRaises(SchemaError, parameter.coerce, "foo")
+        error = self.assertRaises(APIError, parameter.coerce, "foo")
+        self.assertEqual(400, error.status)
+        self.assertEqual("InvalidParameterValue", error.code)
         self.assertEqual("Invalid integer value foo", error.message)
 
     def test_coerce_with_empty_strings(self):
@@ -112,7 +116,9 @@ class ParameterTest(TestCase):
         C{allow_none} is not C{True}.
         """
         parameter = Parameter("Test")
-        error = self.assertRaises(SchemaError, parameter.coerce, "")
+        error = self.assertRaises(APIError, parameter.coerce, "")
+        self.assertEqual(400, error.status)
+        self.assertEqual("MissingParameter", error.code)
         self.assertEqual("The request must contain the parameter Test",
                          error.message)
 
@@ -124,7 +130,9 @@ class ParameterTest(TestCase):
         parameter = Parameter("Test", min=50)
         parameter.measure = lambda value: int(value)
         parameter.lower_than_min_template = "Please give me at least %s"
-        error = self.assertRaises(SchemaError, parameter.coerce, "4")
+        error = self.assertRaises(APIError, parameter.coerce, "4")
+        self.assertEqual(400, error.status)
+        self.assertEqual("InvalidParameterValue", error.code)
         self.assertEqual("Value (4) for parameter Test is invalid.  "
                          "Please give me at least 50", error.message)
 
@@ -136,7 +144,9 @@ class ParameterTest(TestCase):
         parameter = Parameter("Test", max=3)
         parameter.measure = lambda value: len(value)
         parameter.greater_than_max_template = "%s should be enough for anybody"
-        error = self.assertRaises(SchemaError, parameter.coerce, "longish")
+        error = self.assertRaises(APIError, parameter.coerce, "longish")
+        self.assertEqual(400, error.status)
+        self.assertEqual("InvalidParameterValue", error.code)
         self.assertEqual("Value (longish) for parameter Test is invalid.  "
                          "3 should be enough for anybody", error.message)
 
@@ -158,10 +168,16 @@ class UnicodeTest(TestCase):
     def test_min_and_max(self):
         """The L{Unicode} parameter properly supports ranges."""
         parameter = Unicode("Test", min=2, max=4)
-        error = self.assertRaises(SchemaError, parameter.coerce, "a")
+
+        error = self.assertRaises(APIError, parameter.coerce, "a")
+        self.assertEqual(400, error.status)
+        self.assertEqual("InvalidParameterValue", error.code)
         self.assertIn("Length must be at least 2.", error.message)
-        error = self.assertRaises(SchemaError, parameter.coerce, "abcde")
+
+        error = self.assertRaises(APIError, parameter.coerce, "abcde")
         self.assertIn("Length exceeds maximum of 4.", error.message)
+        self.assertEqual(400, error.status)
+        self.assertEqual("InvalidParameterValue", error.code)
 
 
 class RawStrTest(TestCase):
@@ -272,29 +288,29 @@ class SchemaTest(TestCase):
         the arguments extracted from the given C{request}, as specified.
         """
         schema = Schema(Unicode("name"))
-        arguments = schema.extract({"name": "value"})
+        arguments, _ = schema.extract({"name": "value"})
         self.assertEqual("value", arguments.name)
 
-    def test_extract_with_unknown_parameters(self):
+    def test_extract_with_rest(self):
         """
-        L{Schema.extract} raises an error if some parameters are unknown.
+        L{Schema.extract} stores unknown parameters in the 'rest' return
+        dictionary.
         """
         schema = Schema()
-        error = self.assertRaises(UnknownParameterError,
-                                  schema.extract, {"name": "value"})
-        self.assertEqual(error.rest, {"name": "value"})
+        _, rest = schema.extract({"name": "value"})
+        self.assertEqual(rest, {"name": "value"})
 
     def test_extract_with_many_arguments(self):
         """L{Schema.extract} can handle multiple parameters."""
         schema = Schema(Unicode("name"), Integer("count"))
-        arguments = schema.extract({"name": "value", "count": "123"})
+        arguments, _ = schema.extract({"name": "value", "count": "123"})
         self.assertEqual(u"value", arguments.name)
         self.assertEqual(123, arguments.count)
 
     def test_extract_with_optional(self):
         """L{Schema.extract} can handle optional parameters."""
         schema = Schema(Unicode("name"), Integer("count", optional=True))
-        arguments = schema.extract({"name": "value"})
+        arguments, _ = schema.extract({"name": "value"})
         self.assertEqual(u"value", arguments.name)
         self.assertEqual(None, arguments.count)
 
@@ -303,7 +319,7 @@ class SchemaTest(TestCase):
         L{Schema.extract} can handle parameters with numbered values.
         """
         schema = Schema(Unicode("name.n"))
-        arguments = schema.extract({"name.0": "Joe", "name.1": "Tom"})
+        arguments, _ = schema.extract({"name.0": "Joe", "name.1": "Tom"})
         self.assertEqual("Joe", arguments.name[0])
         self.assertEqual("Tom", arguments.name[1])
 
@@ -312,7 +328,7 @@ class SchemaTest(TestCase):
         L{Schema.extract} can handle a single parameter with a numbered value.
         """
         schema = Schema(Unicode("name.n"))
-        arguments = schema.extract({"name.0": "Joe"})
+        arguments, _ = schema.extract({"name.0": "Joe"})
         self.assertEqual("Joe", arguments.name[0])
 
     def test_extract_complex(self):
@@ -325,7 +341,7 @@ class SchemaTest(TestCase):
             Unicode("IpPermissions.n.Groups.m.UserId", optional=True),
             Unicode("IpPermissions.n.Groups.m.GroupName", optional=True))
 
-        arguments = schema.extract(
+        arguments, _ = schema.extract(
             {"GroupName": "Foo",
              "IpPermissions.1.IpProtocol": "tcp",
              "IpPermissions.1.FromPort": "1234",
@@ -345,23 +361,24 @@ class SchemaTest(TestCase):
         """
         If multiple parameters are passed in to a Schema element that is not
         flagged as supporting multiple values then we should throw an
-        C{InvalidParameterCombinationError}.
+        C{APIError}.
         """
         schema = Schema(Unicode("name"))
         params = {"name.1": "value", "name.2": "value2"}
-        self.assertRaises(InvalidParameterCombinationError, schema.extract,
-                          params)
+        error = self.assertRaises(APIError, schema.extract, params)
+        self.assertEqual(400, error.status)
+        self.assertEqual("InvalidParameterCombination", error.code)
+        self.assertEqual("The parameter 'name' may only be specified once.",
+                         error.message)
 
     def test_extract_with_mixed(self):
         """
-        L{Schema.extract} raises an error when numbered parameters are
+        L{Schema.extract} stores in the rest result all numbered parameters
         given without an index.
         """
         schema = Schema(Unicode("name.n"))
-        params = {"name": "foo", "name.1": "bar"}
-        error = self.assertRaises(UnknownParameterError,
-                                  schema.extract, params)
-        self.assertEqual(error.rest, {"name": "foo"})
+        _, rest = schema.extract({"name": "foo", "name.1": "bar"})
+        self.assertEqual(rest, {"name": "foo"})
 
     def test_extract_with_non_numbered_template(self):
         """
@@ -369,7 +386,7 @@ class SchemaTest(TestCase):
         associated template is not numbered.
         """
         schema = Schema(Unicode("name"))
-        arguments = schema.extract({"name.1": "foo"})
+        arguments, _ = schema.extract({"name.1": "foo"})
         self.assertEqual("foo", arguments.name)
 
     def test_bundle(self):

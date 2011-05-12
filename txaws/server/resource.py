@@ -8,20 +8,20 @@ from twisted.python import log
 from twisted.internet.defer import maybeDeferred
 from twisted.web.resource import Resource
 from twisted.web.server import NOT_DONE_YET
+
 from txaws.ec2.client import Query
 from txaws.service import AWSServiceEndpoint
 from txaws.credentials import AWSCredentials
-
-from clouddeck.api.arguments import (
+from txaws.server.schema import (
     Schema, Unicode, Integer, Enum, RawStr, Date)
 from txaws.server.exception import APIError
-from txaws.server.call import Call
+#from txaws.server.call import Call
 
 
 class QueryAPI(Resource):
     """Base class for  EC2-like query APIs.
 
-    @param root_url: Our endpoint.
+    @param uri: The query API endpoint, used to check signatures.
 
     The following class variables must be defined by sub-classes:
 

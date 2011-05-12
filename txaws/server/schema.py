@@ -5,9 +5,15 @@ from pytz import UTC
 
 from zope.datetime import parse, SyntaxError
 
+from txaws.server.exception import APIError
 
-class SchemaError(Exception):
+
+class SchemaError(APIError):
     """Raised when failing to extract or bundle L{Parameter}s."""
+
+    def __init__(self, message):
+        code = self.__class__.__name__[:-len("Error")]
+        super(SchemaError, self).__init__(400, code=code, message=message)
 
 
 class MissingParameterError(SchemaError):
@@ -22,10 +28,7 @@ class MissingParameterError(SchemaError):
 
 
 class InvalidParameterValueError(SchemaError):
-    """Raised when the value of a parameter is invalid.
-
-    @param message: The error message to report.
-    """
+    """Raised when the value of a parameter is invalid."""
 
 
 class InvalidParameterCombinationError(SchemaError):
@@ -42,19 +45,11 @@ class InvalidParameterCombinationError(SchemaError):
 
 
 class UnknownParameterError(SchemaError):
-    """Raised when one or more of the parameters to extract are unknown.
+    """Raised when a parameter to extract is unknown."""
 
-    @param rest: A C{dict} holding all unknown parameter names and their
-        value.
-    @param arguments: An L{Arguments} object holding the data about the
-        parameter names that could be extracted.
-    """
-
-    def __init__(self, rest, arguments):
-        message = "The parameter %s is not recognized" % rest.keys()[0]
+    def __init__(self, name):
+        message = "The parameter %s is not recognized" % name
         super(UnknownParameterError, self).__init__(message)
-        self.rest = rest
-        self.arguments = arguments
 
 
 class Parameter(object):
@@ -369,7 +364,7 @@ class Schema(object):
         for template, parameter in self._parameters.iteritems():
             self._ensure_tree(tree, parameter, *template.split("."))
 
-        arguments = Arguments(tree)
+        return Arguments(tree), rest
 
         if rest:
             raise UnknownParameterError(rest, arguments)
