@@ -25,7 +25,7 @@ class AWSServiceEndpointTestCase(TXAWSTestCase):
         endpoint = AWSServiceEndpoint()
         self.assertEquals(endpoint.scheme, "http")
         self.assertEquals(endpoint.host, "")
-        self.assertEquals(endpoint.port, 80)
+        self.assertEquals(endpoint.port, None)
         self.assertEquals(endpoint.path, "/")
         self.assertEquals(endpoint.method, "GET")
 
@@ -37,7 +37,7 @@ class AWSServiceEndpointTestCase(TXAWSTestCase):
     def test_parse_uri(self):
         self.assertEquals(self.endpoint.scheme, "http")
         self.assertEquals(self.endpoint.host, "my.service")
-        self.assertEquals(self.endpoint.port, 80)
+        self.assertIdentical(self.endpoint.port, None)
         self.assertEquals(self.endpoint.path, "/da_endpoint")
 
     def test_parse_uri_https_and_custom_port(self):
@@ -74,20 +74,19 @@ class AWSServiceEndpointTestCase(TXAWSTestCase):
         endpoint = AWSServiceEndpoint(uri=uri)
         self.assertEquals("my.service", endpoint.get_canonical_host())
 
-    def test_get_canonical_host_with_default_port(self):
-        """
-        If the port is the default one, the canonical host is the same as
-        the host.
-        """
-        uri = "http://my.service:80/endpoint"
-        endpoint = AWSServiceEndpoint(uri=uri)
-        self.assertEquals("my.service", endpoint.get_canonical_host())
-
     def test_get_canonical_host_with_non_default_port(self):
         """
         If the port is not the default, the canonical host includes it.
         """
         uri = "http://my.service:99/endpoint"
+        endpoint = AWSServiceEndpoint(uri=uri)
+        self.assertEquals("my.service:99", endpoint.get_canonical_host())
+
+    def test_get_canonical_host_is_lower_case(self):
+        """
+        The canonical host is guaranteed to be lower case.
+        """
+        uri = "http://MY.SerVice:99/endpoint"
         endpoint = AWSServiceEndpoint(uri=uri)
         self.assertEquals("my.service:99", endpoint.get_canonical_host())
 
