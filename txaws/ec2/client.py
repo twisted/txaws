@@ -922,7 +922,8 @@ class Query(BaseQuery):
 
     def signing_text(self):
         """Return the text to be signed when signing the query."""
-        result = "%s\n%s\n%s\n%s" % (self.endpoint.method, self.endpoint.host,
+        result = "%s\n%s\n%s\n%s" % (self.endpoint.method,
+                                     self.endpoint.get_canonical_host(),
                                      self.endpoint.path,
                                      self.get_canonical_query_params())
         return result
@@ -969,13 +970,17 @@ class Query(BaseQuery):
         url = self.endpoint.get_uri()
         method = self.endpoint.method
         params = self.get_canonical_query_params()
+        headers = {}
         kwargs = {"method": method}
         if method == "POST":
-            kwargs["headers"] = {
-                "Content-Type": "application/x-www-form-urlencoded"}
+            headers["Content-Type"] = "application/x-www-form-urlencoded"
             kwargs["postdata"] = params
         else:
             url += "?%s" % params
+        if self.endpoint.get_host() != self.endpoint.get_canonical_host():
+            headers["Host"] = self.endpoint.get_canonical_host()
+        if headers:
+            kwargs["headers"] = headers
         if self.timeout:
             kwargs["timeout"] = self.timeout
         d = self.get_page(url, **kwargs)
