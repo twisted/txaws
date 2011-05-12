@@ -948,6 +948,7 @@ class Query(BaseQuery):
 
 
 class Signature(object):
+    """Compute EC2-compliant signatures for requests."""
 
     def __init__(self, creds, endpoint, params):
         """Create a Query to submit to EC2."""
