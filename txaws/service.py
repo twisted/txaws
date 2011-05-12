@@ -24,7 +24,7 @@ class AWSServiceEndpoint(object):
 
     def __init__(self, uri="", method="GET"):
         self.host = ""
-        self.port = DEFAULT_PORT
+        self.port = None
         self.path = "/"
         self.method = method
         self._parse_uri(uri)
@@ -33,7 +33,7 @@ class AWSServiceEndpoint(object):
 
     def _parse_uri(self, uri):
         scheme, host, port, path = parse(
-            str(uri), defaultPort=DEFAULT_PORT)
+            str(uri), defaultPort=False)
         self.scheme = scheme
         self.host = host
         self.port = port
@@ -46,14 +46,12 @@ class AWSServiceEndpoint(object):
         return self.host
 
     def get_canonical_host(self):
-        """Return the canonical host as for the Host HTTP header specification.
-
-        If the port is different from the default one, it will be appended to
-        the host name.
+        """
+        Return the canonical host as for the Host HTTP header specification.
         """
         host = self.host.lower()
-        if self.port and self.port != DEFAULT_PORT:
-            host += ":%s" % self.port
+        if self.port is not None:
+            host = "%s:%s" % (host, self.port)
         return host
 
     def set_path(self, path):
