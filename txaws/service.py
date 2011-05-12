@@ -45,15 +45,24 @@ class AWSServiceEndpoint(object):
     def get_host(self):
         return self.host
 
+    def get_canonical_host(self):
+        """Return the canonical host as for the Host HTTP header specification.
+
+        If the port is different from the default one, it will be appended to
+        the host name.
+        """
+        host = self.host
+        if self.port and self.port != DEFAULT_PORT:
+            host += ":%s" % self.port
+        return host
+
     def set_path(self, path):
         self.path = path
 
     def get_uri(self):
         """Get a URL representation of the service."""
-        uri = "%s://%s" % (self.scheme, self.host)
-        if self.port and self.port != DEFAULT_PORT:
-            uri = "%s:%s" % (uri, self.port)
-        return uri + self.path
+        uri = "%s://%s%s" % (self.scheme, self.get_canonical_host(), self.path)
+        return uri
 
     def set_method(self, method):
         self.method = method

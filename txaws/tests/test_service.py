@@ -65,6 +65,32 @@ class AWSServiceEndpointTestCase(TXAWSTestCase):
     def test_get_host(self):
         self.assertEquals(self.endpoint.host, self.endpoint.get_host())
 
+    def test_get_canonical_host(self):
+        """
+        If the port is not specified the canonical host is the same as
+        the host.
+        """
+        uri = "http://my.service/endpoint"
+        endpoint = AWSServiceEndpoint(uri=uri)
+        self.assertEquals("my.service", endpoint.get_canonical_host())
+
+    def test_get_canonical_host_with_default_port(self):
+        """
+        If the port is the default one, the canonical host is the same as
+        the host.
+        """
+        uri = "http://my.service:80/endpoint"
+        endpoint = AWSServiceEndpoint(uri=uri)
+        self.assertEquals("my.service", endpoint.get_canonical_host())
+
+    def test_get_canonical_host_with_non_default_port(self):
+        """
+        If the port is not the default, the canonical host includes it.
+        """
+        uri = "http://my.service:99/endpoint"
+        endpoint = AWSServiceEndpoint(uri=uri)
+        self.assertEquals("my.service:99", endpoint.get_canonical_host())
+
     def test_set_path(self):
         self.endpoint.set_path("/newpath")
         self.assertEquals(
