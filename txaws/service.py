@@ -13,7 +13,6 @@ REGION_EU = "EU"
 EC2_ENDPOINT_US = "https://us-east-1.ec2.amazonaws.com/"
 EC2_ENDPOINT_EU = "https://eu-west-1.ec2.amazonaws.com/"
 S3_ENDPOINT = "https://s3.amazonaws.com/"
-DEFAULT_PORT = 80
 
 
 class AWSServiceEndpoint(object):
