@@ -948,7 +948,12 @@ class Query(BaseQuery):
 
 
 class Signature(object):
-    """Compute EC2-compliant signatures for requests."""
+    """Compute EC2-compliant signatures for requests.
+
+    @ivar creds: The L{AWSCredentials} to use to compute the signature.
+    @ivar endpoint: The {AWSServiceEndpoint} to consider.
+    @ivar params: A C{dict} of parameters to consider.
+    """
 
     def __init__(self, creds, endpoint, params):
         """Create a Query to submit to EC2."""
