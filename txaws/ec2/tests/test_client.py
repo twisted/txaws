@@ -1608,6 +1608,25 @@ class QueryTestCase(TXAWSTestCase):
             "Timestamp=2007-11-12T13%3A14%3A15Z&Version=2008-12-01")
         self.assertEqual(signing_text, query.signing_text())
 
+    def test_signing_text_with_non_default_port(self):
+        """
+        The signing text uses the canonical host name, which includes
+        the port number, if it differs from the default one.
+        """
+        endpoint = AWSServiceEndpoint(uri="http://example.com:99/path")
+        query = client.Query(
+            action="DescribeInstances", creds=self.creds, endpoint=endpoint,
+            time_tuple=(2007, 11, 12, 13, 14, 15, 0, 0, 0))
+        signing_text = ("GET\n"
+                        "example.com:99\n"
+                        "/path\n"
+                        "AWSAccessKeyId=foo&"
+                        "Action=DescribeInstances&"
+                        "SignatureVersion=2&"
+                        "Timestamp=2007-11-12T13%3A14%3A15Z&"
+                        "Version=2008-12-01")
+        self.assertEqual(signing_text, query.signing_text())
+
     def test_old_signing_text(self):
         query = client.Query(
             action="DescribeInstances", creds=self.creds,
@@ -1645,6 +1664,26 @@ class QueryTestCase(TXAWSTestCase):
             time_tuple=(2007, 11, 12, 13, 14, 15, 0, 0, 0),
             other_params={"SignatureVersion": "0"})
         self.assertRaises(RuntimeError, query.sign)
+
+    def test_submit_with_port(self):
+        """
+        If the endpoint port differs from the default one, the Host header
+        of the request will include it.
+        """
+        self.addCleanup(setattr, client.Query, "get_page",
+                        client.Query.get_page)
+
+        def get_page(query, url, **kwargs):
+            self.assertEqual("example.com:99", kwargs["headers"]["Host"])
+            return succeed(None)
+
+        client.Query.get_page = get_page
+        endpoint = AWSServiceEndpoint(uri="http://example.com:99/foo")
+        query = client.Query(action="SomeQuery", creds=self.creds,
+                             endpoint=endpoint)
+
+        d = query.submit()
+        return d
 
     def test_submit_400(self):
         """A 4xx response status from EC2 should raise a txAWS EC2Error."""
