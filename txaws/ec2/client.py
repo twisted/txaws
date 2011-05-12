@@ -904,6 +904,93 @@ class Query(BaseQuery):
             self.params["Timestamp"] = iso8601time(time_tuple)
         if other_params:
             self.params.update(other_params)
+        self.signature = Signature(self.creds, self.endpoint, self.params)
+
+    def sign(self, hash_type="sha256"):
+        """Sign this query using its built in credentials.
+
+        @param hash_type: if the SignatureVersion is 2, specify the type of
+            hash to use, either "sha1" or "sha256". It defaults to the latter.
+
+        This prepares it to be sent, and should be done as the last step before
+        submitting the query. Signing is done automatically - this is a public
+        method to facilitate testing.
+        """
+        version = self.params["SignatureVersion"]
+        if version == "2":
+            self.params["SignatureMethod"] = "Hmac%s" % hash_type.upper()
+        self.params["Signature"] = self.signature.compute()
+
+    def submit(self):
+        """Submit this query.
+
+        @return: A deferred from get_page
+        """
+        self.sign()
+        url = self.endpoint.get_uri()
+        method = self.endpoint.method
+        params = self.signature.get_canonical_query_params()
+        headers = {}
+        kwargs = {"method": method}
+        if method == "POST":
+            headers["Content-Type"] = "application/x-www-form-urlencoded"
+            kwargs["postdata"] = params
+        else:
+            url += "?%s" % params
+        if self.endpoint.get_host() != self.endpoint.get_canonical_host():
+            headers["Host"] = self.endpoint.get_canonical_host()
+        if headers:
+            kwargs["headers"] = headers
+        if self.timeout:
+            kwargs["timeout"] = self.timeout
+        d = self.get_page(url, **kwargs)
+        return d.addErrback(ec2_error_wrapper)
+
+
+class Signature(object):
+    """Compute EC2-compliant signatures for requests.
+
+    @ivar creds: The L{AWSCredentials} to use to compute the signature.
+    @ivar endpoint: The {AWSServiceEndpoint} to consider.
+    @ivar params: A C{dict} of parameters to consider.
+    """
+
+    def __init__(self, creds, endpoint, params):
+        """Create a Query to submit to EC2."""
+        self.creds = creds
+        self.endpoint = endpoint
+        self.params = params
+
+    def compute(self):
+        """Compute and return the signature according to the given data."""
+        if "Signature" in self.params:
+            raise RuntimeError("Existing signature in parameters")
+        version = self.params["SignatureVersion"]
+        if version == "1":
+            bytes = self.old_signing_text()
+            hash_type = "sha1"
+        elif version == "2":
+            bytes = self.signing_text()
+            hash_type = self.params["SignatureMethod"][len("Hmac"):].lower()
+        else:
+            raise RuntimeError("Unsupported SignatureVersion: '%s'" % version)
+        return self.creds.sign(bytes, hash_type)
+
+    def old_signing_text(self):
+        """Return the text needed for signing using SignatureVersion 1."""
+        result = []
+        lower_cmp = lambda x, y: cmp(x[0].lower(), y[0].lower())
+        for key, value in sorted(self.params.items(), cmp=lower_cmp):
+            result.append("%s%s" % (key, value))
+        return "".join(result)
+
+    def signing_text(self):
+        """Return the text to be signed when signing the query."""
+        result = "%s\n%s\n%s\n%s" % (self.endpoint.method,
+                                     self.endpoint.get_canonical_host(),
+                                     self.endpoint.path,
+                                     self.get_canonical_query_params())
+        return result
 
     def get_canonical_query_params(self):
         """Return the canonical query params (used in signing)."""
@@ -920,68 +1007,6 @@ class Query(BaseQuery):
         """
         return quote(string, safe="~")
 
-    def signing_text(self):
-        """Return the text to be signed when signing the query."""
-        result = "%s\n%s\n%s\n%s" % (self.endpoint.method,
-                                     self.endpoint.get_canonical_host(),
-                                     self.endpoint.path,
-                                     self.get_canonical_query_params())
-        return result
-
-    def old_signing_text(self):
-        """Return the text needed for signing using SignatureVersion 1."""
-        result = []
-        lower_cmp = lambda x, y: cmp(x[0].lower(), y[0].lower())
-        for key, value in sorted(self.params.items(), cmp=lower_cmp):
-            result.append("%s%s" % (key, value))
-        return "".join(result)
-
     def sorted_params(self):
         """Return the query parameters sorted appropriately for signing."""
         return sorted(self.params.items())
-
-    def sign(self, hash_type="sha256"):
-        """Sign this query using its built in credentials.
-
-        @param hash_type: if the SignatureVersion is 2, specify the type of
-            hash to use, either "sha1" or "sha256". It defaults to the latter.
-
-        This prepares it to be sent, and should be done as the last step before
-        submitting the query. Signing is done automatically - this is a public
-        method to facilitate testing.
-        """
-        version = self.params["SignatureVersion"]
-        if version == "1":
-            self.params["Signature"] = self.creds.sign(
-                self.old_signing_text(), "sha1")
-        elif version == "2":
-            self.params["SignatureMethod"] = "Hmac%s" % hash_type.upper()
-            self.params["Signature"] = self.creds.sign(
-                self.signing_text(), hash_type)
-        else:
-            raise RuntimeError("Unsupported SignatureVersion: '%s'" % version)
-
-    def submit(self):
-        """Submit this query.
-
-        @return: A deferred from get_page
-        """
-        self.sign()
-        url = self.endpoint.get_uri()
-        method = self.endpoint.method
-        params = self.get_canonical_query_params()
-        headers = {}
-        kwargs = {"method": method}
-        if method == "POST":
-            headers["Content-Type"] = "application/x-www-form-urlencoded"
-            kwargs["postdata"] = params
-        else:
-            url += "?%s" % params
-        if self.endpoint.get_host() != self.endpoint.get_canonical_host():
-            headers["Host"] = self.endpoint.get_canonical_host()
-        if headers:
-            kwargs["headers"] = headers
-        if self.timeout:
-            kwargs["timeout"] = self.timeout
-        d = self.get_page(url, **kwargs)
-        return d.addErrback(ec2_error_wrapper)
