@@ -91,6 +91,14 @@ class AWSServiceEndpointTestCase(TXAWSTestCase):
         endpoint = AWSServiceEndpoint(uri=uri)
         self.assertEquals("my.service:99", endpoint.get_canonical_host())
 
+    def test_get_canonical_host_is_lower_case(self):
+        """
+        The canonical host is guaranteed to be lower case.
+        """
+        uri = "http://MY.SerVice:99/endpoint"
+        endpoint = AWSServiceEndpoint(uri=uri)
+        self.assertEquals("my.service:99", endpoint.get_canonical_host())
+
     def test_set_path(self):
         self.endpoint.set_path("/newpath")
         self.assertEquals(

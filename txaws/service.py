@@ -51,7 +51,7 @@ class AWSServiceEndpoint(object):
         If the port is different from the default one, it will be appended to
         the host name.
         """
-        host = self.host
+        host = self.host.lower()
         if self.port and self.port != DEFAULT_PORT:
             host += ":%s" % self.port
         return host
