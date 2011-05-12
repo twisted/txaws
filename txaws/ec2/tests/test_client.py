@@ -1555,20 +1555,6 @@ class QueryTestCase(TXAWSTestCase):
              "Expires": "2007-11-12T13:14:15Z",
              "Version": "2008-12-01"})
 
-    def test_sorted_params(self):
-        query = client.Query(
-            action="DescribeInstances", creds=self.creds,
-            endpoint=self.endpoint, other_params={"fun": "games"},
-            time_tuple=(2007, 11, 12, 13, 14, 15, 0, 0, 0))
-        self.assertEqual([
-            ("AWSAccessKeyId", "foo"),
-            ("Action", "DescribeInstances"),
-            ("SignatureVersion", "2"),
-            ("Timestamp", "2007-11-12T13:14:15Z"),
-            ("Version", "2008-12-01"),
-            ("fun", "games"),
-            ], query.sorted_params())
-
     def test_sign(self):
         query = client.Query(
             action="DescribeInstances", creds=self.creds,
@@ -1771,6 +1757,22 @@ class SignatureTestCase(TXAWSTestCase):
         signing_text = (
             "ActionDescribeInstancesAWSAccessKeyIdfooSignatureVersion1")
         self.assertEqual(signing_text, signature.old_signing_text())
+
+    def test_sorted_params(self):
+        signature = client.Signature(self.creds, self.endpoint, self.params)
+        self.params.update({"AWSAccessKeyId": "foo",
+                            "fun": "games",
+                            "SignatureVersion": "2",
+                            "Version": "2008-12-01",
+                            "Action": "DescribeInstances"})
+
+        self.assertEqual([
+            ("AWSAccessKeyId", "foo"),
+            ("Action", "DescribeInstances"),
+            ("SignatureVersion", "2"),
+            ("Version", "2008-12-01"),
+            ("fun", "games"),
+            ], signature.sorted_params())
 
 
 class QueryPageGetterTestCase(TXAWSTestCase):

@@ -906,26 +906,6 @@ class Query(BaseQuery):
             self.params.update(other_params)
         self.signature = Signature(self.creds, self.endpoint, self.params)
 
-    def signing_text(self):
-        """Return the text to be signed when signing the query."""
-        result = "%s\n%s\n%s\n%s" % (self.endpoint.method,
-                                     self.endpoint.get_canonical_host(),
-                                     self.endpoint.path,
-                                     self.get_canonical_query_params())
-        return result
-
-    def old_signing_text(self):
-        """Return the text needed for signing using SignatureVersion 1."""
-        result = []
-        lower_cmp = lambda x, y: cmp(x[0].lower(), y[0].lower())
-        for key, value in sorted(self.params.items(), cmp=lower_cmp):
-            result.append("%s%s" % (key, value))
-        return "".join(result)
-
-    def sorted_params(self):
-        """Return the query parameters sorted appropriately for signing."""
-        return sorted(self.params.items())
-
     def sign(self, hash_type="sha256"):
         """Sign this query using its built in credentials.
 
@@ -971,44 +951,44 @@ class Signature(object):
 
     def __init__(self, creds, endpoint, params):
         """Create a Query to submit to EC2."""
-        self._creds = creds
-        self._endpoint = endpoint
-        self._params = params
+        self.creds = creds
+        self.endpoint = endpoint
+        self.params = params
 
     def compute(self):
-        if "Signature" in self._params:
+        if "Signature" in self.params:
             raise RuntimeError("Existing signature in parameters")
-        version = self._params["SignatureVersion"]
+        version = self.params["SignatureVersion"]
         if version == "1":
             bytes = self.old_signing_text()
             hash_type = "sha1"
         elif version == "2":
             bytes = self.signing_text()
-            hash_type = self._params["SignatureMethod"][len("Hmac"):].lower()
+            hash_type = self.params["SignatureMethod"][len("Hmac"):].lower()
         else:
             raise RuntimeError("Unsupported SignatureVersion: '%s'" % version)
-        return self._creds.sign(bytes, hash_type)
+        return self.creds.sign(bytes, hash_type)
 
     def old_signing_text(self):
         """Return the text needed for signing using SignatureVersion 1."""
         result = []
         lower_cmp = lambda x, y: cmp(x[0].lower(), y[0].lower())
-        for key, value in sorted(self._params.items(), cmp=lower_cmp):
+        for key, value in sorted(self.params.items(), cmp=lower_cmp):
             result.append("%s%s" % (key, value))
         return "".join(result)
 
     def signing_text(self):
         """Return the text to be signed when signing the query."""
-        result = "%s\n%s\n%s\n%s" % (self._endpoint.method,
-                                     self._endpoint.get_canonical_host(),
-                                     self._endpoint.path,
+        result = "%s\n%s\n%s\n%s" % (self.endpoint.method,
+                                     self.endpoint.get_canonical_host(),
+                                     self.endpoint.path,
                                      self.get_canonical_query_params())
         return result
 
     def get_canonical_query_params(self):
         """Return the canonical query params (used in signing)."""
         result = []
-        for key, value in sorted(self._params.items()):
+        for key, value in self.sorted_params():
             result.append("%s=%s" % (self.encode(key), self.encode(value)))
         return "&".join(result)
 
@@ -1019,3 +999,7 @@ class Signature(object):
         @return: a_string encoded.
         """
         return quote(string, safe="~")
+
+    def sorted_params(self):
+        """Return the query parameters sorted appropriately for signing."""
+        return sorted(self.params.items())
