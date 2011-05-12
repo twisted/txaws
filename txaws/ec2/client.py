@@ -962,6 +962,7 @@ class Signature(object):
         self.params = params
 
     def compute(self):
+        """Compute and return the signature according to the given data."""
         if "Signature" in self.params:
             raise RuntimeError("Existing signature in parameters")
         version = self.params["SignatureVersion"]
