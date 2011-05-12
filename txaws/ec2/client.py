@@ -904,21 +904,7 @@ class Query(BaseQuery):
             self.params["Timestamp"] = iso8601time(time_tuple)
         if other_params:
             self.params.update(other_params)
-
-    def get_canonical_query_params(self):
-        """Return the canonical query params (used in signing)."""
-        result = []
-        for key, value in self.sorted_params():
-            result.append("%s=%s" % (self.encode(key), self.encode(value)))
-        return "&".join(result)
-
-    def encode(self, string):
-        """Encode a_string as per the canonicalisation encoding rules.
-
-        See the AWS dev reference page 90 (2008-12-01 version).
-        @return: a_string encoded.
-        """
-        return quote(string, safe="~")
+        self.signature = Signature(self.creds, self.endpoint, self.params)
 
     def signing_text(self):
         """Return the text to be signed when signing the query."""
@@ -951,15 +937,9 @@ class Query(BaseQuery):
         method to facilitate testing.
         """
         version = self.params["SignatureVersion"]
-        if version == "1":
-            self.params["Signature"] = self.creds.sign(
-                self.old_signing_text(), "sha1")
-        elif version == "2":
+        if version == "2":
             self.params["SignatureMethod"] = "Hmac%s" % hash_type.upper()
-            self.params["Signature"] = self.creds.sign(
-                self.signing_text(), hash_type)
-        else:
-            raise RuntimeError("Unsupported SignatureVersion: '%s'" % version)
+        self.params["Signature"] = self.signature.compute()
 
     def submit(self):
         """Submit this query.
@@ -969,7 +949,7 @@ class Query(BaseQuery):
         self.sign()
         url = self.endpoint.get_uri()
         method = self.endpoint.method
-        params = self.get_canonical_query_params()
+        params = self.signature.get_canonical_query_params()
         headers = {}
         kwargs = {"method": method}
         if method == "POST":
@@ -985,3 +965,57 @@ class Query(BaseQuery):
             kwargs["timeout"] = self.timeout
         d = self.get_page(url, **kwargs)
         return d.addErrback(ec2_error_wrapper)
+
+
+class Signature(object):
+
+    def __init__(self, creds, endpoint, params):
+        """Create a Query to submit to EC2."""
+        self._creds = creds
+        self._endpoint = endpoint
+        self._params = params
+
+    def compute(self):
+        if "Signature" in self._params:
+            raise RuntimeError("Existing signature in parameters")
+        version = self._params["SignatureVersion"]
+        if version == "1":
+            bytes = self.old_signing_text()
+            hash_type = "sha1"
+        elif version == "2":
+            bytes = self.signing_text()
+            hash_type = self._params["SignatureMethod"][len("Hmac"):].lower()
+        else:
+            raise RuntimeError("Unsupported SignatureVersion: '%s'" % version)
+        return self._creds.sign(bytes, hash_type)
+
+    def old_signing_text(self):
+        """Return the text needed for signing using SignatureVersion 1."""
+        result = []
+        lower_cmp = lambda x, y: cmp(x[0].lower(), y[0].lower())
+        for key, value in sorted(self._params.items(), cmp=lower_cmp):
+            result.append("%s%s" % (key, value))
+        return "".join(result)
+
+    def signing_text(self):
+        """Return the text to be signed when signing the query."""
+        result = "%s\n%s\n%s\n%s" % (self._endpoint.method,
+                                     self._endpoint.get_canonical_host(),
+                                     self._endpoint.path,
+                                     self.get_canonical_query_params())
+        return result
+
+    def get_canonical_query_params(self):
+        """Return the canonical query params (used in signing)."""
+        result = []
+        for key, value in sorted(self._params.items()):
+            result.append("%s=%s" % (self.encode(key), self.encode(value)))
+        return "&".join(result)
+
+    def encode(self, string):
+        """Encode a_string as per the canonicalisation encoding rules.
+
+        See the AWS dev reference page 90 (2008-12-01 version).
+        @return: a_string encoded.
+        """
+        return quote(string, safe="~")
