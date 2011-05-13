@@ -366,11 +366,6 @@ class Schema(object):
 
         return Arguments(tree), rest
 
-        if rest:
-            raise UnknownParameterError(rest, arguments)
-        else:
-            return arguments
-
     def bundle(self, *arguments, **extra):
         """Bundle the given arguments in a C{dict} with EC2-style format.
 
