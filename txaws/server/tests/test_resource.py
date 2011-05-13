@@ -71,10 +71,8 @@ class TestPrincipal(object):
 
 class TestQueryAPI(QueryAPI):
 
-    name = "test-api"
     actions = ["SomeAction"]
     signature_versions = (1, 2)
-    signature_error = "Wrong signature"
     content_type = "text/plain"
 
     def __init__(self, *args, **kwargs):
@@ -164,20 +162,20 @@ class QueryAPITest(TestCase):
         return self.api.handle(request).addCallback(check)
 
     def test_handle_with_unsupported_version(self):
-        """Signature versions other than 1 and 2 result in errors."""
+        """If signature versions is not supported an error is raised."""
         creds = AWSCredentials("access", "secret")
         endpoint = AWSServiceEndpoint(self.api.uri)
         query = Query(action="SomeAction", creds=creds, endpoint=endpoint)
         query.sign()
-        query.params["SignatureVersion"] = "0"
         request = FakeRequest(query.params, endpoint)
 
         def check(ignored):
             self.flushLoggedErrors()
-            self.assertEqual("InvalidSignature - SignatureVersion '0' "
+            self.assertEqual("InvalidSignature - SignatureVersion '2' "
                              "not supported", request.response)
             self.assertEqual(403, request.code)
 
+        self.api.signature_versions = (1,)
         return self.api.handle(request).addCallback(check)
 
     def test_handle_with_internal_error(self):
@@ -272,7 +270,9 @@ class QueryAPITest(TestCase):
 
         def check(ignored):
             self.flushLoggedErrors()
-            self.assertEqual("SignatureDoesNotMatch - Wrong signature",
+            self.assertEqual("SignatureDoesNotMatch - The request signature "
+                             "we calculated does not match the signature you "
+                             "provided. Check your key and signing method.",
                              request.response)
             self.assertEqual(403, request.code)
 

@@ -24,15 +24,13 @@ class QueryAPI(Resource):
 
     The following class variables must be defined by sub-classes:
 
-    @cvar name: The name of the API, matching a section in the given L{Config}.
-    @cvar actions: The actions that the API supports. The 'Action' field of
+    @ivar actions: The actions that the API supports. The 'Action' field of
         the request must contain one of these.
-    @cvar signature_versions: A list of allowed values for 'SignatureVersion'.
-    @cvar signature_error: The error message to write in response to a request
-        with an invalid signature.
+    @ivar signature_versions: A list of allowed values for 'SignatureVersion'.
     @cvar content_type: The content type to set the 'Content-Type' header to.
     """
     isLeaf = True
+    time_format = "%Y-%m-%dT%H:%M:%SZ"
 
     schema = Schema(
         Unicode("Action"),
@@ -49,6 +47,12 @@ class QueryAPI(Resource):
         self.uri = uri
 
     def get_principal(self, access_key):
+        """Return a principal object by access key.
+
+        The returned object must have C{access_key} and C{secret_key}
+        attributes and if the authentication succeeds, it will be
+        passed to the created L{Call}.
+        """
         raise NotImplemented("Must be implemented by subclasses")
 
     def handle(self, request):
@@ -56,7 +60,7 @@ class QueryAPI(Resource):
 
         This method authenticates the request checking its signature, and then
         calls the C{execute} method, passing it a L{Call} object set with the
-        L{Principal} for the authenticated user the generic parameters
+        principal for the authenticated user and the generic parameters
         extracted from the request.
 
         @param request: The L{HTTPRequest} to handle.
@@ -98,35 +102,21 @@ class QueryAPI(Resource):
         """
         raise NotImplementedError("Must be implemented by subclass.")
 
+    def execute(self, call):
+        """Execute an API L{Call}.
+
+        At this point the request has been authenticated and C{call.principal}
+        is set with the L{Principal} for the L{User} requesting the call.
+
+        @return: The response to write in the request for the given L{Call}.
+        @raises: An L{APIError} in case the execution fail, sporting an error
+            message the HTTP status code to return.
+        """
+        raise NotImplementedError()
+
     def get_utc_time(self):
         """Return a C{datetime} object with the current time in UTC."""
         return datetime.now(UTC)
-
-    def _check_for_expired_signature(self, args):
-        """Check whether the request signature has expired.
-
-        @param args: Parsed schema arguments.
-        @param params: Raw string parameters.
-        @raises APIError: If both Expires and Timestamp are present, or
-            the Expires is before the current time, or Timestamp is older
-            than 15 minutes.
-        """
-        time_format = "%Y-%m-%dT%H:%M:%SZ"
-        now = self.get_utc_time()
-        if args.Expires and args.Timestamp:
-            raise APIError(400, "InvalidParameterCombination",
-                           "The parameter Timestamp cannot be used with "
-                           "the parameter Expires")
-        if args.Expires and args.Expires < now:
-            raise APIError(400,
-                           "RequestExpired",
-                           "Request has expired. Expires date is %s" % (
-                                args.Expires.strftime(time_format)))
-        if args.Timestamp and args.Timestamp + timedelta(minutes=15) < now:
-            raise APIError(400,
-                           "RequestExpired",
-                           "Request has expired. Timestamp date is %s" % (
-                               args.Timestamp.strftime(time_format)))
 
     def _validate(self, request):
         """Validate an L{HTTPRequest} before executing it.
@@ -146,6 +136,29 @@ class QueryAPI(Resource):
         params = dict((k, v[-1]) for k, v in request.args.iteritems())
         args, rest = self.schema.extract(params)
 
+        self._validate_generic_parameters(args, self.get_utc_time())
+
+        def create_call(principal):
+            self._validate_principal(principal, args)
+            self._validate_signature(request, principal, args, params)
+            return Call(rest, principal, args.Action, args.Version, request.id)
+
+        deferred = maybeDeferred(self.get_principal, args.AWSAccessKeyId)
+        deferred.addCallback(create_call)
+        return deferred
+
+    def _validate_generic_parameters(self, args, utc_now):
+        """Validate the generic request parameters.
+
+        @param args: Parsed schema arguments.
+        @param utc_now: The current UTC time in datetime format.
+        @raises APIError: In the following cases:
+            - Action is not included in C{self.actions}
+            - SignatureVersion is not included in C{self.signature_versions}
+            - Expires and Timestamp are present
+            - Expires is before the current time
+            - Timestamp is older than 15 minutes.
+        """
         if not args.Action in self.actions:
             raise APIError(400, "InvalidAction", "The action %s is not valid "
                            "for this web service." % args.Action)
@@ -153,44 +166,44 @@ class QueryAPI(Resource):
         if not args.SignatureVersion in self.signature_versions:
             raise APIError(403, "InvalidSignature", "SignatureVersion '%s' "
                            "not supported" % args.SignatureVersion)
-        self._check_for_expired_signature(args)
 
-        def check_signature(principal):
-            if principal is None:
-                raise APIError(401, "AuthFailure",
-                               "No user with access key '%s'" %
-                               args.AWSAccessKeyId)
-            call = Call(rest, principal, args.Action, args.Version, request.id)
+        if args.Expires and args.Timestamp:
+            raise APIError(400, "InvalidParameterCombination",
+                           "The parameter Timestamp cannot be used with "
+                           "the parameter Expires")
+        if args.Expires and args.Expires < utc_now:
+            raise APIError(400,
+                           "RequestExpired",
+                           "Request has expired. Expires date is %s" % (
+                                args.Expires.strftime(self.time_format)))
+        if args.Timestamp and args.Timestamp + timedelta(minutes=15) < utc_now:
+            raise APIError(400,
+                           "RequestExpired",
+                           "Request has expired. Timestamp date is %s" % (
+                               args.Timestamp.strftime(self.time_format)))
 
-            path = request.path
-            if path.startswith("/"):
-                path = path[1:]
-            uri = urljoin(self.uri, path)
-            params.pop("Signature")
-            creds = AWSCredentials(call.principal.access_key,
-                                   call.principal.secret_key)
-            endpoint = AWSServiceEndpoint(uri, request.method)
-            signature = Signature(creds, endpoint, params)
-            if signature.compute() != args.Signature:
-                raise APIError(403, "SignatureDoesNotMatch",
-                               self.signature_error)
-            return call
+    def _validate_principal(self, principal, args):
+        """Validate the principal."""
+        if principal is None:
+            raise APIError(401, "AuthFailure",
+                           "No user with access key '%s'" %
+                           args.AWSAccessKeyId)
 
-        deferred = maybeDeferred(self.get_principal, args.AWSAccessKeyId)
-        deferred.addCallback(check_signature)
-        return deferred
-
-    def execute(self, call):
-        """Execute an API L{Call}.
-
-        At this point the request has been authenticated and C{call.principal}
-        is set with the L{Principal} for the L{User} requesting the call.
-
-        @return: The response to write in the request for the given L{Call}.
-        @raises: An L{APIError} in case the execution fail, sporting an error
-            message the HTTP status code to return.
-        """
-        raise NotImplementedError()
+    def _validate_signature(self, request, principal, args, params):
+        """Validate the signature."""
+        path = request.path
+        if path.startswith("/"):
+            path = path[1:]
+        uri = urljoin(self.uri, path)
+        creds = AWSCredentials(principal.access_key, principal.secret_key)
+        endpoint = AWSServiceEndpoint(uri, request.method)
+        params.pop("Signature")
+        signature = Signature(creds, endpoint, params)
+        if signature.compute() != args.Signature:
+            raise APIError(403, "SignatureDoesNotMatch",
+                           "The request signature we calculated does not "
+                           "match the signature you provided. Check your "
+                           "key and signing method.")
 
     def get_status_text(self):
         """Get the text to return when a status check is made."""
