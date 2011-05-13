@@ -1,21 +1,20 @@
 from datetime import datetime, timedelta
 from uuid import uuid4
 from urlparse import urljoin
-
-import pytz
+from pytz import UTC
 
 from twisted.python import log
 from twisted.internet.defer import maybeDeferred
 from twisted.web.resource import Resource
 from twisted.web.server import NOT_DONE_YET
 
-from txaws.ec2.client import Query
+from txaws.ec2.client import Signature
 from txaws.service import AWSServiceEndpoint
 from txaws.credentials import AWSCredentials
 from txaws.server.schema import (
     Schema, Unicode, Integer, Enum, RawStr, Date)
 from txaws.server.exception import APIError
-#from txaws.server.call import Call
+from txaws.server.call import Call
 
 
 class QueryAPI(Resource):
@@ -49,7 +48,7 @@ class QueryAPI(Resource):
     def __init__(self, uri):
         self.uri = uri
 
-    def get_user(access_key):
+    def get_principal(self, access_key):
         raise NotImplemented("Must be implemented by subclasses")
 
     def handle(self, request):
@@ -99,9 +98,9 @@ class QueryAPI(Resource):
         """
         raise NotImplementedError("Must be implemented by subclass.")
 
-    def get_current_time(self):
-        """Return a C{datetime} object with the current time."""
-        return datetime.now(pytz.UTC)
+    def get_utc_time(self):
+        """Return a C{datetime} object with the current time in UTC."""
+        return datetime.now(UTC)
 
     def _check_for_expired_signature(self, args):
         """Check whether the request signature has expired.
@@ -113,7 +112,7 @@ class QueryAPI(Resource):
             than 15 minutes.
         """
         time_format = "%Y-%m-%dT%H:%M:%SZ"
-        now = self.get_current_time()
+        now = self.get_utc_time()
         if args.Expires and args.Timestamp:
             raise APIError(400, "InvalidParameterCombination",
                            "The parameter Timestamp cannot be used with "
@@ -156,41 +155,30 @@ class QueryAPI(Resource):
                            "not supported" % args.SignatureVersion)
         self._check_for_expired_signature(args)
 
-        def check_signature(call):
+        def check_signature(principal):
+            if principal is None:
+                raise APIError(401, "AuthFailure",
+                               "No user with access key '%s'" %
+                               args.AWSAccessKeyId)
+            call = Call(rest, principal, args.Action, args.Version, request.id)
+
             path = request.path
             if path.startswith("/"):
                 path = path[1:]
-            uri = urljoin(self.root_url, path)
-            params.pop("AWSAccessKeyId")
+            uri = urljoin(self.uri, path)
             params.pop("Signature")
-
-            endpoint = AWSServiceEndpoint(uri, request.method)
-            if request.getHeader("Host") is not None:
-                # Workaround bug in txaws. It doesn't use the port, when
-                # signing the request, which it should do if it's present
-                # in the host header.
-                endpoint.host = request.getHeader("Host").lower()
             creds = AWSCredentials(call.principal.access_key,
                                    call.principal.secret_key)
-            query = Query(action=args.Action, creds=creds, endpoint=endpoint,
-                          other_params=params)
-            query.sign(hash_type=args.SignatureMethod)
-
-            if query.params["Signature"] != args.Signature:
+            endpoint = AWSServiceEndpoint(uri, request.method)
+            signature = Signature(creds, endpoint, params)
+            if signature.compute() != args.Signature:
                 raise APIError(403, "SignatureDoesNotMatch",
                                self.signature_error)
             return call
 
-        return self._create_call(
-            rest, args, request).addCallback(check_signature)
-
-    def _create_call(self, rest, args, request):
-        user = self.get_user_by_access_key(args.AWSAccessKeyId)
-        if user is None:
-            raise APIError(401, "AuthFailure",
-                           "No user with access key '%s'" %
-                           args.AWSAccessKeyId)
-        return Call(rest, user, args.Action, args.Version, request.id)
+        deferred = maybeDeferred(self.get_principal, args.AWSAccessKeyId)
+        deferred.addCallback(check_signature)
+        return deferred
 
     def execute(self, call):
         """Execute an API L{Call}.
@@ -206,7 +194,7 @@ class QueryAPI(Resource):
 
     def get_status_text(self):
         """Get the text to return when a status check is made."""
-        return "API at %s" % self.root_url
+        return "Query API at %s" % self.uri
 
     def render_GET(self, request):
         """Handle a GET request."""
