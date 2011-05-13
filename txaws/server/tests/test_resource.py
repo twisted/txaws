@@ -18,7 +18,7 @@ class FakeRequest(object):
         self.written = StringIO()
         self.finished = False
         self.code = None
-        self.headers = {}
+        self.headers = {"Host": endpoint.get_canonical_host()}
 
     @property
     def args(self):
@@ -428,28 +428,5 @@ class QueryAPITest(TestCase):
             self.assertEqual(200, request.code)
 
         self.api.uri = "%s/" % uri
-        self.api.principal = TestPrincipal(creds)
-        return self.api.handle(request).addCallback(check)
-
-    def test_handle_root_url_with_path(self):
-        """
-        If the request goes through a proxy like Apache which rewrites part of
-        the request so that we don't have the full URL, we still get the
-        correct path using the C{uri} parameter and what's remain of the
-        path.
-        """
-        creds = AWSCredentials("access", "secret")
-        uri = "http://endpoint/cloud/test"
-        endpoint = AWSServiceEndpoint(uri)
-        query = Query(action="SomeAction", creds=creds, endpoint=endpoint)
-        query.sign()
-        endpoint.path = "/test"
-        request = FakeRequest(query.params, endpoint)
-
-        def check(ignored):
-            self.assertEqual("data", request.response)
-            self.assertEqual(200, request.code)
-
-        self.api.uri = uri
         self.api.principal = TestPrincipal(creds)
         return self.api.handle(request).addCallback(check)
