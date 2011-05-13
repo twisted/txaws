@@ -53,6 +53,18 @@ class AWSServiceEndpoint(object):
             host = "%s:%s" % (host, self.port)
         return host
 
+    def set_canonical_host(self, canonical_host):
+        """
+        Set host and port from a canonical host string as for the Host HTTP
+        header specification.
+        """
+        parts = canonical_host.lower().split(":")
+        self.host = parts[0]
+        if len(parts) > 1 and parts[1]:
+            self.port = int(parts[1])
+        else:
+            self.port = None
+
     def set_path(self, path):
         self.path = path
 

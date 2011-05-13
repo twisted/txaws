@@ -90,6 +90,33 @@ class AWSServiceEndpointTestCase(TXAWSTestCase):
         endpoint = AWSServiceEndpoint(uri=uri)
         self.assertEquals("my.service:99", endpoint.get_canonical_host())
 
+    def test_set_canonical_host(self):
+        """
+        The canonical host is converted to lower case.
+        """
+        endpoint = AWSServiceEndpoint()
+        endpoint.set_canonical_host("My.Service")
+        self.assertEquals("my.service", endpoint.host)
+        self.assertIdentical(None, endpoint.port)
+
+    def test_set_canonical_host_with_port(self):
+        """
+        The canonical host can optionally have a port.
+        """
+        endpoint = AWSServiceEndpoint()
+        endpoint.set_canonical_host("my.service:99")
+        self.assertEquals("my.service", endpoint.host)
+        self.assertEquals(99, endpoint.port)
+
+    def test_set_canonical_host_with_empty_port(self):
+        """
+        The canonical host can also have no port.
+        """
+        endpoint = AWSServiceEndpoint()
+        endpoint.set_canonical_host("my.service:")
+        self.assertEquals("my.service", endpoint.host)
+        self.assertIdentical(None, endpoint.port)
+
     def test_set_path(self):
         self.endpoint.set_path("/newpath")
         self.assertEquals(
