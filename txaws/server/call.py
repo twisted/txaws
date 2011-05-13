@@ -1,3 +1,8 @@
+from uuid import uuid4
+
+from txaws.version import ec2_api as ec2_api_version
+
+
 class Call(object):
     """Hold information about a single API call initiated by an HTTP request.
 
@@ -26,7 +31,7 @@ class Call(object):
             self._raw_params.update(raw_params)
         self.action = action
         if version is None:
-            version = txaws.version.ec2_api
+            version = ec2_api_version
         self.version = version
         self.principal = principal
 

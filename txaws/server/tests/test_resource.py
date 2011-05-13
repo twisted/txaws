@@ -116,6 +116,34 @@ class QueryAPITest(TestCase):
         self.api.principal = TestPrincipal(creds)
         return self.api.handle(request).addCallback(check)
 
+    def test_handle_pass_params_to_call(self):
+        """
+        L{QueryAPI.handle} creates a L{Call} object with the correct
+        parameters.
+        """
+        creds = AWSCredentials("access", "secret")
+        endpoint = AWSServiceEndpoint(self.api.uri)
+        query = Query(action="SomeAction", creds=creds, endpoint=endpoint,
+                      other_params={"Foo": "bar", "Version": "1.2.3"})
+        query.sign()
+        request = FakeRequest(query.params, endpoint)
+
+        def execute(call):
+            self.assertEqual({"Foo": "bar"}, call.get_raw_params())
+            self.assertIdentical(self.api.principal, call.principal)
+            self.assertEqual("SomeAction", call.action)
+            self.assertEqual("1.2.3", call.version)
+            self.assertEqual(request.id, call.id)
+            return "ok"
+
+        def check(ignored):
+            self.assertEqual("ok", request.response)
+            self.assertEqual(200, request.code)
+
+        self.api.execute = execute
+        self.api.principal = TestPrincipal(creds)
+        return self.api.handle(request).addCallback(check)
+
     def test_handle_empty_request(self):
         """
         If an empty request is received a message describing the API is
