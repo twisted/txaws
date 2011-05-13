@@ -10,10 +10,9 @@ class APIError(Exception):
     """
 
     def __init__(self, status, code=None, message=None, response=None):
-        super(APIError, self).__init__(status, response)
+        super(APIError, self).__init__(message)
         self.status = int(status)
         self.code = code
-        self.message = message
         self.response = response
         if self.response is None:
             if self.code is None or self.message is None:

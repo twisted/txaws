@@ -141,7 +141,11 @@ class QueryAPI(Resource):
         def create_call(principal):
             self._validate_principal(principal, args)
             self._validate_signature(request, principal, args, params)
-            return Call(rest, principal, args.Action, args.Version, request.id)
+            return Call(raw_params=rest,
+                        principal=principal,
+                        action=args.Action,
+                        version=args.Version,
+                        id=request.id)
 
         deferred = maybeDeferred(self.get_principal, args.AWSAccessKeyId)
         deferred.addCallback(create_call)
