@@ -195,12 +195,11 @@ class QueryAPI(Resource):
 
     def _validate_signature(self, request, principal, args, params):
         """Validate the signature."""
-        path = request.path
-        if path.startswith("/"):
-            path = path[1:]
-        uri = urljoin(self.uri, path)
         creds = AWSCredentials(principal.access_key, principal.secret_key)
-        endpoint = AWSServiceEndpoint(uri, request.method)
+        endpoint = AWSServiceEndpoint()
+        endpoint.set_method(request.method)
+        endpoint.set_canonical_host(request.getHeader("Host"))
+        endpoint.set_path(request.path)
         params.pop("Signature")
         signature = Signature(creds, endpoint, params)
         if signature.compute() != args.Signature:
