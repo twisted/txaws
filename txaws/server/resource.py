@@ -20,8 +20,6 @@ from txaws.server.call import Call
 class QueryAPI(Resource):
     """Base class for  EC2-like query APIs.
 
-    @param uri: The query API endpoint, used to check signatures.
-
     The following class variables must be defined by sub-classes:
 
     @ivar actions: The actions that the API supports. The 'Action' field of
@@ -42,9 +40,6 @@ class QueryAPI(Resource):
              optional=True, default="HmacSHA256"),
         Unicode("Signature"),
         Integer("SignatureVersion", optional=True, default=2))
-
-    def __init__(self, uri):
-        self.uri = uri
 
     def get_principal(self, access_key):
         """Return a principal object by access key.
@@ -210,7 +205,7 @@ class QueryAPI(Resource):
 
     def get_status_text(self):
         """Get the text to return when a status check is made."""
-        return "Query API at %s" % self.uri
+        return "Query API Service"
 
     def render_GET(self, request):
         """Handle a GET request."""
