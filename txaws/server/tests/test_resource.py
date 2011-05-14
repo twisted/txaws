@@ -94,14 +94,14 @@ class QueryAPITest(TestCase):
 
     def setUp(self):
         super(QueryAPITest, self).setUp()
-        self.api = TestQueryAPI("http://uri")
+        self.api = TestQueryAPI()
 
     def test_handle(self):
         """
         L{QueryAPI.handle} forwards valid requests to L{QueryAPI.execute}.
         """
         creds = AWSCredentials("access", "secret")
-        endpoint = AWSServiceEndpoint(self.api.uri)
+        endpoint = AWSServiceEndpoint("http://uri")
         query = Query(action="SomeAction", creds=creds, endpoint=endpoint)
         query.sign()
         request = FakeRequest(query.params, endpoint)
@@ -122,7 +122,7 @@ class QueryAPITest(TestCase):
         parameters.
         """
         creds = AWSCredentials("access", "secret")
-        endpoint = AWSServiceEndpoint(self.api.uri)
+        endpoint = AWSServiceEndpoint("http://uri")
         query = Query(action="SomeAction", creds=creds, endpoint=endpoint,
                       other_params={"Foo": "bar", "Version": "1.2.3"})
         query.sign()
@@ -149,16 +149,16 @@ class QueryAPITest(TestCase):
         If an empty request is received a message describing the API is
         returned.
         """
-        endpoint = AWSServiceEndpoint(self.api.uri)
+        endpoint = AWSServiceEndpoint("http://uri")
         request = FakeRequest({}, endpoint)
-        self.assertEqual("Query API at http://uri", self.api.render(request))
+        self.assertEqual("Query API Service", self.api.render(request))
         self.assertEqual("text/plain", request.headers["Content-Type"])
         self.assertEqual(None, request.code)
 
     def test_handle_with_signature_version_1(self):
         """SignatureVersion 1 is supported as well."""
         creds = AWSCredentials("access", "secret")
-        endpoint = AWSServiceEndpoint(self.api.uri)
+        endpoint = AWSServiceEndpoint("http://uri")
         query = Query(action="SomeAction", creds=creds, endpoint=endpoint,
                       other_params={"SignatureVersion": "1"})
         query.sign()
@@ -177,7 +177,7 @@ class QueryAPITest(TestCase):
         signing using sha1 instead.
         """
         creds = AWSCredentials("access", "secret")
-        endpoint = AWSServiceEndpoint(self.api.uri)
+        endpoint = AWSServiceEndpoint("http://uri")
         query = Query(action="SomeAction", creds=creds, endpoint=endpoint)
         query.sign(hash_type="sha1")
         request = FakeRequest(query.params, endpoint)
@@ -192,7 +192,7 @@ class QueryAPITest(TestCase):
     def test_handle_with_unsupported_version(self):
         """If signature versions is not supported an error is raised."""
         creds = AWSCredentials("access", "secret")
-        endpoint = AWSServiceEndpoint(self.api.uri)
+        endpoint = AWSServiceEndpoint("http://uri")
         query = Query(action="SomeAction", creds=creds, endpoint=endpoint)
         query.sign()
         request = FakeRequest(query.params, endpoint)
@@ -212,7 +212,7 @@ class QueryAPITest(TestCase):
         L{QueryAPI.handle} responds with HTTP status 500.
         """
         creds = AWSCredentials("access", "secret")
-        endpoint = AWSServiceEndpoint(self.api.uri)
+        endpoint = AWSServiceEndpoint("http://uri")
         query = Query(action="SomeAction", creds=creds, endpoint=endpoint)
         query.sign()
         request = FakeRequest(query.params, endpoint)
@@ -235,7 +235,7 @@ class QueryAPITest(TestCase):
         responds with HTTP status 400.
         """
         creds = AWSCredentials("access", "secret")
-        endpoint = AWSServiceEndpoint(self.api.uri)
+        endpoint = AWSServiceEndpoint("http://uri")
         query = Query(action="SomeAction", creds=creds, endpoint=endpoint)
         query.sign()
         query.params.pop("Action")
@@ -252,7 +252,7 @@ class QueryAPITest(TestCase):
     def test_handle_with_unsupported_action(self):
         """Only actions listed in L{QueryAPI.actions} are supported."""
         creds = AWSCredentials("access", "secret")
-        endpoint = AWSServiceEndpoint(self.api.uri)
+        endpoint = AWSServiceEndpoint("http://uri")
         query = Query(action="FooBar", creds=creds, endpoint=endpoint)
         query.sign()
         request = FakeRequest(query.params, endpoint)
@@ -271,7 +271,7 @@ class QueryAPITest(TestCase):
         L{QueryAPI.handle} responds with HTTP status 400.
         """
         creds = AWSCredentials("access", "secret")
-        endpoint = AWSServiceEndpoint(self.api.uri)
+        endpoint = AWSServiceEndpoint("http://uri")
         query = Query(action="SomeAction", creds=creds, endpoint=endpoint)
         query.sign()
         request = FakeRequest(query.params, endpoint)
@@ -290,7 +290,7 @@ class QueryAPITest(TestCase):
         the locally stored secret access key, and error is returned.
         """
         creds = AWSCredentials("access", "secret")
-        endpoint = AWSServiceEndpoint(self.api.uri)
+        endpoint = AWSServiceEndpoint("http://uri")
         query = Query(action="SomeAction", creds=creds, endpoint=endpoint)
         query.sign()
         query.params["Signature"] = "wrong"
@@ -313,7 +313,7 @@ class QueryAPITest(TestCase):
         an error is returned.
         """
         creds = AWSCredentials("access", "secret")
-        endpoint = AWSServiceEndpoint(self.api.uri)
+        endpoint = AWSServiceEndpoint("http://uri")
         query = Query(action="SomeAction", creds=creds, endpoint=endpoint,
                       other_params={"Timestamp": "2010-01-01T12:00:00Z",
                                     "Expires": "2010-01-01T12:00:00Z"})
@@ -336,7 +336,7 @@ class QueryAPITest(TestCase):
         the current time, everything is fine.
         """
         creds = AWSCredentials("access", "secret")
-        endpoint = AWSServiceEndpoint(self.api.uri)
+        endpoint = AWSServiceEndpoint("http://uri")
         query = Query(action="SomeAction", creds=creds, endpoint=endpoint,
                       other_params={"Expires": "2010-01-01T12:00:00Z"})
         query.sign()
@@ -357,7 +357,7 @@ class QueryAPITest(TestCase):
         the current time, an error is returned.
         """
         creds = AWSCredentials("access", "secret")
-        endpoint = AWSServiceEndpoint(self.api.uri)
+        endpoint = AWSServiceEndpoint("http://uri")
         query = Query(action="SomeAction", creds=creds, endpoint=endpoint,
                       other_params={"Expires": "2010-01-01T12:00:00Z"})
         query.sign()
@@ -380,7 +380,7 @@ class QueryAPITest(TestCase):
         to L{QueryAPI.execute}.
         """
         creds = AWSCredentials("access", "secret")
-        endpoint = AWSServiceEndpoint(self.api.uri, method="POST")
+        endpoint = AWSServiceEndpoint("http://uri", method="POST")
         query = Query(action="SomeAction", creds=creds, endpoint=endpoint)
         query.sign()
         request = FakeRequest(query.params, endpoint)
@@ -407,18 +407,15 @@ class QueryAPITest(TestCase):
             self.assertEqual("data", request.response)
             self.assertEqual(200, request.code)
 
-        self.api.uri = "http://endpoint:1234"
         self.api.principal = TestPrincipal(creds)
         return self.api.handle(request).addCallback(check)
 
     def test_handle_with_endpoint_with_terminating_slash(self):
         """
-        Check signature should handle a root_url with a terminating
-        slash.
+        Check signature should handle a urs with a terminating slash.
         """
         creds = AWSCredentials("access", "secret")
-        uri = "http://endpoint"
-        endpoint = AWSServiceEndpoint(uri)
+        endpoint = AWSServiceEndpoint("http://endpoint/")
         query = Query(action="SomeAction", creds=creds, endpoint=endpoint)
         query.sign()
         request = FakeRequest(query.params, endpoint)
@@ -427,6 +424,5 @@ class QueryAPITest(TestCase):
             self.assertEqual("data", request.response)
             self.assertEqual(200, request.code)
 
-        self.api.uri = "%s/" % uri
         self.api.principal = TestPrincipal(creds)
         return self.api.handle(request).addCallback(check)
