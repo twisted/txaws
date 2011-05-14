@@ -389,6 +389,32 @@ class SchemaTest(TestCase):
         arguments, _ = schema.extract({"name.1": "foo"})
         self.assertEqual("foo", arguments.name)
 
+    def test_extract_with_non_integer_index(self):
+        """
+        L{Schema.extract} raises an error when trying to pass a numbered
+        parameter with a non-integer index.
+        """
+        schema = Schema(Unicode("name.n"))
+        params = {"name.one": "foo"}
+        error = self.assertRaises(APIError, schema.extract, params)
+        self.assertEqual(400, error.status)
+        self.assertEqual("UnknownParameter", error.code)
+        self.assertEqual("The parameter name.one is not recognized",
+                         error.message)
+
+    def test_extract_with_negative_index(self):
+        """
+        L{Schema.extract} raises an error when trying to pass a numbered
+        parameter with a negative index.
+        """
+        schema = Schema(Unicode("name.n"))
+        params = {"name.-1": "foo"}
+        error = self.assertRaises(APIError, schema.extract, params)
+        self.assertEqual(400, error.status)
+        self.assertEqual("UnknownParameter", error.code)
+        self.assertEqual("The parameter name.-1 is not recognized",
+                         error.message)
+
     def test_bundle(self):
         """
         L{Schema.bundle} returns a dictionary of raw parameters that

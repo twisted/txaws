@@ -13,6 +13,7 @@ class APIError(Exception):
         super(APIError, self).__init__(message)
         self.status = int(status)
         self.code = code
+        self.message = message
         self.response = response
         if self.response is None:
             if self.code is None or self.message is None:

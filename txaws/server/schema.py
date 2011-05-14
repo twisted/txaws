@@ -425,8 +425,17 @@ class Schema(object):
         @param path: A L{str}.
         @param value: The value to set. Can be anything.
         """
-        nodes = tuple((int(node) if node.isdigit() else node)
-                      for node in path.split("."))
+        nodes = []
+        for index, node in enumerate(path.split(".")):
+            if index % 2:
+                # Nodes with odd indexes must be non-negative integers
+                try:
+                    node = int(node)
+                except ValueError:
+                    raise UnknownParameterError(path)
+                if node < 0:
+                    raise UnknownParameterError(path)
+            nodes.append(node)
         for node in nodes[:-1]:
             tree = tree.setdefault(node, {})
         tree[nodes[-1]] = value

@@ -1,6 +1,7 @@
 from uuid import uuid4
 
 from txaws.version import ec2_api as ec2_api_version
+from txaws.server.exception import APIError
 
 
 class Call(object):
@@ -13,7 +14,7 @@ class Call(object):
     @param action: The action to be performed.
 
     @ivar id: A unique identifier for the API call.
-    @ivar principal: The L{Principal} of the L{User} performing the call.
+    @ivar principal: The principal performing the call.
     @ivar args: An L{Arguments} object holding parameters extracted from the
        raw parameters according to a L{Schema}.
     @ivar rest: Extra parameters not included in the given arguments schema,
@@ -43,7 +44,11 @@ class Call(object):
             in the schema are found, otherwise the extra parameters will be
             saved in the C{rest} attribute.
         """
-        self.args, self.rest = schema.extract(self._raw_params, strict=strict)
+        self.args, self.rest = schema.extract(self._raw_params)
+        if strict and self.rest:
+            raise APIError(400, "UnknownParameter",
+                           "The parameter %s is not "
+                           "recognized" % self.rest.keys()[0])
 
     def get_raw_params(self):
         """Return a C{dict} holding the raw API call paramaters.
