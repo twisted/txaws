@@ -13,7 +13,6 @@ REGION_EU = "EU"
 EC2_ENDPOINT_US = "https://us-east-1.ec2.amazonaws.com/"
 EC2_ENDPOINT_EU = "https://eu-west-1.ec2.amazonaws.com/"
 S3_ENDPOINT = "https://s3.amazonaws.com/"
-DEFAULT_PORT = 80
 
 
 class AWSServiceEndpoint(object):
@@ -24,7 +23,7 @@ class AWSServiceEndpoint(object):
 
     def __init__(self, uri="", method="GET"):
         self.host = ""
-        self.port = DEFAULT_PORT
+        self.port = None
         self.path = "/"
         self.method = method
         self._parse_uri(uri)
@@ -33,7 +32,7 @@ class AWSServiceEndpoint(object):
 
     def _parse_uri(self, uri):
         scheme, host, port, path = parse(
-            str(uri), defaultPort=DEFAULT_PORT)
+            str(uri), defaultPort=False)
         self.scheme = scheme
         self.host = host
         self.port = port
@@ -45,15 +44,34 @@ class AWSServiceEndpoint(object):
     def get_host(self):
         return self.host
 
+    def get_canonical_host(self):
+        """
+        Return the canonical host as for the Host HTTP header specification.
+        """
+        host = self.host.lower()
+        if self.port is not None:
+            host = "%s:%s" % (host, self.port)
+        return host
+
+    def set_canonical_host(self, canonical_host):
+        """
+        Set host and port from a canonical host string as for the Host HTTP
+        header specification.
+        """
+        parts = canonical_host.lower().split(":")
+        self.host = parts[0]
+        if len(parts) > 1 and parts[1]:
+            self.port = int(parts[1])
+        else:
+            self.port = None
+
     def set_path(self, path):
         self.path = path
 
     def get_uri(self):
         """Get a URL representation of the service."""
-        uri = "%s://%s" % (self.scheme, self.host)
-        if self.port and self.port != DEFAULT_PORT:
-            uri = "%s:%s" % (uri, self.port)
-        return uri + self.path
+        uri = "%s://%s%s" % (self.scheme, self.get_canonical_host(), self.path)
+        return uri
 
     def set_method(self, method):
         self.method = method

@@ -61,16 +61,16 @@ def XML(text):
     return parser.close()
 
 
-def parse(url, defaultPort=None):
+def parse(url, defaultPort=True):
     """
     Split the given URL into the scheme, host, port, and path.
 
     @type url: C{str}
     @param url: An URL to parse.
 
-    @type defaultPort: C{int} or C{None}
-    @param defaultPort: An alternate value to use as the port if the URL does
-    not include one.
+    @type defaultPort: C{bool}
+    @param defaultPort: Whether to return the default port associated with the
+        scheme in the given url, when the url doesn't specify one.
 
     @return: A four-tuple of the scheme, host, port, and path of the URL.  All
     of these are C{str} instances except for port, which is an C{int}.
@@ -79,18 +79,25 @@ def parse(url, defaultPort=None):
     parsed = urlparse(url)
     scheme = parsed[0]
     path = urlunparse(("", "") + parsed[2:])
-    if defaultPort is None:
-        if scheme == "https":
-            defaultPort = 443
-        else:
-            defaultPort = 80
-    host, port = parsed[1], defaultPort
+    host = parsed[1]
+
     if ":" in host:
         host, port = host.split(":")
         try:
             port = int(port)
         except ValueError:
-            port = defaultPort
+            # A non-numeric port was given, it will be replaced with
+            # an appropriate default value if defaultPort is True
+            port = None
+    else:
+            port = None
+
+    if port is None and defaultPort:
+        if scheme == "https":
+            port = 443
+        else:
+            port = 80
+
     if path == "":
         path = "/"
     return (str(scheme), str(host), port, str(path))
