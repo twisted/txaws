@@ -1,6 +1,5 @@
 from datetime import datetime, timedelta
 from uuid import uuid4
-from urlparse import urljoin
 from pytz import UTC
 
 from twisted.python import log
@@ -104,7 +103,7 @@ class QueryAPI(Resource):
         is set with the L{Principal} for the L{User} requesting the call.
 
         @return: The response to write in the request for the given L{Call}.
-        @raises: An L{APIError} in case the execution fail, sporting an error
+        @raises: An L{APIError} in case the execution fails, sporting an error
             message the HTTP status code to return.
         """
         raise NotImplementedError()
@@ -125,8 +124,8 @@ class QueryAPI(Resource):
           stored secret access key for the user.
         - The signature hasn't expired.
 
-        @return: The validated L{Call}, set with it default arguments and the
-           the L{Principal} of the accessing L{User}.
+        @return: The validated L{Call}, set with its default arguments and the
+           the principal of the accessing L{User}.
         """
         params = dict((k, v[-1]) for k, v in request.args.iteritems())
         args, rest = self.schema.extract(params)

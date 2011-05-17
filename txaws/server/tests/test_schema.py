@@ -183,7 +183,7 @@ class UnicodeTest(TestCase):
 class RawStrTest(TestCase):
 
     def test_parse(self):
-        """L{RawStr.parse checks that the given raw C{value} is a string."""
+        """L{RawStr.parse} checks that the given raw C{value} is a string."""
         parameter = RawStr("Test")
         self.assertEqual("foo", parameter.parse("foo"))
 
@@ -202,7 +202,7 @@ class IntegerTest(TestCase):
         parameter = Integer("Test")
         self.assertEqual(123, parameter.parse("123"))
 
-    def test_parse_wiith_negative(self):
+    def test_parse_with_negative(self):
         """L{Integer.parse} converts the given raw C{value} to C{int}."""
         parameter = Integer("Test")
         self.assertRaises(ValueError, parameter.parse, "-1")

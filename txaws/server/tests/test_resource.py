@@ -332,7 +332,7 @@ class QueryAPITest(TestCase):
 
     def test_handle_with_non_expired_signature(self):
         """
-        If the request contains an Expires parameter with a time that is before
+        If the request contains an Expires parameter with a time that is after
         the current time, everything is fine.
         """
         creds = AWSCredentials("access", "secret")
@@ -412,7 +412,7 @@ class QueryAPITest(TestCase):
 
     def test_handle_with_endpoint_with_terminating_slash(self):
         """
-        Check signature should handle a urs with a terminating slash.
+        Check signature should handle a URI with a terminating slash.
         """
         creds = AWSCredentials("access", "secret")
         endpoint = AWSServiceEndpoint("http://endpoint/")
