@@ -426,3 +426,46 @@ class QueryAPITest(TestCase):
 
         self.api.principal = TestPrincipal(creds)
         return self.api.handle(request).addCallback(check)
+
+    def test_handle_with_custom_path(self):
+        """
+        If L{QueryAPI.path} is not C{None} it will be used in place of
+        the HTTP request path when calculating the signature.
+        """
+        creds = AWSCredentials("access", "secret")
+        endpoint = AWSServiceEndpoint("http://endpoint/path/")
+        query = Query(action="SomeAction", creds=creds, endpoint=endpoint)
+        query.sign()
+        request = FakeRequest(query.params, endpoint)
+        # Simulate a request rewrite, like apache would do
+        request.endpoint.path = "/"
+
+        def check(ignored):
+            self.assertTrue(request.finished)
+            self.assertEqual(200, request.code)
+
+        self.api.principal = TestPrincipal(creds)
+        self.api.path = "/path/"
+        return self.api.handle(request).addCallback(check)
+
+    def test_handle_with_custom_path_and_rest(self):
+        """
+        If L{QueryAPI.path} is not C{None} it will be used in place of
+        the HTTP request path when calculating the signature. The rest
+        of the path is appended as for the HTTP request.
+        """
+        creds = AWSCredentials("access", "secret")
+        endpoint = AWSServiceEndpoint("http://endpoint/path/rest")
+        query = Query(action="SomeAction", creds=creds, endpoint=endpoint)
+        query.sign()
+        request = FakeRequest(query.params, endpoint)
+        # Simulate a request rewrite, like apache would do
+        request.endpoint.path = "/rest"
+
+        def check(ignored):
+            self.assertTrue(request.finished)
+            self.assertEqual(200, request.code)
+
+        self.api.principal = TestPrincipal(creds)
+        self.api.path = "/path/"
+        return self.api.handle(request).addCallback(check)
