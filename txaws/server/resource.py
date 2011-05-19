@@ -19,6 +19,11 @@ from txaws.server.call import Call
 class QueryAPI(Resource):
     """Base class for  EC2-like query APIs.
 
+    @param path: Optionally, the actual resource path the clients are using
+        when sending HTTP requests to this API. This can differ from the
+        one in the HTTP request we're processing in case the service sits
+        behind a reverse proxy, like Apache.
+
     The following class variables must be defined by sub-classes:
 
     @ivar actions: The actions that the API supports. The 'Action' field of
@@ -39,6 +44,10 @@ class QueryAPI(Resource):
              optional=True, default="HmacSHA256"),
         Unicode("Signature"),
         Integer("SignatureVersion", optional=True, default=2))
+
+    def __init__(self, path=None):
+        Resource.__init__(self)
+        self.path = path
 
     def get_principal(self, access_key):
         """Return a principal object by access key.
@@ -193,7 +202,10 @@ class QueryAPI(Resource):
         endpoint = AWSServiceEndpoint()
         endpoint.set_method(request.method)
         endpoint.set_canonical_host(request.getHeader("Host"))
-        endpoint.set_path(request.path)
+        path = request.path
+        if self.path is not None:
+            path = "%s/%s" % (self.path.rstrip("/"), path.lstrip("/"))
+        endpoint.set_path(path)
         params.pop("Signature")
         signature = Signature(creds, endpoint, params)
         if signature.compute() != args.Signature:
