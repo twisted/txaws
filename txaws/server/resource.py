@@ -20,9 +20,12 @@ class QueryAPI(Resource):
     """Base class for  EC2-like query APIs.
 
     @param path: Optionally, the actual resource path the clients are using
-        when sending HTTP requests to this API. This can differ from the
-        one in the HTTP request we're processing in case the service sits
-        behind a reverse proxy, like Apache.
+        when sending HTTP requests to this API, to take into account when
+        validating the signature. This can differ from the one in the HTTP
+        request we're processing in case the service sits behind a reverse
+        proxy, like Apache. For this works to work you have to make sure
+        that 'path + path_of_the_rewritten_request' equals the resource
+        path that clients are sending the request to.
 
     The following class variables must be defined by sub-classes:
 
