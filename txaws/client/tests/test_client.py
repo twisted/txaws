@@ -41,7 +41,7 @@ class ErrorWrapperTestCase(TXAWSTestCase):
         failure = Failure(Exception("timeout"))
         error = self.assertRaises(Exception, error_wrapper, failure, None)
         self.assertTrue(isinstance(error, Exception))
-        self.assertEquals(error.message, "timeout")
+        self.assertEquals(str(error), "timeout")
 
     def test_connection_error(self):
         failure = Failure(ConnectionRefusedError("timeout"))
@@ -53,10 +53,11 @@ class ErrorWrapperTestCase(TXAWSTestCase):
 class BaseClientTestCase(TXAWSTestCase):
 
     def test_creation(self):
-        client = BaseClient("creds", "endpoint", "query factory")
+        client = BaseClient("creds", "endpoint", "query factory", "parser")
         self.assertEquals(client.creds, "creds")
         self.assertEquals(client.endpoint, "endpoint")
         self.assertEquals(client.query_factory, "query factory")
+        self.assertEquals(client.parser, "parser")
 
 
 class BaseQueryTestCase(TXAWSTestCase):

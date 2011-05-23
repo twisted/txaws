@@ -16,7 +16,7 @@ from txaws.ec2.exception import EC2Error
 from txaws.util import iso8601time, XML
 
 
-__all__ = ["EC2Client"]
+__all__ = ["EC2Client", "Query", "Parser"]
 
 
 def ec2_error_wrapper(error):
@@ -26,10 +26,13 @@ def ec2_error_wrapper(error):
 class EC2Client(BaseClient):
     """A client for EC2."""
 
-    def __init__(self, creds=None, endpoint=None, query_factory=None):
+    def __init__(self, creds=None, endpoint=None, query_factory=None,
+                 parser=None):
         if query_factory is None:
             query_factory = Query
-        super(EC2Client, self).__init__(creds, endpoint, query_factory)
+        if parser is None:
+            parser = Parser()
+        super(EC2Client, self).__init__(creds, endpoint, query_factory, parser)
 
     def describe_instances(self, *instance_ids):
         """Describe current instances."""
@@ -40,75 +43,7 @@ class EC2Client(BaseClient):
             action="DescribeInstances", creds=self.creds,
             endpoint=self.endpoint, other_params=instances)
         d = query.submit()
-        return d.addCallback(self._parse_describe_instances)
-
-    def _parse_instances_set(self, root, reservation):
-        instances = []
-        for instance_data in root.find("instancesSet"):
-            instance_id = instance_data.findtext("instanceId")
-            instance_state = instance_data.find(
-                "instanceState").findtext("name")
-            instance_type = instance_data.findtext("instanceType")
-            image_id = instance_data.findtext("imageId")
-            private_dns_name = instance_data.findtext("privateDnsName")
-            dns_name = instance_data.findtext("dnsName")
-            key_name = instance_data.findtext("keyName")
-            ami_launch_index = instance_data.findtext("amiLaunchIndex")
-            launch_time = instance_data.findtext("launchTime")
-            placement = instance_data.find("placement").findtext(
-                "availabilityZone")
-            products = []
-            product_codes = instance_data.find("productCodes")
-            if product_codes:
-                for product_data in instance_data.find("productCodes"):
-                    products.append(product_data.text)
-            kernel_id = instance_data.findtext("kernelId")
-            ramdisk_id = instance_data.findtext("ramdiskId")
-            instance = model.Instance(
-                instance_id, instance_state, instance_type, image_id,
-                private_dns_name, dns_name, key_name, ami_launch_index,
-                launch_time, placement, products, kernel_id, ramdisk_id,
-                reservation=reservation)
-            instances.append(instance)
-        return instances
-
-    def _parse_describe_instances(self, xml_bytes):
-        """
-        Parse the reservations XML payload that is returned from an AWS
-        describeInstances API call.
-
-        Instead of returning the reservations as the "top-most" object, we
-        return the object that most developers and their code will be
-        interested in: the instances. In instances reservation is available on
-        the instance object.
-
-        The following instance attributes are optional:
-            * ami_launch_index
-            * key_name
-            * kernel_id
-            * product_codes
-            * ramdisk_id
-            * reason
-        """
-        root = XML(xml_bytes)
-        results = []
-        # May be a more elegant way to do this:
-        for reservation_data in root.find("reservationSet"):
-            # Get the security group information.
-            groups = []
-            for group_data in reservation_data.find("groupSet"):
-                group_id = group_data.findtext("groupId")
-                groups.append(group_id)
-            # Create a reservation object with the parsed data.
-            reservation = model.Reservation(
-                reservation_id=reservation_data.findtext("reservationId"),
-                owner_id=reservation_data.findtext("ownerId"),
-                groups=groups)
-            # Get the list of instances.
-            instances = self._parse_instances_set(
-                reservation_data, reservation)
-            results.extend(instances)
-        return results
+        return d.addCallback(self.parser.describe_instances)
 
     def run_instances(self, image_id, min_count, max_count,
         security_groups=None, key_name=None, instance_type=None,
@@ -136,27 +71,7 @@ class EC2Client(BaseClient):
             action="RunInstances", creds=self.creds, endpoint=self.endpoint,
             other_params=params)
         d = query.submit()
-        return d.addCallback(self._parse_run_instances)
-
-    def _parse_run_instances(self, xml_bytes):
-        """
-        Parse the reservations XML payload that is returned from an AWS
-        RunInstances API call.
-        """
-        root = XML(xml_bytes)
-        # Get the security group information.
-        groups = []
-        for group_data in root.find("groupSet"):
-            group_id = group_data.findtext("groupId")
-            groups.append(group_id)
-        # Create a reservation object with the parsed data.
-        reservation = model.Reservation(
-            reservation_id=root.findtext("reservationId"),
-            owner_id=root.findtext("ownerId"),
-            groups=groups)
-        # Get the list of instances.
-        instances = self._parse_instances_set(root, reservation)
-        return instances
+        return d.addCallback(self.parser.run_instances)
 
     def terminate_instances(self, *instance_ids):
         """Terminate some instances.
@@ -172,20 +87,7 @@ class EC2Client(BaseClient):
             action="TerminateInstances", creds=self.creds,
             endpoint=self.endpoint, other_params=instances)
         d = query.submit()
-        return d.addCallback(self._parse_terminate_instances)
-
-    def _parse_terminate_instances(self, xml_bytes):
-        root = XML(xml_bytes)
-        result = []
-        # May be a more elegant way to do this:
-        for instance in root.find("instancesSet"):
-            instanceId = instance.findtext("instanceId")
-            previousState = instance.find("previousState").findtext(
-                "name")
-            shutdownState = instance.find("shutdownState").findtext(
-                "name")
-            result.append((instanceId, previousState, shutdownState))
-        return result
+        return d.addCallback(self.parser.terminate_instances)
 
     def describe_security_groups(self, *names):
         """Describe security groups.
@@ -203,48 +105,7 @@ class EC2Client(BaseClient):
             action="DescribeSecurityGroups", creds=self.creds,
             endpoint=self.endpoint, other_params=group_names)
         d = query.submit()
-        return d.addCallback(self._parse_describe_security_groups)
-
-    def _parse_describe_security_groups(self, xml_bytes):
-        """Parse the XML returned by the C{DescribeSecurityGroups} function.
-
-        @param xml_bytes: XML bytes with a C{DescribeSecurityGroupsResponse}
-            root element.
-        @return: A list of L{SecurityGroup} instances.
-        """
-        root = XML(xml_bytes)
-        result = []
-        for group_info in root.findall("securityGroupInfo/item"):
-            name = group_info.findtext("groupName")
-            description = group_info.findtext("groupDescription")
-            owner_id = group_info.findtext("ownerId")
-            allowed_groups = []
-            allowed_ips = []
-            ip_permissions = group_info.find("ipPermissions") or ()
-            for ip_permission in ip_permissions:
-                ip_protocol = ip_permission.findtext("ipProtocol")
-                from_port = int(ip_permission.findtext("fromPort"))
-                to_port = int(ip_permission.findtext("toPort"))
-                for groups in ip_permission.findall("groups/item") or ():
-                    user_id = groups.findtext("userId")
-                    group_name = groups.findtext("groupName")
-                    if user_id and group_name:
-                        if (user_id, group_name) not in allowed_groups:
-                            allowed_groups.append((user_id, group_name))
-                for ip_ranges in ip_permission.findall("ipRanges/item") or ():
-                    cidr_ip = ip_ranges.findtext("cidrIp")
-                    allowed_ips.append(
-                        model.IPPermission(
-                            ip_protocol, from_port, to_port, cidr_ip))
-
-            allowed_groups = [model.UserIDGroupPair(user_id, group_name)
-                              for user_id, group_name in allowed_groups]
-
-            security_group = model.SecurityGroup(
-                name, description, owner_id=owner_id,
-                groups=allowed_groups, ips=allowed_ips)
-            result.append(security_group)
-        return result
+        return d.addCallback(self.parser.describe_security_groups)
 
     def create_security_group(self, name, description):
         """Create security group.
@@ -259,11 +120,7 @@ class EC2Client(BaseClient):
             action="CreateSecurityGroup", creds=self.creds,
             endpoint=self.endpoint, other_params=parameters)
         d = query.submit()
-        return d.addCallback(self._parse_truth_return)
-
-    def _parse_truth_return(self, xml_bytes):
-        root = XML(xml_bytes)
-        return root.findtext("return") == "true"
+        return d.addCallback(self.parser.truth_return)
 
     def delete_security_group(self, name):
         """
@@ -276,7 +133,7 @@ class EC2Client(BaseClient):
             action="DeleteSecurityGroup", creds=self.creds,
             endpoint=self.endpoint, other_params=parameter)
         d = query.submit()
-        return d.addCallback(self._parse_truth_return)
+        return d.addCallback(self.parser.truth_return)
 
     def authorize_security_group(
         self, group_name, source_group_name="", source_group_owner_id="",
@@ -333,7 +190,7 @@ class EC2Client(BaseClient):
             action="AuthorizeSecurityGroupIngress", creds=self.creds,
             endpoint=self.endpoint, other_params=parameters)
         d = query.submit()
-        return d.addCallback(self._parse_truth_return)
+        return d.addCallback(self.parser.truth_return)
 
     def authorize_group_permission(
         self, group_name, source_group_name, source_group_owner_id):
@@ -418,7 +275,7 @@ class EC2Client(BaseClient):
             action="RevokeSecurityGroupIngress", creds=self.creds,
             endpoint=self.endpoint, other_params=parameters)
         d = query.submit()
-        return d.addCallback(self._parse_truth_return)
+        return d.addCallback(self.parser.truth_return)
 
     def revoke_group_permission(
         self, group_name, source_group_name, source_group_owner_id):
@@ -457,9 +314,390 @@ class EC2Client(BaseClient):
             action="DescribeVolumes", creds=self.creds, endpoint=self.endpoint,
             other_params=volumeset)
         d = query.submit()
-        return d.addCallback(self._parse_describe_volumes)
+        return d.addCallback(self.parser.describe_volumes)
 
-    def _parse_describe_volumes(self, xml_bytes):
+    def create_volume(self, availability_zone, size=None, snapshot_id=None):
+        """Create a new volume."""
+        params = {"AvailabilityZone": availability_zone}
+        if ((snapshot_id is None and size is None) or
+            (snapshot_id is not None and size is not None)):
+            raise ValueError("Please provide either size or snapshot_id")
+        if size is not None:
+            params["Size"] = str(size)
+        if snapshot_id is not None:
+            params["SnapshotId"] = snapshot_id
+        query = self.query_factory(
+            action="CreateVolume", creds=self.creds, endpoint=self.endpoint,
+            other_params=params)
+        d = query.submit()
+        return d.addCallback(self.parser.create_volume)
+
+    def delete_volume(self, volume_id):
+        query = self.query_factory(
+            action="DeleteVolume", creds=self.creds, endpoint=self.endpoint,
+            other_params={"VolumeId": volume_id})
+        d = query.submit()
+        return d.addCallback(self.parser.truth_return)
+
+    def describe_snapshots(self, *snapshot_ids):
+        """Describe available snapshots."""
+        snapshot_set = {}
+        for pos, snapshot_id in enumerate(snapshot_ids):
+            snapshot_set["SnapshotId.%d" % (pos + 1)] = snapshot_id
+        query = self.query_factory(
+            action="DescribeSnapshots", creds=self.creds,
+            endpoint=self.endpoint, other_params=snapshot_set)
+        d = query.submit()
+        return d.addCallback(self.parser.snapshots)
+
+    def create_snapshot(self, volume_id):
+        """Create a new snapshot of an existing volume."""
+        query = self.query_factory(
+            action="CreateSnapshot", creds=self.creds, endpoint=self.endpoint,
+            other_params={"VolumeId": volume_id})
+        d = query.submit()
+        return d.addCallback(self.parser.create_snapshot)
+
+    def delete_snapshot(self, snapshot_id):
+        """Remove a previously created snapshot."""
+        query = self.query_factory(
+            action="DeleteSnapshot", creds=self.creds, endpoint=self.endpoint,
+            other_params={"SnapshotId": snapshot_id})
+        d = query.submit()
+        return d.addCallback(self.parser.truth_return)
+
+    def attach_volume(self, volume_id, instance_id, device):
+        """Attach the given volume to the specified instance at C{device}."""
+        query = self.query_factory(
+            action="AttachVolume", creds=self.creds, endpoint=self.endpoint,
+            other_params={"VolumeId": volume_id, "InstanceId": instance_id,
+                          "Device": device})
+        d = query.submit()
+        return d.addCallback(self.parser.attach_volume)
+
+    def describe_keypairs(self, *keypair_names):
+        """Returns information about key pairs available."""
+        keypairs = {}
+        for index, keypair_name in enumerate(keypair_names):
+            keypairs["KeyPair.%d" % (index + 1)] = keypair_name
+        query = self.query_factory(
+            action="DescribeKeyPairs", creds=self.creds,
+            endpoint=self.endpoint, other_params=keypairs)
+        d = query.submit()
+        return d.addCallback(self.parser.describe_keypairs)
+
+    def create_keypair(self, keypair_name):
+        """
+        Create a new 2048 bit RSA key pair and return a unique ID that can be
+        used to reference the created key pair when launching new instances.
+        """
+        query = self.query_factory(
+            action="CreateKeyPair", creds=self.creds, endpoint=self.endpoint,
+            other_params={"KeyName": keypair_name})
+        d = query.submit()
+        return d.addCallback(self.parser.create_keypair)
+
+    def delete_keypair(self, keypair_name):
+        """Delete a given keypair."""
+        query = self.query_factory(
+            action="DeleteKeyPair", creds=self.creds, endpoint=self.endpoint,
+            other_params={"KeyName": keypair_name})
+        d = query.submit()
+        return d.addCallback(self.parser.truth_return)
+
+    def import_keypair(self, keypair_name, key_material):
+        """
+        Import an existing SSH key into EC2. It supports:
+            * OpenSSH public key format (e.g., the format in
+              ~/.ssh/authorized_keys)
+            * Base64 encoded DER format
+            * SSH public key file format as specified in RFC4716
+
+        @param keypair_name: The name of the key to create.
+        @param key_material: The material in one of the supported format.
+
+        @return: A L{Deferred} firing with a L{model.Keypair} instance if
+            successful.
+        """
+        query = self.query_factory(
+            action="ImportKeyPair", creds=self.creds, endpoint=self.endpoint,
+            other_params={"KeyName": keypair_name,
+                          "PublicKeyMaterial": b64encode(key_material)})
+        d = query.submit()
+        return d.addCallback(self.parser.import_keypair, key_material)
+
+    def allocate_address(self):
+        """
+        Acquire an elastic IP address to be attached subsequently to EC2
+        instances.
+
+        @return: the IP address allocated.
+        """
+        # XXX remove empty other_params
+        query = self.query_factory(
+            action="AllocateAddress", creds=self.creds, endpoint=self.endpoint,
+            other_params={})
+        d = query.submit()
+        return d.addCallback(self.parser.allocate_address)
+
+    def release_address(self, address):
+        """
+        Release a previously allocated address returned by C{allocate_address}.
+
+        @return: C{True} if the operation succeeded.
+        """
+        query = self.query_factory(
+            action="ReleaseAddress", creds=self.creds, endpoint=self.endpoint,
+            other_params={"PublicIp": address})
+        d = query.submit()
+        return d.addCallback(self.parser.truth_return)
+
+    def associate_address(self, instance_id, address):
+        """
+        Associate an allocated C{address} with the instance identified by
+        C{instance_id}.
+
+        @return: C{True} if the operation succeeded.
+        """
+        query = self.query_factory(
+            action="AssociateAddress", creds=self.creds,
+            endpoint=self.endpoint,
+            other_params={"InstanceId": instance_id, "PublicIp": address})
+        d = query.submit()
+        return d.addCallback(self.parser.truth_return)
+
+    def disassociate_address(self, address):
+        """
+        Disassociate an address previously associated with
+        C{associate_address}. This is an idempotent operation, so it can be
+        called several times without error.
+        """
+        query = self.query_factory(
+            action="DisassociateAddress", creds=self.creds,
+            endpoint=self.endpoint, other_params={"PublicIp": address})
+        d = query.submit()
+        return d.addCallback(self.parser.truth_return)
+
+    def describe_addresses(self, *addresses):
+        """
+        List the elastic IPs allocated in this account.
+
+        @param addresses: if specified, the addresses to get information about.
+
+        @return: a C{list} of (address, instance_id). If the elastic IP is not
+            associated currently, C{instance_id} will be C{None}.
+        """
+        address_set = {}
+        for pos, address in enumerate(addresses):
+            address_set["PublicIp.%d" % (pos + 1)] = address
+        query = self.query_factory(
+            action="DescribeAddresses", creds=self.creds,
+            endpoint=self.endpoint, other_params=address_set)
+        d = query.submit()
+        return d.addCallback(self.parser.describe_addresses)
+
+    def describe_availability_zones(self, names=None):
+        zone_names = None
+        if names:
+            zone_names = dict([("ZoneName.%d" % (i + 1), name)
+                                for i, name in enumerate(names)])
+        query = self.query_factory(
+            action="DescribeAvailabilityZones", creds=self.creds,
+            endpoint=self.endpoint, other_params=zone_names)
+        d = query.submit()
+        return d.addCallback(self.parser.describe_availability_zones)
+
+
+class Parser(object):
+    """A parser for EC2 responses"""
+
+    def instances_set(self, root, reservation):
+        """Parse instance data out of an XML payload.
+
+        @param root: The root node of the XML payload.
+        @param reservation: The L{Reservation} associated with the instances
+            from the response.
+        @return: A C{list} of L{Instance}s.
+        """
+        instances = []
+        for instance_data in root.find("instancesSet"):
+            instances.append(self.instance(instance_data, reservation))
+        return instances
+
+    def instance(self, instance_data, reservation):
+        """Parse instance data out of an XML payload.
+
+        @param instance_data: An XML node containing instance data.
+        @param reservation: The L{Reservation} associated with the instance.
+        @return: An L{Instance}.
+        """
+        instance_id = instance_data.findtext("instanceId")
+        instance_state = instance_data.find(
+            "instanceState").findtext("name")
+        instance_type = instance_data.findtext("instanceType")
+        image_id = instance_data.findtext("imageId")
+        private_dns_name = instance_data.findtext("privateDnsName")
+        dns_name = instance_data.findtext("dnsName")
+        key_name = instance_data.findtext("keyName")
+        ami_launch_index = instance_data.findtext("amiLaunchIndex")
+        launch_time = instance_data.findtext("launchTime")
+        placement = instance_data.find("placement").findtext(
+            "availabilityZone")
+        products = []
+        product_codes = instance_data.find("productCodes")
+        if product_codes is not None:
+            for product_data in instance_data.find("productCodes"):
+                products.append(product_data.text)
+        kernel_id = instance_data.findtext("kernelId")
+        ramdisk_id = instance_data.findtext("ramdiskId")
+        instance = model.Instance(
+            instance_id, instance_state, instance_type, image_id,
+            private_dns_name, dns_name, key_name, ami_launch_index,
+            launch_time, placement, products, kernel_id, ramdisk_id,
+            reservation=reservation)
+        return instance
+
+    def describe_instances(self, xml_bytes):
+        """
+        Parse the reservations XML payload that is returned from an AWS
+        describeInstances API call.
+
+        Instead of returning the reservations as the "top-most" object, we
+        return the object that most developers and their code will be
+        interested in: the instances. In instances reservation is available on
+        the instance object.
+
+        The following instance attributes are optional:
+            * ami_launch_index
+            * key_name
+            * kernel_id
+            * product_codes
+            * ramdisk_id
+            * reason
+
+        @param xml_bytes: raw XML payload from AWS.
+        """
+        root = XML(xml_bytes)
+        results = []
+        # May be a more elegant way to do this:
+        for reservation_data in root.find("reservationSet"):
+            # Get the security group information.
+            groups = []
+            for group_data in reservation_data.find("groupSet"):
+                group_id = group_data.findtext("groupId")
+                groups.append(group_id)
+            # Create a reservation object with the parsed data.
+            reservation = model.Reservation(
+                reservation_id=reservation_data.findtext("reservationId"),
+                owner_id=reservation_data.findtext("ownerId"),
+                groups=groups)
+            # Get the list of instances.
+            instances = self.instances_set(
+                reservation_data, reservation)
+            results.extend(instances)
+        return results
+
+    def run_instances(self, xml_bytes):
+        """
+        Parse the reservations XML payload that is returned from an AWS
+        RunInstances API call.
+
+        @param xml_bytes: raw XML payload from AWS.
+        """
+        root = XML(xml_bytes)
+        # Get the security group information.
+        groups = []
+        for group_data in root.find("groupSet"):
+            group_id = group_data.findtext("groupId")
+            groups.append(group_id)
+        # Create a reservation object with the parsed data.
+        reservation = model.Reservation(
+            reservation_id=root.findtext("reservationId"),
+            owner_id=root.findtext("ownerId"),
+            groups=groups)
+        # Get the list of instances.
+        instances = self.instances_set(root, reservation)
+        return instances
+
+    def terminate_instances(self, xml_bytes):
+        """Parse the XML returned by the C{TerminateInstances} function.
+
+        @param xml_bytes: XML bytes with a C{TerminateInstancesResponse} root
+            element.
+        @return: An iterable of C{tuple} of (instanceId, previousState,
+            shutdownState) for the ec2 instances that where terminated.
+        """
+        root = XML(xml_bytes)
+        result = []
+        # May be a more elegant way to do this:
+        for instance in root.find("instancesSet"):
+            instanceId = instance.findtext("instanceId")
+            previousState = instance.find("previousState").findtext(
+                "name")
+            shutdownState = instance.find("shutdownState").findtext(
+                "name")
+            result.append((instanceId, previousState, shutdownState))
+        return result
+
+    def describe_security_groups(self, xml_bytes):
+        """Parse the XML returned by the C{DescribeSecurityGroups} function.
+
+        @param xml_bytes: XML bytes with a C{DescribeSecurityGroupsResponse}
+            root element.
+        @return: A list of L{SecurityGroup} instances.
+        """
+        root = XML(xml_bytes)
+        result = []
+        for group_info in root.findall("securityGroupInfo/item"):
+            name = group_info.findtext("groupName")
+            description = group_info.findtext("groupDescription")
+            owner_id = group_info.findtext("ownerId")
+            allowed_groups = []
+            allowed_ips = []
+            ip_permissions = group_info.find("ipPermissions")
+            if ip_permissions is None:
+                ip_permissions = ()
+            for ip_permission in ip_permissions:
+                ip_protocol = ip_permission.findtext("ipProtocol")
+                from_port = int(ip_permission.findtext("fromPort"))
+                to_port = int(ip_permission.findtext("toPort"))
+                for groups in ip_permission.findall("groups/item") or ():
+                    user_id = groups.findtext("userId")
+                    group_name = groups.findtext("groupName")
+                    if user_id and group_name:
+                        if (user_id, group_name) not in allowed_groups:
+                            allowed_groups.append((user_id, group_name))
+                for ip_ranges in ip_permission.findall("ipRanges/item") or ():
+                    cidr_ip = ip_ranges.findtext("cidrIp")
+                    allowed_ips.append(
+                        model.IPPermission(
+                            ip_protocol, from_port, to_port, cidr_ip))
+
+            allowed_groups = [model.UserIDGroupPair(user_id, group_name)
+                              for user_id, group_name in allowed_groups]
+
+            security_group = model.SecurityGroup(
+                name, description, owner_id=owner_id,
+                groups=allowed_groups, ips=allowed_ips)
+            result.append(security_group)
+        return result
+
+    def truth_return(self, xml_bytes):
+        """Parse the XML for a truth value.
+
+        @param xml_bytes: XML bytes.
+        @return: True if the node contains "return" otherwise False.
+        """
+        root = XML(xml_bytes)
+        return root.findtext("return") == "true"
+
+    def describe_volumes(self, xml_bytes):
+        """Parse the XML returned by the C{DescribeVolumes} function.
+
+        @param xml_bytes: XML bytes with a C{DescribeVolumesResponse} root
+            element.
+        @return: A list of L{Volume} instances.
+        """
         root = XML(xml_bytes)
         result = []
         for volume_data in root.find("volumeSet"):
@@ -487,23 +725,13 @@ class EC2Client(BaseClient):
                 volume.attachments.append(attachment)
         return result
 
-    def create_volume(self, availability_zone, size=None, snapshot_id=None):
-        """Create a new volume."""
-        params = {"AvailabilityZone": availability_zone}
-        if ((snapshot_id is None and size is None) or
-            (snapshot_id is not None and size is not None)):
-            raise ValueError("Please provide either size or snapshot_id")
-        if size is not None:
-            params["Size"] = str(size)
-        if snapshot_id is not None:
-            params["SnapshotId"] = snapshot_id
-        query = self.query_factory(
-            action="CreateVolume", creds=self.creds, endpoint=self.endpoint,
-            other_params=params)
-        d = query.submit()
-        return d.addCallback(self._parse_create_volume)
+    def create_volume(self, xml_bytes):
+        """Parse the XML returned by the C{CreateVolume} function.
 
-    def _parse_create_volume(self, xml_bytes):
+        @param xml_bytes: XML bytes with a C{CreateVolumeResponse} root
+            element.
+        @return: The L{Volume} instance created.
+        """
         root = XML(xml_bytes)
         volume_id = root.findtext("volumeId")
         size = int(root.findtext("size"))
@@ -518,25 +746,13 @@ class EC2Client(BaseClient):
             snapshot_id)
         return volume
 
-    def delete_volume(self, volume_id):
-        query = self.query_factory(
-            action="DeleteVolume", creds=self.creds, endpoint=self.endpoint,
-            other_params={"VolumeId": volume_id})
-        d = query.submit()
-        return d.addCallback(self._parse_truth_return)
+    def snapshots(self, xml_bytes):
+        """Parse the XML returned by the C{DescribeSnapshots} function.
 
-    def describe_snapshots(self, *snapshot_ids):
-        """Describe available snapshots."""
-        snapshot_set = {}
-        for pos, snapshot_id in enumerate(snapshot_ids):
-            snapshot_set["SnapshotId.%d" % (pos + 1)] = snapshot_id
-        query = self.query_factory(
-            action="DescribeSnapshots", creds=self.creds,
-            endpoint=self.endpoint, other_params=snapshot_set)
-        d = query.submit()
-        return d.addCallback(self._parse_snapshots)
-
-    def _parse_snapshots(self, xml_bytes):
+        @param xml_bytes: XML bytes with a C{DescribeSnapshotsResponse} root
+            element.
+        @return: A list of L{Snapshot} instances.
+        """
         root = XML(xml_bytes)
         result = []
         for snapshot_data in root.find("snapshotSet"):
@@ -553,15 +769,13 @@ class EC2Client(BaseClient):
             result.append(snapshot)
         return result
 
-    def create_snapshot(self, volume_id):
-        """Create a new snapshot of an existing volume."""
-        query = self.query_factory(
-            action="CreateSnapshot", creds=self.creds, endpoint=self.endpoint,
-            other_params={"VolumeId": volume_id})
-        d = query.submit()
-        return d.addCallback(self._parse_create_snapshot)
+    def create_snapshot(self, xml_bytes):
+        """Parse the XML returned by the C{CreateSnapshot} function.
 
-    def _parse_create_snapshot(self, xml_bytes):
+        @param xml_bytes: XML bytes with a C{CreateSnapshotResponse} root
+            element.
+        @return: The L{Snapshot} instance created.
+        """
         root = XML(xml_bytes)
         snapshot_id = root.findtext("snapshotId")
         volume_id = root.findtext("volumeId")
@@ -574,24 +788,13 @@ class EC2Client(BaseClient):
         return model.Snapshot(
             snapshot_id, volume_id, status, start_time, progress)
 
-    def delete_snapshot(self, snapshot_id):
-        """Remove a previously created snapshot."""
-        query = self.query_factory(
-            action="DeleteSnapshot", creds=self.creds, endpoint=self.endpoint,
-            other_params={"SnapshotId": snapshot_id})
-        d = query.submit()
-        return d.addCallback(self._parse_truth_return)
+    def attach_volume(self, xml_bytes):
+        """Parse the XML returned by the C{AttachVolume} function.
 
-    def attach_volume(self, volume_id, instance_id, device):
-        """Attach the given volume to the specified instance at C{device}."""
-        query = self.query_factory(
-            action="AttachVolume", creds=self.creds, endpoint=self.endpoint,
-            other_params={"VolumeId": volume_id, "InstanceId": instance_id,
-                          "Device": device})
-        d = query.submit()
-        return d.addCallback(self._parse_attach_volume)
-
-    def _parse_attach_volume(self, xml_bytes):
+        @param xml_bytes: XML bytes with a C{AttachVolumeResponse} root
+            element.
+        @return: a C{dict} with status and attach_time keys.
+        """
         root = XML(xml_bytes)
         status = root.findtext("status")
         attach_time = root.findtext("attachTime")
@@ -599,22 +802,17 @@ class EC2Client(BaseClient):
             attach_time[:19], "%Y-%m-%dT%H:%M:%S")
         return {"status": status, "attach_time": attach_time}
 
-    def describe_keypairs(self, *keypair_names):
-        """Returns information about key pairs available."""
-        keypairs = {}
-        for index, keypair_name in enumerate(keypair_names):
-            keypairs["KeyPair.%d" % (index + 1)] = keypair_name
-        query = self.query_factory(
-            action="DescribeKeyPairs", creds=self.creds,
-            endpoint=self.endpoint, other_params=keypairs)
-        d = query.submit()
-        return d.addCallback(self._parse_describe_keypairs)
+    def describe_keypairs(self, xml_bytes):
+        """Parse the XML returned by the C{DescribeKeyPairs} function.
 
-    def _parse_describe_keypairs(self, xml_bytes):
+        @param xml_bytes: XML bytes with a C{DescribeKeyPairsResponse} root
+            element.
+        @return: a C{list} of L{Keypair}.
+        """
         results = []
         root = XML(xml_bytes)
         keypairs = root.find("keySet")
-        if not keypairs:
+        if keypairs is None:
             return results
         for keypair_data in keypairs:
             key_name = keypair_data.findtext("keyName")
@@ -622,135 +820,42 @@ class EC2Client(BaseClient):
             results.append(model.Keypair(key_name, key_fingerprint))
         return results
 
-    def create_keypair(self, keypair_name):
-        """
-        Create a new 2048 bit RSA key pair and return a unique ID that can be
-        used to reference the created key pair when launching new instances.
-        """
-        query = self.query_factory(
-            action="CreateKeyPair", creds=self.creds, endpoint=self.endpoint,
-            other_params={"KeyName": keypair_name})
-        d = query.submit()
-        return d.addCallback(self._parse_create_keypair)
+    def create_keypair(self, xml_bytes):
+        """Parse the XML returned by the C{CreateKeyPair} function.
 
-    def _parse_create_keypair(self, xml_bytes):
+        @param xml_bytes: XML bytes with a C{CreateKeyPairResponse} root
+            element.
+        @return: The L{Keypair} instance created.
+        """
         keypair_data = XML(xml_bytes)
         key_name = keypair_data.findtext("keyName")
         key_fingerprint = keypair_data.findtext("keyFingerprint")
         key_material = keypair_data.findtext("keyMaterial")
         return model.Keypair(key_name, key_fingerprint, key_material)
 
-    def delete_keypair(self, keypair_name):
-        """Delete a given keypair."""
-        query = self.query_factory(
-            action="DeleteKeyPair", creds=self.creds, endpoint=self.endpoint,
-            other_params={"KeyName": keypair_name})
-        d = query.submit()
-        return d.addCallback(self._parse_truth_return)
-
-    def import_keypair(self, keypair_name, key_material):
-        """
-        Import an existing SSH key into EC2. It supports:
-            * OpenSSH public key format (e.g., the format in
-              ~/.ssh/authorized_keys)
-            * Base64 encoded DER format
-            * SSH public key file format as specified in RFC4716
-
-        @param keypair_name: The name of the key to create.
-        @param key_material: The material in one of the supported format.
-
-        @return: A L{Deferred} firing with a L{model.Keypair} instance if
-            successful.
-        """
-        query = self.query_factory(
-            action="ImportKeyPair", creds=self.creds, endpoint=self.endpoint,
-            other_params={"KeyName": keypair_name,
-                          "PublicKeyMaterial": b64encode(key_material)})
-        d = query.submit()
-        return d.addCallback(self._parse_import_keypair, key_material)
-
-    def _parse_import_keypair(self, xml_bytes, key_material):
+    def import_keypair(self, xml_bytes, key_material):
         """Extract the key name and the fingerprint from the result."""
         keypair_data = XML(xml_bytes)
         key_name = keypair_data.findtext("keyName")
         key_fingerprint = keypair_data.findtext("keyFingerprint")
         return model.Keypair(key_name, key_fingerprint, key_material)
 
-    def allocate_address(self):
-        """
-        Acquire an elastic IP address to be attached subsequently to EC2
-        instances.
+    def allocate_address(self, xml_bytes):
+        """Parse the XML returned by the C{AllocateAddress} function.
 
-        @return: the IP address allocated.
+        @param xml_bytes: XML bytes with a C{AllocateAddress} root element.
+        @return: The public ip address as a string.
         """
-        # XXX remove empty other_params
-        query = self.query_factory(
-            action="AllocateAddress", creds=self.creds, endpoint=self.endpoint,
-            other_params={})
-        d = query.submit()
-        return d.addCallback(self._parse_allocate_address)
-
-    def _parse_allocate_address(self, xml_bytes):
         address_data = XML(xml_bytes)
         return address_data.findtext("publicIp")
 
-    def release_address(self, address):
-        """
-        Release a previously allocated address returned by C{allocate_address}.
+    def describe_addresses(self, xml_bytes):
+        """Parse the XML returned by the C{DescribeAddresses} function.
 
-        @return: C{True} if the operation succeeded.
+        @param xml_bytes: XML bytes with a C{DescribeAddressesResponse} root
+            element.
+        @return: a C{list} of L{tuple} of (publicIp, instancId).
         """
-        query = self.query_factory(
-            action="ReleaseAddress", creds=self.creds, endpoint=self.endpoint,
-            other_params={"PublicIp": address})
-        d = query.submit()
-        return d.addCallback(self._parse_truth_return)
-
-    def associate_address(self, instance_id, address):
-        """
-        Associate an allocated C{address} with the instance identified by
-        C{instance_id}.
-
-        @return: C{True} if the operation succeeded.
-        """
-        query = self.query_factory(
-            action="AssociateAddress", creds=self.creds,
-            endpoint=self.endpoint,
-            other_params={"InstanceId": instance_id, "PublicIp": address})
-        d = query.submit()
-        return d.addCallback(self._parse_truth_return)
-
-    def disassociate_address(self, address):
-        """
-        Disassociate an address previously associated with
-        C{associate_address}. This is an idempotent operation, so it can be
-        called several times without error.
-        """
-        query = self.query_factory(
-            action="DisassociateAddress", creds=self.creds,
-            endpoint=self.endpoint, other_params={"PublicIp": address})
-        d = query.submit()
-        return d.addCallback(self._parse_truth_return)
-
-    def describe_addresses(self, *addresses):
-        """
-        List the elastic IPs allocated in this account.
-
-        @param addresses: if specified, the addresses to get information about.
-
-        @return: a C{list} of (address, instance_id). If the elastic IP is not
-            associated currently, C{instance_id} will be C{None}.
-        """
-        address_set = {}
-        for pos, address in enumerate(addresses):
-            address_set["PublicIp.%d" % (pos + 1)] = address
-        query = self.query_factory(
-            action="DescribeAddresses", creds=self.creds,
-            endpoint=self.endpoint, other_params=address_set)
-        d = query.submit()
-        return d.addCallback(self._parse_describe_addresses)
-
-    def _parse_describe_addresses(self, xml_bytes):
         results = []
         root = XML(xml_bytes)
         for address_data in root.find("addressesSet"):
@@ -759,18 +864,13 @@ class EC2Client(BaseClient):
             results.append((address, instance_id))
         return results
 
-    def describe_availability_zones(self, names=None):
-        zone_names = None
-        if names:
-            zone_names = dict([("ZoneName.%d" % (i + 1), name)
-                                for i, name in enumerate(names)])
-        query = self.query_factory(
-            action="DescribeAvailabilityZones", creds=self.creds,
-            endpoint=self.endpoint, other_params=zone_names)
-        d = query.submit()
-        return d.addCallback(self._parse_describe_availability_zones)
+    def describe_availability_zones(self, xml_bytes):
+        """Parse the XML returned by the C{DescribeAvailibilityZones} function.
 
-    def _parse_describe_availability_zones(self, xml_bytes):
+        @param xml_bytes: XML bytes with a C{DescribeAvailibilityZonesResponse}
+            root element.
+        @return: a C{list} of L{AvailabilityZone}.
+        """
         results = []
         root = XML(xml_bytes)
         for zone_data in root.find("availabilityZoneInfo"):
@@ -804,6 +904,93 @@ class Query(BaseQuery):
             self.params["Timestamp"] = iso8601time(time_tuple)
         if other_params:
             self.params.update(other_params)
+        self.signature = Signature(self.creds, self.endpoint, self.params)
+
+    def sign(self, hash_type="sha256"):
+        """Sign this query using its built in credentials.
+
+        @param hash_type: if the SignatureVersion is 2, specify the type of
+            hash to use, either "sha1" or "sha256". It defaults to the latter.
+
+        This prepares it to be sent, and should be done as the last step before
+        submitting the query. Signing is done automatically - this is a public
+        method to facilitate testing.
+        """
+        version = self.params["SignatureVersion"]
+        if version == "2":
+            self.params["SignatureMethod"] = "Hmac%s" % hash_type.upper()
+        self.params["Signature"] = self.signature.compute()
+
+    def submit(self):
+        """Submit this query.
+
+        @return: A deferred from get_page
+        """
+        self.sign()
+        url = self.endpoint.get_uri()
+        method = self.endpoint.method
+        params = self.signature.get_canonical_query_params()
+        headers = {}
+        kwargs = {"method": method}
+        if method == "POST":
+            headers["Content-Type"] = "application/x-www-form-urlencoded"
+            kwargs["postdata"] = params
+        else:
+            url += "?%s" % params
+        if self.endpoint.get_host() != self.endpoint.get_canonical_host():
+            headers["Host"] = self.endpoint.get_canonical_host()
+        if headers:
+            kwargs["headers"] = headers
+        if self.timeout:
+            kwargs["timeout"] = self.timeout
+        d = self.get_page(url, **kwargs)
+        return d.addErrback(ec2_error_wrapper)
+
+
+class Signature(object):
+    """Compute EC2-compliant signatures for requests.
+
+    @ivar creds: The L{AWSCredentials} to use to compute the signature.
+    @ivar endpoint: The {AWSServiceEndpoint} to consider.
+    @ivar params: A C{dict} of parameters to consider.
+    """
+
+    def __init__(self, creds, endpoint, params):
+        """Create a Query to submit to EC2."""
+        self.creds = creds
+        self.endpoint = endpoint
+        self.params = params
+
+    def compute(self):
+        """Compute and return the signature according to the given data."""
+        if "Signature" in self.params:
+            raise RuntimeError("Existing signature in parameters")
+        version = self.params["SignatureVersion"]
+        if version == "1":
+            bytes = self.old_signing_text()
+            hash_type = "sha1"
+        elif version == "2":
+            bytes = self.signing_text()
+            hash_type = self.params["SignatureMethod"][len("Hmac"):].lower()
+        else:
+            raise RuntimeError("Unsupported SignatureVersion: '%s'" % version)
+        return self.creds.sign(bytes, hash_type)
+
+    def old_signing_text(self):
+        """Return the text needed for signing using SignatureVersion 1."""
+        result = []
+        lower_cmp = lambda x, y: cmp(x[0].lower(), y[0].lower())
+        for key, value in sorted(self.params.items(), cmp=lower_cmp):
+            result.append("%s%s" % (key, value))
+        return "".join(result)
+
+    def signing_text(self):
+        """Return the text to be signed when signing the query."""
+        result = "%s\n%s\n%s\n%s" % (self.endpoint.method,
+                                     self.endpoint.get_canonical_host(),
+                                     self.endpoint.path,
+                                     self.get_canonical_query_params())
+        return result
 
     def get_canonical_query_params(self):
         """Return the canonical query params (used in signing)."""
@@ -820,63 +1007,6 @@ class Query(BaseQuery):
         """
         return quote(string, safe="~")
 
-    def signing_text(self):
-        """Return the text to be signed when signing the query."""
-        result = "%s\n%s\n%s\n%s" % (self.endpoint.method, self.endpoint.host,
-                                     self.endpoint.path,
-                                     self.get_canonical_query_params())
-        return result
-
-    def old_signing_text(self):
-        """Return the text needed for signing using SignatureVersion 1."""
-        result = []
-        lower_cmp = lambda x, y: cmp(x[0].lower(), y[0].lower())
-        for key, value in sorted(self.params.items(), cmp=lower_cmp):
-            result.append("%s%s" % (key, value))
-        return "".join(result)
-
     def sorted_params(self):
         """Return the query parameters sorted appropriately for signing."""
         return sorted(self.params.items())
-
-    def sign(self, hash_type="sha256"):
-        """Sign this query using its built in credentials.
-
-        @param hash_type: if the SignatureVersion is 2, specify the type of
-            hash to use, either "sha1" or "sha256". It defaults to the latter.
-
-        This prepares it to be sent, and should be done as the last step before
-        submitting the query. Signing is done automatically - this is a public
-        method to facilitate testing.
-        """
-        version = self.params["SignatureVersion"]
-        if version == "1":
-            self.params["Signature"] = self.creds.sign(
-                self.old_signing_text(), "sha1")
-        elif version == "2":
-            self.params["SignatureMethod"] = "Hmac%s" % hash_type.upper()
-            self.params["Signature"] = self.creds.sign(
-                self.signing_text(), hash_type)
-        else:
-            raise RuntimeError("Unsupported SignatureVersion: '%s'" % version)
-
-    def submit(self):
-        """Submit this query.
-
-        @return: A deferred from get_page
-        """
-        self.sign()
-        url = self.endpoint.get_uri()
-        method = self.endpoint.method
-        params = self.get_canonical_query_params()
-        kwargs = {"method": method}
-        if method == "POST":
-            kwargs["headers"] = {
-                "Content-Type": "application/x-www-form-urlencoded"}
-            kwargs["postdata"] = params
-        else:
-            url += "?%s" % params
-        if self.timeout:
-            kwargs["timeout"] = self.timeout
-        d = self.get_page(url, **kwargs)
-        return d.addErrback(ec2_error_wrapper)

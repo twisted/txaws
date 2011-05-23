@@ -15,6 +15,7 @@ from twisted.web import server, static, util
 from twisted.web.error import Error as TwistedWebError
 from twisted.protocols.policies import WrappingFactory
 
+from txaws.util import iso8601time
 from txaws.credentials import AWSCredentials
 from txaws.ec2 import client
 from txaws.ec2 import model
@@ -217,7 +218,7 @@ class EC2ClientInstancesTestCase(TXAWSTestCase):
     def test_parse_reservation(self):
         creds = AWSCredentials("foo", "bar")
         ec2 = client.EC2Client(creds=creds)
-        results = ec2._parse_describe_instances(
+        results = ec2.parser.describe_instances(
             payload.sample_describe_instances_result)
         self.check_parsed_instances(results)
 
@@ -1426,7 +1427,7 @@ class EC2ErrorWrapperTestCase(TXAWSTestCase):
         self.assertEquals(failure.type, type(error))
         self.assertFalse(isinstance(error, EC2Error))
         self.assertTrue(isinstance(error, Exception))
-        self.assertEquals(error.message, "found")
+        self.assertEquals(str(error), "found")
 
     def test_400_error(self):
         failure = self.make_failure(400, TwistedWebError)
@@ -1478,14 +1479,14 @@ class EC2ErrorWrapperTestCase(TXAWSTestCase):
         error = self.assertRaises(Exception, client.ec2_error_wrapper, failure)
         self.assertFalse(isinstance(error, EC2Error))
         self.assertTrue(isinstance(error, Exception))
-        self.assertEquals(error.message, "A server error occurred")
+        self.assertEquals(str(error), "A server error occurred")
 
     def test_timeout_error(self):
         failure = self.make_failure(type=Exception, message="timeout")
         error = self.assertRaises(Exception, client.ec2_error_wrapper, failure)
         self.assertFalse(isinstance(error, EC2Error))
         self.assertTrue(isinstance(error, Exception))
-        self.assertEquals(error.message, "timeout")
+        self.assertEquals(str(error), "timeout")
 
     def test_connection_error(self):
         failure = self.make_failure(type=ConnectionRefusedError)
@@ -1554,71 +1555,6 @@ class QueryTestCase(TXAWSTestCase):
              "Expires": "2007-11-12T13:14:15Z",
              "Version": "2008-12-01"})
 
-    def test_sorted_params(self):
-        query = client.Query(
-            action="DescribeInstances", creds=self.creds,
-            endpoint=self.endpoint, other_params={"fun": "games"},
-            time_tuple=(2007, 11, 12, 13, 14, 15, 0, 0, 0))
-        self.assertEqual([
-            ("AWSAccessKeyId", "foo"),
-            ("Action", "DescribeInstances"),
-            ("SignatureVersion", "2"),
-            ("Timestamp", "2007-11-12T13:14:15Z"),
-            ("Version", "2008-12-01"),
-            ("fun", "games"),
-            ], query.sorted_params())
-
-    def test_encode_unreserved(self):
-        all_unreserved = ("ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-            "abcdefghijklmnopqrstuvwxyz0123456789-_.~")
-        query = client.Query(
-            action="DescribeInstances", creds=self.creds,
-            endpoint=self.endpoint)
-        self.assertEqual(all_unreserved, query.encode(all_unreserved))
-
-    def test_encode_space(self):
-        """This may be just "url encode", but the AWS manual isn't clear."""
-        query = client.Query(
-            action="DescribeInstances", creds=self.creds,
-            endpoint=self.endpoint)
-        self.assertEqual("a%20space", query.encode("a space"))
-
-    def test_canonical_query(self):
-        query = client.Query(
-            action="DescribeInstances", creds=self.creds,
-            endpoint=self.endpoint,
-            other_params={"fu n": "g/ames", "argwithnovalue": "",
-                          "InstanceId.1": "i-1234"},
-            time_tuple=(2007, 11, 12, 13, 14, 15, 0, 0, 0))
-        expected_query = ("AWSAccessKeyId=foo&Action=DescribeInstances"
-            "&InstanceId.1=i-1234"
-            "&SignatureVersion=2&"
-            "Timestamp=2007-11-12T13%3A14%3A15Z&Version=2008-12-01&"
-            "argwithnovalue=&fu%20n=g%2Fames")
-        self.assertEqual(expected_query, query.get_canonical_query_params())
-
-    def test_signing_text(self):
-        query = client.Query(
-            action="DescribeInstances", creds=self.creds,
-            endpoint=self.endpoint,
-            time_tuple=(2007, 11, 12, 13, 14, 15, 0, 0, 0))
-        signing_text = ("GET\n%s\n/\n" % self.endpoint.host +
-            "AWSAccessKeyId=foo&Action=DescribeInstances&"
-            "SignatureVersion=2&"
-            "Timestamp=2007-11-12T13%3A14%3A15Z&Version=2008-12-01")
-        self.assertEqual(signing_text, query.signing_text())
-
-    def test_old_signing_text(self):
-        query = client.Query(
-            action="DescribeInstances", creds=self.creds,
-            endpoint=self.endpoint,
-            time_tuple=(2007, 11, 12, 13, 14, 15, 0, 0, 0),
-            other_params={"SignatureVersion": "1"})
-        signing_text = (
-            "ActionDescribeInstancesAWSAccessKeyIdfooSignatureVersion1"
-            "Timestamp2007-11-12T13:14:15ZVersion2008-12-01")
-        self.assertEqual(signing_text, query.old_signing_text())
-
     def test_sign(self):
         query = client.Query(
             action="DescribeInstances", creds=self.creds,
@@ -1645,6 +1581,26 @@ class QueryTestCase(TXAWSTestCase):
             time_tuple=(2007, 11, 12, 13, 14, 15, 0, 0, 0),
             other_params={"SignatureVersion": "0"})
         self.assertRaises(RuntimeError, query.sign)
+
+    def test_submit_with_port(self):
+        """
+        If the endpoint port differs from the default one, the Host header
+        of the request will include it.
+        """
+        self.addCleanup(setattr, client.Query, "get_page",
+                        client.Query.get_page)
+
+        def get_page(query, url, **kwargs):
+            self.assertEqual("example.com:99", kwargs["headers"]["Host"])
+            return succeed(None)
+
+        client.Query.get_page = get_page
+        endpoint = AWSServiceEndpoint(uri="http://example.com:99/foo")
+        query = client.Query(action="SomeQuery", creds=self.creds,
+                             endpoint=endpoint)
+
+        d = query.submit()
+        return d
 
     def test_submit_400(self):
         """A 4xx response status from EC2 should raise a txAWS EC2Error."""
@@ -1726,6 +1682,97 @@ class QueryTestCase(TXAWSTestCase):
         d = self.assertFailure(failure, TwistedWebError)
         d.addCallback(check_error)
         return d
+
+
+class SignatureTestCase(TXAWSTestCase):
+
+    def setUp(self):
+        TXAWSTestCase.setUp(self)
+        self.creds = AWSCredentials("foo", "bar")
+        self.endpoint = AWSServiceEndpoint(uri=EC2_ENDPOINT_US)
+        self.params = {}
+
+    def test_encode_unreserved(self):
+        all_unreserved = ("ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+            "abcdefghijklmnopqrstuvwxyz0123456789-_.~")
+        signature = client.Signature(self.creds, self.endpoint, self.params)
+        self.assertEqual(all_unreserved, signature.encode(all_unreserved))
+
+    def test_encode_space(self):
+        """This may be just 'url encode', but the AWS manual isn't clear."""
+        signature = client.Signature(self.creds, self.endpoint, self.params)
+        self.assertEqual("a%20space", signature.encode("a space"))
+
+    def test_canonical_query(self):
+        signature = client.Signature(self.creds, self.endpoint, self.params)
+        time_tuple = (2007, 11, 12, 13, 14, 15, 0, 0, 0)
+        self.params.update({"AWSAccessKeyId": "foo",
+                            "fu n": "g/ames",
+                            "argwithnovalue": "",
+                            "SignatureVersion": "2",
+                            "Timestamp": iso8601time(time_tuple),
+                            "Version": "2008-12-01",
+                            "Action": "DescribeInstances",
+                            "InstanceId.1": "i-1234"})
+        expected_params = ("AWSAccessKeyId=foo&Action=DescribeInstances"
+            "&InstanceId.1=i-1234"
+            "&SignatureVersion=2&"
+            "Timestamp=2007-11-12T13%3A14%3A15Z&Version=2008-12-01&"
+            "argwithnovalue=&fu%20n=g%2Fames")
+        self.assertEqual(expected_params, signature.get_canonical_query_params())
+
+    def test_signing_text(self):
+        signature = client.Signature(self.creds, self.endpoint, self.params)
+        self.params.update({"AWSAccessKeyId": "foo",
+                            "SignatureVersion": "2",
+                            "Action": "DescribeInstances"})
+        signing_text = ("GET\n%s\n/\n" % self.endpoint.host +
+                        "AWSAccessKeyId=foo&Action=DescribeInstances&" +
+                        "SignatureVersion=2")
+        self.assertEqual(signing_text, signature.signing_text())
+
+    def test_signing_text_with_non_default_port(self):
+        """
+        The signing text uses the canonical host name, which includes
+        the port number, if it differs from the default one.
+        """
+        endpoint = AWSServiceEndpoint(uri="http://example.com:99/path")
+        signature = client.Signature(self.creds, endpoint, self.params)
+        self.params.update({"AWSAccessKeyId": "foo",
+                            "SignatureVersion": "2",
+                            "Action": "DescribeInstances"})
+        signing_text = ("GET\n"
+                        "example.com:99\n"
+                        "/path\n"
+                        "AWSAccessKeyId=foo&"
+                        "Action=DescribeInstances&"
+                        "SignatureVersion=2")
+        self.assertEqual(signing_text, signature.signing_text())
+
+    def test_old_signing_text(self):
+        signature = client.Signature(self.creds, self.endpoint, self.params)
+        self.params.update({"AWSAccessKeyId": "foo",
+                            "SignatureVersion": "1",
+                            "Action": "DescribeInstances"})
+        signing_text = (
+            "ActionDescribeInstancesAWSAccessKeyIdfooSignatureVersion1")
+        self.assertEqual(signing_text, signature.old_signing_text())
+
+    def test_sorted_params(self):
+        signature = client.Signature(self.creds, self.endpoint, self.params)
+        self.params.update({"AWSAccessKeyId": "foo",
+                            "fun": "games",
+                            "SignatureVersion": "2",
+                            "Version": "2008-12-01",
+                            "Action": "DescribeInstances"})
+
+        self.assertEqual([
+            ("AWSAccessKeyId", "foo"),
+            ("Action", "DescribeInstances"),
+            ("SignatureVersion", "2"),
+            ("Version", "2008-12-01"),
+            ("fun", "games"),
+            ], signature.sorted_params())
 
 
 class QueryPageGetterTestCase(TXAWSTestCase):
