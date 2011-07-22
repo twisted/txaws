@@ -65,16 +65,18 @@ class Parameter(object):
     @param min: Minimum value for a parameter.
     @param max: Maximum value for a parameter.
     @param allow_none: Whether the parameter may be C{None}.
+    @param validator: A callable to validate the parameter, returning a bool.
     """
 
     def __init__(self, name, optional=False, default=None,
-                 min=None, max=None, allow_none=False):
+                 min=None, max=None, allow_none=False, validator=None):
         self.name = name
         self.optional = optional
         self.default = default
         self.min = min
         self.max = max
         self.allow_none = allow_none
+        self.validator = validator
 
     def coerce(self, value):
         """Coerce a single value according to this parameter's settings.
@@ -94,7 +96,10 @@ class Parameter(object):
             return self.default
         self._check_range(value)
         try:
-            return self.parse(value)
+            parsed = self.parse(value)
+            if self.validator and not self.validator(parsed):
+                raise ValueError(value)
+            return parsed
         except ValueError:
             raise InvalidParameterValueError("Invalid %s value %s" %
                                              (self.kind, value))
