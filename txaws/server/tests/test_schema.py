@@ -164,7 +164,8 @@ class ParameterTest(TestCase):
 
     def test_validator_valid(self):
         """
-        L{Parameter.coerce} raises an error if the validator returns False.
+        L{Parameter.coerce} returns the correct value if validator returns
+        True.
         """
         parameter = Parameter("Test", validator=lambda _: True)
         parameter.parse = lambda value: value
