@@ -150,6 +150,28 @@ class ParameterTest(TestCase):
         self.assertEqual("Value (longish) for parameter Test is invalid.  "
                          "3 should be enough for anybody", error.message)
 
+    def test_validator_invalid(self):
+        """
+        L{Parameter.coerce} raises an error if the validator returns False.
+        """
+        parameter = Parameter("Test", validator=lambda _: False)
+        parameter.parse = lambda value: value
+        parameter.kind = "test_parameter"
+        error = self.assertRaises(APIError, parameter.coerce, "foo")
+        self.assertEqual(400, error.status)
+        self.assertEqual("InvalidParameterValue", error.code)
+        self.assertEqual("Invalid test_parameter value foo", error.message)
+
+    def test_validator_valid(self):
+        """
+        L{Parameter.coerce} returns the correct value if validator returns
+        True.
+        """
+        parameter = Parameter("Test", validator=lambda _: True)
+        parameter.parse = lambda value: value
+        parameter.kind = "test_parameter"
+        self.assertEqual("foo", parameter.coerce("foo"))
+
 
 class UnicodeTest(TestCase):
 
