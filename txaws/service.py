@@ -32,7 +32,7 @@ class AWSServiceEndpoint(object):
 
     def _parse_uri(self, uri):
         scheme, host, port, path = parse(
-            str(uri), defaultPort=False)
+            str(uri), defaultPort=True)
         self.scheme = scheme
         self.host = host
         self.port = port
