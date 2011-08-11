@@ -57,8 +57,8 @@ class URLContext(object):
         return path
 
     def get_url(self):
-        return "%s://%s%s" % (
-            self.endpoint.scheme, self.get_host(), self.get_path())
+        return "%s://%s:%d%s" % (
+            self.endpoint.scheme, self.get_host(), self.endpoint.port, self.get_path())
 
 
 class S3Client(BaseClient):
