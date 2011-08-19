@@ -1,9 +1,7 @@
-from venusian import attach, Scanner
-
-from txaws.server.exception import APIError
+from venusian import attach
 
 
-def api(method_class):
+def method(method_class):
     """Decorator to use to mark an API method.
 
     When invoking L{Registry.scan} the classes marked with this decorator
@@ -39,49 +37,3 @@ class Method(object):
     def invoke(self, call):
         """Invoke this method for executing the given C{call}."""
         raise NotImplemented("Sub-classes have to implement the invoke method")
-
-
-class Registry(object):
-    """Register API L{Method}s. for handling specific actions and versions"""
-
-    def __init__(self):
-        self._actions = {}
-
-    def add(self, method_class, action, version):
-        """Add a method class to the regitry.
-
-        @param method_class: The method class to add
-        @param action: The action that the method class can handle
-        @param version: The version that the method class can handle
-        """
-        action_versions = self._actions.setdefault(action, {})
-        if version in action_versions:
-            raise RuntimeError("A method was already registered for action"
-                                   " %s in version %s" % (action, version))
-        action_versions[version] = method_class
-
-    def check(self, action, version):
-        """Check if the given action is supported in the given version.
-
-        @raises APIError: If there's no method class registered for handling
-            the given action or version.
-        """
-        if action not in self._actions:
-            raise APIError(400, "InvalidAction", "The action %s is not valid "
-                           "for this web service." % action)
-        if None not in self._actions[action]:
-            # There's no catch-all method, let's try the version-specific one
-            if version not in self._actions[action]:
-                raise APIError(400, "InvalidVersion", "Invalid API version.")
-
-    def get(self, action, version):
-        """Get the method class handing the given action and version."""
-        if version in self._actions[action]:
-            return self._actions[action][version]
-        else:
-            return self._actions[action][None]
-
-    def scan(self, module):
-        """Scan the given module object for L{Method}s and register them."""
-        scanner = Scanner(registry=self)
-        scanner.scan(module)
