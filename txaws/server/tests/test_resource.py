@@ -8,7 +8,8 @@ from twisted.trial.unittest import TestCase
 from txaws.credentials import AWSCredentials
 from txaws.service import AWSServiceEndpoint
 from txaws.ec2.client import Query
-from txaws.server.method import Method, Registry
+from txaws.server.method import Method
+from txaws.server.registry import Registry
 from txaws.server.resource import QueryAPI
 
 

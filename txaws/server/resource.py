@@ -51,7 +51,7 @@ class QueryAPI(Resource):
     def __init__(self, registry=None, path=None):
         Resource.__init__(self)
         self.path = path
-        self._registry = registry
+        self.registry = registry
 
     def get_method(self, call, *args, **kwargs):
         """Return the L{Method} instance to invoke for the given L{Call}.
@@ -59,7 +59,7 @@ class QueryAPI(Resource):
         @param args: Positional arguments to pass to the method constructor.
         @param kwargs: Keyword arguments to pass to the method constructor.
         """
-        method_class = self._registry.get(call.action, call.version)
+        method_class = self.registry.get(call.action, call.version)
         return method_class(*args, **kwargs)
 
     def get_principal(self, access_key):
@@ -199,7 +199,7 @@ class QueryAPI(Resource):
                 raise APIError(400, "InvalidAction", "The action %s is not "
                                "valid for this web service." % args.Action)
         else:
-            self._registry.check(args.Action, args.Version)
+            self.registry.check(args.Action, args.Version)
 
         if not args.SignatureVersion in self.signature_versions:
             raise APIError(403, "InvalidSignature", "SignatureVersion '%s' "
