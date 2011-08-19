@@ -54,6 +54,8 @@ class URLContext(object):
             if not self.object_name.startswith("/"):
                 path += "/"
             path += self.object_name
+        else:
+            path += "/"
         return path
 
     def get_url(self):
