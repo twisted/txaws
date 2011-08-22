@@ -193,7 +193,7 @@ class QueryAPI(Resource):
         """
         utc_now = self.get_utc_time()
 
-        if hasattr(self, "actions"):
+        if getattr(self, "actions", None) is not None:
             # Check the deprecated 'actions' attribute
             if not args.Action in self.actions:
                 raise APIError(400, "InvalidAction", "The action %s is not "
