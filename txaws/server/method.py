@@ -1,6 +1,3 @@
-from venusian import attach
-
-
 def method(method_class):
     """Decorator to use to mark an API method.
 
@@ -19,6 +16,7 @@ def method(method_class):
                                      action=action,
                                      version=version)
 
+    from venusian import attach
     attach(method_class, callback)
     return method_class
 
