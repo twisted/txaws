@@ -8,8 +8,16 @@ def method(method_class):
     """
 
     def callback(scanner, name, method_class):
-        actions = method_class.actions or [name]
-        versions = method_class.versions or [None]
+        if method_class.actions is not None:
+            actions = method_class.actions
+        else:
+            actions = [name]
+
+        if method_class.versions is not None:
+            versions = method_class.versions
+        else:
+            versions = [None]
+
         for action in actions:
             for version in versions:
                 scanner.registry.add(method_class,
