@@ -7,7 +7,7 @@ class Registry(object):
     def __init__(self):
         self._by_action = {}
 
-    def add(self, method_class, action, version):
+    def add(self, method_class, action, version=None):
         """Add a method class to the regitry.
 
         @param method_class: The method class to add
@@ -20,7 +20,7 @@ class Registry(object):
                                " %s in version %s" % (action, version))
         by_version[version] = method_class
 
-    def check(self, action, version):
+    def check(self, action, version=None):
         """Check if the given action is supported in the given version.
 
         @raises APIError: If there's no method class registered for handling
@@ -35,7 +35,7 @@ class Registry(object):
             if version not in by_version:
                 raise APIError(400, "InvalidVersion", "Invalid API version.")
 
-    def get(self, action, version):
+    def get(self, action, version=None):
         """Get the method class handing the given action and version."""
         by_version = self._by_action[action]
         if version in by_version:
