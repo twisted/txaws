@@ -43,8 +43,8 @@ class Registry(object):
         else:
             return by_version[None]
 
-    def scan(self, module):
+    def scan(self, module, onerror=None):
         """Scan the given module object for L{Method}s and register them."""
         from venusian import Scanner
         scanner = Scanner(registry=self)
-        scanner.scan(module)
+        scanner.scan(module, onerror=onerror)
