@@ -62,6 +62,29 @@ class URLContextTestCase(TXAWSTestCase):
             url_context.get_url(),
             "http://localhost/mydocs/notes.txt")
 
+    def test_custom_port_endpoint(self):
+        test_uri='http://0.0.0.0:12345/'
+        endpoint = AWSServiceEndpoint(uri=test_uri)
+        self.assertEquals(endpoint.port, 12345)
+        self.assertEquals(endpoint.scheme, 'http')
+        context = client.URLContext(service_endpoint=endpoint,
+                bucket="foo",
+                object_name="bar")
+        self.assertEquals(context.get_host(), '0.0.0.0')
+        self.assertEquals(context.get_url(), test_uri + 'foo/bar')
+
+    def test_custom_port_endpoint_https(self):
+        test_uri='https://0.0.0.0:12345/'
+        endpoint = AWSServiceEndpoint(uri=test_uri)
+        self.assertEquals(endpoint.port, 12345)
+        self.assertEquals(endpoint.scheme, 'https')
+        context = client.URLContext(service_endpoint=endpoint,
+                bucket="foo",
+                object_name="bar")
+        self.assertEquals(context.get_host(), '0.0.0.0')
+        self.assertEquals(context.get_url(), test_uri + 'foo/bar')
+
+
 URLContextTestCase.skip = s3clientSkip
 
 
