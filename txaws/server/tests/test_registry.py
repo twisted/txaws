@@ -4,19 +4,11 @@ from txaws.server.method import Method
 from txaws.server.registry import Registry
 from txaws.server.exception import APIError
 
-try:
-    import venusian
-except ImportError:
-    method = lambda function: function
-    has_venusian = False
-else:
-    from txaws.server.method import method
-    has_venusian = True
-
-
-@method
-class TestMethod(Method):
-    pass
+from txaws.server.tests.fixtures import (
+    has_venusian, importerror, amodule)
+from txaws.server.tests.fixtures.amodule import TestMethod
+from txaws.server.tests.fixtures.importerror.amodule import (
+    TestMethod as testmethod)
 
 
 class RegistryTest(TestCase):
@@ -90,8 +82,31 @@ class RegistryTest(TestCase):
         """
         L{MehtodRegistry.scan} registers the L{Method}s decorated with L{api}.
         """
-        self.registry.scan(__import__(__name__))
+        self.registry.scan(amodule)
         self.assertIdentical(TestMethod, self.registry.get("TestMethod", None))
+
+    def test_scan_raises_error_on_importerror(self):
+        """
+        L{MethodRegistry.scan} raises an error by default when an error happens
+        and there is no onerror callback is passed.
+        """
+        self.assertRaises(ImportError, self.registry.scan, importerror)
+
+    def test_scan_swallows_with_onerror(self):
+        """
+        L{MethodRegistry.scan} accepts an onerror callback that can be used to
+        deal with scanning errors.
+        """
+        swallowed = []
+        def swallow(error):
+            swallowed.append(error)
+
+        self.registry.scan(importerror, onerror=swallow)
+        self.assertEqual(1, len(swallowed))
+        self.assertEqual(testmethod, self.registry.get("TestMethod"))
 
     if not has_venusian:
         test_scan.skip = "venusian module not available"
+        test_scan_raises_error_on_importerror.skip = "venusian module not "
+        "available"
+        test_scan_swallows_with_onerror.skip = "venusian module not available"
