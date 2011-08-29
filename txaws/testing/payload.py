@@ -178,6 +178,43 @@ sample_terminate_instances_result = """\
 """ % (version.ec2_api,)
 
 
+sample_describe_security_groups_with_openstack = """\
+<?xml version="1.0"?>
+<DescribeSecurityGroupsResponse xmlns="http://ec2.amazonaws.com/doc/%s/">
+  <requestId>7d4e4dbd-0a33-4d3a-864a-b5ce0f1c9cbf</requestId>
+  <securityGroupInfo>
+    <item>
+      <ipPermissions>
+        <item>
+          <toPort>22</toPort>
+          <ipProtocol>tcp</ipProtocol>
+          <ipRanges>
+             <item><cidrIp>0.0.0.0/0</cidrIp></item>
+          </ipRanges>
+          <groups/>
+          <fromPort>22</fromPort>
+        </item>
+        <item>
+         <toPort/>
+         <ipProtocol/>
+         <ipRanges/>
+         <groups>
+            <item>
+              <groupName>WebServers</groupName>
+              <userId>UYY3TLBUXIEON5NQVUUX6OMPWBZIQNFM</userId>
+            </item>
+         </groups>
+         <fromPort/>
+        </item>
+      </ipPermissions>
+      <groupName>WebServers</groupName>
+      <groupDescription>Web servers</groupDescription>
+      <ownerId>UYY3TLBUXIEON5NQVUUX6OMPWBZIQNFM</ownerId>
+    </item>
+  </securityGroupInfo>
+</DescribeSecurityGroupsResponse>
+""" % (version.ec2_api,)
+
 sample_describe_security_groups_result = """\
 <?xml version="1.0"?>
 <DescribeSecurityGroupsResponse xmlns="http://ec2.amazonaws.com/doc/%s/">
