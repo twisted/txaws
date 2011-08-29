@@ -54,7 +54,7 @@ class URLContext(object):
             if not self.object_name.startswith("/"):
                 path += "/"
             path += self.object_name
-        else:
+        elif self.bucket is not None and not path.endswith("/"):
             path += "/"
         return path
 
