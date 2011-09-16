@@ -513,3 +513,21 @@ class SchemaTest(TestCase):
         """
         schema = Schema(Integer("count"))
         self.assertRaises(RuntimeError, schema.bundle, name="foo")
+
+    def test_add_single_extra_schema_item(self):
+        """New Parameters can be added to the Schema."""
+        schema = Schema(Unicode("name"))
+        schema = schema.extend(Unicode("computer"))
+        arguments, _ = schema.extract({"name": "value", "computer": "testing"})
+        self.assertEqual(u"value", arguments.name)
+        self.assertEqual("testing", arguments.computer)
+
+    def test_add_extra_schema_items(self):
+        """A list of new Parameters can be added to the Schema."""
+        schema = Schema(Unicode("name"))
+        schema = schema.extend(Unicode("computer"), Integer("count"))
+        arguments, _ = schema.extract({"name": "value", "computer": "testing",
+                                       "count": "5"})
+        self.assertEqual(u"value", arguments.name)
+        self.assertEqual("testing", arguments.computer)
+        self.assertEqual(5, arguments.count)
