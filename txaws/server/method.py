@@ -25,7 +25,7 @@ def method(method_class):
                                      version=version)
 
     from venusian import attach
-    attach(method_class, callback)
+    attach(method_class, callback, category="method")
     return method_class
 
 
