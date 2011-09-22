@@ -47,4 +47,4 @@ class Registry(object):
         """Scan the given module object for L{Method}s and register them."""
         from venusian import Scanner
         scanner = Scanner(registry=self)
-        scanner.scan(module, onerror=onerror)
+        scanner.scan(module, onerror=onerror, categories=["method"])

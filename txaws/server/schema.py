@@ -493,3 +493,15 @@ class Schema(object):
         else:
             # None is discarded.
             pass
+
+    def extend(self, *schema_items):
+        """
+        Add any number of schema items to a new schema.
+        """
+        parameters = self._parameters.values()
+        for item in schema_items:
+            if isinstance(item, Parameter):
+                parameters.append(item)
+            else:
+                raise TypeError("Illegal argument %s" % item)
+        return Schema(*parameters)
