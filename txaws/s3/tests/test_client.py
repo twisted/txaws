@@ -634,11 +634,17 @@ class QueryTestCase(TXAWSTestCase):
     def test_get_canonicalized_resource(self):
         query = client.Query(action="PUT", bucket="images")
         result = query.get_canonicalized_resource()
-        self.assertEquals(result, "/images")
+        self.assertEquals(result, "/images/")
 
     def test_get_canonicalized_resource_with_object_name(self):
         query = client.Query(
             action="PUT", bucket="images", object_name="advicedog.jpg")
+        result = query.get_canonicalized_resource()
+        self.assertEquals(result, "/images/advicedog.jpg")
+
+    def test_get_canonicalized_resource_with_slashed_object_name(self):
+        query = client.Query(
+            action="PUT", bucket="images", object_name="/advicedog.jpg")
         result = query.get_canonicalized_resource()
         self.assertEquals(result, "/images/advicedog.jpg")
 
