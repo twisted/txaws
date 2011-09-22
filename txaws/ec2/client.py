@@ -658,9 +658,20 @@ class Parser(object):
             if ip_permissions is None:
                 ip_permissions = ()
             for ip_permission in ip_permissions:
+
+                # openstack doesn't handle self authorized groups properly
+                # XXX this is an upstream problem and should be addressed there
+                # lp bug #829609
                 ip_protocol = ip_permission.findtext("ipProtocol")
-                from_port = int(ip_permission.findtext("fromPort"))
-                to_port = int(ip_permission.findtext("toPort"))
+                from_port = ip_permission.findtext("fromPort")
+                to_port = ip_permission.findtext("toPort")
+
+                if from_port:
+                    from_port = int(from_port)
+
+                if to_port:
+                    to_port = int(to_port)
+
                 for groups in ip_permission.findall("groups/item") or ():
                     user_id = groups.findtext("userId")
                     group_name = groups.findtext("groupName")
