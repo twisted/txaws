@@ -395,12 +395,16 @@ class Query(BaseQuery):
         """
         Get an S3 resource path.
         """
-        resource = "/"
-        if self.bucket:
-            resource += self.bucket
-            if self.object_name:
-                resource += "/%s" % self.object_name
-        return resource
+        path = "/"
+        if self.bucket is not None:
+            path += self.bucket
+        if self.bucket is not None and self.object_name:
+            if not self.object_name.startswith("/"):
+                path += "/"
+            path += self.object_name
+        elif self.bucket is not None and not path.endswith("/"):
+            path += "/"
+        return path
 
     def sign(self, headers):
         """Sign this query using its built in credentials."""
