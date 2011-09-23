@@ -307,6 +307,30 @@ class QueryAPITest(TestCase):
 
         return self.api.handle(request).addCallback(check)
 
+    def test_handle_non_evailable_method(self):
+        """Only actions registered in the L{Registry} are supported."""
+
+        class NonAvailableMethod(Method):
+
+            def is_available(self):
+                return False
+
+        self.registry.add(NonAvailableMethod, action="CantDoIt")
+        creds = AWSCredentials("access", "secret")
+        endpoint = AWSServiceEndpoint("http://uri")
+        query = Query(action="CantDoIt", creds=creds, endpoint=endpoint)
+        query.sign()
+        request = FakeRequest(query.params, endpoint)
+
+        def check(ignored):
+            self.flushLoggedErrors()
+            self.assertEqual("InvalidAction - The action CantDoIt is not "
+                             "valid for this web service.", request.response)
+            self.assertEqual(400, request.code)
+
+        self.api.principal = TestPrincipal(creds)
+        return self.api.handle(request).addCallback(check)
+
     def test_handle_with_deprecated_actions_and_unsupported_action(self):
         """
         If the deprecated L{QueryAPI.actions} attribute is set, it will be
