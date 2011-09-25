@@ -6,6 +6,7 @@
 from cStringIO import StringIO
 
 from twisted.internet.defer import succeed, fail
+from twisted.web.error import Error
 
 from txaws.client.discover.command import Command
 from txaws.ec2.client import Query
@@ -22,10 +23,11 @@ class FakeHTTPClient(object):
 class CommandTest(TXAWSTestCase):
 
     def prepare_command(self, response, status, action, parameters={},
-                        get_page=None):
+                        get_page=None, error=None):
         """Prepare a L{Command} for testing."""
         self.url = None
         self.method = None
+        self.error = error
         self.response = response
         self.status = status
         self.output = StringIO()
@@ -59,7 +61,7 @@ class CommandTest(TXAWSTestCase):
         self.url = url
         self.method = method
         self.query.client = FakeHTTPClient(self.status, url)
-        return fail(Exception(self.response))
+        return fail(self.error or Exception(self.response))
 
     def test_run(self):
         """
@@ -169,4 +171,34 @@ class CommandTest(TXAWSTestCase):
 
         deferred = self.command.run()
         deferred.addErrback(check)
+        return deferred
+
+    def test_run_with_error_payload(self):
+        """
+        If the returned HTTP error contains a payload, it's printed out.
+        """
+        self.prepare_command("Bad Request", 400,
+                             "DescribeRegions", {"RegionName.0": "us-west-1"},
+                             self.get_error_page, Error(400, None, "bar"))
+
+        def check(result):
+            url = (
+                "http://endpoint?AWSAccessKeyId=key&"
+                "Action=DescribeRegions&RegionName.0=us-west-1&"
+                "Signature=P6C7cQJ7j93uIJyv2dTbpQG3EI7ArGBJT%2FzVH%2BDFhyY%3D&"
+                "SignatureMethod=HmacSHA256&SignatureVersion=2&"
+                "Timestamp=2010-06-04T23%3A40%3A00Z&Version=2008-12-01")
+            self.assertEqual("GET", self.method)
+            self.assertEqual(url, self.url)
+            self.assertEqual("URL: %s\n"
+                             "\n"
+                             "HTTP status code: 400\n"
+                             "\n"
+                             "400 Bad Request\n"
+                             "\n"
+                             "bar\n" % url,
+                             self.output.getvalue())
+
+        deferred = self.command.run()
+        deferred.addCallback(check)
         return deferred
