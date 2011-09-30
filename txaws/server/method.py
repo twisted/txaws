@@ -43,3 +43,11 @@ class Method(object):
     def invoke(self, call):
         """Invoke this method for executing the given C{call}."""
         raise NotImplemented("Sub-classes have to implement the invoke method")
+
+    def is_available(self):
+        """Return a boolean indicating wether this method is available.
+
+        Override this to dynamically decide at run-time whether specific
+        methods are available or not.
+        """
+        return True

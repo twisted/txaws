@@ -60,7 +60,12 @@ class QueryAPI(Resource):
         @param kwargs: Keyword arguments to pass to the method constructor.
         """
         method_class = self.registry.get(call.action, call.version)
-        return method_class(*args, **kwargs)
+        method = method_class(*args, **kwargs)
+        if not method.is_available():
+            raise APIError(400, "InvalidAction", "The action %s is not "
+                           "valid for this web service." % call.action)
+        else:
+            return method
 
     def get_principal(self, access_key):
         """Return a principal object by access key.
