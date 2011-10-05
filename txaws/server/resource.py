@@ -19,6 +19,8 @@ from txaws.server.call import Call
 class QueryAPI(Resource):
     """Base class for  EC2-like query APIs.
 
+    @param registry: The L{Registry} to use to look up L{Method}s for handling
+        the API requests.
     @param path: Optionally, the actual resource path the clients are using
         when sending HTTP requests to this API, to take into account when
         validating the signature. This can differ from the one in the HTTP
@@ -29,8 +31,6 @@ class QueryAPI(Resource):
 
     The following class variables must be defined by sub-classes:
 
-    @ivar actions: The actions that the API supports. The 'Action' field of
-        the request must contain one of these.
     @ivar signature_versions: A list of allowed values for 'SignatureVersion'.
     @cvar content_type: The content type to set the 'Content-Type' header to.
     """
@@ -48,9 +48,24 @@ class QueryAPI(Resource):
         Unicode("Signature"),
         Integer("SignatureVersion", optional=True, default=2))
 
-    def __init__(self, path=None):
+    def __init__(self, registry=None, path=None):
         Resource.__init__(self)
         self.path = path
+        self.registry = registry
+
+    def get_method(self, call, *args, **kwargs):
+        """Return the L{Method} instance to invoke for the given L{Call}.
+
+        @param args: Positional arguments to pass to the method constructor.
+        @param kwargs: Keyword arguments to pass to the method constructor.
+        """
+        method_class = self.registry.get(call.action, call.version)
+        method = method_class(*args, **kwargs)
+        if not method.is_available():
+            raise APIError(400, "InvalidAction", "The action %s is not "
+                           "valid for this web service." % call.action)
+        else:
+            return method
 
     def get_principal(self, access_key):
         """Return a principal object by access key.
@@ -83,13 +98,20 @@ class QueryAPI(Resource):
             return response
 
         def write_error(failure):
-            log.err(failure)
             if failure.check(APIError):
                 status = failure.value.status
+
+                # Don't log the stack traces for 4xx responses.
+                if status < 400 or status >= 500:
+                    log.err(failure)
+                else:
+                    log.msg("status: %s message: %s" % (status, failure.value))
+
                 bytes = failure.value.response
                 if bytes is None:
                     bytes = self.dump_error(failure.value, request)
             else:
+                log.err(failure)
                 bytes = str(failure.value)
                 status = 500
             request.setResponseCode(status)
@@ -108,6 +130,16 @@ class QueryAPI(Resource):
         """
         raise NotImplementedError("Must be implemented by subclass.")
 
+    def dump_result(self, result):
+        """Serialize the result of the method invokation.
+
+        @param result: The L{Method} result to serialize.
+        """
+        return result
+
+    def authorize(self, method, call):
+        """Authorize to invoke the given L{Method} with the given L{Call}."""
+
     def execute(self, call):
         """Execute an API L{Call}.
 
@@ -118,7 +150,10 @@ class QueryAPI(Resource):
         @raises: An L{APIError} in case the execution fails, sporting an error
             message the HTTP status code to return.
         """
-        raise NotImplementedError()
+        method = self.get_method(call)
+        deferred = maybeDeferred(self.authorize, method, call)
+        deferred.addCallback(lambda _: method.invoke(call))
+        return deferred.addCallback(self.dump_result)
 
     def get_utc_time(self):
         """Return a C{datetime} object with the current time in UTC."""
@@ -142,7 +177,7 @@ class QueryAPI(Resource):
         params = dict((k, v[-1]) for k, v in request.args.iteritems())
         args, rest = self.schema.extract(params)
 
-        self._validate_generic_parameters(args, self.get_utc_time())
+        self._validate_generic_parameters(args)
 
         def create_call(principal):
             self._validate_principal(principal, args)
@@ -157,11 +192,10 @@ class QueryAPI(Resource):
         deferred.addCallback(create_call)
         return deferred
 
-    def _validate_generic_parameters(self, args, utc_now):
+    def _validate_generic_parameters(self, args):
         """Validate the generic request parameters.
 
         @param args: Parsed schema arguments.
-        @param utc_now: The current UTC time in datetime format.
         @raises APIError: In the following cases:
             - Action is not included in C{self.actions}
             - SignatureVersion is not included in C{self.signature_versions}
@@ -169,9 +203,15 @@ class QueryAPI(Resource):
             - Expires is before the current time
             - Timestamp is older than 15 minutes.
         """
-        if not args.Action in self.actions:
-            raise APIError(400, "InvalidAction", "The action %s is not valid "
-                           "for this web service." % args.Action)
+        utc_now = self.get_utc_time()
+
+        if getattr(self, "actions", None) is not None:
+            # Check the deprecated 'actions' attribute
+            if not args.Action in self.actions:
+                raise APIError(400, "InvalidAction", "The action %s is not "
+                               "valid for this web service." % args.Action)
+        else:
+            self.registry.check(args.Action, args.Version)
 
         if not args.SignatureVersion in self.signature_versions:
             raise APIError(403, "InvalidSignature", "SignatureVersion '%s' "

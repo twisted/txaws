@@ -150,6 +150,28 @@ class ParameterTest(TestCase):
         self.assertEqual("Value (longish) for parameter Test is invalid.  "
                          "3 should be enough for anybody", error.message)
 
+    def test_validator_invalid(self):
+        """
+        L{Parameter.coerce} raises an error if the validator returns False.
+        """
+        parameter = Parameter("Test", validator=lambda _: False)
+        parameter.parse = lambda value: value
+        parameter.kind = "test_parameter"
+        error = self.assertRaises(APIError, parameter.coerce, "foo")
+        self.assertEqual(400, error.status)
+        self.assertEqual("InvalidParameterValue", error.code)
+        self.assertEqual("Invalid test_parameter value foo", error.message)
+
+    def test_validator_valid(self):
+        """
+        L{Parameter.coerce} returns the correct value if validator returns
+        True.
+        """
+        parameter = Parameter("Test", validator=lambda _: True)
+        parameter.parse = lambda value: value
+        parameter.kind = "test_parameter"
+        self.assertEqual("foo", parameter.coerce("foo"))
+
 
 class UnicodeTest(TestCase):
 
@@ -491,3 +513,21 @@ class SchemaTest(TestCase):
         """
         schema = Schema(Integer("count"))
         self.assertRaises(RuntimeError, schema.bundle, name="foo")
+
+    def test_add_single_extra_schema_item(self):
+        """New Parameters can be added to the Schema."""
+        schema = Schema(Unicode("name"))
+        schema = schema.extend(Unicode("computer"))
+        arguments, _ = schema.extract({"name": "value", "computer": "testing"})
+        self.assertEqual(u"value", arguments.name)
+        self.assertEqual("testing", arguments.computer)
+
+    def test_add_extra_schema_items(self):
+        """A list of new Parameters can be added to the Schema."""
+        schema = Schema(Unicode("name"))
+        schema = schema.extend(Unicode("computer"), Integer("count"))
+        arguments, _ = schema.extract({"name": "value", "computer": "testing",
+                                       "count": "5"})
+        self.assertEqual(u"value", arguments.name)
+        self.assertEqual("testing", arguments.computer)
+        self.assertEqual(5, arguments.count)

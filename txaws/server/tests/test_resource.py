@@ -1,3 +1,4 @@
+from json import dumps, loads
 from pytz import UTC
 from cStringIO import StringIO
 from datetime import datetime
@@ -7,6 +8,8 @@ from twisted.trial.unittest import TestCase
 from txaws.credentials import AWSCredentials
 from txaws.service import AWSServiceEndpoint
 from txaws.ec2.client import Query
+from txaws.server.method import Method
+from txaws.server.registry import Registry
 from txaws.server.resource import QueryAPI
 
 
@@ -55,6 +58,12 @@ class FakeRequest(object):
         return self.written.getvalue()
 
 
+class TestMethod(Method):
+
+    def invoke(self, call):
+        return "data"
+
+
 class TestPrincipal(object):
 
     def __init__(self, creds):
@@ -71,16 +80,12 @@ class TestPrincipal(object):
 
 class TestQueryAPI(QueryAPI):
 
-    actions = ["SomeAction"]
     signature_versions = (1, 2)
     content_type = "text/plain"
 
     def __init__(self, *args, **kwargs):
         QueryAPI.__init__(self, *args, **kwargs)
         self.principal = None
-
-    def execute(self, call):
-        return "data"
 
     def get_principal(self, access_key):
         if self.principal and self.principal.access_key == access_key:
@@ -94,7 +99,9 @@ class QueryAPITest(TestCase):
 
     def setUp(self):
         super(QueryAPITest, self).setUp()
-        self.api = TestQueryAPI()
+        self.registry = Registry()
+        self.registry.add(TestMethod, action="SomeAction", version=None)
+        self.api = TestQueryAPI(registry=self.registry)
 
     def test_handle(self):
         """
@@ -116,11 +123,46 @@ class QueryAPITest(TestCase):
         self.api.principal = TestPrincipal(creds)
         return self.api.handle(request).addCallback(check)
 
+    def test_handle_with_dump_result(self):
+        """
+        L{QueryAPI.handle} serializes the action result with C{dump_result}.
+        """
+        creds = AWSCredentials("access", "secret")
+        endpoint = AWSServiceEndpoint("http://uri")
+        query = Query(action="SomeAction", creds=creds, endpoint=endpoint)
+        query.sign()
+        request = FakeRequest(query.params, endpoint)
+
+        def check(ignored):
+            self.assertEqual("data", loads(request.response))
+
+        self.api.dump_result = dumps
+        self.api.principal = TestPrincipal(creds)
+        return self.api.handle(request).addCallback(check)
+
+    def test_handle_with_deprecated_actions(self):
+        """
+        L{QueryAPI.handle} supports the legacy 'actions' attribute.
+        """
+        self.api.actions = ["SomeAction"]
+        creds = AWSCredentials("access", "secret")
+        endpoint = AWSServiceEndpoint("http://uri")
+        query = Query(action="SomeAction", creds=creds, endpoint=endpoint)
+        query.sign()
+        request = FakeRequest(query.params, endpoint)
+
+        def check(ignored):
+            self.assertEqual("data", request.response)
+
+        self.api.principal = TestPrincipal(creds)
+        return self.api.handle(request).addCallback(check)
+
     def test_handle_pass_params_to_call(self):
         """
         L{QueryAPI.handle} creates a L{Call} object with the correct
         parameters.
         """
+        self.registry.add(TestMethod, "SomeAction", "1.2.3")
         creds = AWSCredentials("access", "secret")
         endpoint = AWSServiceEndpoint("http://uri")
         query = Query(action="SomeAction", creds=creds, endpoint=endpoint,
@@ -198,7 +240,8 @@ class QueryAPITest(TestCase):
         request = FakeRequest(query.params, endpoint)
 
         def check(ignored):
-            self.flushLoggedErrors()
+            errors = self.flushLoggedErrors()
+            self.assertEquals(0, len(errors))
             self.assertEqual("InvalidSignature - SignatureVersion '2' "
                              "not supported", request.response)
             self.assertEqual(403, request.code)
@@ -220,7 +263,8 @@ class QueryAPITest(TestCase):
         self.api.execute = lambda call: 1 / 0
 
         def check(ignored):
-            self.flushLoggedErrors()
+            errors = self.flushLoggedErrors()
+            self.assertEquals(1, len(errors))
             self.assertTrue(request.finished)
             self.assertEqual("integer division or modulo by zero",
                              request.response)
@@ -242,7 +286,8 @@ class QueryAPITest(TestCase):
         request = FakeRequest(query.params, endpoint)
 
         def check(ignored):
-            self.flushLoggedErrors()
+            errors = self.flushLoggedErrors()
+            self.assertEquals(0, len(errors))
             self.assertEqual("MissingParameter - The request must contain "
                              "the parameter Action", request.response)
             self.assertEqual(400, request.code)
@@ -250,7 +295,7 @@ class QueryAPITest(TestCase):
         return self.api.handle(request).addCallback(check)
 
     def test_handle_with_unsupported_action(self):
-        """Only actions listed in L{QueryAPI.actions} are supported."""
+        """Only actions registered in the L{Registry} are supported."""
         creds = AWSCredentials("access", "secret")
         endpoint = AWSServiceEndpoint("http://uri")
         query = Query(action="FooBar", creds=creds, endpoint=endpoint)
@@ -258,7 +303,54 @@ class QueryAPITest(TestCase):
         request = FakeRequest(query.params, endpoint)
 
         def check(ignored):
-            self.flushLoggedErrors()
+            errors = self.flushLoggedErrors()
+            self.assertEquals(0, len(errors))
+            self.assertEqual("InvalidAction - The action FooBar is not valid"
+                             " for this web service.", request.response)
+            self.assertEqual(400, request.code)
+
+        return self.api.handle(request).addCallback(check)
+
+    def test_handle_non_evailable_method(self):
+        """Only actions registered in the L{Registry} are supported."""
+
+        class NonAvailableMethod(Method):
+
+            def is_available(self):
+                return False
+
+        self.registry.add(NonAvailableMethod, action="CantDoIt")
+        creds = AWSCredentials("access", "secret")
+        endpoint = AWSServiceEndpoint("http://uri")
+        query = Query(action="CantDoIt", creds=creds, endpoint=endpoint)
+        query.sign()
+        request = FakeRequest(query.params, endpoint)
+
+        def check(ignored):
+            errors = self.flushLoggedErrors()
+            self.assertEquals(0, len(errors))
+            self.assertEqual("InvalidAction - The action CantDoIt is not "
+                             "valid for this web service.", request.response)
+            self.assertEqual(400, request.code)
+
+        self.api.principal = TestPrincipal(creds)
+        return self.api.handle(request).addCallback(check)
+
+    def test_handle_with_deprecated_actions_and_unsupported_action(self):
+        """
+        If the deprecated L{QueryAPI.actions} attribute is set, it will be
+        used for looking up supported actions.
+        """
+        self.api.actions = ["SomeAction"]
+        creds = AWSCredentials("access", "secret")
+        endpoint = AWSServiceEndpoint("http://uri")
+        query = Query(action="FooBar", creds=creds, endpoint=endpoint)
+        query.sign()
+        request = FakeRequest(query.params, endpoint)
+
+        def check(ignored):
+            errors = self.flushLoggedErrors()
+            self.assertEquals(0, len(errors))
             self.assertEqual("InvalidAction - The action FooBar is not valid"
                              " for this web service.", request.response)
             self.assertEqual(400, request.code)
@@ -277,7 +369,8 @@ class QueryAPITest(TestCase):
         request = FakeRequest(query.params, endpoint)
 
         def check(ignored):
-            self.flushLoggedErrors()
+            errors = self.flushLoggedErrors()
+            self.assertEquals(0, len(errors))
             self.assertEqual("AuthFailure - No user with access key 'access'",
                              request.response)
             self.assertEqual(401, request.code)
@@ -297,7 +390,8 @@ class QueryAPITest(TestCase):
         request = FakeRequest(query.params, endpoint)
 
         def check(ignored):
-            self.flushLoggedErrors()
+            errors = self.flushLoggedErrors()
+            self.assertEquals(0, len(errors))
             self.assertEqual("SignatureDoesNotMatch - The request signature "
                              "we calculated does not match the signature you "
                              "provided. Check your key and signing method.",
@@ -321,7 +415,8 @@ class QueryAPITest(TestCase):
         request = FakeRequest(query.params, endpoint)
 
         def check(ignored):
-            self.flushLoggedErrors()
+            errors = self.flushLoggedErrors()
+            self.assertEquals(0, len(errors))
             self.assertEqual(
                 "InvalidParameterCombination - The parameter Timestamp"
                 " cannot be used with the parameter Expires",
@@ -364,7 +459,8 @@ class QueryAPITest(TestCase):
         request = FakeRequest(query.params, endpoint)
 
         def check(ignored):
-            self.flushLoggedErrors()
+            errors = self.flushLoggedErrors()
+            self.assertEquals(0, len(errors))
             self.assertEqual(
                 "RequestExpired - Request has expired. Expires date is"
                 " 2010-01-01T12:00:00Z", request.response)
