@@ -34,7 +34,7 @@ class URLContextTestCase(TXAWSTestCase):
 
     def test_get_path_with_bucket(self):
         url_context = client.URLContext(self.endpoint, bucket="mystuff")
-        self.assertEquals(url_context.get_path(), "/mystuff")
+        self.assertEquals(url_context.get_path(), "/mystuff/")
 
     def test_get_path_with_bucket_and_object(self):
         url_context = client.URLContext(
@@ -61,6 +61,29 @@ class URLContextTestCase(TXAWSTestCase):
         self.assertEquals(
             url_context.get_url(),
             "http://localhost/mydocs/notes.txt")
+
+    def test_custom_port_endpoint(self):
+        test_uri='http://0.0.0.0:12345/'
+        endpoint = AWSServiceEndpoint(uri=test_uri)
+        self.assertEquals(endpoint.port, 12345)
+        self.assertEquals(endpoint.scheme, 'http')
+        context = client.URLContext(service_endpoint=endpoint,
+                bucket="foo",
+                object_name="bar")
+        self.assertEquals(context.get_host(), '0.0.0.0')
+        self.assertEquals(context.get_url(), test_uri + 'foo/bar')
+
+    def test_custom_port_endpoint_https(self):
+        test_uri='https://0.0.0.0:12345/'
+        endpoint = AWSServiceEndpoint(uri=test_uri)
+        self.assertEquals(endpoint.port, 12345)
+        self.assertEquals(endpoint.scheme, 'https')
+        context = client.URLContext(service_endpoint=endpoint,
+                bucket="foo",
+                object_name="bar")
+        self.assertEquals(context.get_host(), '0.0.0.0')
+        self.assertEquals(context.get_url(), test_uri + 'foo/bar')
+
 
 URLContextTestCase.skip = s3clientSkip
 
@@ -611,11 +634,17 @@ class QueryTestCase(TXAWSTestCase):
     def test_get_canonicalized_resource(self):
         query = client.Query(action="PUT", bucket="images")
         result = query.get_canonicalized_resource()
-        self.assertEquals(result, "/images")
+        self.assertEquals(result, "/images/")
 
     def test_get_canonicalized_resource_with_object_name(self):
         query = client.Query(
             action="PUT", bucket="images", object_name="advicedog.jpg")
+        result = query.get_canonicalized_resource()
+        self.assertEquals(result, "/images/advicedog.jpg")
+
+    def test_get_canonicalized_resource_with_slashed_object_name(self):
+        query = client.Query(
+            action="PUT", bucket="images", object_name="/advicedog.jpg")
         result = query.get_canonicalized_resource()
         self.assertEquals(result, "/images/advicedog.jpg")
 

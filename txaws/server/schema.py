@@ -101,8 +101,12 @@ class Parameter(object):
                 raise ValueError(value)
             return parsed
         except ValueError:
-            raise InvalidParameterValueError("Invalid %s value %s" %
-                                             (self.kind, value))
+            try:
+                value = value.decode("ascii")
+                message = "Invalid %s value %s" % (self.kind, value)
+            except UnicodeDecodeError:
+                message = "Invalid %s value" % self.kind
+            raise InvalidParameterValueError(message)
 
     def _check_range(self, value):
         """Check that the given C{value} is in the expected range."""

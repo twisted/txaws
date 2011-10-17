@@ -54,11 +54,17 @@ class URLContext(object):
             if not self.object_name.startswith("/"):
                 path += "/"
             path += self.object_name
+        elif self.bucket is not None and not path.endswith("/"):
+            path += "/"
         return path
 
     def get_url(self):
-        return "%s://%s%s" % (
-            self.endpoint.scheme, self.get_host(), self.get_path())
+        if self.endpoint.port is not None:
+            return "%s://%s:%d%s" % (
+                self.endpoint.scheme, self.get_host(), self.endpoint.port, self.get_path())
+        else:
+            return "%s://%s%s" % (
+                self.endpoint.scheme, self.get_host(), self.get_path())
 
 
 class S3Client(BaseClient):
@@ -389,12 +395,16 @@ class Query(BaseQuery):
         """
         Get an S3 resource path.
         """
-        resource = "/"
-        if self.bucket:
-            resource += self.bucket
-            if self.object_name:
-                resource += "/%s" % self.object_name
-        return resource
+        path = "/"
+        if self.bucket is not None:
+            path += self.bucket
+        if self.bucket is not None and self.object_name:
+            if not self.object_name.startswith("/"):
+                path += "/"
+            path += self.object_name
+        elif self.bucket is not None and not path.endswith("/"):
+            path += "/"
+        return path
 
     def sign(self, headers):
         """Sign this query using its built in credentials."""
