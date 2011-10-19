@@ -98,13 +98,20 @@ class QueryAPI(Resource):
             return response
 
         def write_error(failure):
-            log.err(failure)
             if failure.check(APIError):
                 status = failure.value.status
+
+                # Don't log the stack traces for 4xx responses.
+                if status < 400 or status >= 500:
+                    log.err(failure)
+                else:
+                    log.msg("status: %s message: %s" % (status, failure.value))
+
                 bytes = failure.value.response
                 if bytes is None:
                     bytes = self.dump_error(failure.value, request)
             else:
+                log.err(failure)
                 bytes = str(failure.value)
                 status = 500
             request.setResponseCode(status)

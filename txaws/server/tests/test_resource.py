@@ -240,7 +240,8 @@ class QueryAPITest(TestCase):
         request = FakeRequest(query.params, endpoint)
 
         def check(ignored):
-            self.flushLoggedErrors()
+            errors = self.flushLoggedErrors()
+            self.assertEquals(0, len(errors))
             self.assertEqual("InvalidSignature - SignatureVersion '2' "
                              "not supported", request.response)
             self.assertEqual(403, request.code)
@@ -262,7 +263,8 @@ class QueryAPITest(TestCase):
         self.api.execute = lambda call: 1 / 0
 
         def check(ignored):
-            self.flushLoggedErrors()
+            errors = self.flushLoggedErrors()
+            self.assertEquals(1, len(errors))
             self.assertTrue(request.finished)
             self.assertEqual("integer division or modulo by zero",
                              request.response)
@@ -284,7 +286,8 @@ class QueryAPITest(TestCase):
         request = FakeRequest(query.params, endpoint)
 
         def check(ignored):
-            self.flushLoggedErrors()
+            errors = self.flushLoggedErrors()
+            self.assertEquals(0, len(errors))
             self.assertEqual("MissingParameter - The request must contain "
                              "the parameter Action", request.response)
             self.assertEqual(400, request.code)
@@ -300,7 +303,8 @@ class QueryAPITest(TestCase):
         request = FakeRequest(query.params, endpoint)
 
         def check(ignored):
-            self.flushLoggedErrors()
+            errors = self.flushLoggedErrors()
+            self.assertEquals(0, len(errors))
             self.assertEqual("InvalidAction - The action FooBar is not valid"
                              " for this web service.", request.response)
             self.assertEqual(400, request.code)
@@ -323,7 +327,8 @@ class QueryAPITest(TestCase):
         request = FakeRequest(query.params, endpoint)
 
         def check(ignored):
-            self.flushLoggedErrors()
+            errors = self.flushLoggedErrors()
+            self.assertEquals(0, len(errors))
             self.assertEqual("InvalidAction - The action CantDoIt is not "
                              "valid for this web service.", request.response)
             self.assertEqual(400, request.code)
@@ -344,7 +349,8 @@ class QueryAPITest(TestCase):
         request = FakeRequest(query.params, endpoint)
 
         def check(ignored):
-            self.flushLoggedErrors()
+            errors = self.flushLoggedErrors()
+            self.assertEquals(0, len(errors))
             self.assertEqual("InvalidAction - The action FooBar is not valid"
                              " for this web service.", request.response)
             self.assertEqual(400, request.code)
@@ -363,7 +369,8 @@ class QueryAPITest(TestCase):
         request = FakeRequest(query.params, endpoint)
 
         def check(ignored):
-            self.flushLoggedErrors()
+            errors = self.flushLoggedErrors()
+            self.assertEquals(0, len(errors))
             self.assertEqual("AuthFailure - No user with access key 'access'",
                              request.response)
             self.assertEqual(401, request.code)
@@ -383,7 +390,8 @@ class QueryAPITest(TestCase):
         request = FakeRequest(query.params, endpoint)
 
         def check(ignored):
-            self.flushLoggedErrors()
+            errors = self.flushLoggedErrors()
+            self.assertEquals(0, len(errors))
             self.assertEqual("SignatureDoesNotMatch - The request signature "
                              "we calculated does not match the signature you "
                              "provided. Check your key and signing method.",
@@ -407,7 +415,8 @@ class QueryAPITest(TestCase):
         request = FakeRequest(query.params, endpoint)
 
         def check(ignored):
-            self.flushLoggedErrors()
+            errors = self.flushLoggedErrors()
+            self.assertEquals(0, len(errors))
             self.assertEqual(
                 "InvalidParameterCombination - The parameter Timestamp"
                 " cannot be used with the parameter Expires",
@@ -450,7 +459,8 @@ class QueryAPITest(TestCase):
         request = FakeRequest(query.params, endpoint)
 
         def check(ignored):
-            self.flushLoggedErrors()
+            errors = self.flushLoggedErrors()
+            self.assertEquals(0, len(errors))
             self.assertEqual(
                 "RequestExpired - Request has expired. Expires date is"
                 " 2010-01-01T12:00:00Z", request.response)
