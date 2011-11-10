@@ -11,6 +11,7 @@ from txaws.ec2.client import Query
 from txaws.server.method import Method
 from txaws.server.registry import Registry
 from txaws.server.resource import QueryAPI
+from txaws.server.exception import APIError
 
 
 class FakeRequest(object):
@@ -273,6 +274,31 @@ class QueryAPITest(TestCase):
         self.api.principal = TestPrincipal(creds)
         return self.api.handle(request).addCallback(check)
 
+    def test_handle_500_api_error(self):
+        """
+        If an L{APIError} is raised with a status code superior or equal to
+        500, the error is logged on the server side.
+        """
+        creds = AWSCredentials("access", "secret")
+        endpoint = AWSServiceEndpoint("http://uri")
+        query = Query(action="SomeAction", creds=creds, endpoint=endpoint)
+        query.sign()
+        request = FakeRequest(query.params, endpoint)
+
+        def fail_execute(call):
+            raise APIError(500, response="oops")
+        self.api.execute = fail_execute
+
+        def check(ignored):
+            errors = self.flushLoggedErrors()
+            self.assertEquals(1, len(errors))
+            self.assertTrue(request.finished)
+            self.assertEqual("oops", request.response)
+            self.assertEqual(500, request.code)
+
+        self.api.principal = TestPrincipal(creds)
+        return self.api.handle(request).addCallback(check)
+
     def test_handle_with_parameter_error(self):
         """
         If an error occurs while parsing the parameters, L{QueryAPI.handle}
@@ -311,7 +337,7 @@ class QueryAPITest(TestCase):
 
         return self.api.handle(request).addCallback(check)
 
-    def test_handle_non_evailable_method(self):
+    def test_handle_non_available_method(self):
         """Only actions registered in the L{Registry} are supported."""
 
         class NonAvailableMethod(Method):
