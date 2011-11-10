@@ -4,6 +4,7 @@ from cStringIO import StringIO
 from datetime import datetime
 
 from twisted.trial.unittest import TestCase
+from twisted.python.reflect import safe_str
 
 from txaws.credentials import AWSCredentials
 from txaws.service import AWSServiceEndpoint
@@ -11,6 +12,7 @@ from txaws.ec2.client import Query
 from txaws.server.method import Method
 from txaws.server.registry import Registry
 from txaws.server.resource import QueryAPI
+from txaws.server.exception import APIError
 
 
 class FakeRequest(object):
@@ -92,7 +94,7 @@ class TestQueryAPI(QueryAPI):
             return self.principal
 
     def dump_error(self, error, request):
-        return str("%s - %s" % (error.code, error.message))
+        return str("%s - %s" % (error.code, safe_str(error.message)))
 
 
 class QueryAPITest(TestCase):
@@ -273,6 +275,31 @@ class QueryAPITest(TestCase):
         self.api.principal = TestPrincipal(creds)
         return self.api.handle(request).addCallback(check)
 
+    def test_handle_500_api_error(self):
+        """
+        If an L{APIError} is raised with a status code superior or equal to
+        500, the error is logged on the server side.
+        """
+        creds = AWSCredentials("access", "secret")
+        endpoint = AWSServiceEndpoint("http://uri")
+        query = Query(action="SomeAction", creds=creds, endpoint=endpoint)
+        query.sign()
+        request = FakeRequest(query.params, endpoint)
+
+        def fail_execute(call):
+            raise APIError(500, response="oops")
+        self.api.execute = fail_execute
+
+        def check(ignored):
+            errors = self.flushLoggedErrors()
+            self.assertEquals(1, len(errors))
+            self.assertTrue(request.finished)
+            self.assertEqual("oops", request.response)
+            self.assertEqual(500, request.code)
+
+        self.api.principal = TestPrincipal(creds)
+        return self.api.handle(request).addCallback(check)
+
     def test_handle_with_parameter_error(self):
         """
         If an error occurs while parsing the parameters, L{QueryAPI.handle}
@@ -294,6 +321,57 @@ class QueryAPITest(TestCase):
 
         return self.api.handle(request).addCallback(check)
 
+    def test_handle_unicode_api_error(self):
+        """
+        If an L{APIError} contains a unicode message, L{QueryAPI} is able to
+        protect itself from it.
+        """
+        creds = AWSCredentials("access", "secret")
+        endpoint = AWSServiceEndpoint("http://uri")
+        query = Query(action="SomeAction", creds=creds, endpoint=endpoint)
+        query.sign()
+        request = FakeRequest(query.params, endpoint)
+
+        def fail_execute(call):
+            raise APIError(400, code="LangError",
+                           message=u"\N{HIRAGANA LETTER A}dvanced")
+        self.api.execute = fail_execute
+
+        def check(ignored):
+            errors = self.flushLoggedErrors()
+            self.assertEquals(0, len(errors))
+            self.assertTrue(request.finished)
+            self.assertTrue(request.response.startswith("LangError"))
+            self.assertEqual(400, request.code)
+
+        self.api.principal = TestPrincipal(creds)
+        return self.api.handle(request).addCallback(check)
+
+    def test_handle_unicode_error(self):
+        """
+        If an arbitrary error raised by an API method contains a unicode
+        message, L{QueryAPI} is able to protect itself from it.
+        """
+        creds = AWSCredentials("access", "secret")
+        endpoint = AWSServiceEndpoint("http://uri")
+        query = Query(action="SomeAction", creds=creds, endpoint=endpoint)
+        query.sign()
+        request = FakeRequest(query.params, endpoint)
+
+        def fail_execute(call):
+            raise ValueError(u"\N{HIRAGANA LETTER A}dvanced")
+        self.api.execute = fail_execute
+
+        def check(ignored):
+            errors = self.flushLoggedErrors()
+            self.assertEquals(1, len(errors))
+            self.assertTrue(request.finished)
+            self.assertIn("ValueError", request.response)
+            self.assertEqual(500, request.code)
+
+        self.api.principal = TestPrincipal(creds)
+        return self.api.handle(request).addCallback(check)
+
     def test_handle_with_unsupported_action(self):
         """Only actions registered in the L{Registry} are supported."""
         creds = AWSCredentials("access", "secret")
@@ -311,7 +389,7 @@ class QueryAPITest(TestCase):
 
         return self.api.handle(request).addCallback(check)
 
-    def test_handle_non_evailable_method(self):
+    def test_handle_non_available_method(self):
         """Only actions registered in the L{Registry} are supported."""
 
         class NonAvailableMethod(Method):
