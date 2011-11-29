@@ -23,17 +23,42 @@ class VerifyingContextFactory(CertificateOptions):
         CertificateOptions.__init__(self, verify=True, caCerts=caCerts)
         self.host = host
 
+    def _dnsname_match(self, dn, host):
+        pats = []
+        for frag in dn.split(r"."):
+            if frag == "*":
+                pats.append("[^.]+")
+            else:
+                frag = re.escape(frag)
+                pats.append(frag.replace(r"\*", "[^.]*"))
+
+        rx = re.compile(r"\A" + r"\.".join(pats) + r"\Z", re.IGNORECASE)
+        return bool(rx.match(host))
+
     def verify_callback(self, connection, x509, errno, depth, preverifyOK):
         # Only check depth == 0 on chained certificates.
         if depth == 0:
-            commonName = x509.get_subject().commonName
-            if commonName is None:
-                return False
-            # The commonName might contain a wildcard, so turn it into a
-            # regex for checking.
-            commonName_re = "^%s$" % commonName.replace(
-                ".", "\.").replace("*", "[^.]*")
-            if not re.search(commonName_re, self.host, re.I):
+            dns_found = False
+            for index in range(x509.get_extension_count()):
+                extension = x509.get_extension(index)
+                if extension.get_short_name() != "subjectAltName":
+                    continue
+                data = str(extension)
+                for element in data.split(", "):
+                    key, value = element.split(":")
+                    if key != "DNS":
+                        continue
+                    if self._dnsname_match(value, self.host):
+                        return preverifyOK
+                    dns_found = True
+                break
+            if not dns_found:
+                commonName = x509.get_subject().commonName
+                if commonName is None:
+                    return False
+                if not self._dnsname_match(commonName, self.host):
+                    return False
+            else:
                 return False
         return preverifyOK
 
