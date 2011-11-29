@@ -19,13 +19,16 @@ class AWSServiceEndpoint(object):
     """
     @param uri: The URL for the service.
     @param method: The HTTP method used when accessing a service.
+    @param ssl_hostname_verification: Whether or not SSL hotname verification
+        will be done when connecting to the endpoint.
     """
 
-    def __init__(self, uri="", method="GET"):
+    def __init__(self, uri="", method="GET", ssl_hostname_verification=False):
         self.host = ""
         self.port = None
         self.path = "/"
         self.method = method
+        self.ssl_hostname_verification = ssl_hostname_verification
         self._parse_uri(uri)
         if not self.scheme:
             self.scheme = "http"
