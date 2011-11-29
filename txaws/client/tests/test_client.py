@@ -2,6 +2,7 @@ import os
 
 from OpenSSL.crypto import load_certificate, FILETYPE_PEM
 from OpenSSL.SSL import Error as SSLError
+from OpenSSL.version import __version__ as pyopenssl_version
 
 from twisted.internet import reactor
 from twisted.internet.ssl import DefaultOpenSSLContextFactory
@@ -294,3 +295,7 @@ class BaseQuerySSLTestCase(TXAWSTestCase):
         query = BaseQuery("an action", "creds", endpoint)
         d = query.get_page("https://127.0.0.1:%d/file" % (self.portno,))
         return d.addCallback(self.assertEquals, "0123456789")
+
+    if pyopenssl_version < "0.12":
+        test_ssl_subject_alt_name.skip = (
+            "subjectAltName not supported by older PyOpenSSL")
