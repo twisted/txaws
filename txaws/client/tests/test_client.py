@@ -28,6 +28,8 @@ PRIVKEY = sibpath("private.ssl")
 PUBKEY = sibpath("public.ssl")
 BADPRIVKEY = sibpath("badprivate.ssl")
 BADPUBKEY = sibpath("badpublic.ssl")
+PRIVSANKEY = sibpath("private_san.ssl")
+PUBSANKEY = sibpath("public_san.ssl")
 
 
 class ErrorWrapperTestCase(TXAWSTestCase):
@@ -206,7 +208,11 @@ class BaseQuerySSLTestCase(TXAWSTestCase):
         pub_key = file(PUBKEY)
         pub_key_data = pub_key.read()
         pub_key.close()
-        ssl._ca_certs = [load_certificate(FILETYPE_PEM, pub_key_data)]
+        pub_key_san = file(PUBSANKEY)
+        pub_key_san_data = pub_key_san.read()
+        pub_key_san.close()
+        ssl._ca_certs = [load_certificate(FILETYPE_PEM, pub_key_data),
+                         load_certificate(FILETYPE_PEM, pub_key_san_data)]
 
     def tearDown(self):
         from txaws.client import ssl
@@ -272,4 +278,19 @@ class BaseQuerySSLTestCase(TXAWSTestCase):
         endpoint = AWSServiceEndpoint(ssl_hostname_verification=False)
         query = BaseQuery("an action", "creds", endpoint)
         d = query.get_page(self._get_url("file"))
+        return d.addCallback(self.assertEquals, "0123456789")
+
+    def test_ssl_subject_alt_name(self):
+        """
+        L{VerifyingContextFactory} supports checking C{subjectAltName} in the
+        certificate if it's available.
+        """
+        context_factory = DefaultOpenSSLContextFactory(PRIVSANKEY, PUBSANKEY)
+        self.port = reactor.listenSSL(
+            0, self.site, context_factory, interface="127.0.0.1")
+        self.portno = self.port.getHost().port
+
+        endpoint = AWSServiceEndpoint(ssl_hostname_verification=True)
+        query = BaseQuery("an action", "creds", endpoint)
+        d = query.get_page("https://127.0.0.1:%d/file" % (self.portno,))
         return d.addCallback(self.assertEquals, "0123456789")
