@@ -39,19 +39,20 @@ class VerifyingContextFactory(CertificateOptions):
         # Only check depth == 0 on chained certificates.
         if depth == 0:
             dns_found = False
-            for index in range(x509.get_extension_count()):
-                extension = x509.get_extension(index)
-                if extension.get_short_name() != "subjectAltName":
-                    continue
-                data = str(extension)
-                for element in data.split(", "):
-                    key, value = element.split(":")
-                    if key != "DNS":
+            if getattr(x509, "get_extension", None) is not None:
+                for index in range(x509.get_extension_count()):
+                    extension = x509.get_extension(index)
+                    if extension.get_short_name() != "subjectAltName":
                         continue
-                    if self._dnsname_match(value, self.host):
-                        return preverifyOK
-                    dns_found = True
-                break
+                    data = str(extension)
+                    for element in data.split(", "):
+                        key, value = element.split(":")
+                        if key != "DNS":
+                            continue
+                        if self._dnsname_match(value, self.host):
+                            return preverifyOK
+                        dns_found = True
+                    break
             if not dns_found:
                 commonName = x509.get_subject().commonName
                 if commonName is None:
