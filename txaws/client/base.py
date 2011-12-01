@@ -3,7 +3,7 @@ try:
 except ImportError:
     from xml.parsers.expat import ExpatError as ParseError
 
-from twisted.internet import reactor, ssl
+from twisted.internet.ssl import ClientContextFactory
 from twisted.web import http
 from twisted.web.client import HTTPClientFactory
 from twisted.web.error import Error as TwistedWebError
@@ -12,6 +12,7 @@ from txaws.util import parse
 from txaws.credentials import AWSCredentials
 from txaws.exception import AWSResponseParseError
 from txaws.service import AWSServiceEndpoint
+from txaws.client.ssl import VerifyingContextFactory
 
 
 def error_wrapper(error, errorClass):
@@ -73,13 +74,16 @@ class BaseClient(object):
 
 class BaseQuery(object):
 
-    def __init__(self, action=None, creds=None, endpoint=None):
+    def __init__(self, action=None, creds=None, endpoint=None, reactor=None):
         if not action:
             raise TypeError("The query requires an action parameter.")
         self.factory = HTTPClientFactory
         self.action = action
         self.creds = creds
         self.endpoint = endpoint
+        if reactor is None:
+            from twisted.internet import reactor
+        self.reactor = reactor
         self.client = None
 
     def get_page(self, url, *args, **kwds):
@@ -92,11 +96,14 @@ class BaseQuery(object):
         contextFactory = None
         scheme, host, port, path = parse(url)
         self.client = self.factory(url, *args, **kwds)
-        if scheme == 'https':
-            contextFactory = ssl.ClientContextFactory()
-            reactor.connectSSL(host, port, self.client, contextFactory)
+        if scheme == "https":
+            if self.endpoint.ssl_hostname_verification:
+                contextFactory = VerifyingContextFactory(host)
+            else:
+                contextFactory = ClientContextFactory()
+            self.reactor.connectSSL(host, port, self.client, contextFactory)
         else:
-            reactor.connectTCP(host, port, self.client)
+            self.reactor.connectTCP(host, port, self.client)
         return self.client.deferred
 
     def get_request_headers(self, *args, **kwds):
