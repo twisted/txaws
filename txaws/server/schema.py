@@ -102,7 +102,7 @@ class Parameter(object):
             return parsed
         except ValueError:
             try:
-                value = value.decode("ascii")
+                value = value.decode("utf-8")
                 message = "Invalid %s value %s" % (self.kind, value)
             except UnicodeDecodeError:
                 message = "Invalid %s value" % self.kind

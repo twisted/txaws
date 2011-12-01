@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 from datetime import datetime
 
 from pytz import UTC, FixedOffset
@@ -179,6 +181,11 @@ class UnicodeTest(TestCase):
         """L{Unicode.parse} converts the given raw C{value} to C{unicode}."""
         parameter = Unicode("Test")
         self.assertEqual(u"foo", parameter.parse("foo"))
+
+    def test_parse_unicode(self):
+        """L{Unicode.parse} works with unicode input."""
+        parameter = Unicode("Test")
+        self.assertEqual(u"cittá", parameter.parse("citt\xc3\xa1"))
 
     def test_format(self):
         """L{Unicode.format} encodes the given C{unicode} with utf-8."""
