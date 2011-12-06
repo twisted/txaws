@@ -3,6 +3,7 @@ from uuid import uuid4
 from pytz import UTC
 
 from twisted.python import log
+from twisted.python.reflect import safe_str
 from twisted.internet.defer import maybeDeferred
 from twisted.web.resource import Resource
 from twisted.web.server import NOT_DONE_YET
@@ -60,7 +61,12 @@ class QueryAPI(Resource):
         @param kwargs: Keyword arguments to pass to the method constructor.
         """
         method_class = self.registry.get(call.action, call.version)
-        return method_class(*args, **kwargs)
+        method = method_class(*args, **kwargs)
+        if not method.is_available():
+            raise APIError(400, "InvalidAction", "The action %s is not "
+                           "valid for this web service." % call.action)
+        else:
+            return method
 
     def get_principal(self, access_key):
         """Return a principal object by access key.
@@ -93,14 +99,22 @@ class QueryAPI(Resource):
             return response
 
         def write_error(failure):
-            log.err(failure)
             if failure.check(APIError):
                 status = failure.value.status
+
+                # Don't log the stack traces for 4xx responses.
+                if status < 400 or status >= 500:
+                    log.err(failure)
+                else:
+                    log.msg("status: %s message: %s" % (
+                        status, safe_str(failure.value)))
+
                 bytes = failure.value.response
                 if bytes is None:
                     bytes = self.dump_error(failure.value, request)
             else:
-                bytes = str(failure.value)
+                log.err(failure)
+                bytes = safe_str(failure.value)
                 status = 500
             request.setResponseCode(status)
             request.write(bytes)

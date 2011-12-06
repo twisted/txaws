@@ -201,6 +201,16 @@ class UnicodeTest(TestCase):
         self.assertEqual(400, error.status)
         self.assertEqual("InvalidParameterValue", error.code)
 
+    def test_invalid_unicode(self):
+        """
+        The L{Unicode} parameter returns an error with invalid unicode data.
+        """
+        parameter = Unicode("Test")
+        error = self.assertRaises(APIError, parameter.coerce, "Test\x95Error")
+        self.assertIn(u"Invalid unicode value", error.message)
+        self.assertEqual(400, error.status)
+        self.assertEqual("InvalidParameterValue", error.code)
+
 
 class RawStrTest(TestCase):
 

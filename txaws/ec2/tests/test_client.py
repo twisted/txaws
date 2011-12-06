@@ -522,6 +522,38 @@ class EC2ClientSecurityGroupsTestCase(TXAWSTestCase):
         d = ec2.describe_security_groups("WebServers")
         return d.addCallback(check_result)
 
+    def test_describe_security_groups_with_openstack(self):
+        """
+        L{EC2Client.describe_security_groups} can work with openstack
+        responses, which may lack proper port information for
+        self-referencing group. Verifying that the response doesn't
+        cause an internal error, workaround for nova launchpad bug
+        #829609.
+        """
+        class StubQuery(object):
+
+            def __init__(stub, action="", creds=None, endpoint=None,
+                         other_params={}):
+                self.assertEqual(action, "DescribeSecurityGroups")
+                self.assertEqual(creds.access_key, "foo")
+                self.assertEqual(creds.secret_key, "bar")
+                self.assertEqual(other_params, {"GroupName.1": "WebServers"})
+
+            def submit(self):
+                return succeed(
+                    payload.sample_describe_security_groups_with_openstack)
+
+        def check_result(security_groups):
+            [security_group] = security_groups
+            self.assertEquals(security_group.name, "WebServers")
+            self.assertEqual(
+                security_group.allowed_groups[0].group_name, "WebServers")
+
+        creds = AWSCredentials("foo", "bar")
+        ec2 = client.EC2Client(creds, query_factory=StubQuery)
+        d = ec2.describe_security_groups("WebServers")
+        return d.addCallback(check_result)
+
     def test_create_security_group(self):
         """
         L{EC2Client.create_security_group} returns a C{Deferred} that
