@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 from datetime import datetime
 
 from pytz import UTC, FixedOffset
@@ -102,6 +104,19 @@ class ParameterTest(TestCase):
         self.assertEqual("InvalidParameterValue", error.code)
         self.assertEqual("Invalid integer value foo", error.message)
 
+    def test_coerce_with_parameter_error_unicode(self):
+        """
+        L{Parameter.coerce} raises an L{APIError} if an invalid value is
+        passed as request argument and parameter value is unicode.
+        """
+        parameter = Parameter("Test")
+        parameter.parse = lambda value: int(value)
+        parameter.kind = "integer"
+        error = self.assertRaises(APIError, parameter.coerce, "citt\xc3\xa1")
+        self.assertEqual(400, error.status)
+        self.assertEqual("InvalidParameterValue", error.code)
+        self.assertEqual(u"Invalid integer value cittá", error.message)
+
     def test_coerce_with_empty_strings(self):
         """
         L{Parameter.coerce} returns C{None} if the value is an empty string and
@@ -179,6 +194,11 @@ class UnicodeTest(TestCase):
         """L{Unicode.parse} converts the given raw C{value} to C{unicode}."""
         parameter = Unicode("Test")
         self.assertEqual(u"foo", parameter.parse("foo"))
+
+    def test_parse_unicode(self):
+        """L{Unicode.parse} works with unicode input."""
+        parameter = Unicode("Test")
+        self.assertEqual(u"cittá", parameter.parse("citt\xc3\xa1"))
 
     def test_format(self):
         """L{Unicode.format} encodes the given C{unicode} with utf-8."""
