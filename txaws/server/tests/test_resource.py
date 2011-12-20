@@ -188,6 +188,29 @@ class QueryAPITest(TestCase):
         self.api.principal = TestPrincipal(creds)
         return self.api.handle(request).addCallback(check)
 
+    def test_handle_ensures_version_is_str(self):
+        """
+        L{QueryAPI.schema} coerces the Version parameter to a str, in order
+        to let URLs built with it be str, as required by urllib.quote in
+        python 2.7.
+        """
+        self.registry.add(TestMethod, "SomeAction", "1.2.3")
+        creds = AWSCredentials("access", "secret")
+        endpoint = AWSServiceEndpoint("http://uri")
+        query = Query(action="SomeAction", creds=creds, endpoint=endpoint,
+                      other_params={"Version": u"1.2.3"})
+        query.sign()
+        request = FakeRequest(query.params, endpoint)
+
+        def execute(call):
+            self.assertEqual("1.2.3", call.version)
+            self.assertIsInstance(call.version, str)
+            return "ok"
+
+        self.api.execute = execute
+        self.api.principal = TestPrincipal(creds)
+        return self.api.handle(request)
+
     def test_handle_empty_request(self):
         """
         If an empty request is received a message describing the API is
