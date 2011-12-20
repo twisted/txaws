@@ -43,7 +43,7 @@ class QueryAPI(Resource):
         RawStr("AWSAccessKeyId"),
         Date("Timestamp", optional=True),
         Date("Expires", optional=True),
-        Unicode("Version", optional=True),
+        RawStr("Version", optional=True),
         Enum("SignatureMethod", {"HmacSHA256": "sha256", "HmacSHA1": "sha1"},
              optional=True, default="HmacSHA256"),
         Unicode("Signature"),
