@@ -5,7 +5,7 @@ Dependencies
 
 * The twisted python package (python-twisted on Debian or similar systems)
 
-* The epsilon python package (python-epsilon on Debian or similar systems)
+* The dateutil python package (python-dateutil on Debian or similar systems)
 
 
 Things present here
