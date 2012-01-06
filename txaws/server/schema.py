@@ -1,7 +1,7 @@
 from datetime import datetime
 from operator import itemgetter
 
-from pytz import UTC
+from dateutil.tz import tzutc
 
 from zope.datetime import parse, SyntaxError
 
@@ -243,7 +243,7 @@ class Date(Parameter):
 
     def parse(self, value):
         try:
-            return datetime(*parse(value, local=False)[:6], tzinfo=UTC)
+            return datetime(*parse(value, local=False)[:6], tzinfo=tzutc())
         except (TypeError, SyntaxError):
             raise ValueError()
 
