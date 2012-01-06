@@ -2,7 +2,7 @@
 
 from datetime import datetime
 
-from pytz import UTC, FixedOffset
+from dateutil.tz import tzutc, tzoffset
 
 from twisted.trial.unittest import TestCase
 
@@ -318,7 +318,7 @@ class DateTest(TestCase):
     def test_parse(self):
         """L{Date.parse checks that the given raw C{value} is a date/time."""
         parameter = Date("Test")
-        date = datetime(2010, 9, 15, 23, 59, 59, tzinfo=UTC)
+        date = datetime(2010, 9, 15, 23, 59, 59, tzinfo=tzutc())
         self.assertEqual(date, parameter.parse("2010-09-15T23:59:59Z"))
 
     def test_format(self):
@@ -328,7 +328,7 @@ class DateTest(TestCase):
         """
         parameter = Date("Test")
         date = datetime(2010, 9, 15, 23, 59, 59,
-                        tzinfo=FixedOffset(120))
+                        tzinfo=tzoffset('UTC', 120*60))
         self.assertEqual("2010-09-15T21:59:59Z", parameter.format(date))
 
 
