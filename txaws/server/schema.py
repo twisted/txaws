@@ -2,8 +2,7 @@ from datetime import datetime
 from operator import itemgetter
 
 from dateutil.tz import tzutc
-
-from zope.datetime import parse, SyntaxError
+from dateutil.parser import parse
 
 from txaws.server.exception import APIError
 
@@ -242,10 +241,7 @@ class Date(Parameter):
     kind = "date"
 
     def parse(self, value):
-        try:
-            return datetime(*parse(value, local=False)[:6], tzinfo=tzutc())
-        except (TypeError, SyntaxError):
-            raise ValueError()
+        return parse(value).replace(tzinfo=tzutc())
 
     def format(self, value):
         # Convert value to UTC.
