@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta
 from uuid import uuid4
-from pytz import UTC
+from dateutil.tz import tzutc
 
 from twisted.python import log
 from twisted.python.reflect import safe_str
@@ -43,7 +43,7 @@ class QueryAPI(Resource):
         RawStr("AWSAccessKeyId"),
         Date("Timestamp", optional=True),
         Date("Expires", optional=True),
-        Unicode("Version", optional=True),
+        RawStr("Version", optional=True),
         Enum("SignatureMethod", {"HmacSHA256": "sha256", "HmacSHA1": "sha1"},
              optional=True, default="HmacSHA256"),
         Unicode("Signature"),
@@ -159,7 +159,7 @@ class QueryAPI(Resource):
 
     def get_utc_time(self):
         """Return a C{datetime} object with the current time in UTC."""
-        return datetime.now(UTC)
+        return datetime.now(tzutc())
 
     def _validate(self, request):
         """Validate an L{HTTPRequest} before executing it.

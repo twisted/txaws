@@ -1,7 +1,7 @@
 from json import dumps, loads
-from pytz import UTC
 from cStringIO import StringIO
 from datetime import datetime
+from dateutil.tz import tzutc
 
 from twisted.trial.unittest import TestCase
 from twisted.python.reflect import safe_str
@@ -187,6 +187,29 @@ class QueryAPITest(TestCase):
         self.api.execute = execute
         self.api.principal = TestPrincipal(creds)
         return self.api.handle(request).addCallback(check)
+
+    def test_handle_ensures_version_is_str(self):
+        """
+        L{QueryAPI.schema} coerces the Version parameter to a str, in order
+        to let URLs built with it be str, as required by urllib.quote in
+        python 2.7.
+        """
+        self.registry.add(TestMethod, "SomeAction", "1.2.3")
+        creds = AWSCredentials("access", "secret")
+        endpoint = AWSServiceEndpoint("http://uri")
+        query = Query(action="SomeAction", creds=creds, endpoint=endpoint,
+                      other_params={"Version": u"1.2.3"})
+        query.sign()
+        request = FakeRequest(query.params, endpoint)
+
+        def execute(call):
+            self.assertEqual("1.2.3", call.version)
+            self.assertIsInstance(call.version, str)
+            return "ok"
+
+        self.api.execute = execute
+        self.api.principal = TestPrincipal(creds)
+        return self.api.handle(request)
 
     def test_handle_empty_request(self):
         """
@@ -519,7 +542,7 @@ class QueryAPITest(TestCase):
             self.assertEqual("data", request.response)
             self.assertEqual(200, request.code)
 
-        now = datetime(2009, 12, 31, tzinfo=UTC)
+        now = datetime(2009, 12, 31, tzinfo=tzutc())
         self.api.get_utc_time = lambda: now
         self.api.principal = TestPrincipal(creds)
         return self.api.handle(request).addCallback(check)
@@ -544,7 +567,7 @@ class QueryAPITest(TestCase):
                 " 2010-01-01T12:00:00Z", request.response)
             self.assertEqual(400, request.code)
 
-        now = datetime(2010, 1, 1, 12, 0, 1, tzinfo=UTC)
+        now = datetime(2010, 1, 1, 12, 0, 1, tzinfo=tzutc())
         self.api.get_utc_time = lambda: now
         return self.api.handle(request).addCallback(check)
 
