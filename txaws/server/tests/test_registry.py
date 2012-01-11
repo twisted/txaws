@@ -19,7 +19,7 @@ class RegistryTest(TestCase):
 
     def test_add(self):
         """
-        L{MehtodRegistry.add} registers a method class for the given action
+        L{MethodRegistry.add} registers a method class for the given action
         and version.
         """
         self.registry.add(TestMethod, "test", "1.0")
@@ -31,7 +31,7 @@ class RegistryTest(TestCase):
 
     def test_add_duplicate_method(self):
         """
-        L{MehtodRegistry.add} fails if a method class for the given action
+        L{MethodRegistry.add} fails if a method class for the given action
         and version was already registered.
         """
 
@@ -44,7 +44,7 @@ class RegistryTest(TestCase):
 
     def test_get(self):
         """
-        L{MehtodRegistry.get} returns the method class registered for the
+        L{MethodRegistry.get} returns the method class registered for the
         given action and version.
         """
 
@@ -60,7 +60,7 @@ class RegistryTest(TestCase):
 
     def test_check_with_missing_action(self):
         """
-        L{MehtodRegistry.get} fails if the given action is not registered.
+        L{MethodRegistry.get} fails if the given action is not registered.
         """
         error = self.assertRaises(APIError, self.registry.check, "boom", "1.0")
         self.assertEqual(400, error.status)
@@ -70,7 +70,7 @@ class RegistryTest(TestCase):
 
     def test_check_with_missing_version(self):
         """
-        L{MehtodRegistry.get} fails if the given action is not registered.
+        L{MethodRegistry.get} fails if the given action is not registered.
         """
         self.registry.add(TestMethod, "test", "1.0")
         error = self.assertRaises(APIError, self.registry.check, "test", "2.0")
@@ -80,7 +80,7 @@ class RegistryTest(TestCase):
 
     def test_scan(self):
         """
-        L{MehtodRegistry.scan} registers the L{Method}s decorated with L{api}.
+        L{MethodRegistry.scan} registers the L{Method}s decorated with L{api}.
         """
         self.registry.scan(amodule)
         self.assertIdentical(TestMethod, self.registry.get("TestMethod", None))
