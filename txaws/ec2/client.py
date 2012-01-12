@@ -625,7 +625,7 @@ class Parser(object):
         @param xml_bytes: XML bytes with a C{TerminateInstancesResponse} root
             element.
         @return: An iterable of C{tuple} of (instanceId, previousState,
-            shutdownState) for the ec2 instances that where terminated.
+            currentState) for the ec2 instances that where terminated.
         """
         root = XML(xml_bytes)
         result = []
@@ -634,9 +634,9 @@ class Parser(object):
             instanceId = instance.findtext("instanceId")
             previousState = instance.find("previousState").findtext(
                 "name")
-            shutdownState = instance.find("shutdownState").findtext(
+            currentState = instance.find("currentState").findtext(
                 "name")
-            result.append((instanceId, previousState, shutdownState))
+            result.append((instanceId, previousState, currentState))
         return result
 
     def describe_security_groups(self, xml_bytes):
