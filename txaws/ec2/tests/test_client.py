@@ -1553,7 +1553,7 @@ class QueryTestCase(TXAWSTestCase):
             {"AWSAccessKeyId": "foo",
              "Action": "DescribeInstances",
              "SignatureVersion": "2",
-             "Version": "2008-12-01"})
+             "Version": "2009-11-30"})
 
     def test_init_other_args_are_params(self):
         query = client.Query(
@@ -1567,7 +1567,7 @@ class QueryTestCase(TXAWSTestCase):
              "InstanceId.0": "12345",
              "SignatureVersion": "2",
              "Timestamp": "2007-11-12T13:14:15Z",
-             "Version": "2008-12-01"})
+             "Version": "2009-11-30"})
 
     def test_no_timestamp_if_expires_in_other_params(self):
         """
@@ -1585,7 +1585,7 @@ class QueryTestCase(TXAWSTestCase):
              "Action": "DescribeInstances",
              "SignatureVersion": "2",
              "Expires": "2007-11-12T13:14:15Z",
-             "Version": "2008-12-01"})
+             "Version": "2009-11-30"})
 
     def test_sign(self):
         query = client.Query(
@@ -1593,7 +1593,7 @@ class QueryTestCase(TXAWSTestCase):
             endpoint=self.endpoint,
             time_tuple=(2007, 11, 12, 13, 14, 15, 0, 0, 0))
         query.sign()
-        self.assertEqual("aDmLr0Ktjsmt17UJD/EZf6DrfKWT1JW0fq2FDUCOPic=",
+        self.assertEqual("G4c2NtQaFNhWWT8EWPVIIOpHVr0mGUYwJVYss9krsMU=",
             query.params["Signature"])
 
     def test_old_sign(self):
@@ -1604,7 +1604,7 @@ class QueryTestCase(TXAWSTestCase):
             other_params={"SignatureVersion": "1"})
         query.sign()
         self.assertEqual(
-            "MBKyHoxqCd/lBQLVkCZYpwAtNJg=", query.params["Signature"])
+            "9xP+PIs/3QXW+4mWX6WGR4nGqfE=", query.params["Signature"])
 
     def test_unsupported_sign(self):
         query = client.Query(
@@ -1743,13 +1743,13 @@ class SignatureTestCase(TXAWSTestCase):
                             "argwithnovalue": "",
                             "SignatureVersion": "2",
                             "Timestamp": iso8601time(time_tuple),
-                            "Version": "2008-12-01",
+                            "Version": "2009-11-30",
                             "Action": "DescribeInstances",
                             "InstanceId.1": "i-1234"})
         expected_params = ("AWSAccessKeyId=foo&Action=DescribeInstances"
             "&InstanceId.1=i-1234"
             "&SignatureVersion=2&"
-            "Timestamp=2007-11-12T13%3A14%3A15Z&Version=2008-12-01&"
+            "Timestamp=2007-11-12T13%3A14%3A15Z&Version=2009-11-30&"
             "argwithnovalue=&fu%20n=g%2Fames")
         self.assertEqual(expected_params, signature.get_canonical_query_params())
 
@@ -1795,14 +1795,14 @@ class SignatureTestCase(TXAWSTestCase):
         self.params.update({"AWSAccessKeyId": "foo",
                             "fun": "games",
                             "SignatureVersion": "2",
-                            "Version": "2008-12-01",
+                            "Version": "2009-11-30",
                             "Action": "DescribeInstances"})
 
         self.assertEqual([
             ("AWSAccessKeyId", "foo"),
             ("Action", "DescribeInstances"),
             ("SignatureVersion", "2"),
-            ("Version", "2008-12-01"),
+            ("Version", "2009-11-30"),
             ("fun", "games"),
             ], signature.sorted_params())
 

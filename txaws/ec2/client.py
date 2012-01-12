@@ -900,7 +900,7 @@ class Query(BaseQuery):
                  *args, **kwargs):
         """Create a Query to submit to EC2."""
         super(Query, self).__init__(*args, **kwargs)
-        # Currently, txAWS only supports version 2008-12-01
+        # Currently, txAWS only supports version 2009-11-30
         if api_version is None:
             api_version = version.ec2_api
         self.params = {
@@ -1013,7 +1013,7 @@ class Signature(object):
     def encode(self, string):
         """Encode a_string as per the canonicalisation encoding rules.
 
-        See the AWS dev reference page 90 (2008-12-01 version).
+        See the AWS dev reference page 186 (2009-11-30 version).
         @return: a_string encoded.
         """
         return quote(string, safe="~")
