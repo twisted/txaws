@@ -49,14 +49,17 @@ class EC2Client(BaseClient):
         security_groups=None, key_name=None, instance_type=None,
         user_data=None, availability_zone=None, kernel_id=None,
         ramdisk_id=None):
-        """Run new instances."""
+        """Run new instances.
+
+        TODO: blockDeviceMapping, monitoring, subnetId
+        """
         params = {"ImageId": image_id, "MinCount": str(min_count),
                   "MaxCount": str(max_count)}
+        if key_name is not None:
+            params["KeyName"] = key_name
         if security_groups is not None:
             for i, name in enumerate(security_groups):
                 params["SecurityGroup.%d" % (i + 1)] = name
-        if key_name is not None:
-            params["KeyName"] = key_name
         if user_data is not None:
             params["UserData"] = b64encode(user_data)
         if instance_type is not None:
@@ -135,26 +138,15 @@ class EC2Client(BaseClient):
         d = query.submit()
         return d.addCallback(self.parser.truth_return)
 
-    def authorize_security_group(
-        self, group_name, source_group_name="", source_group_owner_id="",
-        ip_protocol="", from_port="", to_port="", cidr_ip=""):
+    def authorize_security_group(self, group_name, ip_protocol="",
+                                 from_port="", to_port="", cidr_ip=""):
         """
-        There are two ways to use C{authorize_security_group}:
-            1) associate an existing group (source group) with the one that you
-            are targeting (group_name) with an authorization update; or
-            2) associate a set of IP permissions with the group you are
-            targeting with an authorization update.
+        Use C{authorize_security_group} by associating a set of IP permissions
+        with the group you are targeting with an authorization update.
 
         @param group_name: The group you will be modifying with a new
             authorization.
 
-        Optionally, the following parameters:
-        @param source_group_name: Name of security group to authorize access to
-            when operating on a user/group pair.
-        @param source_group_owner_id: Owner of security group to authorize
-            access to when operating on a user/group pair.
-
-        If those parameters are not specified, then the following must be:
         @param ip_protocol: IP protocol to authorize access to when operating
             on a CIDR IP.
         @param from_port: Bottom of port range to authorize access to when
@@ -168,13 +160,9 @@ class EC2Client(BaseClient):
 
         @return: A C{Deferred} that will fire with a truth value for the
             success of the operation.
+
         """
-        if source_group_name and source_group_owner_id:
-            parameters = {
-                "SourceSecurityGroupName": source_group_name,
-                "SourceSecurityGroupOwnerId": source_group_owner_id,
-                }
-        elif ip_protocol and from_port and to_port and cidr_ip:
+        if ip_protocol and from_port and to_port and cidr_ip:
             parameters = {
                 "IpProtocol": ip_protocol,
                 "FromPort": from_port,
@@ -220,26 +208,15 @@ class EC2Client(BaseClient):
             cidr_ip=cidr_ip)
         return d
 
-    def revoke_security_group(
-        self, group_name, source_group_name="", source_group_owner_id="",
-        ip_protocol="", from_port="", to_port="", cidr_ip=""):
+    def revoke_security_group(self, group_name, ip_protocol="", from_port="",
+                              to_port="", cidr_ip=""):
         """
-        There are two ways to use C{revoke_security_group}:
-            1) associate an existing group (source group) with the one that you
-            are targeting (group_name) with the revoke update; or
-            2) associate a set of IP permissions with the group you are
-            targeting with a revoke update.
+        Use C{revoke_security_group} by associating a set of IP permissions
+        with the group you are targeting with a revoke update.
 
         @param group_name: The group you will be modifying with an
             authorization removal.
 
-        Optionally, the following parameters:
-        @param source_group_name: Name of security group to revoke access from
-            when operating on a user/group pair.
-        @param source_group_owner_id: Owner of security group to revoke
-            access from when operating on a user/group pair.
-
-        If those parameters are not specified, then the following must be:
         @param ip_protocol: IP protocol to revoke access from when operating
             on a CIDR IP.
         @param from_port: Bottom of port range to revoke access from when
@@ -253,13 +230,9 @@ class EC2Client(BaseClient):
 
         @return: A C{Deferred} that will fire with a truth value for the
             success of the operation.
+
         """
-        if source_group_name and source_group_owner_id:
-            parameters = {
-                "SourceSecurityGroupName": source_group_name,
-                "SourceSecurityGroupOwnerId": source_group_owner_id,
-                }
-        elif ip_protocol and from_port and to_port and cidr_ip:
+        if ip_protocol and from_port and to_port and cidr_ip:
             parameters = {
                 "IpProtocol": ip_protocol,
                 "FromPort": from_port,
@@ -277,22 +250,8 @@ class EC2Client(BaseClient):
         d = query.submit()
         return d.addCallback(self.parser.truth_return)
 
-    def revoke_group_permission(
-        self, group_name, source_group_name, source_group_owner_id):
-        """
-        This is a convenience function that wraps the "authorize group"
-        functionality of the C{authorize_security_group} method.
-
-        For an explanation of the parameters, see C{revoke_security_group}.
-        """
-        d = self.revoke_security_group(
-            group_name,
-            source_group_name=source_group_name,
-            source_group_owner_id=source_group_owner_id)
-        return d
-
-    def revoke_ip_permission(
-        self, group_name, ip_protocol, from_port, to_port, cidr_ip):
+    def revoke_ip_permission( self, group_name, ip_protocol, from_port,
+            to_port, cidr_ip):
         """
         This is a convenience function that wraps the "authorize ip
         permission" functionality of the C{authorize_security_group} method.
@@ -340,7 +299,10 @@ class EC2Client(BaseClient):
         return d.addCallback(self.parser.truth_return)
 
     def describe_snapshots(self, *snapshot_ids):
-        """Describe available snapshots."""
+        """Describe available snapshots.
+        
+        TODO: ownerSet, restorableBySet
+        """
         snapshot_set = {}
         for pos, snapshot_id in enumerate(snapshot_ids):
             snapshot_set["SnapshotId.%d" % (pos + 1)] = snapshot_id
@@ -351,7 +313,10 @@ class EC2Client(BaseClient):
         return d.addCallback(self.parser.snapshots)
 
     def create_snapshot(self, volume_id):
-        """Create a new snapshot of an existing volume."""
+        """Create a new snapshot of an existing volume.
+
+        TODO: description
+        """
         query = self.query_factory(
             action="CreateSnapshot", creds=self.creds, endpoint=self.endpoint,
             other_params={"VolumeId": volume_id})
@@ -379,7 +344,7 @@ class EC2Client(BaseClient):
         """Returns information about key pairs available."""
         keypairs = {}
         for index, keypair_name in enumerate(keypair_names):
-            keypairs["KeyPair.%d" % (index + 1)] = keypair_name
+            keypairs["KeyName.%d" % (index + 1)] = keypair_name
         query = self.query_factory(
             action="DescribeKeyPairs", creds=self.creds,
             endpoint=self.endpoint, other_params=keypairs)
@@ -418,6 +383,9 @@ class EC2Client(BaseClient):
 
         @return: A L{Deferred} firing with a L{model.Keypair} instance if
             successful.
+
+        TODO: there is no corresponding method in the 2009-11-30 version
+             of the ec2 wsdl. Delete this?
         """
         query = self.query_factory(
             action="ImportKeyPair", creds=self.creds, endpoint=self.endpoint,
@@ -530,26 +498,30 @@ class Parser(object):
         @param instance_data: An XML node containing instance data.
         @param reservation: The L{Reservation} associated with the instance.
         @return: An L{Instance}.
+
+        TODO: reason, platform, monitoring, subnetId, vpcId, privateIpAddress,
+              ipAddress, stateReason, architecture, rootDeviceName,
+              blockDeviceMapping, instanceLifecycle, spotInstanceRequestId.
         """
         instance_id = instance_data.findtext("instanceId")
         instance_state = instance_data.find(
             "instanceState").findtext("name")
-        instance_type = instance_data.findtext("instanceType")
-        image_id = instance_data.findtext("imageId")
         private_dns_name = instance_data.findtext("privateDnsName")
         dns_name = instance_data.findtext("dnsName")
         key_name = instance_data.findtext("keyName")
         ami_launch_index = instance_data.findtext("amiLaunchIndex")
-        launch_time = instance_data.findtext("launchTime")
-        placement = instance_data.find("placement").findtext(
-            "availabilityZone")
         products = []
         product_codes = instance_data.find("productCodes")
         if product_codes is not None:
             for product_data in instance_data.find("productCodes"):
                 products.append(product_data.text)
+        instance_type = instance_data.findtext("instanceType")
+        launch_time = instance_data.findtext("launchTime")
+        placement = instance_data.find("placement").findtext(
+            "availabilityZone")
         kernel_id = instance_data.findtext("kernelId")
         ramdisk_id = instance_data.findtext("ramdiskId")
+        image_id = instance_data.findtext("imageId")
         instance = model.Instance(
             instance_id, instance_state, instance_type, image_id,
             private_dns_name, dns_name, key_name, ami_launch_index,
@@ -602,7 +574,8 @@ class Parser(object):
         Parse the reservations XML payload that is returned from an AWS
         RunInstances API call.
 
-        @param xml_bytes: raw XML payload from AWS.
+        @param xml_bytes: raw XML bytes with a C{RunInstancesResponse} root
+            element.
         """
         root = XML(xml_bytes)
         # Get the security group information.
@@ -708,15 +681,17 @@ class Parser(object):
         @param xml_bytes: XML bytes with a C{DescribeVolumesResponse} root
             element.
         @return: A list of L{Volume} instances.
+
+        TODO: attachementSetItemResponseType#deleteOnTermination
         """
         root = XML(xml_bytes)
         result = []
         for volume_data in root.find("volumeSet"):
             volume_id = volume_data.findtext("volumeId")
             size = int(volume_data.findtext("size"))
-            status = volume_data.findtext("status")
-            availability_zone = volume_data.findtext("availabilityZone")
             snapshot_id = volume_data.findtext("snapshotId")
+            availability_zone = volume_data.findtext("availabilityZone")
+            status = volume_data.findtext("status")
             create_time = volume_data.findtext("createTime")
             create_time = datetime.strptime(
                 create_time[:19], "%Y-%m-%dT%H:%M:%S")
@@ -726,8 +701,8 @@ class Parser(object):
             result.append(volume)
             for attachment_data in volume_data.find("attachmentSet"):
                 instance_id = attachment_data.findtext("instanceId")
-                status = attachment_data.findtext("status")
                 device = attachment_data.findtext("device")
+                status = attachment_data.findtext("status")
                 attach_time = attachment_data.findtext("attachTime")
                 attach_time = datetime.strptime(
                     attach_time[:19], "%Y-%m-%dT%H:%M:%S")
@@ -746,10 +721,10 @@ class Parser(object):
         root = XML(xml_bytes)
         volume_id = root.findtext("volumeId")
         size = int(root.findtext("size"))
+        snapshot_id = root.findtext("snapshotId")
+        availability_zone = root.findtext("availabilityZone")
         status = root.findtext("status")
         create_time = root.findtext("createTime")
-        availability_zone = root.findtext("availabilityZone")
-        snapshot_id = root.findtext("snapshotId")
         create_time = datetime.strptime(
             create_time[:19], "%Y-%m-%dT%H:%M:%S")
         volume = model.Volume(
@@ -763,6 +738,9 @@ class Parser(object):
         @param xml_bytes: XML bytes with a C{DescribeSnapshotsResponse} root
             element.
         @return: A list of L{Snapshot} instances.
+
+        TODO: ownersSet, restorableBySet, ownerId, volumeSize, description,
+              ownerAlias.
         """
         root = XML(xml_bytes)
         result = []
@@ -786,6 +764,8 @@ class Parser(object):
         @param xml_bytes: XML bytes with a C{CreateSnapshotResponse} root
             element.
         @return: The L{Snapshot} instance created.
+
+        TODO: ownerId, volumeSize, description.
         """
         root = XML(xml_bytes)
         snapshot_id = root.findtext("snapshotId")
@@ -805,6 +785,8 @@ class Parser(object):
         @param xml_bytes: XML bytes with a C{AttachVolumeResponse} root
             element.
         @return: a C{dict} with status and attach_time keys.
+
+        TODO: volumeId, instanceId, device
         """
         root = XML(xml_bytes)
         status = root.findtext("status")
@@ -845,7 +827,11 @@ class Parser(object):
         return model.Keypair(key_name, key_fingerprint, key_material)
 
     def import_keypair(self, xml_bytes, key_material):
-        """Extract the key name and the fingerprint from the result."""
+        """Extract the key name and the fingerprint from the result.
+        
+        TODO: there is no corresponding method in the 2009-11-30 version
+             of the ec2 wsdl. Delete this?
+        """
         keypair_data = XML(xml_bytes)
         key_name = keypair_data.findtext("keyName")
         key_fingerprint = keypair_data.findtext("keyFingerprint")
@@ -881,6 +867,8 @@ class Parser(object):
         @param xml_bytes: XML bytes with a C{DescribeAvailibilityZonesResponse}
             root element.
         @return: a C{list} of L{AvailabilityZone}.
+
+        TODO: regionName, messageSet
         """
         results = []
         root = XML(xml_bytes)
