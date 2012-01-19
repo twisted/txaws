@@ -250,7 +250,7 @@ class EC2Client(BaseClient):
         d = query.submit()
         return d.addCallback(self.parser.truth_return)
 
-    def revoke_ip_permission( self, group_name, ip_protocol, from_port,
+    def revoke_ip_permission(self, group_name, ip_protocol, from_port,
             to_port, cidr_ip):
         """
         This is a convenience function that wraps the "authorize ip
@@ -300,7 +300,7 @@ class EC2Client(BaseClient):
 
     def describe_snapshots(self, *snapshot_ids):
         """Describe available snapshots.
-        
+
         TODO: ownerSet, restorableBySet
         """
         snapshot_set = {}
@@ -828,7 +828,7 @@ class Parser(object):
 
     def import_keypair(self, xml_bytes, key_material):
         """Extract the key name and the fingerprint from the result.
-        
+
         TODO: there is no corresponding method in the 2009-11-30 version
              of the ec2 wsdl. Delete this?
         """
