@@ -523,6 +523,39 @@ class S3ClientTestCase(TXAWSTestCase):
         s3 = client.S3Client(creds, query_factory=StubQuery)
         return s3.delete_object("mybucket", "objectname")
 
+    def test_put_object_acl(self):
+
+        class StubQuery(client.Query):
+
+            def __init__(query, action, creds, endpoint, bucket=None,
+                         object_name=None, data=""):
+                super(StubQuery, query).__init__(action=action, creds=creds,
+                                                 bucket=bucket,
+                                                 object_name=object_name,
+                                                 data=data)
+                self.assertEquals(action, "PUT")
+                self.assertEqual(creds.access_key, "foo")
+                self.assertEqual(creds.secret_key, "bar")
+                self.assertEqual(query.bucket, "mybucket")
+                self.assertEqual(query.object_name, "myobject?acl")
+                self.assertEqual(query.data,
+                                 payload.sample_access_control_policy_result)
+                self.assertEqual(query.metadata, {})
+                self.assertEqual(query.metadata, {})
+
+            def submit(query, url_context=None):
+                return succeed(payload.sample_access_control_policy_result)
+
+        def check_result(result):
+            self.assert_(isinstance(result, AccessControlPolicy))
+
+        creds = AWSCredentials("foo", "bar")
+        s3 = client.S3Client(creds, query_factory=StubQuery)
+        policy = AccessControlPolicy.from_xml(
+            payload.sample_access_control_policy_result)
+        deferred = s3.put_object_acl("mybucket", "myobject", policy)
+        return deferred.addCallback(check_result)
+
     def test_get_object_acl(self):
 
         class StubQuery(client.Query):
