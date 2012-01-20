@@ -138,15 +138,26 @@ class EC2Client(BaseClient):
         d = query.submit()
         return d.addCallback(self.parser.truth_return)
 
-    def authorize_security_group(self, group_name, ip_protocol="",
-                                 from_port="", to_port="", cidr_ip=""):
+    def authorize_security_group(
+        self, group_name, source_group_name="", source_group_owner_id="",
+        ip_protocol="", from_port="", to_port="", cidr_ip=""):
         """
-        Use C{authorize_security_group} by associating a set of IP permissions
-        with the group you are targeting with an authorization update.
+        There are two ways to use C{authorize_security_group}:
+            1) associate an existing group (source group) with the one that you
+            are targeting (group_name) with an authorization update; or
+            2) associate a set of IP permissions with the group you are
+            targeting with an authorization update.
 
         @param group_name: The group you will be modifying with a new
             authorization.
 
+        Optionally, the following parameters:
+        @param source_group_name: Name of security group to authorize access to
+            when operating on a user/group pair.
+        @param source_group_owner_id: Owner of security group to authorize
+            access to when operating on a user/group pair.
+
+        If those parameters are not specified, then the following must be:
         @param ip_protocol: IP protocol to authorize access to when operating
             on a CIDR IP.
         @param from_port: Bottom of port range to authorize access to when
@@ -160,9 +171,13 @@ class EC2Client(BaseClient):
 
         @return: A C{Deferred} that will fire with a truth value for the
             success of the operation.
-
         """
-        if ip_protocol and from_port and to_port and cidr_ip:
+        if source_group_name and source_group_owner_id:
+            parameters = {
+                "SourceSecurityGroupName": source_group_name,
+                "SourceSecurityGroupOwnerId": source_group_owner_id,
+                }
+        elif ip_protocol and from_port and to_port and cidr_ip:
             parameters = {
                 "IpProtocol": ip_protocol,
                 "FromPort": from_port,
@@ -208,15 +223,26 @@ class EC2Client(BaseClient):
             cidr_ip=cidr_ip)
         return d
 
-    def revoke_security_group(self, group_name, ip_protocol="", from_port="",
-                              to_port="", cidr_ip=""):
+    def revoke_security_group(
+        self, group_name, source_group_name="", source_group_owner_id="",
+        ip_protocol="", from_port="", to_port="", cidr_ip=""):
         """
-        Use C{revoke_security_group} by associating a set of IP permissions
-        with the group you are targeting with a revoke update.
+        There are two ways to use C{revoke_security_group}:
+            1) associate an existing group (source group) with the one that you
+            are targeting (group_name) with the revoke update; or
+            2) associate a set of IP permissions with the group you are
+            targeting with a revoke update.
 
         @param group_name: The group you will be modifying with an
             authorization removal.
 
+        Optionally, the following parameters:
+        @param source_group_name: Name of security group to revoke access from
+            when operating on a user/group pair.
+        @param source_group_owner_id: Owner of security group to revoke
+            access from when operating on a user/group pair.
+
+        If those parameters are not specified, then the following must be:
         @param ip_protocol: IP protocol to revoke access from when operating
             on a CIDR IP.
         @param from_port: Bottom of port range to revoke access from when
@@ -230,9 +256,13 @@ class EC2Client(BaseClient):
 
         @return: A C{Deferred} that will fire with a truth value for the
             success of the operation.
-
         """
-        if ip_protocol and from_port and to_port and cidr_ip:
+        if source_group_name and source_group_owner_id:
+            parameters = {
+                "SourceSecurityGroupName": source_group_name,
+                "SourceSecurityGroupOwnerId": source_group_owner_id,
+                }
+        elif ip_protocol and from_port and to_port and cidr_ip:
             parameters = {
                 "IpProtocol": ip_protocol,
                 "FromPort": from_port,
@@ -250,8 +280,22 @@ class EC2Client(BaseClient):
         d = query.submit()
         return d.addCallback(self.parser.truth_return)
 
-    def revoke_ip_permission(self, group_name, ip_protocol, from_port,
-            to_port, cidr_ip):
+    def revoke_group_permission(
+        self, group_name, source_group_name, source_group_owner_id):
+        """
+        This is a convenience function that wraps the "authorize group"
+        functionality of the C{authorize_security_group} method.
+
+        For an explanation of the parameters, see C{revoke_security_group}.
+        """
+        d = self.revoke_security_group(
+            group_name,
+            source_group_name=source_group_name,
+            source_group_owner_id=source_group_owner_id)
+        return d
+
+    def revoke_ip_permission(
+        self, group_name, ip_protocol, from_port, to_port, cidr_ip):
         """
         This is a convenience function that wraps the "authorize ip
         permission" functionality of the C{authorize_security_group} method.
