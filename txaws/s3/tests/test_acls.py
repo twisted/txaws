@@ -17,7 +17,7 @@ class ACLTests(TestCase):
 </Owner>
 """)
 
-    def test_grantee_to_xml(self):
+    def test_grantee_canonical_to_xml(self):
         grantee = acls.Grantee(id='8a6925ce4adf588a4f21c32aa379004fef',
                                display_name='BucketOwnersEmail@amazon.com')
         xml_bytes = grantee.to_xml()
@@ -25,6 +25,25 @@ class ACLTests(TestCase):
 <Grantee xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:type="CanonicalUser">
   <ID>8a6925ce4adf588a4f21c32aa379004fef</ID>
   <DisplayName>BucketOwnersEmail@amazon.com</DisplayName>
+</Grantee>
+""")
+
+    def test_grantee_email_to_xml(self):
+        grantee = acls.Grantee(email_address="BucketOwnersEmail@amazon.com")
+        xml_bytes = grantee.to_xml()
+        self.assertEquals(xml_bytes, """\
+<Grantee xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:type="AmazonCustomerByEmail">
+  <EmailAddress>BucketOwnersEmail@amazon.com</EmailAddress>
+</Grantee>
+""")
+
+    def test_grantee_uri_to_xml(self):
+        grantee = acls.Grantee(
+            uri='http://acs.amazonaws.com/groups/global/AuthenticatedUsers')
+        xml_bytes = grantee.to_xml()
+        self.assertEquals(xml_bytes, """\
+<Grantee xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:type="Group">
+  <URI>http://acs.amazonaws.com/groups/global/AuthenticatedUsers</URI>
 </Grantee>
 """)
 

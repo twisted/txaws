@@ -99,17 +99,32 @@ class Owner(XMLMixin):
         return buffer
 
 
-class Grantee(Owner):
+class Grantee(XMLMixin):
+
+    def __init__(self, id="", display_name="", email_address="", uri=""):
+        self.id = id
+        self.display_name = display_name
+        self.email_address = email_address
+        self.uri = uri
 
     def _to_xml(self, buffer=None, indent=0):
         if buffer is None:
             buffer = []
         ws = " " * (indent * 2)
+        if self.id and self.display_name:
+            xsi_type = "CanonicalUser"
+            value = ("%s  <ID>%s</ID>\n"
+                     "%s  <DisplayName>%s</DisplayName>\n" % (
+                        ws, self.id, ws, self.display_name))
+        elif self.email_address:
+            xsi_type = "AmazonCustomerByEmail"
+            value = "%s  <EmailAddress>%s</EmailAddress>\n" % (
+                ws, self.email_address)
+        elif self.uri:
+            xsi_type = "Group"
+            value = "%s  <URI>%s</URI>\n" % (ws, self.uri)
         buffer.append("%s<Grantee "
                       'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"'
-                      ' xsi:type="CanonicalUser">\n'
-                      "%s  <ID>%s</ID>\n"
-                      "%s  <DisplayName>%s</DisplayName>\n"
-                      "%s</Grantee>\n" % (ws, ws, self.id, ws,
-                                          self.display_name, ws))
+                      ' xsi:type="%s">\n'
+                      "%s%s</Grantee>\n" % (ws, xsi_type, value, ws))
         return buffer
