@@ -102,6 +102,10 @@ class Owner(XMLMixin):
 class Grantee(XMLMixin):
 
     def __init__(self, id="", display_name="", email_address="", uri=""):
+        if id or display_name:
+            msg = "Both 'id' and 'display_name' must be provided."
+            if not (id and display_name):
+                raise ValueError(msg)
         self.id = id
         self.display_name = display_name
         self.email_address = email_address

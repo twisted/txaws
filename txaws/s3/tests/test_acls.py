@@ -17,6 +17,14 @@ class ACLTests(TestCase):
 </Owner>
 """)
 
+    def test_grantee_canonical_missing_parameter(self):
+        self.assertRaises(
+            ValueError, acls.Grantee,
+            {'id': '8a6925ce4adf588a4f21c32aa379004fef'})
+        self.assertRaises(
+            ValueError, acls.Grantee,
+            {'display_name': 'BucketOwnersEmail@amazon.com'})
+
     def test_grantee_canonical_to_xml(self):
         grantee = acls.Grantee(id='8a6925ce4adf588a4f21c32aa379004fef',
                                display_name='BucketOwnersEmail@amazon.com')
