@@ -63,7 +63,7 @@ class AWSStatusIcon(gtk.StatusIcon):
 
     def set_region(self, creds):
         from txaws.service import AWSServiceRegion
-    self.region = AWSServiceRegion(creds)
+        self.region = AWSServiceRegion(creds)
 
     def create_client(self, creds):
         if creds is not None:
