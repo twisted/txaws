@@ -63,7 +63,7 @@ class URLContextTestCase(TXAWSTestCase):
             "http://localhost/mydocs/notes.txt")
 
     def test_custom_port_endpoint(self):
-        test_uri='http://0.0.0.0:12345/'
+        test_uri = 'http://0.0.0.0:12345/'
         endpoint = AWSServiceEndpoint(uri=test_uri)
         self.assertEquals(endpoint.port, 12345)
         self.assertEquals(endpoint.scheme, 'http')
@@ -74,7 +74,7 @@ class URLContextTestCase(TXAWSTestCase):
         self.assertEquals(context.get_url(), test_uri + 'foo/bar')
 
     def test_custom_port_endpoint_https(self):
-        test_uri='https://0.0.0.0:12345/'
+        test_uri = 'https://0.0.0.0:12345/'
         endpoint = AWSServiceEndpoint(uri=test_uri)
         self.assertEquals(endpoint.port, 12345)
         self.assertEquals(endpoint.scheme, 'https')

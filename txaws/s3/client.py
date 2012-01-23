@@ -61,7 +61,8 @@ class URLContext(object):
     def get_url(self):
         if self.endpoint.port is not None:
             return "%s://%s:%d%s" % (
-                self.endpoint.scheme, self.get_host(), self.endpoint.port, self.get_path())
+                self.endpoint.scheme, self.get_host(), self.endpoint.port,
+                self.get_path())
         else:
             return "%s://%s%s" % (
                 self.endpoint.scheme, self.get_host(), self.get_path())
