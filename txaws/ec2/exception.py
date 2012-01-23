@@ -15,6 +15,3 @@ class EC2Error(AWSError):
                 data = self._node_to_dict(error)
                 if data:
                     self.errors.append(data)
-
-
-

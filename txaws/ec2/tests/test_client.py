@@ -139,7 +139,8 @@ class EC2ClientTestCase(TXAWSTestCase):
 
             def submit(self):
                 return succeed(
-                    payload.sample_describe_availability_zones_multiple_results)
+                    payload.
+                        sample_describe_availability_zones_multiple_results)
 
         def check_parsed_availability_zones(results):
             self.assertEquals(len(results), 3)
@@ -1751,7 +1752,8 @@ class SignatureTestCase(TXAWSTestCase):
             "&SignatureVersion=2&"
             "Timestamp=2007-11-12T13%3A14%3A15Z&Version=2008-12-01&"
             "argwithnovalue=&fu%20n=g%2Fames")
-        self.assertEqual(expected_params, signature.get_canonical_query_params())
+        self.assertEqual(
+            expected_params, signature.get_canonical_query_params())
 
     def test_signing_text(self):
         signature = client.Signature(self.creds, self.endpoint, self.params)
