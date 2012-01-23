@@ -4,6 +4,7 @@ from twisted.trial.unittest import TestCase
 
 from txaws.util import hmac_sha1, iso8601time, parse
 
+
 class MiscellaneousTests(TestCase):
 
     def test_hmac_sha1(self):
@@ -20,8 +21,8 @@ class MiscellaneousTests(TestCase):
             self.assertEqual(hmac_sha1(key, data), expected)
 
     def test_iso8601time(self):
-        self.assertEqual("2006-07-07T15:04:56Z", iso8601time((2006,7,7,15,4,56,
-            0, 0, 0)))
+        self.assertEqual("2006-07-07T15:04:56Z",
+                         iso8601time((2006, 7, 7, 15, 4, 56, 0, 0, 0)))
 
 
 class ParseUrlTestCase(TestCase):
