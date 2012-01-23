@@ -328,7 +328,7 @@ class DateTest(TestCase):
         """
         parameter = Date("Test")
         date = datetime(2010, 9, 15, 23, 59, 59,
-                        tzinfo=tzoffset('UTC', 120*60))
+                        tzinfo=tzoffset('UTC', 120 * 60))
         self.assertEqual("2010-09-15T21:59:59Z", parameter.format(date))
 
 
