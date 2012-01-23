@@ -884,7 +884,7 @@ class EC2ClientSecurityGroupsTestCase(TXAWSTestCase):
                 self.assertEqual(other_params, {
                     "GroupName": "WebServers",
                     "SourceSecurityGroupName": "AppServers",
-                    "UserId": "123456789123",
+                    "SourceSecurityGroupOwnerId": "123456789123",
                     })
 
             def submit(self):
