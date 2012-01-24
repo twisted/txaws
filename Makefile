@@ -1,3 +1,14 @@
+PLATFORM = $(shell uname)
+ifeq ($(PLATFORM), Darwin)
+PYBIN = Python
+else
+PYBIN = python
+endif
+
+
+check-pybin:
+	echo "$(PYBIN)"
+
 version:
 	@python -c "from txaws import version;print version.txaws;"
 
@@ -17,7 +28,7 @@ build:
 
 virtual-dir-setup: VERSION ?= 2.7
 virtual-dir-setup:
-	-@test -d .venv-$(VERSION) || virtualenv -p Python$(VERSION) .venv-$(VERSION)
+	-@test -d .venv-$(VERSION) || virtualenv -p $(PYBIN)$(VERSION) .venv-$(VERSION)
 	-@test -e .venv-$(VERSION)/bin/twistd || . .venv-$(VERSION)/bin/activate && pip install twisted
 	-@test -e .venv-$(VERSION)/bin/pep8 || . .venv-$(VERSION)/bin/activate && pip install pep8
 	-@test -e .venv-$(VERSION)/bin/pyflakes || . .venv-$(VERSION)/bin/activate && pip install pyflakes
@@ -28,9 +39,9 @@ virtual-dir-setup:
 
 
 virtual-builds:
-	-@test -e "`which python2.5`" && VERSION=2.5 make virtual-dir-setup || echo "Couldn't find Python2.5"
-	-@test -e "`which python2.6`" && VERSION=2.6 make virtual-dir-setup || echo "Couldn't find Python2.6"
-	-@test -e "`which python2.7`" && VERSION=2.7 make virtual-dir-setup || echo "Couldn't find Python2.7"
+	-@test -e "`which $(PYBIN)2.5`" && VERSION=2.5 make virtual-dir-setup || echo "Couldn't find $(PYBIN)2.5"
+	-@test -e "`which $(PYBIN)2.6`" && VERSION=2.6 make virtual-dir-setup || echo "Couldn't find $(PYBIN)2.6"
+	-@test -e "`which $(PYBIN)2.7`" && VERSION=2.7 make virtual-dir-setup || echo "Couldn't find $(PYBIN)2.7"
 
 
 virtual-trial: VERSION ?= 2.7
