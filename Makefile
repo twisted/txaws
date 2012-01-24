@@ -38,11 +38,26 @@ virtual-builds:
 	-@test -e "`which python2.7`" && VERSION=2.7 make virtual-dir-setup || echo "Couldn't find Python2.7"
 
 
+virtual-trial: VERSION ?= 2.5
+virtual-trial:
+	. .venv-$(VERSION)/bin/activate && trial ./txaws
+
+
+virtual-pep8: VERSION ?= 2.5
+virtual-pep8:
+	-. .venv-$(VERSION)/bin/activate && pep8 ./txaws
+
+
+virtual-pyflakes: VERSION ?= 2.5
+virtual-pyflakes:
+	-. .venv-$(VERSION)/bin/activate && pyflakes ./txaws
+
+
 virtual-check: VERSION ?= 2.5
 virtual-check:
-	-. .venv-$(VERSION)/bin/activate && trial ./txaws
-	-. .venv-$(VERSION)/bin/activate && pep8 ./txaws
-	-. .venv-$(VERSION)/bin/activate && pyflakes ./txaws
+	-VERSION=$(VERSION) make virtual-trial
+	-VERSION=$(VERSION) make virtual-pep8
+	-VERSION=$(VERSION) make virtual-pyflakes
 
 
 virtual-checks: virtual-builds
