@@ -4,7 +4,7 @@ from txaws.credentials import AWSCredentials
 try:
     from txaws.s3 import client
 except ImportError:
-    s3clientSkip = ("S3Client couldn't be imported (perhaps because epsilon, "
+    s3clientSkip = ("S3Client couldn't be imported (perhaps because dateutil, "
                     "on which it depends, isn't present)")
 else:
     s3clientSkip = None
