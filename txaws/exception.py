@@ -122,7 +122,6 @@ class AWSError(Error):
             return self.errors[0]["Message"]
 
 
-
 class AWSResponseParseError(Exception):
     """
     txAWS was unable to parse the server response.

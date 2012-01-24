@@ -22,7 +22,8 @@ sample_required_describe_instances_result = """\
             <code>16</code>
             <name>running</name>
           </instanceState>
-          <privateDnsName>domU-12-31-39-03-15-11.compute-1.internal</privateDnsName>
+          <privateDnsName>domU-12-31-39-03-15-11.compute-1.internal\
+</privateDnsName>
           <dnsName>ec2-75-101-245-65.compute-1.amazonaws.com</dnsName>
           <instanceType>c1.xlarge</instanceType>
           <launchTime>2009-04-27T02:23:18.000Z</launchTime>
@@ -58,7 +59,8 @@ sample_describe_instances_result = """\
             <code>16</code>
             <name>running</name>
           </instanceState>
-          <privateDnsName>domU-12-31-39-03-15-11.compute-1.internal</privateDnsName>
+          <privateDnsName>domU-12-31-39-03-15-11.compute-1.internal\
+</privateDnsName>
           <dnsName>ec2-75-101-245-65.compute-1.amazonaws.com</dnsName>
           <reason/>
           <keyName>keyname</keyName>
@@ -494,7 +496,8 @@ sample_delete_security_group_failure = """\
   <Errors>
     <Error>
       <Code>InvalidGroup.InUse</Code>
-      <Message>Group groupID1:GroupReferredTo is used by groups: groupID2:UsingGroup</Message>
+      <Message>Group groupID1:GroupReferredTo is used by groups: \
+groupID2:UsingGroup</Message>
     </Error>
   </Errors>
   <RequestID>9a6df05f-9c27-47aa-81d8-6619689210cc</RequestID>
@@ -503,7 +506,8 @@ sample_delete_security_group_failure = """\
 
 
 sample_authorize_security_group = """\
-<AuthorizeSecurityGroupIngressResponse xmlns="http://ec2.amazonaws.com/doc/%s/">
+<AuthorizeSecurityGroupIngressResponse\
+ xmlns="http://ec2.amazonaws.com/doc/%s/">
   <return>true</return>
 </AuthorizeSecurityGroupIngressResponse>
 """ % (version.ec2_api,)
@@ -650,7 +654,8 @@ sample_single_describe_keypairs_result = """\
   <keySet>
     <item>
       <keyName>gsg-keypair</keyName>
-      <keyFingerprint>1f:51:ae:28:bf:89:e9:d8:1f:25:5d:37:2d:7d:b8:ca:9f:f5:f1:6f</keyFingerprint>
+      <keyFingerprint>1f:51:ae:28:bf:89:e9:d8:1f:25:5d:37:2d:7d:b8:\
+ca:9f:f5:f1:6f</keyFingerprint>
     </item>
   </keySet>
 </DescribeKeyPairsResponse>
@@ -663,11 +668,13 @@ sample_multiple_describe_keypairs_result = """\
   <keySet>
     <item>
       <keyName>gsg-keypair-1</keyName>
-      <keyFingerprint>1f:51:ae:28:bf:89:e9:d8:1f:25:5d:37:2d:7d:b8:ca:9f:f5:f1:6f</keyFingerprint>
+      <keyFingerprint>1f:51:ae:28:bf:89:e9:d8:1f:25:5d:37:2d:7d:b8:\
+ca:9f:f5:f1:6f</keyFingerprint>
     </item>
     <item>
       <keyName>gsg-keypair-2</keyName>
-      <keyFingerprint>1f:51:ae:28:bf:89:e9:d8:1f:25:5d:37:2d:7d:b8:ca:9f:f5:f1:70</keyFingerprint>
+      <keyFingerprint>1f:51:ae:28:bf:89:e9:d8:1f:25:5d:37:2d:7d:b8:\
+ca:9f:f5:f1:70</keyFingerprint>
     </item>
   </keySet>
 </DescribeKeyPairsResponse>
@@ -678,7 +685,8 @@ sample_create_keypair_result = """\
 <?xml version="1.0"?>
 <CreateKeyPairResponse xmlns="http://ec2.amazonaws.com/doc/%s/">
   <keyName>example-key-name</keyName>
-  <keyFingerprint>1f:51:ae:28:bf:89:e9:d8:1f:25:5d:37:2d:7d:b8:ca:9f:f5:f1:6f</keyFingerprint>
+  <keyFingerprint>1f:51:ae:28:bf:89:e9:d8:1f:25:5d:37:2d:7d:b8:\
+ca:9f:f5:f1:6f</keyFingerprint>
   <keyMaterial>-----BEGIN RSA PRIVATE KEY-----
 MIIEoQIBAAKCAQBuLFg5ujHrtm1jnutSuoO8Xe56LlT+HM8v/xkaa39EstM3/aFxTHgElQiJLChp
 HungXQ29VTc8rc1bW0lkdi23OH5eqkMHGhvEwqa0HWASUMll4o3o/IX+0f2UcPoKCOVUR+jx71Sg
@@ -747,7 +755,8 @@ sample_import_keypair_result = """\
 <?xml version="1.0"?>
 <ImportKeyPairResponse xmlns="http://ec2.amazonaws.com/doc/%s/">
   <keyName>example-key-name</keyName>
-  <keyFingerprint>1f:51:ae:28:bf:89:e9:d8:1f:25:5d:37:2d:7d:b8:ca:9f:f5:f1:6f</keyFingerprint>
+  <keyFingerprint>1f:51:ae:28:bf:89:e9:d8:1f:25:5d:37:2d:7d:b8:\
+ca:9f:f5:f1:6f</keyFingerprint>
 </ImportKeyPairResponse>
 """ % (version.ec2_api,)
 
@@ -837,7 +846,8 @@ sample_invalid_client_token_result = """\
   <Errors>
     <Error>
       <Code>InvalidClientTokenId</Code>
-      <Message>The AWS Access Key Id you provided does not exist in our records.</Message>
+      <Message>The AWS Access Key Id you provided does not exist in our\
+ records.</Message>
     </Error>
   </Errors>
   <RequestID>47bfd77d-78d6-446d-be0d-f7621795dded</RequestID>
@@ -865,7 +875,8 @@ sample_server_internal_error_result = """\
   <Code>InternalError</Code>
   <Message>We encountered an internal error. Please try again.</Message>
   <RequestID>A2A7E5395E27DFBB</RequestID>
-  <HostID>f691zulHNsUqonsZkjhILnvWwD3ZnmOM4ObM1wXTc6xuS3GzPmjArp8QC/sGsn6K</HostID>
+  <HostID>f691zulHNsUqonsZkjhILnvWwD3ZnmOM4ObM1wXTc6xuS3GzPmjArp8QC/sGsn6K\
+</HostID>
 </Error>
 """
 
@@ -926,7 +937,8 @@ sample_get_bucket_result = """\
 
 
 sample_get_bucket_location_result = """\
-<LocationConstraint xmlns="http://s3.amazonaws.com/doc/2006-03-01/">EU</LocationConstraint>
+<LocationConstraint xmlns="http://s3.amazonaws.com/doc/2006-03-01/">EU\
+</LocationConstraint>
 
 """
 sample_request_payment = """\
@@ -940,12 +952,18 @@ sample_s3_signature_mismatch = """\
 <?xml version="1.0" encoding="UTF-8"?>
 <Error>
   <Code>SignatureDoesNotMatch</Code>
-  <Message>The request signature we calculated does not match the signature you provided. Check your key and signing method.</Message>
-  <StringToSignBytes>47 45 54 0a 31 42 32 4d 32 59 38 41 73 67 54 70 67 41 6d 59 37 50 68 43 66 67 3d 3d 0a 0a 54 68 75 2c 20 30 35 20 4e 6f 76 20 32 30 30 39 20 32 31 3a 33 33 3a 32 39 20 47 4d 54 0a 2f</StringToSignBytes>
+  <Message>The request signature we calculated does not match the signature\
+ you provided. Check your key and signing method.</Message>
+  <StringToSignBytes>47 45 54 0a 31 42 32 4d 32 59 38 41 73 67 54 70 67 41 6d\
+ 59 37 50 68 43 66 67 3d 3d 0a 0a 54 68 75 2c 20 30 35 20 4e 6f 76 20 32 30\
+ 30 39 20 32 31 3a 33 33 3a 32 39 20 47 4d 54 0a 2f</StringToSignBytes>
   <RequestId>AB9216C8640751B2</RequestId>
-  <HostId>sAPBpmFdsOsgUUwtSLsiT6KIwP1mPbmrYY0xUoahzJE263qmABkTaqzGhHddgOq5</HostId>
-  <SignatureProvided>ltowhdrbjaQ8dQc9VS5MxzJfsPJZi0BZHEzJC3r9pzU=</SignatureProvided>
-  <StringToSign>GET\n1B2M2Y8AsgTpgAmY7PhCfg==\n\nThu, 05 Nov 2009 21:33:29 GMT\n/</StringToSign>
+  <HostId>sAPBpmFdsOsgUUwtSLsiT6KIwP1mPbmrYY0xUoahzJE263qmABkTaqzGhHddgOq5\
+</HostId>
+  <SignatureProvided>ltowhdrbjaQ8dQc9VS5MxzJfsPJZi0BZHEzJC3r9pzU=
+</SignatureProvided>
+  <StringToSign>GET\n1B2M2Y8AsgTpgAmY7PhCfg==\n\nThu, 05 Nov 2009 21:33:29\
+ GMT\n/</StringToSign>
   <AWSAccessKeyId>SOMEKEYID</AWSAccessKeyId>
 </Error>
 """
@@ -955,9 +973,11 @@ sample_s3_invalid_access_key_result = """\
 <?xml version="1.0" encoding="UTF-8"?>
 <Error>
   <Code>InvalidAccessKeyId</Code>
-  <Message>The AWS Access Key Id you provided does not exist in our records.</Message>
+  <Message>The AWS Access Key Id you provided does not exist in our records.\
+</Message>
   <RequestId>0223AD81A94821CE</RequestId>
-  <HostId>HAw5g9P1VkN8ztgLKFTK20CY5LmCfTwXcSths1O7UQV6NuJx2P4tmFnpuOsziwOE</HostId>
+  <HostId>HAw5g9P1VkN8ztgLKFTK20CY5LmCfTwXcSths1O7UQV6NuJx2P4tmFnpuOsziwOE\
+</HostId>
   <AWSAccessKeyId>SOMEKEYID</AWSAccessKeyId>
 </Error>
 """
@@ -970,14 +990,16 @@ sample_access_control_policy_result = """\
   </Owner>
   <AccessControlList>
     <Grant>
-      <Grantee xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:type="CanonicalUser">
+      <Grantee xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"\
+ xsi:type="CanonicalUser">
         <ID>8a6925ce4adf588a4f21c32aa379004fef</ID>
         <DisplayName>foo@example.net</DisplayName>
       </Grantee>
       <Permission>FULL_CONTROL</Permission>
     </Grant>
     <Grant>
-      <Grantee xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:type="CanonicalUser">
+      <Grantee xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"\
+ xsi:type="CanonicalUser">
         <ID>8a6925ce4adf588a4f21c32aa37900feed</ID>
         <DisplayName>bar@example.net</DisplayName>
       </Grantee>

@@ -22,7 +22,8 @@ class ACLTests(TestCase):
                                display_name='BucketOwnersEmail@amazon.com')
         xml_bytes = grantee.to_xml()
         self.assertEquals(xml_bytes, """\
-<Grantee xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:type="CanonicalUser">
+<Grantee xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"\
+ xsi:type="CanonicalUser">
   <ID>8a6925ce4adf588a4f21c32aa379004fef</ID>
   <DisplayName>BucketOwnersEmail@amazon.com</DisplayName>
 </Grantee>
@@ -35,7 +36,8 @@ class ACLTests(TestCase):
         xml_bytes = grant.to_xml()
         self.assertEquals(xml_bytes, """\
 <Grant>
-  <Grantee xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:type="CanonicalUser">
+  <Grantee xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"\
+ xsi:type="CanonicalUser">
     <ID>8a6925ce4adf588a4f21c32aa379004fef</ID>
     <DisplayName>BucketOwnersEmail@amazon.com</DisplayName>
   </Grantee>

@@ -8,4 +8,3 @@ class UITests(TestCase):
 
     pass
     # Really need some, but UI testing hurts my brain.
-

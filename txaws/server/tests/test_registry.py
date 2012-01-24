@@ -98,6 +98,7 @@ class RegistryTest(TestCase):
         deal with scanning errors.
         """
         swallowed = []
+
         def swallow(error):
             swallowed.append(error)
 
