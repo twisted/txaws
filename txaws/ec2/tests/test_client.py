@@ -1735,6 +1735,15 @@ class SignatureTestCase(TXAWSTestCase):
         signature = client.Signature(self.creds, self.endpoint, self.params)
         self.assertEqual("a%20space", signature.encode("a space"))
 
+    def test_encode_unicode(self):
+        """
+        L{Signature.encode} accepts unicode strings and encode them un UTF-8.
+        """
+        signature = client.Signature(self.creds, self.endpoint, self.params)
+        self.assertEqual(
+            "f%C3%A9e",
+            signature.encode(u"f\N{LATIN SMALL LETTER E WITH ACUTE}e"))
+
     def test_canonical_query(self):
         signature = client.Signature(self.creds, self.endpoint, self.params)
         time_tuple = (2007, 11, 12, 13, 14, 15, 0, 0, 0)
