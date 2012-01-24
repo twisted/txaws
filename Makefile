@@ -102,7 +102,7 @@ register:
 	python setup.py register
 
 
-upload: check
+upload: check build
 	python setup.py sdist upload --show-response
 
 
