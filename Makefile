@@ -40,7 +40,7 @@ virtual-builds:
 
 virtual-trial: VERSION ?= 2.5
 virtual-trial:
-	. .venv-$(VERSION)/bin/activate && trial ./txaws
+	-. .venv-$(VERSION)/bin/activate && trial ./txaws
 
 
 virtual-pep8: VERSION ?= 2.5
@@ -60,7 +60,20 @@ virtual-check:
 	-VERSION=$(VERSION) make virtual-pyflakes
 
 
-virtual-checks: virtual-builds
+virtual-setup-build: VERSION ?= 2.5
+virtual-setup-build:
+	-@. .venv-$(VERSION)/bin/activate && python setup.py build
+	-@. .venv-$(VERSION)/bin/activate && python setup.py sdist
+
+
+virtual-setup-builds: VERSION ?= 2.5
+virtual-setup-builds:
+	-@test -e "`which python2.5`" && VERSION=2.5 make virtual-setup-build
+	-@test -e "`which python2.6`" && VERSION=2.6 make virtual-setup-build
+	-@test -e "`which python2.7`" && VERSION=2.7 make virtual-setup-build
+
+
+virtual-checks: virtual-builds virtual-setup-build
 	-@test -e "`which python2.5`" && VERSION=2.5 make virtual-check
 	-@test -e "`which python2.6`" && VERSION=2.6 make virtual-check
 	-@test -e "`which python2.7`" && VERSION=2.7 make virtual-check
@@ -72,12 +85,12 @@ clean-virtual-builds: clean
 	@VERSION=2.7 make virtual-dir-remove
 
 
-virtual-build-clean: clean-virt build virtual-build
+virtual-build-clean: clean-virtual-builds build virtual-builds
 .PHONY: virtual-build-clean
 
 
 check: MOD ?= txaws
-check: build sdist
+check: build
 	trial ./txaws
 
 
