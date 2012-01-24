@@ -153,10 +153,10 @@ sample_terminate_instances_result = """\
   <instancesSet>
     <item>
       <instanceId>i-1234</instanceId>
-      <shutdownState>
+      <currentState>
         <code>32</code>
         <name>shutting-down</name>
-      </shutdownState>
+      </currentState>
       <previousState>
         <code>16</code>
         <name>running</name>
@@ -164,10 +164,10 @@ sample_terminate_instances_result = """\
     </item>
     <item>
       <instanceId>i-5678</instanceId>
-      <shutdownState>
+      <currentState>
         <code>32</code>
         <name>shutting-down</name>
-      </shutdownState>
+      </currentState>
       <previousState>
         <code>32</code>
         <name>shutting-down</name>
@@ -985,4 +985,3 @@ sample_access_control_policy_result = """\
     </Grant>
   </AccessControlList>
 </AccessControlPolicy>"""
-
