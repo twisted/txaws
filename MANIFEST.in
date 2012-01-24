@@ -1,5 +1,5 @@
 include README
 include LICENSE
 include setup.py
-recursive-include bin
-recursive-include txaws/*.py
+graft bin
+recursive-include txaws *.py
