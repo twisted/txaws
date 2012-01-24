@@ -24,7 +24,7 @@ virtual-dir-setup:
 	-. .venv-$(VERSION)/bin/activate && pip install lxml
 	-. .venv-$(VERSION)/bin/activate && pip install PyOpenSSL
 	-. .venv-$(VERSION)/bin/activate && pip install venusian
-	-. .venv-$(VERSION)/bin/activate && pip install http://labix.org/download/python-dateutil/python-dateutil-1.5.tar.gz
+	-. .venv-$(VERSION)/bin/activate && pip install 'python-dateutil<2.0'
 
 
 virtual-builds:
