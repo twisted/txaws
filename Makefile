@@ -107,17 +107,9 @@ check: build
 	trial ./txaws
 
 
-build-docs:
-	cd docs/sphinx; make html
-
-
 register:
 	python setup.py register
 
 
 upload: check build
 	python setup.py sdist upload --show-response
-
-
-upload-docs: build-docs
-	python setup.py upload_docs --upload-dir=docs/html/
