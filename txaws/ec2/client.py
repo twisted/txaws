@@ -964,7 +964,8 @@ class Signature(object):
     @ivar creds: The L{AWSCredentials} to use to compute the signature.
     @ivar endpoint: The {AWSServiceEndpoint} to consider.
     @ivar params: A C{dict} of parameters to consider. They should be byte
-        strings, but unicode strings are supported and will be encode in UTF-8.
+        strings, but unicode strings are supported and will be encoded in
+        UTF-8.
     """
 
     def __init__(self, creds, endpoint, params):
