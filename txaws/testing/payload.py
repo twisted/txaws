@@ -985,4 +985,3 @@ sample_access_control_policy_result = """\
     </Grant>
   </AccessControlList>
 </AccessControlPolicy>"""
-

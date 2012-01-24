@@ -754,7 +754,6 @@ class EC2ClientSecurityGroupsTestCase(TXAWSTestCase):
             source_group_owner_id="123456789123")
         return self.assertTrue(d)
 
-
     def test_authorize_ip_permission(self):
         """
         L{EC2Client.authorize_ip_permission} returns a C{Deferred} that
@@ -896,7 +895,6 @@ class EC2ClientSecurityGroupsTestCase(TXAWSTestCase):
             "WebServers", source_group_name="AppServers",
             source_group_owner_id="123456789123")
         return self.assertTrue(d)
-
 
     def test_revoke_ip_permission(self):
         """
