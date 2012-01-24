@@ -74,6 +74,19 @@ virtual-checks: virtual-setup-builds
 	-@test -e "`which python2.7`" && VERSION=2.7 make virtual-check
 
 
+virtual-uninstall: VERSION ?= 2.5
+virtual-uninstall: PACKAGE ?= ""
+virtual-uninstall:
+	-. .venv-$(VERSION)/bin/activate && pip uninstall $(PACKAGE)
+
+
+virtual-uninstalls: PACKAGE ?= ""
+virtual-uninstalls:
+	-@test -e "`which python2.5`" && VERSION=2.5 PACKAGE=$(PACKAGE) make virtual-uninstall
+	-@test -e "`which python2.6`" && VERSION=2.6 PACKAGE=$(PACKAGE) make virtual-uninstall
+	-@test -e "`which python2.7`" && VERSION=2.7 PACKAGE=$(PACKAGE) make virtual-uninstall
+
+
 virtual-dir-remove: VERSION ?= 2.5
 virtual-dir-remove:
 	rm -rfv .venv-$(VERSION)
