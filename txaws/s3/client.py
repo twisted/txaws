@@ -284,6 +284,16 @@ class S3Client(BaseClient):
             bucket=bucket, object_name=object_name)
         return query.submit()
 
+    def put_object_acl(self, bucket, object_name, access_control_policy):
+        """
+        Set access control policy on an object.
+        """
+        data = access_control_policy.to_xml()
+        query = self.query_factory(
+            action='PUT', creds=self.creds, endpoint=self.endpoint,
+            bucket=bucket, object_name='%s?acl' % object_name, data=data)
+        return query.submit().addCallback(self._parse_acl)
+
     def get_object_acl(self, bucket, object_name):
         """
         Get the access control policy for an object.
