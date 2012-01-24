@@ -963,7 +963,9 @@ class Signature(object):
 
     @ivar creds: The L{AWSCredentials} to use to compute the signature.
     @ivar endpoint: The {AWSServiceEndpoint} to consider.
-    @ivar params: A C{dict} of parameters to consider.
+    @ivar params: A C{dict} of parameters to consider. They should be byte
+        strings, but unicode strings are supported and will be encoded in
+        UTF-8.
     """
 
     def __init__(self, creds, endpoint, params):
@@ -1016,6 +1018,8 @@ class Signature(object):
         See the AWS dev reference page 90 (2008-12-01 version).
         @return: a_string encoded.
         """
+        if isinstance(string, unicode):
+            string = string.encode("utf-8")
         return quote(string, safe="~")
 
     def sorted_params(self):
