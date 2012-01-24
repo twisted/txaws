@@ -62,13 +62,13 @@ virtual-setup-build:
 
 
 virtual-setup-builds: VERSION ?= 2.5
-virtual-setup-builds:
+virtual-setup-builds: virtual-builds
 	-@test -e "`which python2.5`" && VERSION=2.5 make virtual-setup-build
 	-@test -e "`which python2.6`" && VERSION=2.6 make virtual-setup-build
 	-@test -e "`which python2.7`" && VERSION=2.7 make virtual-setup-build
 
 
-virtual-checks: virtual-builds virtual-setup-build
+virtual-checks: virtual-setup-builds
 	-@test -e "`which python2.5`" && VERSION=2.5 make virtual-check
 	-@test -e "`which python2.6`" && VERSION=2.6 make virtual-check
 	-@test -e "`which python2.7`" && VERSION=2.7 make virtual-check
