@@ -6,9 +6,6 @@ PYBIN = python
 endif
 
 
-check-pybin:
-	echo "$(PYBIN)"
-
 version:
 	@python -c "from txaws import version;print version.txaws;"
 
