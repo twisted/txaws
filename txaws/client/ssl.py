@@ -85,7 +85,8 @@ class VerifyingContextFactory(CertificateOptions):
 
 def get_ca_certs():
     """
-    Retrieve a list of CAs pointed by C{files}.
+    Retrieve a list of CAs at either the DEFAULT_CERTS_PATH or the env
+    override, CERTS_PATH.   
     
     In order to find .pem files, this function checks first for presence of the
     CERTS_PATH environment variable that should point to a directory containing
