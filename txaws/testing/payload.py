@@ -1007,3 +1007,37 @@ sample_access_control_policy_result = """\
     </Grant>
   </AccessControlList>
 </AccessControlPolicy>"""
+
+sample_s3_get_bucket_lifecycle_result = """\
+<?xml version="1.0" encoding="UTF-8"?>
+<LifecycleConfiguration xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
+   <Rule>
+      <ID>30-day-log-deletion-rule</ID>
+      <Prefix>logs</Prefix>
+      <Status>Enabled</Status>
+      <Expiration>
+         <Days>30</Days>
+      </Expiration>
+   </Rule>
+</LifecycleConfiguration>"""
+
+sample_s3_get_bucket_lifecycle_multiple_rules_result = """\
+<?xml version="1.0" encoding="UTF-8"?>
+<LifecycleConfiguration xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
+   <Rule>
+      <ID>30-day-log-deletion-rule</ID>
+      <Prefix>logs</Prefix>
+      <Status>Enabled</Status>
+      <Expiration>
+         <Days>30</Days>
+      </Expiration>
+   </Rule>
+   <Rule>
+      <ID>another-id</ID>
+      <Prefix>another-logs</Prefix>
+      <Status>Disabled</Status>
+      <Expiration>
+         <Days>37</Days>
+      </Expiration>
+   </Rule>
+</LifecycleConfiguration>"""
