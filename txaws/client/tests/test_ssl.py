@@ -1,18 +1,7 @@
-
-"""
-txaws/client/tests/test_ssl.py:9: 'ConnectionRefusedError' imported but unused
-txaws/client/tests/test_ssl.py:13: 'Failure' imported but unused
-txaws/client/tests/test_ssl.py:15: 'HTTPClientFactory' imported but unused
-txaws/client/tests/test_ssl.py:16: 'TwistedWebError' imported but unused
-txaws/client/tests/test_ssl.py:18: 'error_wrapper' imported but unused
-txaws/client/tests/test_ssl.py:18: 'BaseClient' imported but unused
-txaws/client/tests/test_ssl.py:19: 'VerifyingContextFactory' imported but
-unused
-"""
-
 import os
+import tempfile
 
-from OpenSSL.crypto import load_certificate, FILETYPE_PEM
+from OpenSSL.crypto import dump_certificate, load_certificate, FILETYPE_PEM
 from OpenSSL.SSL import Error as SSLError
 from OpenSSL.version import __version__ as pyopenssl_version
 
@@ -21,8 +10,11 @@ from twisted.internet.ssl import DefaultOpenSSLContextFactory
 from twisted.protocols.policies import WrappingFactory
 from twisted.python import log
 from twisted.python.filepath import FilePath
+from twisted.test.test_sslverify import makeCertificate
 from twisted.web import server, static
 
+from txaws import exception
+from txaws.client import ssl
 from txaws.client.base import BaseQuery
 from txaws.service import AWSServiceEndpoint
 from txaws.testing.base import TXAWSTestCase
@@ -50,7 +42,6 @@ class BaseQuerySSLTestCase(TXAWSTestCase):
         r = static.File(name)
         self.site = server.Site(r, timeout=None)
         self.wrapper = WrappingFactory(self.site)
-        from txaws.client import ssl
         pub_key = file(PUBKEY)
         pub_key_data = pub_key.read()
         pub_key.close()
@@ -61,7 +52,6 @@ class BaseQuerySSLTestCase(TXAWSTestCase):
                          load_certificate(FILETYPE_PEM, pub_key_san_data)]
 
     def tearDown(self):
-        from txaws.client import ssl
         ssl._ca_certs = None
         # If the test indicated it might leave some server-side connections
         # around, clean them up.
@@ -148,14 +138,62 @@ class BaseQuerySSLTestCase(TXAWSTestCase):
 
 class CertsFilesTestCase(TXAWSTestCase):
 
+    def setUp(self):
+        super(CertsFilesTestCase, self).setUp()
+        # set up temp dir with no certs
+        self.no_certs_dir = tempfile.mkdtemp()
+        # create certs
+        cert1 = makeCertificate(O="Server Certificate 1", CN="cn1")
+        cert2 = makeCertificate(O="Server Certificate 2", CN="cn2")
+        cert3 = makeCertificate(O="Server Certificate 3", CN="cn3")
+        # set up temp dir with one cert
+        self.one_cert_dir = tempfile.mkdtemp()
+        self.cert1 = self._write_pem(cert1, self.one_cert_dir, "cert1.pem")
+        # set up temp dir with two certs
+        self.two_certs_dir = tempfile.mkdtemp()
+        self.cert2 = self._write_pem(cert2, self.two_certs_dir, "cert2.pem")
+        self.cert3 = self._write_pem(cert3, self.two_certs_dir, "cert3.pem")
+
+    def tearDown(self):
+        super(CertsFilesTestCase, self).tearDown()
+        os.unlink(self.cert1)
+        os.unlink(self.cert2)
+        os.unlink(self.cert3)
+        os.removedirs(self.no_certs_dir)
+        os.removedirs(self.one_cert_dir)
+        os.removedirs(self.two_certs_dir)
+
+    def _write_pem(self, cert, dir, filename):
+        data = dump_certificate(FILETYPE_PEM, cert[1])
+        full_path = os.path.join(dir, filename)
+        fh = open(full_path, "w")
+        fh.write(data)
+        fh.close()
+        return full_path
+
     def test_get_ca_certs_no_certs(self):
-        pass
+        os.environ["CERTS_PATH"] = self.no_certs_dir
+        self.patch(ssl, "DEFAULT_CERTS_PATH", self.no_certs_dir)
+        self.assertRaises(exception.CertsNotFoundError, ssl.get_ca_certs)
 
     def test_get_ca_certs_with_default_path(self):
-        pass
+        self.patch(ssl, "DEFAULT_CERTS_PATH", self.two_certs_dir)
+        certs = ssl.get_ca_certs()
+        self.assertEqual(len(certs), 2)
 
     def test_get_ca_certs_with_env_path(self):
-        pass
+        os.environ["CERTS_PATH"] = self.one_cert_dir
+        certs = ssl.get_ca_certs()
+        self.assertEqual(len(certs), 1)
 
     def test_get_ca_certs_multiple_paths(self):
-        pass
+        os.environ["CERTS_PATH"] = "%s:%s" % (
+            self.one_cert_dir, self.two_certs_dir)
+        certs = ssl.get_ca_certs()
+        self.assertEqual(len(certs), 3)
+
+    def test_get_ca_certs_one_empty_path(self):
+        os.environ["CERTS_PATH"] = "%s:%s" % (
+            self.no_certs_dir, self.one_cert_dir)
+        certs = ssl.get_ca_certs()
+        self.assertEqual(len(certs), 1)
