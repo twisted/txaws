@@ -52,8 +52,8 @@ class LifecycleConfiguration(object):
     """
     Returns the lifecycle configuration information set on the bucket.
     """
-    def __init__(self, rule):
-        self.rule = rule
+    def __init__(self, rules):
+        self.rules = rules
 
 
 class LifecycleConfigurationRule(object):

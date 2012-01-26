@@ -255,7 +255,7 @@ class S3ClientTestCase(TXAWSTestCase):
                 self.assertEqual(query.amz_headers, {})
 
             def submit(query, url_context=None):
-                return succeed(payload.sample_get_bucket_lifecycle_result)
+                return succeed(payload.sample_s3_get_bucket_lifecycle_result)
 
         def check_results(lifecycle_config):
             self.assertEquals(lifecycle_config, "")
