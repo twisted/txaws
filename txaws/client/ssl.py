@@ -12,6 +12,15 @@ from twisted.internet.ssl import CertificateOptions
 __all__ = ["VerifyingContextFactory", "get_ca_certs"]
 
 
+# Multiple defaults are supported; just add more paths, separated by colons.
+if sys.platform == "darwin":
+    DEFAULT_CERT_PATH = "/System/Library/OpenSSL/certs/:"
+# XXX Windows users can file a bug to add theirs, since we don't know what
+# the right path is
+else:
+    DEFAULT_CERT_PATH = "/etc/ssl/certs/:"
+
+
 class VerifyingContextFactory(CertificateOptions):
     """
     A SSL context factory to pass to C{connectSSL} to check for hostname
@@ -73,27 +82,33 @@ class VerifyingContextFactory(CertificateOptions):
 
 
 def get_ca_certs():
-    """Retrieve a list of CAs pointed by C{files}."""
-    if sys.platform == "darwin":
-        files = "/System/Library/OpenSSL/certs/*.pem"
-    # XXX Windows users can file a bug to add theirs, since we don't know what
-    # the right path is
-    else:
-        files="/etc/ssl/certs/*.pem"
-    certificateAuthorityMap = {}
-    for certFileName in glob(files):
-        # There might be some dead symlinks in there, so let's make sure it's
-        # real.
-        if not os.path.exists(certFileName):
-            continue
-        certFile = open(certFileName)
-        data = certFile.read()
-        certFile.close()
-        x509 = load_certificate(FILETYPE_PEM, data)
-        digest = x509.digest("sha1")
-        # Now, de-duplicate in case the same cert has multiple names.
-        certificateAuthorityMap[digest] = x509
-    return certificateAuthorityMap.values()
+    """
+    Retrieve a list of CAs pointed by C{files}.
+    
+    In order to find .pem files, this function checks first for presence of the
+    CERT_PATH environment variable that should point to a directory containing
+    cert files. In the absense of this variable, the module-level
+    DEFAULT_CERT_PATH will be used instead.
+
+    Note that both of these variables have have multiple paths in them, just
+    like the familiar PATH environment variable (separated by colons).
+    """
+    cert_paths = os.getenv("CERT_PATH", DEFAULT_CERT_PATH).split(":")
+    certificate_authority_map = {}
+    for path in cert_paths:
+        for cert_file_name in glob(os.path.join(path, "*.pem")):
+            # There might be some dead symlinks in there, so let's make sure
+            # it's real.
+            if not os.path.exists(cert_file_name):
+                continue
+            cert_file = open(cert_file_name)
+            data = cert_file.read()
+            cert_file.close()
+            x509 = load_certificate(FILETYPE_PEM, data)
+            digest = x509.digest("sha1")
+            # Now, de-duplicate in case the same cert has multiple names.
+            certificate_authority_map[digest] = x509
+    return certificate_authority_map.values()
 
 
 _ca_certs = None
