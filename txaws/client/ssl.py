@@ -86,17 +86,17 @@ class VerifyingContextFactory(CertificateOptions):
 def get_ca_certs():
     """
     Retrieve a list of CAs at either the DEFAULT_CERTS_PATH or the env
-    override, CERTS_PATH.   
+    override, TXAWS_CERTS_PATH.   
     
     In order to find .pem files, this function checks first for presence of the
-    CERTS_PATH environment variable that should point to a directory containing
-    cert files. In the absense of this variable, the module-level
+    TXAWS_CERTS_PATH environment variable that should point to a directory
+    containing cert files. In the absense of this variable, the module-level
     DEFAULT_CERTS_PATH will be used instead.
 
     Note that both of these variables have have multiple paths in them, just
     like the familiar PATH environment variable (separated by colons).
     """
-    cert_paths = os.getenv("CERTS_PATH", DEFAULT_CERTS_PATH).split(":")
+    cert_paths = os.getenv("TXAWS_CERTS_PATH", DEFAULT_CERTS_PATH).split(":")
     certificate_authority_map = {}
     for path in cert_paths:
         for cert_file_name in glob(os.path.join(path, "*.pem")):
