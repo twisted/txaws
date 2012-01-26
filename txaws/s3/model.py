@@ -34,6 +34,9 @@ class BucketItem(object):
 
 
 class BucketListing(object):
+    """
+    A mapping for the data in a bucket listing.
+    """
     def __init__(self, name, prefix, marker, max_keys, is_truncated,
                  contents=None, common_prefixes=None):
         self.name = name
@@ -43,6 +46,25 @@ class BucketListing(object):
         self.is_truncated = is_truncated
         self.contents = contents
         self.common_prefixes = common_prefixes
+
+
+class LifecycleConfiguration(object):
+    """
+    Returns the lifecycle configuration information set on the bucket.
+    """
+    def __init__(self, rule):
+        self.rule = rule
+
+
+class LifecycleConfigurationRule(object):
+    """
+    Container for elements that describe a lifecycle rule.
+    """
+    def __init__(self, id, prefix, status, expiration):
+        self.id = id
+        self.prefix = prefix
+        self.status = status
+        self.expiration = expiration
 
 
 class FileChunk(object):
