@@ -86,8 +86,8 @@ class VerifyingContextFactory(CertificateOptions):
 def get_ca_certs():
     """
     Retrieve a list of CAs at either the DEFAULT_CERTS_PATH or the env
-    override, TXAWS_CERTS_PATH.   
-    
+    override, TXAWS_CERTS_PATH.
+
     In order to find .pem files, this function checks first for presence of the
     TXAWS_CERTS_PATH environment variable that should point to a directory
     containing cert files. In the absense of this variable, the module-level

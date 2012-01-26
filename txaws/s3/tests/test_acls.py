@@ -41,7 +41,8 @@ class ACLTests(TestCase):
         grantee = acls.Grantee(email_address="BucketOwnersEmail@amazon.com")
         xml_bytes = grantee.to_xml()
         self.assertEquals(xml_bytes, """\
-<Grantee xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:type="AmazonCustomerByEmail">
+<Grantee xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"\
+ xsi:type="AmazonCustomerByEmail">
   <EmailAddress>BucketOwnersEmail@amazon.com</EmailAddress>
 </Grantee>
 """)
@@ -51,7 +52,8 @@ class ACLTests(TestCase):
             uri='http://acs.amazonaws.com/groups/global/AuthenticatedUsers')
         xml_bytes = grantee.to_xml()
         self.assertEquals(xml_bytes, """\
-<Grantee xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:type="Group">
+<Grantee xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"\
+ xsi:type="Group">
   <URI>http://acs.amazonaws.com/groups/global/AuthenticatedUsers</URI>
 </Grantee>
 """)

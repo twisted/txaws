@@ -198,7 +198,6 @@ class S3Client(BaseClient):
     def _parse_lifecycle_config(self, xml_bytes):
         """Parse a C{LifecycleConfiguration} XML document."""
         root = XML(xml_bytes)
-        contents = []
         rules = []
 
         for content_data in root.findall("Rule"):
@@ -209,7 +208,7 @@ class S3Client(BaseClient):
             rules.append(
                 LifecycleConfigurationRule(id, prefix, status, expiration))
 
-        return LifecycleConfiguration(rules) 
+        return LifecycleConfiguration(rules)
 
     def get_bucket_acl(self, bucket):
         """
