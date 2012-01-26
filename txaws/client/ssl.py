@@ -1,6 +1,7 @@
 from glob import glob
 import os
 import re
+import sys
 
 from OpenSSL import SSL
 from OpenSSL.crypto import load_certificate, FILETYPE_PEM
@@ -71,8 +72,14 @@ class VerifyingContextFactory(CertificateOptions):
         return context
 
 
-def get_ca_certs(files="/etc/ssl/certs/*.pem"):
+def get_ca_certs():
     """Retrieve a list of CAs pointed by C{files}."""
+    if sys.platform == "darwin":
+        files = "/System/Library/OpenSSL/certs/*.pem"
+    # XXX Windows users can file a bug to add theirs, since we don't know what
+    # the right path is
+    else:
+        files="/etc/ssl/certs/*.pem"
     certificateAuthorityMap = {}
     for certFileName in glob(files):
         # There might be some dead symlinks in there, so let's make sure it's
