@@ -49,14 +49,17 @@ class EC2Client(BaseClient):
         security_groups=None, key_name=None, instance_type=None,
         user_data=None, availability_zone=None, kernel_id=None,
         ramdisk_id=None):
-        """Run new instances."""
+        """Run new instances.
+
+        TODO: blockDeviceMapping, monitoring, subnetId
+        """
         params = {"ImageId": image_id, "MinCount": str(min_count),
                   "MaxCount": str(max_count)}
+        if key_name is not None:
+            params["KeyName"] = key_name
         if security_groups is not None:
             for i, name in enumerate(security_groups):
                 params["SecurityGroup.%d" % (i + 1)] = name
-        if key_name is not None:
-            params["KeyName"] = key_name
         if user_data is not None:
             params["UserData"] = b64encode(user_data)
         if instance_type is not None:
@@ -340,7 +343,10 @@ class EC2Client(BaseClient):
         return d.addCallback(self.parser.truth_return)
 
     def describe_snapshots(self, *snapshot_ids):
-        """Describe available snapshots."""
+        """Describe available snapshots.
+
+        TODO: ownerSet, restorableBySet
+        """
         snapshot_set = {}
         for pos, snapshot_id in enumerate(snapshot_ids):
             snapshot_set["SnapshotId.%d" % (pos + 1)] = snapshot_id
@@ -351,7 +357,10 @@ class EC2Client(BaseClient):
         return d.addCallback(self.parser.snapshots)
 
     def create_snapshot(self, volume_id):
-        """Create a new snapshot of an existing volume."""
+        """Create a new snapshot of an existing volume.
+
+        TODO: description
+        """
         query = self.query_factory(
             action="CreateSnapshot", creds=self.creds, endpoint=self.endpoint,
             other_params={"VolumeId": volume_id})
@@ -379,7 +388,7 @@ class EC2Client(BaseClient):
         """Returns information about key pairs available."""
         keypairs = {}
         for index, keypair_name in enumerate(keypair_names):
-            keypairs["KeyPair.%d" % (index + 1)] = keypair_name
+            keypairs["KeyName.%d" % (index + 1)] = keypair_name
         query = self.query_factory(
             action="DescribeKeyPairs", creds=self.creds,
             endpoint=self.endpoint, other_params=keypairs)
@@ -418,6 +427,9 @@ class EC2Client(BaseClient):
 
         @return: A L{Deferred} firing with a L{model.Keypair} instance if
             successful.
+
+        TODO: there is no corresponding method in the 2009-11-30 version
+             of the ec2 wsdl. Delete this?
         """
         query = self.query_factory(
             action="ImportKeyPair", creds=self.creds, endpoint=self.endpoint,
@@ -530,26 +542,30 @@ class Parser(object):
         @param instance_data: An XML node containing instance data.
         @param reservation: The L{Reservation} associated with the instance.
         @return: An L{Instance}.
+
+        TODO: reason, platform, monitoring, subnetId, vpcId, privateIpAddress,
+              ipAddress, stateReason, architecture, rootDeviceName,
+              blockDeviceMapping, instanceLifecycle, spotInstanceRequestId.
         """
         instance_id = instance_data.findtext("instanceId")
         instance_state = instance_data.find(
             "instanceState").findtext("name")
-        instance_type = instance_data.findtext("instanceType")
-        image_id = instance_data.findtext("imageId")
         private_dns_name = instance_data.findtext("privateDnsName")
         dns_name = instance_data.findtext("dnsName")
         key_name = instance_data.findtext("keyName")
         ami_launch_index = instance_data.findtext("amiLaunchIndex")
-        launch_time = instance_data.findtext("launchTime")
-        placement = instance_data.find("placement").findtext(
-            "availabilityZone")
         products = []
         product_codes = instance_data.find("productCodes")
         if product_codes is not None:
             for product_data in instance_data.find("productCodes"):
                 products.append(product_data.text)
+        instance_type = instance_data.findtext("instanceType")
+        launch_time = instance_data.findtext("launchTime")
+        placement = instance_data.find("placement").findtext(
+            "availabilityZone")
         kernel_id = instance_data.findtext("kernelId")
         ramdisk_id = instance_data.findtext("ramdiskId")
+        image_id = instance_data.findtext("imageId")
         instance = model.Instance(
             instance_id, instance_state, instance_type, image_id,
             private_dns_name, dns_name, key_name, ami_launch_index,
@@ -602,7 +618,8 @@ class Parser(object):
         Parse the reservations XML payload that is returned from an AWS
         RunInstances API call.
 
-        @param xml_bytes: raw XML payload from AWS.
+        @param xml_bytes: raw XML bytes with a C{RunInstancesResponse} root
+            element.
         """
         root = XML(xml_bytes)
         # Get the security group information.
@@ -625,7 +642,7 @@ class Parser(object):
         @param xml_bytes: XML bytes with a C{TerminateInstancesResponse} root
             element.
         @return: An iterable of C{tuple} of (instanceId, previousState,
-            shutdownState) for the ec2 instances that where terminated.
+            currentState) for the ec2 instances that where terminated.
         """
         root = XML(xml_bytes)
         result = []
@@ -634,9 +651,9 @@ class Parser(object):
             instanceId = instance.findtext("instanceId")
             previousState = instance.find("previousState").findtext(
                 "name")
-            shutdownState = instance.find("shutdownState").findtext(
+            currentState = instance.find("currentState").findtext(
                 "name")
-            result.append((instanceId, previousState, shutdownState))
+            result.append((instanceId, previousState, currentState))
         return result
 
     def describe_security_groups(self, xml_bytes):
@@ -708,15 +725,17 @@ class Parser(object):
         @param xml_bytes: XML bytes with a C{DescribeVolumesResponse} root
             element.
         @return: A list of L{Volume} instances.
+
+        TODO: attachementSetItemResponseType#deleteOnTermination
         """
         root = XML(xml_bytes)
         result = []
         for volume_data in root.find("volumeSet"):
             volume_id = volume_data.findtext("volumeId")
             size = int(volume_data.findtext("size"))
-            status = volume_data.findtext("status")
-            availability_zone = volume_data.findtext("availabilityZone")
             snapshot_id = volume_data.findtext("snapshotId")
+            availability_zone = volume_data.findtext("availabilityZone")
+            status = volume_data.findtext("status")
             create_time = volume_data.findtext("createTime")
             create_time = datetime.strptime(
                 create_time[:19], "%Y-%m-%dT%H:%M:%S")
@@ -726,8 +745,8 @@ class Parser(object):
             result.append(volume)
             for attachment_data in volume_data.find("attachmentSet"):
                 instance_id = attachment_data.findtext("instanceId")
-                status = attachment_data.findtext("status")
                 device = attachment_data.findtext("device")
+                status = attachment_data.findtext("status")
                 attach_time = attachment_data.findtext("attachTime")
                 attach_time = datetime.strptime(
                     attach_time[:19], "%Y-%m-%dT%H:%M:%S")
@@ -746,10 +765,10 @@ class Parser(object):
         root = XML(xml_bytes)
         volume_id = root.findtext("volumeId")
         size = int(root.findtext("size"))
+        snapshot_id = root.findtext("snapshotId")
+        availability_zone = root.findtext("availabilityZone")
         status = root.findtext("status")
         create_time = root.findtext("createTime")
-        availability_zone = root.findtext("availabilityZone")
-        snapshot_id = root.findtext("snapshotId")
         create_time = datetime.strptime(
             create_time[:19], "%Y-%m-%dT%H:%M:%S")
         volume = model.Volume(
@@ -763,6 +782,9 @@ class Parser(object):
         @param xml_bytes: XML bytes with a C{DescribeSnapshotsResponse} root
             element.
         @return: A list of L{Snapshot} instances.
+
+        TODO: ownersSet, restorableBySet, ownerId, volumeSize, description,
+              ownerAlias.
         """
         root = XML(xml_bytes)
         result = []
@@ -786,6 +808,8 @@ class Parser(object):
         @param xml_bytes: XML bytes with a C{CreateSnapshotResponse} root
             element.
         @return: The L{Snapshot} instance created.
+
+        TODO: ownerId, volumeSize, description.
         """
         root = XML(xml_bytes)
         snapshot_id = root.findtext("snapshotId")
@@ -805,6 +829,8 @@ class Parser(object):
         @param xml_bytes: XML bytes with a C{AttachVolumeResponse} root
             element.
         @return: a C{dict} with status and attach_time keys.
+
+        TODO: volumeId, instanceId, device
         """
         root = XML(xml_bytes)
         status = root.findtext("status")
@@ -845,7 +871,11 @@ class Parser(object):
         return model.Keypair(key_name, key_fingerprint, key_material)
 
     def import_keypair(self, xml_bytes, key_material):
-        """Extract the key name and the fingerprint from the result."""
+        """Extract the key name and the fingerprint from the result.
+
+        TODO: there is no corresponding method in the 2009-11-30 version
+             of the ec2 wsdl. Delete this?
+        """
         keypair_data = XML(xml_bytes)
         key_name = keypair_data.findtext("keyName")
         key_fingerprint = keypair_data.findtext("keyFingerprint")
@@ -881,6 +911,8 @@ class Parser(object):
         @param xml_bytes: XML bytes with a C{DescribeAvailibilityZonesResponse}
             root element.
         @return: a C{list} of L{AvailabilityZone}.
+
+        TODO: regionName, messageSet
         """
         results = []
         root = XML(xml_bytes)
@@ -900,7 +932,7 @@ class Query(BaseQuery):
                  *args, **kwargs):
         """Create a Query to submit to EC2."""
         super(Query, self).__init__(*args, **kwargs)
-        # Currently, txAWS only supports version 2008-12-01
+        # Currently, txAWS only supports version 2009-11-30
         if api_version is None:
             api_version = version.ec2_api
         self.params = {
@@ -963,7 +995,9 @@ class Signature(object):
 
     @ivar creds: The L{AWSCredentials} to use to compute the signature.
     @ivar endpoint: The {AWSServiceEndpoint} to consider.
-    @ivar params: A C{dict} of parameters to consider.
+    @ivar params: A C{dict} of parameters to consider. They should be byte
+        strings, but unicode strings are supported and will be encoded in
+        UTF-8.
     """
 
     def __init__(self, creds, endpoint, params):
@@ -1013,9 +1047,11 @@ class Signature(object):
     def encode(self, string):
         """Encode a_string as per the canonicalisation encoding rules.
 
-        See the AWS dev reference page 90 (2008-12-01 version).
+        See the AWS dev reference page 186 (2009-11-30 version).
         @return: a_string encoded.
         """
+        if isinstance(string, unicode):
+            string = string.encode("utf-8")
         return quote(string, safe="~")
 
     def sorted_params(self):

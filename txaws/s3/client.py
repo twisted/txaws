@@ -1,6 +1,7 @@
 # Copyright (C) 2008 Tristan Seligmann <mithrandi@mithrandi.net>
 # Copyright (C) 2009 Canonical Ltd
 # Copyright (C) 2009 Duncan McGreggor <oubiwann@adytum.us>
+# Copyright (C) 2012 New Dream Network (DreamHost)
 # Licenced under the txaws licence available at /LICENSE in the txaws source.
 
 """
@@ -20,7 +21,8 @@ from dateutil.parser import parse as parseTime
 from txaws.client.base import BaseClient, BaseQuery, error_wrapper
 from txaws.s3.acls import AccessControlPolicy
 from txaws.s3.model import (
-    Bucket, BucketItem, BucketListing, ItemOwner, RequestPayment)
+    Bucket, BucketItem, BucketListing, ItemOwner, LifecycleConfiguration,
+    LifecycleConfigurationRule, RequestPayment)
 from txaws.s3.exception import S3Error
 from txaws.service import AWSServiceEndpoint, S3_ENDPOINT
 from txaws.util import XML, calculate_md5
@@ -61,7 +63,8 @@ class URLContext(object):
     def get_url(self):
         if self.endpoint.port is not None:
             return "%s://%s:%d%s" % (
-                self.endpoint.scheme, self.get_host(), self.endpoint.port, self.get_path())
+                self.endpoint.scheme, self.get_host(), self.endpoint.port,
+                self.get_path())
         else:
             return "%s://%s%s" % (
                 self.endpoint.scheme, self.get_host(), self.get_path())
@@ -179,6 +182,34 @@ class S3Client(BaseClient):
         root = XML(xml_bytes)
         return root.text or ""
 
+    def get_bucket_lifecycle(self, bucket):
+        """
+        Get the lifecycle configuration of a bucket.
+
+        @param bucket: The name of the bucket.
+        @return: A C{Deferred} that will fire with the bucket's lifecycle
+        configuration.
+        """
+        query = self.query_factory(
+            action='GET', creds=self.creds, endpoint=self.endpoint,
+            bucket=bucket, object_name='?lifecycle')
+        return query.submit().addCallback(self._parse_lifecycle_config)
+
+    def _parse_lifecycle_config(self, xml_bytes):
+        """Parse a C{LifecycleConfiguration} XML document."""
+        root = XML(xml_bytes)
+        rules = []
+
+        for content_data in root.findall("Rule"):
+            id = content_data.findtext("ID")
+            prefix = content_data.findtext("Prefix")
+            status = content_data.findtext("Status")
+            expiration = int(content_data.findtext("Expiration/Days"))
+            rules.append(
+                LifecycleConfigurationRule(id, prefix, status, expiration))
+
+        return LifecycleConfiguration(rules)
+
     def get_bucket_acl(self, bucket):
         """
         Get the access control policy for a bucket.
@@ -282,6 +313,16 @@ class S3Client(BaseClient):
             action="DELETE", creds=self.creds, endpoint=self.endpoint,
             bucket=bucket, object_name=object_name)
         return query.submit()
+
+    def put_object_acl(self, bucket, object_name, access_control_policy):
+        """
+        Set access control policy on an object.
+        """
+        data = access_control_policy.to_xml()
+        query = self.query_factory(
+            action='PUT', creds=self.creds, endpoint=self.endpoint,
+            bucket=bucket, object_name='%s?acl' % object_name, data=data)
+        return query.submit().addCallback(self._parse_acl)
 
     def get_object_acl(self, bucket, object_name):
         """

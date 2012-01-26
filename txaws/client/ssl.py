@@ -1,14 +1,26 @@
 from glob import glob
 import os
 import re
+import sys
 
 from OpenSSL import SSL
 from OpenSSL.crypto import load_certificate, FILETYPE_PEM
 
 from twisted.internet.ssl import CertificateOptions
 
+from txaws import exception
+
 
 __all__ = ["VerifyingContextFactory", "get_ca_certs"]
+
+
+# Multiple defaults are supported; just add more paths, separated by colons.
+if sys.platform == "darwin":
+    DEFAULT_CERTS_PATH = "/System/Library/OpenSSL/certs/:"
+# XXX Windows users can file a bug to add theirs, since we don't know what
+# the right path is
+else:
+    DEFAULT_CERTS_PATH = "/etc/ssl/certs/:"
 
 
 class VerifyingContextFactory(CertificateOptions):
@@ -71,22 +83,38 @@ class VerifyingContextFactory(CertificateOptions):
         return context
 
 
-def get_ca_certs(files="/etc/ssl/certs/*.pem"):
-    """Retrieve a list of CAs pointed by C{files}."""
-    certificateAuthorityMap = {}
-    for certFileName in glob(files):
-        # There might be some dead symlinks in there, so let's make sure it's
-        # real.
-        if not os.path.exists(certFileName):
-            continue
-        certFile = open(certFileName)
-        data = certFile.read()
-        certFile.close()
-        x509 = load_certificate(FILETYPE_PEM, data)
-        digest = x509.digest("sha1")
-        # Now, de-duplicate in case the same cert has multiple names.
-        certificateAuthorityMap[digest] = x509
-    return certificateAuthorityMap.values()
+def get_ca_certs():
+    """
+    Retrieve a list of CAs at either the DEFAULT_CERTS_PATH or the env
+    override, TXAWS_CERTS_PATH.
+
+    In order to find .pem files, this function checks first for presence of the
+    TXAWS_CERTS_PATH environment variable that should point to a directory
+    containing cert files. In the absense of this variable, the module-level
+    DEFAULT_CERTS_PATH will be used instead.
+
+    Note that both of these variables have have multiple paths in them, just
+    like the familiar PATH environment variable (separated by colons).
+    """
+    cert_paths = os.getenv("TXAWS_CERTS_PATH", DEFAULT_CERTS_PATH).split(":")
+    certificate_authority_map = {}
+    for path in cert_paths:
+        for cert_file_name in glob(os.path.join(path, "*.pem")):
+            # There might be some dead symlinks in there, so let's make sure
+            # it's real.
+            if not os.path.exists(cert_file_name):
+                continue
+            cert_file = open(cert_file_name)
+            data = cert_file.read()
+            cert_file.close()
+            x509 = load_certificate(FILETYPE_PEM, data)
+            digest = x509.digest("sha1")
+            # Now, de-duplicate in case the same cert has multiple names.
+            certificate_authority_map[digest] = x509
+    values = certificate_authority_map.values()
+    if len(values) == 0:
+        raise exception.CertsNotFoundError("Could not find any .pem files.")
+    return values
 
 
 _ca_certs = None

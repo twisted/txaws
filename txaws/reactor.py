@@ -1,5 +1,6 @@
 '''Reactor utilities.'''
 
+
 def get_exitcode_reactor():
     """
     This is only neccesary until a fix like the one outlined here is

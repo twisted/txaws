@@ -63,7 +63,7 @@ class URLContextTestCase(TXAWSTestCase):
             "http://localhost/mydocs/notes.txt")
 
     def test_custom_port_endpoint(self):
-        test_uri='http://0.0.0.0:12345/'
+        test_uri = 'http://0.0.0.0:12345/'
         endpoint = AWSServiceEndpoint(uri=test_uri)
         self.assertEquals(endpoint.port, 12345)
         self.assertEquals(endpoint.scheme, 'http')
@@ -74,7 +74,7 @@ class URLContextTestCase(TXAWSTestCase):
         self.assertEquals(context.get_url(), test_uri + 'foo/bar')
 
     def test_custom_port_endpoint_https(self):
-        test_uri='https://0.0.0.0:12345/'
+        test_uri = 'https://0.0.0.0:12345/'
         endpoint = AWSServiceEndpoint(uri=test_uri)
         self.assertEquals(endpoint.port, 12345)
         self.assertEquals(endpoint.scheme, 'https')
@@ -229,6 +229,84 @@ class S3ClientTestCase(TXAWSTestCase):
         creds = AWSCredentials("foo", "bar")
         s3 = client.S3Client(creds, query_factory=StubQuery)
         d = s3.get_bucket_location("mybucket")
+        return d.addCallback(check_results)
+
+    def test_get_bucket_lifecycle_multiple_rules(self):
+        """
+        L{S3Client.get_bucket_lifecycle} creates a L{Query} to get a bucket's
+        lifecycle.  It parses the returned C{LifecycleConfiguration} XML
+        document and returns a C{Deferred} that fires with the bucket's region.
+        """
+
+        class StubQuery(client.Query):
+
+            def __init__(query, action, creds, endpoint, bucket=None,
+                         object_name=None):
+                super(StubQuery, query).__init__(action=action, creds=creds,
+                                                 bucket=bucket,
+                                                 object_name=object_name)
+                self.assertEquals(action, "GET")
+                self.assertEqual(creds.access_key, "foo")
+                self.assertEqual(creds.secret_key, "bar")
+                self.assertEqual(query.bucket, "mybucket")
+                self.assertEqual(query.object_name, "?lifecycle")
+                self.assertEqual(query.data, "")
+                self.assertEqual(query.metadata, {})
+                self.assertEqual(query.amz_headers, {})
+
+            def submit(query, url_context=None):
+                return succeed(payload.
+                    sample_s3_get_bucket_lifecycle_multiple_rules_result)
+
+        def check_results(lifecycle_config):
+            self.assertTrue(len(lifecycle_config.rules) == 2)
+            rule = lifecycle_config.rules[1]
+            self.assertEquals(rule.id, 'another-id')
+            self.assertEquals(rule.prefix, 'another-logs')
+            self.assertEquals(rule.status, 'Disabled')
+            self.assertEquals(rule.expiration, 37)
+
+        creds = AWSCredentials("foo", "bar")
+        s3 = client.S3Client(creds, query_factory=StubQuery)
+        d = s3.get_bucket_lifecycle("mybucket")
+        return d.addCallback(check_results)
+
+    def test_get_bucket_lifecycle(self):
+        """
+        L{S3Client.get_bucket_lifecycle} creates a L{Query} to get a bucket's
+        lifecycle.  It parses the returned C{LifecycleConfiguration} XML
+        document and returns a C{Deferred} that fires with the bucket's region.
+        """
+
+        class StubQuery(client.Query):
+
+            def __init__(query, action, creds, endpoint, bucket=None,
+                         object_name=None):
+                super(StubQuery, query).__init__(action=action, creds=creds,
+                                                 bucket=bucket,
+                                                 object_name=object_name)
+                self.assertEquals(action, "GET")
+                self.assertEqual(creds.access_key, "foo")
+                self.assertEqual(creds.secret_key, "bar")
+                self.assertEqual(query.bucket, "mybucket")
+                self.assertEqual(query.object_name, "?lifecycle")
+                self.assertEqual(query.data, "")
+                self.assertEqual(query.metadata, {})
+                self.assertEqual(query.amz_headers, {})
+
+            def submit(query, url_context=None):
+                return succeed(payload.sample_s3_get_bucket_lifecycle_result)
+
+        def check_results(lifecycle_config):
+            rule = lifecycle_config.rules[0]
+            self.assertEquals(rule.id, '30-day-log-deletion-rule')
+            self.assertEquals(rule.prefix, 'logs')
+            self.assertEquals(rule.status, 'Enabled')
+            self.assertEquals(rule.expiration, 30)
+
+        creds = AWSCredentials("foo", "bar")
+        s3 = client.S3Client(creds, query_factory=StubQuery)
+        d = s3.get_bucket_lifecycle("mybucket")
         return d.addCallback(check_results)
 
     def test_delete_bucket(self):
@@ -522,6 +600,39 @@ class S3ClientTestCase(TXAWSTestCase):
         creds = AWSCredentials("foo", "bar")
         s3 = client.S3Client(creds, query_factory=StubQuery)
         return s3.delete_object("mybucket", "objectname")
+
+    def test_put_object_acl(self):
+
+        class StubQuery(client.Query):
+
+            def __init__(query, action, creds, endpoint, bucket=None,
+                         object_name=None, data=""):
+                super(StubQuery, query).__init__(action=action, creds=creds,
+                                                 bucket=bucket,
+                                                 object_name=object_name,
+                                                 data=data)
+                self.assertEquals(action, "PUT")
+                self.assertEqual(creds.access_key, "foo")
+                self.assertEqual(creds.secret_key, "bar")
+                self.assertEqual(query.bucket, "mybucket")
+                self.assertEqual(query.object_name, "myobject?acl")
+                self.assertEqual(query.data,
+                                 payload.sample_access_control_policy_result)
+                self.assertEqual(query.metadata, {})
+                self.assertEqual(query.metadata, {})
+
+            def submit(query, url_context=None):
+                return succeed(payload.sample_access_control_policy_result)
+
+        def check_result(result):
+            self.assert_(isinstance(result, AccessControlPolicy))
+
+        creds = AWSCredentials("foo", "bar")
+        s3 = client.S3Client(creds, query_factory=StubQuery)
+        policy = AccessControlPolicy.from_xml(
+            payload.sample_access_control_policy_result)
+        deferred = s3.put_object_acl("mybucket", "myobject", policy)
+        return deferred.addCallback(check_result)
 
     def test_get_object_acl(self):
 

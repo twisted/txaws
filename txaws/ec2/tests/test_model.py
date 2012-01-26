@@ -28,12 +28,12 @@ class SecurityGroupTestCase(TXAWSTestCase):
             "name", "desc", owner_id="me", groups=user_group_pairs, ips=ips)
         self.assertEquals(group.name, "name")
         self.assertEquals(group.description, "desc")
-        self.assertEquals(group.owner_id, "me") 
-        self.assertEquals(group.allowed_groups[0].user_id, "somegal24") 
-        self.assertEquals(group.allowed_groups[0].group_name, "other1") 
-        self.assertEquals(group.allowed_groups[1].user_id, "somegal24") 
-        self.assertEquals(group.allowed_groups[1].group_name, "other2") 
-        self.assertEquals(group.allowed_ips[0].cidr_ip, "10.0.1.0/24") 
+        self.assertEquals(group.owner_id, "me")
+        self.assertEquals(group.allowed_groups[0].user_id, "somegal24")
+        self.assertEquals(group.allowed_groups[0].group_name, "other1")
+        self.assertEquals(group.allowed_groups[1].user_id, "somegal24")
+        self.assertEquals(group.allowed_groups[1].group_name, "other2")
+        self.assertEquals(group.allowed_ips[0].cidr_ip, "10.0.1.0/24")
 
 
 class UserIDGroupPairTestCase(TXAWSTestCase):
