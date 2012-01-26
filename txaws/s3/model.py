@@ -1,3 +1,8 @@
+# Copyright (C) 2009 Canonical Ltd
+# Copyright (C) 2009 Duncan McGreggor <oubiwann@adytum.us>
+# Copyright (C) 2011 Drew Smathers <drew.smathers@gmail.com>
+# Copyright (C) 2012 New Dream Network (DreamHost)
+# Licenced under the txaws licence available at /LICENSE in the txaws source.
 from txaws.util import XML
 
 

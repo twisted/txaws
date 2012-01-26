@@ -1,6 +1,7 @@
 # Copyright (C) 2008 Tristan Seligmann <mithrandi@mithrandi.net>
 # Copyright (C) 2009 Canonical Ltd
 # Copyright (C) 2009 Duncan McGreggor <oubiwann@adytum.us>
+# Copyright (C) 2012 New Dream Network (DreamHost)
 # Licenced under the txaws licence available at /LICENSE in the txaws source.
 
 """
