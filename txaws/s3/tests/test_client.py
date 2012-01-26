@@ -231,6 +231,46 @@ class S3ClientTestCase(TXAWSTestCase):
         d = s3.get_bucket_location("mybucket")
         return d.addCallback(check_results)
 
+    def test_get_bucket_lifecycle_multiple_rules(self):
+        """
+        L{S3Client.get_bucket_lifecycle} creates a L{Query} to get a bucket's
+        lifecycle.  It parses the returned C{LifecycleConfiguration} XML
+        document and returns a C{Deferred} that fires with the bucket's region.
+        """
+
+        class StubQuery(client.Query):
+
+            def __init__(query, action, creds, endpoint, bucket=None,
+                         object_name=None):
+                super(StubQuery, query).__init__(action=action, creds=creds,
+                                                 bucket=bucket,
+                                                 object_name=object_name)
+                self.assertEquals(action, "GET")
+                self.assertEqual(creds.access_key, "foo")
+                self.assertEqual(creds.secret_key, "bar")
+                self.assertEqual(query.bucket, "mybucket")
+                self.assertEqual(query.object_name, "?lifecycle")
+                self.assertEqual(query.data, "")
+                self.assertEqual(query.metadata, {})
+                self.assertEqual(query.amz_headers, {})
+
+            def submit(query, url_context=None):
+                return succeed(payload.
+                    sample_s3_get_bucket_lifecycle_multiple_rules_result)
+
+        def check_results(lifecycle_config):
+            self.assertTrue(len(lifecycle_config.rules) == 2)
+            rule = lifecycle_config.rules[1]
+            self.assertEquals(rule.id, 'another-id')
+            self.assertEquals(rule.prefix, 'another-logs')
+            self.assertEquals(rule.status, 'Disabled')
+            self.assertEquals(rule.expiration, 37)
+
+        creds = AWSCredentials("foo", "bar")
+        s3 = client.S3Client(creds, query_factory=StubQuery)
+        d = s3.get_bucket_lifecycle("mybucket")
+        return d.addCallback(check_results)
+
     def test_get_bucket_lifecycle(self):
         """
         L{S3Client.get_bucket_lifecycle} creates a L{Query} to get a bucket's
@@ -258,7 +298,11 @@ class S3ClientTestCase(TXAWSTestCase):
                 return succeed(payload.sample_s3_get_bucket_lifecycle_result)
 
         def check_results(lifecycle_config):
-            self.assertEquals(lifecycle_config, "")
+            rule = lifecycle_config.rules[0]
+            self.assertEquals(rule.id, '30-day-log-deletion-rule')
+            self.assertEquals(rule.prefix, 'logs')
+            self.assertEquals(rule.status, 'Enabled')
+            self.assertEquals(rule.expiration, 30)
 
         creds = AWSCredentials("foo", "bar")
         s3 = client.S3Client(creds, query_factory=StubQuery)

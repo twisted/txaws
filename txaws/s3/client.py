@@ -204,7 +204,7 @@ class S3Client(BaseClient):
             id = content_data.findtext("ID")
             prefix = content_data.findtext("Prefix")
             status = content_data.findtext("Status")
-            expiration = content_data.findtext("Expiration/Days")
+            expiration = int(content_data.findtext("Expiration/Days"))
             rules.append(
                 LifecycleConfigurationRule(id, prefix, status, expiration))
 
