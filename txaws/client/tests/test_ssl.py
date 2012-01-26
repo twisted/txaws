@@ -144,3 +144,18 @@ class BaseQuerySSLTestCase(TXAWSTestCase):
     if pyopenssl_version < "0.12":
         test_ssl_subject_alt_name.skip = (
             "subjectAltName not supported by older PyOpenSSL")
+
+
+class CertsFilesTestCase(TXAWSTestCase):
+
+    def test_get_ca_certs_no_certs(self):
+        pass
+
+    def test_get_ca_certs_with_default_path(self):
+        pass
+
+    def test_get_ca_certs_with_env_path(self):
+        pass
+
+    def test_get_ca_certs_multiple_paths(self):
+        pass

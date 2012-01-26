@@ -151,6 +151,9 @@ class BaseQueryTestCase(TXAWSTestCase):
         d.addCallback(query.get_response_headers)
         return d.addCallback(check_results)
 
+    # XXX for systems that don't have certs in the DEFAULT_CERT_PATH, this test
+    # will fail; instead, let's create some certs in a temp directory and set
+    # the DEFAULT_CERT_PATH to point there.
     def test_ssl_hostname_verification(self):
         """
         If the endpoint passed to L{BaseQuery} has C{ssl_hostname_verification}
