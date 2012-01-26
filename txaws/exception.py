@@ -126,3 +126,9 @@ class AWSResponseParseError(Exception):
     """
     txAWS was unable to parse the server response.
     """
+
+
+class CertsNotFoundError(Exception):
+    """
+    txAWS was not able to find any SSL certificates.
+    """
