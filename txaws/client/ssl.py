@@ -16,11 +16,11 @@ __all__ = ["VerifyingContextFactory", "get_ca_certs"]
 
 # Multiple defaults are supported; just add more paths, separated by colons.
 if sys.platform == "darwin":
-    DEFAULT_CERT_PATH = "/System/Library/OpenSSL/certs/:"
+    DEFAULT_CERTS_PATH = "/System/Library/OpenSSL/certs/:"
 # XXX Windows users can file a bug to add theirs, since we don't know what
 # the right path is
 else:
-    DEFAULT_CERT_PATH = "/etc/ssl/certs/:"
+    DEFAULT_CERTS_PATH = "/etc/ssl/certs/:"
 
 
 class VerifyingContextFactory(CertificateOptions):
@@ -88,14 +88,14 @@ def get_ca_certs():
     Retrieve a list of CAs pointed by C{files}.
     
     In order to find .pem files, this function checks first for presence of the
-    CERT_PATH environment variable that should point to a directory containing
+    CERTS_PATH environment variable that should point to a directory containing
     cert files. In the absense of this variable, the module-level
-    DEFAULT_CERT_PATH will be used instead.
+    DEFAULT_CERTS_PATH will be used instead.
 
     Note that both of these variables have have multiple paths in them, just
     like the familiar PATH environment variable (separated by colons).
     """
-    cert_paths = os.getenv("CERT_PATH", DEFAULT_CERT_PATH).split(":")
+    cert_paths = os.getenv("CERTS_PATH", DEFAULT_CERTS_PATH).split(":")
     certificate_authority_map = {}
     for path in cert_paths:
         for cert_file_name in glob(os.path.join(path, "*.pem")):
