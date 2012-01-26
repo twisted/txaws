@@ -6,12 +6,13 @@ from twisted.protocols.policies import WrappingFactory
 from twisted.python import log
 from twisted.python.filepath import FilePath
 from twisted.python.failure import Failure
+from twisted.test.test_sslverify import makeCertificate
 from twisted.web import server, static
 from twisted.web.client import HTTPClientFactory
 from twisted.web.error import Error as TwistedWebError
 
+from txaws.client import ssl
 from txaws.client.base import BaseClient, BaseQuery, error_wrapper
-from txaws.client.ssl import VerifyingContextFactory
 from txaws.service import AWSServiceEndpoint
 from txaws.testing.base import TXAWSTestCase
 
@@ -169,6 +170,8 @@ class BaseQueryTestCase(TXAWSTestCase):
             def connectSSL(self, host, port, client, factory):
                 self.connects.append((host, port, client, factory))
 
+        certs = makeCertificate(O="Test Certificate", CN="something")[1]
+        self.patch(ssl, "_ca_certs", certs)
         fake_reactor = FakeReactor()
         endpoint = AWSServiceEndpoint(ssl_hostname_verification=True)
         query = BaseQuery("an action", "creds", endpoint, fake_reactor)
@@ -176,6 +179,6 @@ class BaseQueryTestCase(TXAWSTestCase):
         [(host, port, client, factory)] = fake_reactor.connects
         self.assertEqual("example.com", host)
         self.assertEqual(443, port)
-        self.assertTrue(isinstance(factory, VerifyingContextFactory))
+        self.assertTrue(isinstance(factory, ssl.VerifyingContextFactory))
         self.assertEqual("example.com", factory.host)
         self.assertNotEqual([], factory.caCerts)
