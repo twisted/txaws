@@ -8,6 +8,8 @@ from OpenSSL.crypto import load_certificate, FILETYPE_PEM
 
 from twisted.internet.ssl import CertificateOptions
 
+from txaws import exception
+
 
 __all__ = ["VerifyingContextFactory", "get_ca_certs"]
 
@@ -108,7 +110,10 @@ def get_ca_certs():
             digest = x509.digest("sha1")
             # Now, de-duplicate in case the same cert has multiple names.
             certificate_authority_map[digest] = x509
-    return certificate_authority_map.values()
+    values = certificate_authority_map.values()
+    if len(values) == 0:
+        raise exception.CertsNotFoundError("Could not find any .pem files.")
+    return values
 
 
 _ca_certs = None
