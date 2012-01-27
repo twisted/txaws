@@ -268,7 +268,7 @@ class S3Client(BaseClient):
     def _parse_logging_status(self, xml_bytes):
         """Parse a C{VersioningConfiguration} XML document."""
         root = XML(xml_bytes)
-        status = root.findtext("VersioningConfiguration/Status")
+        status = root.findtext("Status")
 
         return LoggingStatus(status)
 

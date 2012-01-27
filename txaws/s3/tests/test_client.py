@@ -559,7 +559,7 @@ class S3ClientTestCase(TXAWSTestCase):
 
             def submit(query, url_context=None):
                 return succeed(payload.
-                               sample_s3_get_bucket_logging_disabled_result)
+                               sample_s3_get_bucket_logging_suspended_result)
 
         def check_results(logging_status):
             self.assertEquals(logging_status.status, 'Suspended')
