@@ -1062,6 +1062,9 @@ sample_s3_get_bucket_website_no_error_result = """\
 </WebsiteConfiguration>"""
 
 sample_s3_get_bucket_notification_result = """\
+<NotificationConfiguration />"""
+
+sample_s3_get_bucket_notification_with_topic_result = """\
 <NotificationConfiguration> 
    <TopicConfiguration>
        <Topic>arn:aws:sns:us-east-1:123456789012:myTopic</Topic>
