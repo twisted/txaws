@@ -81,6 +81,15 @@ class WebsiteConfiguration(object):
         self.error_key = error_key
 
 
+class NotificationConfiguration(object):
+    """
+    A mapping for the data in a bucket notification configuration.
+    """
+    def __init__(self, topic=None, event=None):
+        self.topic = topic
+        self.event = event
+
+
 class FileChunk(object):
     """
     An Amazon S3 file chunk.

@@ -22,7 +22,8 @@ from txaws.client.base import BaseClient, BaseQuery, error_wrapper
 from txaws.s3.acls import AccessControlPolicy
 from txaws.s3.model import (
     Bucket, BucketItem, BucketListing, ItemOwner, LifecycleConfiguration,
-    LifecycleConfigurationRule, RequestPayment, WebsiteConfiguration)
+    LifecycleConfigurationRule, NotificationConfiguration, RequestPayment,
+    WebsiteConfiguration)
 from txaws.s3.exception import S3Error
 from txaws.service import AWSServiceEndpoint, S3_ENDPOINT
 from txaws.util import XML, calculate_md5
@@ -230,6 +231,27 @@ class S3Client(BaseClient):
         error_key = root.findtext("ErrorDocument/Key")
 
         return WebsiteConfiguration(index_suffix, error_key)
+
+    def get_bucket_notification_config(self, bucket):
+        """
+        Get the notification configuration of a bucket.
+
+        @param bucket: The name of the bucket.
+        @return: A C{Deferred} that will request the bucket's notification
+        configuration.
+        """
+        query = self.query_factory(
+            action='GET', creds=self.creds, endpoint=self.endpoint,
+            bucket=bucket, object_name='?notification')
+        return query.submit().addCallback(self._parse_notification_config)
+
+    def _parse_notification_config(self, xml_bytes):
+        """Parse a C{NotificationConfiguration} XML document."""
+        root = XML(xml_bytes)
+        topic = root.findtext("TopicConfiguration/Topic")
+        event = root.findtext("TopicConfiguration/Event")
+
+        return NotificationConfiguration(topic, event)
 
     def get_bucket_acl(self, bucket):
         """

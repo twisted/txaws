@@ -201,7 +201,8 @@ class S3ClientTestCase(TXAWSTestCase):
         """
         L{S3Client.get_bucket_location} creates a L{Query} to get a bucket's
         location.  It parses the returned C{LocationConstraint} XML document
-        and returns a C{Deferred} that fires with the bucket's region.
+        and returns a C{Deferred} that requests the bucket's location
+        constraint.
         """
 
         class StubQuery(client.Query):
@@ -235,7 +236,8 @@ class S3ClientTestCase(TXAWSTestCase):
         """
         L{S3Client.get_bucket_lifecycle} creates a L{Query} to get a bucket's
         lifecycle.  It parses the returned C{LifecycleConfiguration} XML
-        document and returns a C{Deferred} that fires with the bucket's region.
+        document and returns a C{Deferred} that requests the bucket's lifecycle
+        configuration with multiple rules.
         """
 
         class StubQuery(client.Query):
@@ -275,7 +277,8 @@ class S3ClientTestCase(TXAWSTestCase):
         """
         L{S3Client.get_bucket_lifecycle} creates a L{Query} to get a bucket's
         lifecycle.  It parses the returned C{LifecycleConfiguration} XML
-        document and returns a C{Deferred} that fires with the bucket's region.
+        document and returns a C{Deferred} that requests the bucket's lifecycle
+        configuration.
         """
 
         class StubQuery(client.Query):
@@ -314,7 +317,7 @@ class S3ClientTestCase(TXAWSTestCase):
         L{S3Client.get_bucket_website_config} creates a L{Query} to get a
         bucket's website configurtion.  It parses the returned
         C{WebsiteConfiguration} XML document and returns a C{Deferred} that
-        fires with the bucket's region.
+        requests the bucket's website configuration.
         """
 
         class StubQuery(client.Query):
@@ -351,7 +354,7 @@ class S3ClientTestCase(TXAWSTestCase):
         L{S3Client.get_bucket_website_config} creates a L{Query} to get a
         bucket's website configurtion.  It parses the returned
         C{WebsiteConfiguration} XML document and returns a C{Deferred} that
-        fires with the bucket's region.
+        requests the bucket's website configuration with the error document.
         """
 
         class StubQuery(client.Query):
@@ -380,6 +383,83 @@ class S3ClientTestCase(TXAWSTestCase):
         creds = AWSCredentials("foo", "bar")
         s3 = client.S3Client(creds, query_factory=StubQuery)
         d = s3.get_bucket_website_config("mybucket")
+        return d.addCallback(check_results)
+
+    def test_get_bucket_notification_config(self):
+        """
+        L{S3Client.get_bucket_notification_config} creates a L{Query} to get a
+        bucket's notification configuration.  It parses the returned
+        C{NotificationConfiguration} XML document and returns a C{Deferred}
+        that requests the bucket's notification configuration.
+        """
+
+        class StubQuery(client.Query):
+
+            def __init__(query, action, creds, endpoint, bucket=None,
+                         object_name=None):
+                super(StubQuery, query).__init__(action=action, creds=creds,
+                                                 bucket=bucket,
+                                                 object_name=object_name)
+                self.assertEquals(action, "GET")
+                self.assertEqual(creds.access_key, "foo")
+                self.assertEqual(creds.secret_key, "bar")
+                self.assertEqual(query.bucket, "mybucket")
+                self.assertEqual(query.object_name, "?notification")
+                self.assertEqual(query.data, "")
+                self.assertEqual(query.metadata, {})
+                self.assertEqual(query.amz_headers, {})
+
+            def submit(query, url_context=None):
+                return succeed(payload.
+                               sample_s3_get_bucket_notification_result)
+
+        def check_results(notification_config):
+            self.assertEquals(notification_config.topic, None)
+            self.assertEquals(notification_config.event, None)
+
+        creds = AWSCredentials("foo", "bar")
+        s3 = client.S3Client(creds, query_factory=StubQuery)
+        d = s3.get_bucket_notification_config("mybucket")
+        return d.addCallback(check_results)
+
+    def test_get_bucket_notification_config_with_topic(self):
+        """
+        L{S3Client.get_bucket_notification_config} creates a L{Query} to get a
+        bucket's notification configuration.  It parses the returned
+        C{NotificationConfiguration} XML document and returns a C{Deferred}
+        that requests the bucket's notification configuration with a topic.
+        """
+
+        class StubQuery(client.Query):
+
+            def __init__(query, action, creds, endpoint, bucket=None,
+                         object_name=None):
+                super(StubQuery, query).__init__(action=action, creds=creds,
+                                                 bucket=bucket,
+                                                 object_name=object_name)
+                self.assertEquals(action, "GET")
+                self.assertEqual(creds.access_key, "foo")
+                self.assertEqual(creds.secret_key, "bar")
+                self.assertEqual(query.bucket, "mybucket")
+                self.assertEqual(query.object_name, "?notification")
+                self.assertEqual(query.data, "")
+                self.assertEqual(query.metadata, {})
+                self.assertEqual(query.amz_headers, {})
+
+            def submit(query, url_context=None):
+                return succeed(
+                    payload.
+                        sample_s3_get_bucket_notification_with_topic_result)
+
+        def check_results(notification_config):
+            self.assertEquals(notification_config.topic,
+                              "arn:aws:sns:us-east-1:123456789012:myTopic")
+            self.assertEquals(notification_config.event,
+                              "s3:ReducedRedundancyLostObject")
+
+        creds = AWSCredentials("foo", "bar")
+        s3 = client.S3Client(creds, query_factory=StubQuery)
+        d = s3.get_bucket_notification_config("mybucket")
         return d.addCallback(check_results)
 
     def test_delete_bucket(self):

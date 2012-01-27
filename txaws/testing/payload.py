@@ -1060,3 +1060,14 @@ sample_s3_get_bucket_website_no_error_result = """\
     <Suffix>index.html</Suffix>
   </IndexDocument>
 </WebsiteConfiguration>"""
+
+sample_s3_get_bucket_notification_result = """\
+<NotificationConfiguration />"""
+
+sample_s3_get_bucket_notification_with_topic_result = """\
+<NotificationConfiguration>
+   <TopicConfiguration>
+       <Topic>arn:aws:sns:us-east-1:123456789012:myTopic</Topic>
+       <Event>s3:ReducedRedundancyLostObject</Event>
+   </TopicConfiguration>
+</NotificationConfiguration>"""
