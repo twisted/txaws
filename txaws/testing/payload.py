@@ -1052,3 +1052,11 @@ sample_s3_get_bucket_website_result = """\
     <Key>404.html</Key>
   </ErrorDocument>
 </WebsiteConfiguration>"""
+
+sample_s3_get_bucket_website_no_error_result = """\
+<?xml version="1.0" encoding="UTF-8"?>
+<WebsiteConfiguration xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
+  <IndexDocument>
+    <Suffix>index.html</Suffix>
+  </IndexDocument>
+</WebsiteConfiguration>"""
