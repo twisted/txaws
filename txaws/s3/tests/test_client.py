@@ -382,6 +382,41 @@ class S3ClientTestCase(TXAWSTestCase):
         d = s3.get_bucket_website_config("mybucket")
         return d.addCallback(check_results)
 
+    def test_get_bucket_notification_config(self):
+        """
+        L{S3Client.get_bucket_notification_config} creates a L{Query} to get a
+        bucket's notification configuration.  It parses the returned
+        C{NotificationConfiguration} XML document and returns a C{Deferred} that
+        requests the bucket's notification configuration.
+        """
+
+        class StubQuery(client.Query):
+
+            def __init__(query, action, creds, endpoint, bucket=None,
+                         object_name=None):
+                super(StubQuery, query).__init__(action=action, creds=creds,
+                                                 bucket=bucket,
+                                                 object_name=object_name)
+                self.assertEquals(action, "GET")
+                self.assertEqual(creds.access_key, "foo")
+                self.assertEqual(creds.secret_key, "bar")
+                self.assertEqual(query.bucket, "mybucket")
+                self.assertEqual(query.object_name, "?notification")
+                self.assertEqual(query.data, "")
+                self.assertEqual(query.metadata, {})
+                self.assertEqual(query.amz_headers, {})
+
+            def submit(query, url_context=None):
+                return succeed(payload.sample_s3_get_bucket_notification_result)
+
+        def check_results(website_config):
+            pass
+
+        creds = AWSCredentials("foo", "bar")
+        s3 = client.S3Client(creds, query_factory=StubQuery)
+        d = s3.get_bucket_notification_config("mybucket")
+        return d.addCallback(check_results)
+
     def test_delete_bucket(self):
 
         class StubQuery(client.Query):
