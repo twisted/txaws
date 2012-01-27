@@ -462,11 +462,47 @@ class S3ClientTestCase(TXAWSTestCase):
         d = s3.get_bucket_notification_config("mybucket")
         return d.addCallback(check_results)
 
-    def test_get_bucket_logging_status(self):
+    def test_get_bucket_versioning_config(self):
         """
-        L{S3Client.get_bucket_logging_status} creates a L{Query} to get a
-        bucket's logging status.  It parses the returned C{LoggingStatus} XML
-        document and returns a C{Deferred} that requests the bucket's logging
+        L{S3Client.get_bucket_versioning_configuration} creates a L{Query} to
+        get a bucket's versioning status.  It parses the returned
+        C{VersioningConfiguration} XML document and returns a C{Deferred} that
+        requests the bucket's versioning configuration.
+        """
+
+        class StubQuery(client.Query):
+
+            def __init__(query, action, creds, endpoint, bucket=None,
+                         object_name=None):
+                super(StubQuery, query).__init__(action=action, creds=creds,
+                                                 bucket=bucket,
+                                                 object_name=object_name)
+                self.assertEquals(action, "GET")
+                self.assertEqual(creds.access_key, "foo")
+                self.assertEqual(creds.secret_key, "bar")
+                self.assertEqual(query.bucket, "mybucket")
+                self.assertEqual(query.object_name, "?configuration")
+                self.assertEqual(query.data, "")
+                self.assertEqual(query.metadata, {})
+                self.assertEqual(query.amz_headers, {})
+
+            def submit(query, url_context=None):
+                return succeed(payload.sample_s3_get_bucket_versioning_result)
+
+        def check_results(versioning_config):
+            self.assertEquals(versioning_config.status, None)
+
+        creds = AWSCredentials("foo", "bar")
+        s3 = client.S3Client(creds, query_factory=StubQuery)
+        d = s3.get_bucket_versioning_configuration("mybucket")
+        return d.addCallback(check_results)
+
+    def test_get_bucket_versioning_config_enabled(self):
+        """
+        L{S3Client.get_bucket_versioning_config} creates a L{Query} to get a
+        bucket's versioning configuration.  It parses the returned
+        C{VersioningConfiguration} XML document and returns a C{Deferred} that
+        requests the bucket's versioning configuration that has a enabled
         status.
         """
 
@@ -481,28 +517,30 @@ class S3ClientTestCase(TXAWSTestCase):
                 self.assertEqual(creds.access_key, "foo")
                 self.assertEqual(creds.secret_key, "bar")
                 self.assertEqual(query.bucket, "mybucket")
-                self.assertEqual(query.object_name, "?logging")
+                self.assertEqual(query.object_name, "?versioning")
                 self.assertEqual(query.data, "")
                 self.assertEqual(query.metadata, {})
                 self.assertEqual(query.amz_headers, {})
 
             def submit(query, url_context=None):
-                return succeed(payload.sample_s3_get_bucket_logging_result)
+                return succeed(payload.
+                               sample_s3_get_bucket_versioning_enabled_result)
 
-        def check_results(logging_status):
-            self.assertEquals(logging_status.status, None)
+        def check_results(versioning_config):
+            self.assertEquals(versioning_config.status, 'Enabled')
 
         creds = AWSCredentials("foo", "bar")
         s3 = client.S3Client(creds, query_factory=StubQuery)
-        d = s3.get_bucket_logging_status("mybucket")
+        d = s3.get_bucket_versioning_status("mybucket")
         return d.addCallback(check_results)
 
-    def test_get_bucket_logging_status_enabled(self):
+    def test_get_bucket_versioning_config_suspended(self):
         """
-        L{S3Client.get_bucket_logging_status} creates a L{Query} to get a
-        bucket's logging status.  It parses the returned C{LoggingStatus} XML
-        document and returns a C{Deferred} that requests the bucket's logging
-        status which is enabled.
+        L{S3Client.get_bucket_versioning_config} creates a L{Query} to get a
+        bucket's versioning configuration.  It parses the returned
+        C{VersioningConfiguration} XML document and returns a C{Deferred} that
+        requests the bucket's versioning configuration that has a suspended
+        status.
         """
 
         class StubQuery(client.Query):
@@ -516,57 +554,21 @@ class S3ClientTestCase(TXAWSTestCase):
                 self.assertEqual(creds.access_key, "foo")
                 self.assertEqual(creds.secret_key, "bar")
                 self.assertEqual(query.bucket, "mybucket")
-                self.assertEqual(query.object_name, "?logging")
+                self.assertEqual(query.object_name, "?versioning")
                 self.assertEqual(query.data, "")
                 self.assertEqual(query.metadata, {})
                 self.assertEqual(query.amz_headers, {})
 
             def submit(query, url_context=None):
                 return succeed(payload.
-                               sample_s3_get_bucket_logging_enabled_result)
+                               sample_s3_get_bucket_versioning_suspended_result)
 
-        def check_results(logging_status):
-            self.assertEquals(logging_status.status, 'Enabled')
-
-        creds = AWSCredentials("foo", "bar")
-        s3 = client.S3Client(creds, query_factory=StubQuery)
-        d = s3.get_bucket_logging_status("mybucket")
-        return d.addCallback(check_results)
-
-    def test_get_bucket_logging_status_suspended(self):
-        """
-        L{S3Client.get_bucket_logging_status} creates a L{Query} to get a
-        bucket's logging status.  It parses the returned C{LoggingStatus} XML
-        document and returns a C{Deferred} that requests the bucket's logging
-        status which is suspended.
-        """
-
-        class StubQuery(client.Query):
-
-            def __init__(query, action, creds, endpoint, bucket=None,
-                         object_name=None):
-                super(StubQuery, query).__init__(action=action, creds=creds,
-                                                 bucket=bucket,
-                                                 object_name=object_name)
-                self.assertEquals(action, "GET")
-                self.assertEqual(creds.access_key, "foo")
-                self.assertEqual(creds.secret_key, "bar")
-                self.assertEqual(query.bucket, "mybucket")
-                self.assertEqual(query.object_name, "?logging")
-                self.assertEqual(query.data, "")
-                self.assertEqual(query.metadata, {})
-                self.assertEqual(query.amz_headers, {})
-
-            def submit(query, url_context=None):
-                return succeed(payload.
-                               sample_s3_get_bucket_logging_suspended_result)
-
-        def check_results(logging_status):
-            self.assertEquals(logging_status.status, 'Suspended')
+        def check_results(versioning_config):
+            self.assertEquals(versioning_config.status, 'Suspended')
 
         creds = AWSCredentials("foo", "bar")
         s3 = client.S3Client(creds, query_factory=StubQuery)
-        d = s3.get_bucket_logging_status("mybucket")
+        d = s3.get_bucket_versioning_status("mybucket")
         return d.addCallback(check_results)
 
     def test_delete_bucket(self):
