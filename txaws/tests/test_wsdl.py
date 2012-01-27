@@ -9,7 +9,13 @@ from txaws.wsdl import (
     SequenceItem, WSDLParser, etree)
 
 
-class NodeSchemaTest(TestCase):
+class WsdlBaseTestCase(TestCase):
+
+    if not etree:
+        skip = "lxml is either not installed or broken on your system."
+
+
+class NodeSchemaTest(WsdlBaseTestCase):
 
     def test_create_with_bad_tag(self):
         """
@@ -64,7 +70,7 @@ class NodeSchemaTest(TestCase):
         self.assertEqual("<foo/>", etree.tostring(schema.dump(foo)))
 
 
-class NodeItemTest(TestCase):
+class NodeItemTest(WsdlBaseTestCase):
 
     def test_get(self):
         """
@@ -275,7 +281,7 @@ class NodeItemTest(TestCase):
         self.assertTrue(hasattr(foo, "bar"))
 
 
-class SequenceSchemaTest(TestCase):
+class SequenceSchemaTest(WsdlBaseTestCase):
 
     def test_create_with_bad_tag(self):
         """
@@ -345,7 +351,7 @@ class SequenceSchemaTest(TestCase):
                          etree.tostring(schema.dump(foo)))
 
 
-class SequenceItemTest(TestCase):
+class SequenceItemTest(WsdlBaseTestCase):
 
     def test_get(self):
         """
@@ -501,7 +507,7 @@ class SequenceItemTest(TestCase):
         self.assertEqual("egg1", item1.bar)
 
 
-class WDSLParserTest(TestCase):
+class WDSLParserTest(WsdlBaseTestCase):
 
     def setUp(self):
         super(WDSLParserTest, self).setUp()

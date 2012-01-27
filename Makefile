@@ -33,7 +33,9 @@ virtual-dir-setup:
 	-. .venv-$(VERSION)/bin/activate && pip install PyOpenSSL
 	-. .venv-$(VERSION)/bin/activate && pip install venusian
 	-. .venv-$(VERSION)/bin/activate && pip install 'python-dateutil<2.0'
-
+ifeq ($(VERSION), 2.5)
+	-. .venv-$(VERSION)/bin/activate && pip install elementtree
+endif
 
 virtual-builds:
 	-@test -e "`which $(PYBIN)2.5`" && VERSION=2.5 make virtual-dir-setup || echo "Couldn't find $(PYBIN)2.5"
@@ -48,7 +50,7 @@ virtual-trial:
 
 virtual-pep8: VERSION ?= 2.7
 virtual-pep8:
-	-. .venv-$(VERSION)/bin/activate && pep8 --repeat ./txaws
+	-. .venv-$(VERSION)/bin/activate && pep8 ./txaws
 
 
 virtual-pyflakes: VERSION ?= 2.7
