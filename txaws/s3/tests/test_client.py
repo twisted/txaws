@@ -334,18 +334,19 @@ class S3ClientTestCase(TXAWSTestCase):
                 self.assertEqual(query.amz_headers, {})
 
             def submit(query, url_context=None):
-                return succeed(payload.sample_s3_get_bucket_website_result)
+                return succeed(payload.
+                    sample_s3_get_bucket_website_no_error_result)
 
         def check_results(website_config):
             self.assertEquals(website_config.index_suffix, "index.html")
-            self.assertEquals(website_config.error_key, "404.html")
+            self.assertEquals(website_config.error_key, None)
 
         creds = AWSCredentials("foo", "bar")
         s3 = client.S3Client(creds, query_factory=StubQuery)
         d = s3.get_bucket_website_config("mybucket")
         return d.addCallback(check_results)
 
-    def test_get_bucket_website_config_no_error_doc(self):
+    def test_get_bucket_website_config_with_error_doc(self):
         """
         L{S3Client.get_bucket_website_config} creates a L{Query} to get a
         bucket's website configurtion.  It parses the returned
@@ -370,12 +371,11 @@ class S3ClientTestCase(TXAWSTestCase):
                 self.assertEqual(query.amz_headers, {})
 
             def submit(query, url_context=None):
-                return succeed(payload.
-                    sample_s3_get_bucket_website_no_error_result)
+                return succeed(payload.sample_s3_get_bucket_website_result)
 
         def check_results(website_config):
             self.assertEquals(website_config.index_suffix, "index.html")
-            self.assertEquals(website_config.error_key, None)
+            self.assertEquals(website_config.error_key, "404.html")
 
         creds = AWSCredentials("foo", "bar")
         s3 = client.S3Client(creds, query_factory=StubQuery)
