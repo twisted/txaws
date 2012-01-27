@@ -533,7 +533,7 @@ class S3ClientTestCase(TXAWSTestCase):
         d = s3.get_bucket_logging_status("mybucket")
         return d.addCallback(check_results)
 
-    def test_get_bucket_logging_status(self):
+    def test_get_bucket_logging_status_disabled(self):
         """
         L{S3Client.get_bucket_logging_status} creates a L{Query} to get a
         bucket's logging status.  It parses the returned C{LoggingStatus} XML
