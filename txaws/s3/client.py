@@ -22,7 +22,7 @@ from txaws.client.base import BaseClient, BaseQuery, error_wrapper
 from txaws.s3.acls import AccessControlPolicy
 from txaws.s3.model import (
     Bucket, BucketItem, BucketListing, ItemOwner, LifecycleConfiguration,
-    LifecycleConfigurationRule, RequestPayment)
+    LifecycleConfigurationRule, RequestPayment, WebsiteConfiguration)
 from txaws.s3.exception import S3Error
 from txaws.service import AWSServiceEndpoint, S3_ENDPOINT
 from txaws.util import XML, calculate_md5
@@ -222,13 +222,13 @@ class S3Client(BaseClient):
         query = self.query_factory(
             action='GET', creds=self.creds, endpoint=self.endpoint,
             bucket=bucket, object_name='?website')
-        return query.submit().addCallback(self._parse_lifecycle_config)
+        return query.submit().addCallback(self._parse_website_config)
 
     def _parse_website_config(self, xml_bytes):
         """Parse a C{WebsiteConfiguration} XML document."""
         root = XML(xml_bytes)
-        index_suffix = content_data.findtext("IndexDocument/Suffix")
-        error_key = content_data.findtext("ErrorDocument/Key")
+        index_suffix = root.findtext("IndexDocument/Suffix")
+        error_key = root.findtext("ErrorDocument/Key")
 
         return WebsiteConfiguration(index_suffix, error_key)
 

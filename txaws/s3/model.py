@@ -76,7 +76,7 @@ class WebsiteConfiguration(object):
     """
     A mapping for the data in a bucket website configuration.
     """
-    def __init__(self, index_doc, error_doc):
+    def __init__(self, index_suffix, error_key):
         self.index_suffix = index_suffix
         self.error_key = error_key
 

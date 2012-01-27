@@ -336,8 +336,9 @@ class S3ClientTestCase(TXAWSTestCase):
             def submit(query, url_context=None):
                 return succeed(payload.sample_s3_get_bucket_website_result)
 
-        def check_results(lifecycle_config):
-            pass
+        def check_results(website_config):
+            self.assertEquals(website_config.index_suffix, "index.html")
+            self.assertEquals(website_config.error_key, "404.html")
 
         creds = AWSCredentials("foo", "bar")
         s3 = client.S3Client(creds, query_factory=StubQuery)
