@@ -72,6 +72,14 @@ class LifecycleConfigurationRule(object):
         self.expiration = expiration
 
 
+class WebsiteConfiguration(object):
+    """
+    A mapping for the data in a bucket website configuration.
+    """
+    def __init__(self, index_doc, error_doc):
+        self.index_suffix = index_suffix
+        self.error_key = error_key
+
 class FileChunk(object):
     """
     An Amazon S3 file chunk.
