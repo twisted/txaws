@@ -412,8 +412,9 @@ class S3ClientTestCase(TXAWSTestCase):
             def submit(query, url_context=None):
                 return succeed(payload.sample_s3_get_bucket_notification_result)
 
-        def check_results(website_config):
-            pass
+        def check_results(notification_config):
+            self.assertEquals(notification_config.topic, None)
+            self.assertEquals(notification_config.event, None)
 
         creds = AWSCredentials("foo", "bar")
         s3 = client.S3Client(creds, query_factory=StubQuery)
