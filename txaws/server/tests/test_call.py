@@ -3,7 +3,7 @@ from twisted.trial.unittest import TestCase
 from txaws.server.call import Call
 
 
-class CallTest(TestCase):
+class CallTestCase(TestCase):
 
     def test_default_version(self):
         """

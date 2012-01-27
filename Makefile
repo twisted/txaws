@@ -23,6 +23,11 @@ build:
 	@python setup.py sdist
 
 
+check-testcase-names:
+	@echo "Checking for (possibly) badly named test cases..."
+	@find ./txaws|xargs grep Test|grep class|grep -v 'TestCase('
+
+
 virtual-dir-setup: VERSION ?= 2.7
 virtual-dir-setup:
 	-@test -d .venv-$(VERSION) || virtualenv -p $(PYBIN)$(VERSION) .venv-$(VERSION)
@@ -50,7 +55,7 @@ virtual-trial:
 
 virtual-pep8: VERSION ?= 2.7
 virtual-pep8:
-	-. .venv-$(VERSION)/bin/activate && pep8 ./txaws
+	-. .venv-$(VERSION)/bin/activate && pep8 --repeat ./txaws
 
 
 virtual-pyflakes: VERSION ?= 2.7
@@ -82,6 +87,7 @@ virtual-checks: virtual-setup-builds
 	-@test -e "`which python2.5`" && VERSION=2.5 make virtual-check
 	-@test -e "`which python2.6`" && VERSION=2.6 make virtual-check
 	-@test -e "`which python2.7`" && VERSION=2.7 make virtual-check
+	make check-testcase-names
 
 
 virtual-uninstall: VERSION ?= 2.7

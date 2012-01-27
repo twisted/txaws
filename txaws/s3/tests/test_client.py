@@ -919,7 +919,7 @@ class QueryTestCase(TXAWSTestCase):
 QueryTestCase.skip = s3clientSkip
 
 
-class MiscellaneousTests(TXAWSTestCase):
+class MiscellaneousTestCase(TXAWSTestCase):
 
     def test_content_md5(self):
         self.assertEqual(calculate_md5("somedata"), "rvr3UC1SmUw7AZV2NqPN0g==")

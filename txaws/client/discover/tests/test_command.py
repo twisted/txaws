@@ -20,7 +20,7 @@ class FakeHTTPClient(object):
         self.url = url
 
 
-class CommandTest(TXAWSTestCase):
+class CommandTestCase(TXAWSTestCase):
 
     def prepare_command(self, response, status, action, parameters={},
                         get_page=None, error=None):

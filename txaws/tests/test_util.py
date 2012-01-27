@@ -5,7 +5,7 @@ from twisted.trial.unittest import TestCase
 from txaws.util import hmac_sha1, iso8601time, parse
 
 
-class MiscellaneousTests(TestCase):
+class MiscellaneousTestCase(TestCase):
 
     def test_hmac_sha1(self):
         cases = [

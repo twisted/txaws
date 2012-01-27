@@ -3,10 +3,10 @@ from twisted.trial.unittest import TestCase
 from txaws.server.method import Method
 
 
-class MethodTest(TestCase):
+class MethodTestCase(TestCase):
 
     def setUp(self):
-        super(MethodTest, self).setUp()
+        super(MethodTestCase, self).setUp()
         self.method = Method()
 
     def test_defaults(self):
