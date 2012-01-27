@@ -211,6 +211,27 @@ class S3Client(BaseClient):
 
         return LifecycleConfiguration(rules) 
 
+    def get_bucket_website_config(self, bucket):
+        """
+        Get the website configuration of a bucket.
+
+        @param bucket: The name of the bucket.
+        @return: A C{Deferred} that will fire with the bucket's website
+        configuration.
+        """
+        query = self.query_factory(
+            action='GET', creds=self.creds, endpoint=self.endpoint,
+            bucket=bucket, object_name='?website')
+        return query.submit().addCallback(self._parse_lifecycle_config)
+
+    def _parse_website_config(self, xml_bytes):
+        """Parse a C{WebsiteConfiguration} XML document."""
+        root = XML(xml_bytes)
+        index_suffix = content_data.findtext("IndexDocument/Suffix")
+        error_key = content_data.findtext("ErrorDocument/Key")
+
+        return WebsiteConfiguration(index_suffix, error_key)
+
     def get_bucket_acl(self, bucket):
         """
         Get the access control policy for a bucket.
