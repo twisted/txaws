@@ -40,6 +40,7 @@ virtual-dir-setup:
 	-. .venv-$(VERSION)/bin/activate && pip install 'python-dateutil<2.0'
 ifeq ($(VERSION), 2.5)
 	-. .venv-$(VERSION)/bin/activate && pip install elementtree
+	-. .venv-$(VERSION)/bin/activate && pip install simplejson
 endif
 
 virtual-builds:
@@ -83,7 +84,7 @@ virtual-setup-builds: virtual-builds
 	-@test -e "`which python2.7`" && VERSION=2.7 make virtual-setup-build
 
 
-virtual-checks: virtual-setup-builds
+virtual-checks: clean virtual-setup-builds
 	-@test -e "`which python2.5`" && VERSION=2.5 make virtual-check
 	-@test -e "`which python2.6`" && VERSION=2.6 make virtual-check
 	-@test -e "`which python2.7`" && VERSION=2.7 make virtual-check
