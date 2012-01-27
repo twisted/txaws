@@ -201,7 +201,8 @@ class S3ClientTestCase(TXAWSTestCase):
         """
         L{S3Client.get_bucket_location} creates a L{Query} to get a bucket's
         location.  It parses the returned C{LocationConstraint} XML document
-        and returns a C{Deferred} that fires with the bucket's region.
+        and returns a C{Deferred} that requests the bucket's location
+        constraint.
         """
 
         class StubQuery(client.Query):
@@ -235,7 +236,8 @@ class S3ClientTestCase(TXAWSTestCase):
         """
         L{S3Client.get_bucket_lifecycle} creates a L{Query} to get a bucket's
         lifecycle.  It parses the returned C{LifecycleConfiguration} XML
-        document and returns a C{Deferred} that fires with the bucket's region.
+        document and returns a C{Deferred} that requests the bucket's lifecycle
+        configuration with multiple rules.
         """
 
         class StubQuery(client.Query):
@@ -275,7 +277,8 @@ class S3ClientTestCase(TXAWSTestCase):
         """
         L{S3Client.get_bucket_lifecycle} creates a L{Query} to get a bucket's
         lifecycle.  It parses the returned C{LifecycleConfiguration} XML
-        document and returns a C{Deferred} that fires with the bucket's region.
+        document and returns a C{Deferred} that requests the bucket's lifecycle
+        configuration.
         """
 
         class StubQuery(client.Query):
@@ -314,7 +317,7 @@ class S3ClientTestCase(TXAWSTestCase):
         L{S3Client.get_bucket_website_config} creates a L{Query} to get a
         bucket's website configurtion.  It parses the returned
         C{WebsiteConfiguration} XML document and returns a C{Deferred} that
-        fires with the bucket's region.
+        requests the bucket's website configuration.
         """
 
         class StubQuery(client.Query):
@@ -351,7 +354,7 @@ class S3ClientTestCase(TXAWSTestCase):
         L{S3Client.get_bucket_website_config} creates a L{Query} to get a
         bucket's website configurtion.  It parses the returned
         C{WebsiteConfiguration} XML document and returns a C{Deferred} that
-        fires with the bucket's region.
+        requests the bucket's website configuration with the error document.
         """
 
         class StubQuery(client.Query):
