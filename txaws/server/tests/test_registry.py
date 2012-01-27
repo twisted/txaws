@@ -4,14 +4,23 @@ from txaws.server.method import Method
 from txaws.server.registry import Registry
 from txaws.server.exception import APIError
 
-from txaws.server.tests.fixtures import (
-    has_venusian, importerror, amodule)
-from txaws.server.tests.fixtures.amodule import TestMethod
-from txaws.server.tests.fixtures.importerror.amodule import (
-    TestMethod as testmethod)
+try:
+    from txaws.server.tests.fixtures import (
+        has_venusian, importerror, amodule)
+    from txaws.server.tests.fixtures.amodule import TestMethod
+    from txaws.server.tests.fixtures.importerror.amodule import (
+        TestMethod as testmethod)
+    no_class_decorators = False
+except SyntaxError:
+    no_class_decorators = True
+    has_venusian = False
 
 
 class RegistryTest(TestCase):
+
+    if no_class_decorators:
+        skip = ("Your version of Python doesn't seem to support class "
+                "decorators.")
 
     def setUp(self):
         super(RegistryTest, self).setUp()

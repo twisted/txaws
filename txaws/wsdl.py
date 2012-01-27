@@ -78,8 +78,6 @@ the response elements one actually accesses are consistent with the
 WDSL definition and that all modifications of those items are consistent
 as well.
 """
-import sys
-
 try:
     from lxml import etree
 except ImportError:
