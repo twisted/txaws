@@ -55,7 +55,7 @@ virtual-trial:
 
 virtual-pep8: VERSION ?= 2.7
 virtual-pep8:
-	-. .venv-$(VERSION)/bin/activate && pep8 ./txaws
+	-. .venv-$(VERSION)/bin/activate && pep8 --repeat ./txaws
 
 
 virtual-pyflakes: VERSION ?= 2.7
