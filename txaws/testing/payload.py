@@ -1080,7 +1080,7 @@ sample_s3_get_bucket_logging_enabled_result = """\
   <Status>Enabled</Status>
 </VersioningConfiguration>"""
 
-sample_s3_get_bucket_logging_disabled_result = """\
+sample_s3_get_bucket_logging_suspended_result = """\
 <VersioningConfiguration xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
   <Status>Suspended</Status>
 </VersioningConfiguration>"""

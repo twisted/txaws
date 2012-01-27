@@ -489,8 +489,8 @@ class S3ClientTestCase(TXAWSTestCase):
             def submit(query, url_context=None):
                 return succeed(payload.sample_s3_get_bucket_logging_result)
 
-        def check_results(notification_config):
-            pass
+        def check_results(logging_status):
+            self.assertEquals(logging_status.status, None)
 
         creds = AWSCredentials("foo", "bar")
         s3 = client.S3Client(creds, query_factory=StubQuery)
@@ -525,20 +525,20 @@ class S3ClientTestCase(TXAWSTestCase):
                 return succeed(payload.
                                sample_s3_get_bucket_logging_enabled_result)
 
-        def check_results(notification_config):
-            pass
+        def check_results(logging_status):
+            self.assertEquals(logging_status.status, 'Enabled')
 
         creds = AWSCredentials("foo", "bar")
         s3 = client.S3Client(creds, query_factory=StubQuery)
         d = s3.get_bucket_logging_status("mybucket")
         return d.addCallback(check_results)
 
-    def test_get_bucket_logging_status_disabled(self):
+    def test_get_bucket_logging_status_suspended(self):
         """
         L{S3Client.get_bucket_logging_status} creates a L{Query} to get a
         bucket's logging status.  It parses the returned C{LoggingStatus} XML
         document and returns a C{Deferred} that requests the bucket's logging
-        status which is disabled.
+        status which is suspended.
         """
 
         class StubQuery(client.Query):
@@ -561,8 +561,8 @@ class S3ClientTestCase(TXAWSTestCase):
                 return succeed(payload.
                                sample_s3_get_bucket_logging_disabled_result)
 
-        def check_results(notification_config):
-            pass
+        def check_results(logging_status):
+            self.assertEquals(logging_status.status, 'Suspended')
 
         creds = AWSCredentials("foo", "bar")
         s3 = client.S3Client(creds, query_factory=StubQuery)

@@ -90,6 +90,14 @@ class NotificationConfiguration(object):
         self.event = event
 
 
+class LoggingStatus(object):
+    """
+    Container for the bucket logging status.
+    """
+    def __init__(self, status=None):
+        self.status = status
+
+
 class FileChunk(object):
     """
     An Amazon S3 file chunk.
