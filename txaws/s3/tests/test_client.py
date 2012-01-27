@@ -447,8 +447,9 @@ class S3ClientTestCase(TXAWSTestCase):
                 self.assertEqual(query.amz_headers, {})
 
             def submit(query, url_context=None):
-                return succeed(payload.
-                    sample_s3_get_bucket_notification_with_topic_result)
+                return succeed(
+                    payload.
+                        sample_s3_get_bucket_notification_with_topic_result)
 
         def check_results(notification_config):
             self.assertEquals(notification_config.topic,
