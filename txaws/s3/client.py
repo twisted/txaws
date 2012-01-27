@@ -22,8 +22,8 @@ from txaws.client.base import BaseClient, BaseQuery, error_wrapper
 from txaws.s3.acls import AccessControlPolicy
 from txaws.s3.model import (
     Bucket, BucketItem, BucketListing, ItemOwner, LifecycleConfiguration,
-    LifecycleConfigurationRule, NotificationConfiguration, RequestPayment,
-    WebsiteConfiguration)
+    LifecycleConfigurationRule, LoggingStatus, NotificationConfiguration,
+    RequestPayment, WebsiteConfiguration)
 from txaws.s3.exception import S3Error
 from txaws.service import AWSServiceEndpoint, S3_ENDPOINT
 from txaws.util import XML, calculate_md5
@@ -252,6 +252,25 @@ class S3Client(BaseClient):
         event = root.findtext("TopicConfiguration/Event")
 
         return NotificationConfiguration(topic, event)
+
+    def get_bucket_logging_status(self, bucket):
+        """
+        Get the logging status of a bucket.
+
+        @param bucket: The name of the bucket.  @return: A C{Deferred} that
+        will request the bucket's logging status.
+        """
+        query = self.query_factory(
+            action='GET', creds=self.creds, endpoint=self.endpoint,
+            bucket=bucket, object_name='?logging')
+        return query.submit().addCallback(self._parse_logging_status)
+
+    def _parse_logging_status(self, xml_bytes):
+        """Parse a C{VersioningConfiguration} XML document."""
+        root = XML(xml_bytes)
+        status = root.findtext("VersioningConfiguration/Status")
+
+        return LoggingStatus(status)
 
     def get_bucket_acl(self, bucket):
         """
