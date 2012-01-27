@@ -78,8 +78,12 @@ the response elements one actually accesses are consistent with the
 WDSL definition and that all modifications of those items are consistent
 as well.
 """
+import sys
 
-from lxml import etree
+try:
+    from lxml import etree
+except ImportError:
+    etree = None
 
 
 class WSDLParseError(Exception):

@@ -9,7 +9,13 @@ from txaws.wsdl import (
     SequenceItem, WSDLParser, etree)
 
 
-class NodeSchemaTest(TestCase):
+class WsdlBaseTestCase(TestCase):
+
+    if not etree:
+        skip = "lxml is either not installed or broken on your system."
+
+
+class NodeSchemaTest(WsdlBaseTestCase):
 
     def test_create_with_bad_tag(self):
         """
@@ -20,7 +26,7 @@ class NodeSchemaTest(TestCase):
         root = etree.fromstring("<egg><bar>spam</bar></egg>")
         error = self.assertRaises(WSDLParseError, schema.create, root)
         self.assertEqual("Expected response with tag 'foo', but got "
-                         "'egg' instead", error.message)
+                         "'egg' instead", error.args[0])
 
     def test_add_with_invalid_min(self):
         """
@@ -64,7 +70,7 @@ class NodeSchemaTest(TestCase):
         self.assertEqual("<foo/>", etree.tostring(schema.dump(foo)))
 
 
-class NodeItemTest(TestCase):
+class NodeItemTest(WsdlBaseTestCase):
 
     def test_get(self):
         """
@@ -103,7 +109,7 @@ class NodeItemTest(TestCase):
         root = etree.fromstring("<foo><bar>egg</bar><spam>boom</spam></foo>")
         foo = schema.create(root)
         error = self.assertRaises(WSDLParseError, getattr, foo, "spam")
-        self.assertEqual("Unknown tag 'spam'", error.message)
+        self.assertEqual("Unknown tag 'spam'", error.args[0])
 
     def test_get_with_duplicate_tag(self):
         """
@@ -114,7 +120,7 @@ class NodeItemTest(TestCase):
         root = etree.fromstring("<foo><bar>spam1</bar><bar>spam2</bar></foo>")
         item = schema.create(root)
         error = self.assertRaises(WSDLParseError, getattr, item, "bar")
-        self.assertEqual("Duplicate tag 'bar'", error.message)
+        self.assertEqual("Duplicate tag 'bar'", error.args[0])
 
     def test_get_with_missing_required_tag(self):
         """
@@ -125,7 +131,7 @@ class NodeItemTest(TestCase):
         root = etree.fromstring("<foo></foo>")
         item = schema.create(root)
         error = self.assertRaises(WSDLParseError, getattr, item, "bar")
-        self.assertEqual("Missing tag 'bar'", error.message)
+        self.assertEqual("Missing tag 'bar'", error.args[0])
 
     def test_get_with_empty_required_tag(self):
         """
@@ -136,7 +142,7 @@ class NodeItemTest(TestCase):
         root = etree.fromstring("<foo><bar/></foo>")
         item = schema.create(root)
         error = self.assertRaises(WSDLParseError, getattr, item, "bar")
-        self.assertEqual("Missing tag 'bar'", error.message)
+        self.assertEqual("Missing tag 'bar'", error.args[0])
 
     def test_get_with_non_required_tag(self):
         """
@@ -188,7 +194,7 @@ class NodeItemTest(TestCase):
         schema = NodeSchema("foo")
         foo = schema.create()
         error = self.assertRaises(WSDLParseError, setattr, foo, "bar", "egg")
-        self.assertEqual("Unknown tag 'bar'", error.message)
+        self.assertEqual("Unknown tag 'bar'", error.args[0])
 
     def test_set_with_duplicate_tag(self):
         """
@@ -199,7 +205,7 @@ class NodeItemTest(TestCase):
         root = etree.fromstring("<foo><bar>spam1</bar><bar>spam2</bar></foo>")
         foo = schema.create(root)
         error = self.assertRaises(WSDLParseError, setattr, foo, "bar", "egg")
-        self.assertEqual("Duplicate tag 'bar'", error.message)
+        self.assertEqual("Duplicate tag 'bar'", error.args[0])
 
     def test_set_with_required_tag(self):
         """
@@ -209,7 +215,7 @@ class NodeItemTest(TestCase):
         root = etree.fromstring("<foo><bar>spam</bar></foo>")
         foo = schema.create(root)
         error = self.assertRaises(WSDLParseError, setattr, foo, "bar", None)
-        self.assertEqual("Missing tag 'bar'", error.message)
+        self.assertEqual("Missing tag 'bar'", error.args[0])
         self.assertEqual("spam", foo.bar)
 
     def test_set_with_non_required_tag(self):
@@ -233,7 +239,7 @@ class NodeItemTest(TestCase):
         root = etree.fromstring("<foo><bar><egg>spam</egg></bar></foo>")
         foo = schema.create(root)
         error = self.assertRaises(WSDLParseError, setattr, foo, "bar", "yo")
-        self.assertEqual("Can't set non-leaf tag 'bar'", error.message)
+        self.assertEqual("Can't set non-leaf tag 'bar'", error.args[0])
 
     def test_set_with_optional_node_tag(self):
         """
@@ -271,11 +277,11 @@ class NodeItemTest(TestCase):
         root = etree.fromstring("<foo><bar><egg>spam</egg></bar></foo>")
         foo = schema.create(root)
         error = self.assertRaises(WSDLParseError, setattr, foo, "bar", None)
-        self.assertEqual("Missing tag 'bar'", error.message)
+        self.assertEqual("Missing tag 'bar'", error.args[0])
         self.assertTrue(hasattr(foo, "bar"))
 
 
-class SequenceSchemaTest(TestCase):
+class SequenceSchemaTest(WsdlBaseTestCase):
 
     def test_create_with_bad_tag(self):
         """
@@ -286,7 +292,7 @@ class SequenceSchemaTest(TestCase):
         root = etree.fromstring("<spam><item><bar>egg</bar></item></spam>")
         error = self.assertRaises(WSDLParseError, schema.create, root)
         self.assertEqual("Expected response with tag 'foo', but got "
-                         "'spam' instead", error.message)
+                         "'spam' instead", error.args[0])
 
     def test_set_with_leaf(self):
         """
@@ -345,7 +351,7 @@ class SequenceSchemaTest(TestCase):
                          etree.tostring(schema.dump(foo)))
 
 
-class SequenceItemTest(TestCase):
+class SequenceItemTest(WsdlBaseTestCase):
 
     def test_get(self):
         """
@@ -384,7 +390,7 @@ class SequenceItemTest(TestCase):
         root = etree.fromstring("<foo><item><bar>egg</bar></item></foo>")
         foo = schema.create(root)
         error = self.assertRaises(WSDLParseError, foo.__getitem__, 1)
-        self.assertEqual("Non existing item in tag 'foo'", error.message)
+        self.assertEqual("Non existing item in tag 'foo'", error.args[0])
 
     def test_get_with_index_higher_than_max(self):
         """
@@ -400,7 +406,7 @@ class SequenceItemTest(TestCase):
                                 "</foo>")
         foo = schema.create(root)
         error = self.assertRaises(WSDLParseError, foo.__getitem__, 1)
-        self.assertEqual("Out of range item in tag 'foo'", error.message)
+        self.assertEqual("Out of range item in tag 'foo'", error.args[0])
 
     def test_append(self):
         """
@@ -428,7 +434,7 @@ class SequenceItemTest(TestCase):
         root = etree.fromstring("<foo><item><bar>egg</bar></item></foo>")
         foo = schema.create(root)
         error = self.assertRaises(WSDLParseError, foo.append)
-        self.assertEqual("Too many items in tag 'foo'", error.message)
+        self.assertEqual("Too many items in tag 'foo'", error.args[0])
         self.assertEqual(1, len(list(foo)))
 
     def test_delitem(self):
@@ -458,7 +464,7 @@ class SequenceItemTest(TestCase):
         root = etree.fromstring("<foo><item><bar>egg</bar></item></foo>")
         foo = schema.create(root)
         error = self.assertRaises(WSDLParseError, foo.__delitem__, 0)
-        self.assertEqual("Not enough items in tag 'foo'", error.message)
+        self.assertEqual("Not enough items in tag 'foo'", error.args[0])
         self.assertEqual(1, len(list(foo)))
 
     def test_remove(self):
@@ -486,7 +492,7 @@ class SequenceItemTest(TestCase):
         foo = schema.create(root)
         item = foo.remove(foo[0])
         error = self.assertRaises(WSDLParseError, foo.remove, item)
-        self.assertEqual("Non existing item in tag 'foo'", error.message)
+        self.assertEqual("Non existing item in tag 'foo'", error.args[0])
 
     def test_iter(self):
         """L{SequenceItem} objects are iterable."""
@@ -501,7 +507,7 @@ class SequenceItemTest(TestCase):
         self.assertEqual("egg1", item1.bar)
 
 
-class WDSLParserTest(TestCase):
+class WDSLParserTest(WsdlBaseTestCase):
 
     def setUp(self):
         super(WDSLParserTest, self).setUp()

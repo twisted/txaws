@@ -1,7 +1,12 @@
-from json import dumps, loads
 from cStringIO import StringIO
 from datetime import datetime
+
 from dateutil.tz import tzutc
+
+try:
+    import json
+except ImportError:
+    import simplejson as json
 
 from twisted.trial.unittest import TestCase
 from twisted.python.reflect import safe_str
@@ -136,9 +141,9 @@ class QueryAPITest(TestCase):
         request = FakeRequest(query.params, endpoint)
 
         def check(ignored):
-            self.assertEqual("data", loads(request.response))
+            self.assertEqual("data", json.loads(request.response))
 
-        self.api.dump_result = dumps
+        self.api.dump_result = json.dumps
         self.api.principal = TestPrincipal(creds)
         return self.api.handle(request).addCallback(check)
 
