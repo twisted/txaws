@@ -80,6 +80,7 @@ class WebsiteConfiguration(object):
         self.index_suffix = index_suffix
         self.error_key = error_key
 
+
 class FileChunk(object):
     """
     An Amazon S3 file chunk.
