@@ -102,10 +102,10 @@ class TestQueryAPI(QueryAPI):
         return str("%s - %s" % (error.code, safe_str(error.message)))
 
 
-class QueryAPITest(TestCase):
+class QueryAPITestCase(TestCase):
 
     def setUp(self):
-        super(QueryAPITest, self).setUp()
+        super(QueryAPITestCase, self).setUp()
         self.registry = Registry()
         self.registry.add(TestMethod, action="SomeAction", version=None)
         self.api = TestQueryAPI(registry=self.registry)

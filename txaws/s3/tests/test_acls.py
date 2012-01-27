@@ -4,7 +4,7 @@ from txaws.testing import payload
 from txaws.s3 import acls
 
 
-class ACLTests(TestCase):
+class ACLTestCase(TestCase):
 
     def test_owner_to_xml(self):
         owner = acls.Owner(id='8a6925ce4adf588a4f21c32aa379004fef',

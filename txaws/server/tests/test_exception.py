@@ -5,7 +5,7 @@ from unittest import TestCase
 from txaws.server.exception import APIError
 
 
-class APIErrorTest(TestCase):
+class APIErrorTestCase(TestCase):
 
     def test_with_no_parameters(self):
         """

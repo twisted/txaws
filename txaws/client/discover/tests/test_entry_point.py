@@ -12,7 +12,7 @@ from txaws.client.discover.entry_point import (
 from txaws.testing.base import TXAWSTestCase
 
 
-class ParseOptionsTest(TXAWSTestCase):
+class ParseOptionsTestCase(TXAWSTestCase):
 
     def test_parse_options(self):
         """
@@ -165,7 +165,7 @@ class ParseOptionsTest(TXAWSTestCase):
                            "--action", "action", "--help"])
 
 
-class GetCommandTest(TXAWSTestCase):
+class GetCommandTestCase(TXAWSTestCase):
 
     def test_get_command_without_arguments(self):
         """An L{OptionError} is raised if no arguments are provided."""
@@ -223,7 +223,7 @@ class GetCommandTest(TXAWSTestCase):
         self.assertEqual({"Region.Name.0": "us-west-1"}, command.parameters)
 
 
-class MainTest(TXAWSTestCase):
+class MainTestCase(TXAWSTestCase):
 
     def test_usage_message(self):
         """

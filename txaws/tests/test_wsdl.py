@@ -15,7 +15,7 @@ class WsdlBaseTestCase(TestCase):
         skip = "lxml is either not installed or broken on your system."
 
 
-class NodeSchemaTest(WsdlBaseTestCase):
+class NodeSchemaTestCase(WsdlBaseTestCase):
 
     def test_create_with_bad_tag(self):
         """
@@ -70,7 +70,7 @@ class NodeSchemaTest(WsdlBaseTestCase):
         self.assertEqual("<foo/>", etree.tostring(schema.dump(foo)))
 
 
-class NodeItemTest(WsdlBaseTestCase):
+class NodeItemTestCase(WsdlBaseTestCase):
 
     def test_get(self):
         """
@@ -281,7 +281,7 @@ class NodeItemTest(WsdlBaseTestCase):
         self.assertTrue(hasattr(foo, "bar"))
 
 
-class SequenceSchemaTest(WsdlBaseTestCase):
+class SequenceSchemaTestCase(WsdlBaseTestCase):
 
     def test_create_with_bad_tag(self):
         """
@@ -351,7 +351,7 @@ class SequenceSchemaTest(WsdlBaseTestCase):
                          etree.tostring(schema.dump(foo)))
 
 
-class SequenceItemTest(WsdlBaseTestCase):
+class SequenceItemTestCase(WsdlBaseTestCase):
 
     def test_get(self):
         """
@@ -507,10 +507,10 @@ class SequenceItemTest(WsdlBaseTestCase):
         self.assertEqual("egg1", item1.bar)
 
 
-class WDSLParserTest(WsdlBaseTestCase):
+class WDSLParserTestCase(WsdlBaseTestCase):
 
     def setUp(self):
-        super(WDSLParserTest, self).setUp()
+        super(WDSLParserTestCase, self).setUp()
         parser = WSDLParser()
         wsdl_dir = os.path.join(os.path.dirname(__file__), "../../wsdl")
         wsdl_path = os.path.join(wsdl_dir, "2009-11-30.ec2.wsdl")

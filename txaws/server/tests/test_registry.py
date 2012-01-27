@@ -16,14 +16,14 @@ except SyntaxError:
     has_venusian = False
 
 
-class RegistryTest(TestCase):
+class RegistryTestCase(TestCase):
 
     if no_class_decorators:
         skip = ("Your version of Python doesn't seem to support class "
                 "decorators.")
 
     def setUp(self):
-        super(RegistryTest, self).setUp()
+        super(RegistryTestCase, self).setUp()
         self.registry = Registry()
 
     def test_add(self):
