@@ -389,8 +389,8 @@ class S3ClientTestCase(TXAWSTestCase):
         """
         L{S3Client.get_bucket_notification_config} creates a L{Query} to get a
         bucket's notification configuration.  It parses the returned
-        C{NotificationConfiguration} XML document and returns a C{Deferred} that
-        requests the bucket's notification configuration.
+        C{NotificationConfiguration} XML document and returns a C{Deferred}
+        that requests the bucket's notification configuration.
         """
 
         class StubQuery(client.Query):
@@ -410,7 +410,8 @@ class S3ClientTestCase(TXAWSTestCase):
                 self.assertEqual(query.amz_headers, {})
 
             def submit(query, url_context=None):
-                return succeed(payload.sample_s3_get_bucket_notification_result)
+                return succeed(payload.
+                               sample_s3_get_bucket_notification_result)
 
         def check_results(notification_config):
             self.assertEquals(notification_config.topic, None)
@@ -425,8 +426,8 @@ class S3ClientTestCase(TXAWSTestCase):
         """
         L{S3Client.get_bucket_notification_config} creates a L{Query} to get a
         bucket's notification configuration.  It parses the returned
-        C{NotificationConfiguration} XML document and returns a C{Deferred} that
-        requests the bucket's notification configuration with a topic.
+        C{NotificationConfiguration} XML document and returns a C{Deferred}
+        that requests the bucket's notification configuration with a topic.
         """
 
         class StubQuery(client.Query):
