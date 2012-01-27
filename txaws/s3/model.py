@@ -81,6 +81,24 @@ class WebsiteConfiguration(object):
         self.error_key = error_key
 
 
+class WebsiteConfiguration(object):
+    """
+    A mapping for the data in a bucket website configuration.
+    """
+    def __init__(self, index_suffix, error_key=None):
+        self.index_suffix = index_suffix
+        self.error_key = error_key
+
+
+class WebsiteConfiguration(object):
+    """
+    A mapping for the data in a bucket website configuration.
+    """
+    def __init__(self, index_suffix, error_key=None):
+        self.index_suffix = index_suffix
+        self.error_key = error_key
+
+
 class FileChunk(object):
     """
     An Amazon S3 file chunk.

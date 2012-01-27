@@ -309,6 +309,152 @@ class S3ClientTestCase(TXAWSTestCase):
         d = s3.get_bucket_lifecycle("mybucket")
         return d.addCallback(check_results)
 
+    def test_get_bucket_website_config(self):
+        """
+        L{S3Client.get_bucket_website_config} creates a L{Query} to get a
+        bucket's website configurtion.  It parses the returned
+        C{WebsiteConfiguration} XML document and returns a C{Deferred} that
+        fires with the bucket's region.
+        """
+
+        class StubQuery(client.Query):
+
+            def __init__(query, action, creds, endpoint, bucket=None,
+                         object_name=None):
+                super(StubQuery, query).__init__(action=action, creds=creds,
+                                                 bucket=bucket,
+                                                 object_name=object_name)
+                self.assertEquals(action, "GET")
+                self.assertEqual(creds.access_key, "foo")
+                self.assertEqual(creds.secret_key, "bar")
+                self.assertEqual(query.bucket, "mybucket")
+                self.assertEqual(query.object_name, "?website")
+                self.assertEqual(query.data, "")
+                self.assertEqual(query.metadata, {})
+                self.assertEqual(query.amz_headers, {})
+
+            def submit(query, url_context=None):
+                return succeed(payload.
+                    sample_s3_get_bucket_website_no_error_result)
+
+        def check_results(website_config):
+            self.assertEquals(website_config.index_suffix, "index.html")
+            self.assertEquals(website_config.error_key, None)
+
+        creds = AWSCredentials("foo", "bar")
+        s3 = client.S3Client(creds, query_factory=StubQuery)
+        d = s3.get_bucket_website_config("mybucket")
+        return d.addCallback(check_results)
+
+    def test_get_bucket_website_config_with_error_doc(self):
+        """
+        L{S3Client.get_bucket_website_config} creates a L{Query} to get a
+        bucket's website configurtion.  It parses the returned
+        C{WebsiteConfiguration} XML document and returns a C{Deferred} that
+        fires with the bucket's region.
+        """
+
+        class StubQuery(client.Query):
+
+            def __init__(query, action, creds, endpoint, bucket=None,
+                         object_name=None):
+                super(StubQuery, query).__init__(action=action, creds=creds,
+                                                 bucket=bucket,
+                                                 object_name=object_name)
+                self.assertEquals(action, "GET")
+                self.assertEqual(creds.access_key, "foo")
+                self.assertEqual(creds.secret_key, "bar")
+                self.assertEqual(query.bucket, "mybucket")
+                self.assertEqual(query.object_name, "?website")
+                self.assertEqual(query.data, "")
+                self.assertEqual(query.metadata, {})
+                self.assertEqual(query.amz_headers, {})
+
+            def submit(query, url_context=None):
+                return succeed(payload.sample_s3_get_bucket_website_result)
+
+        def check_results(website_config):
+            self.assertEquals(website_config.index_suffix, "index.html")
+            self.assertEquals(website_config.error_key, "404.html")
+
+        creds = AWSCredentials("foo", "bar")
+        s3 = client.S3Client(creds, query_factory=StubQuery)
+        d = s3.get_bucket_website_config("mybucket")
+        return d.addCallback(check_results)
+
+    def test_get_bucket_website_config(self):
+        """
+        L{S3Client.get_bucket_website_config} creates a L{Query} to get a
+        bucket's website configurtion.  It parses the returned
+        C{WebsiteConfiguration} XML document and returns a C{Deferred} that
+        fires with the bucket's region.
+        """
+
+        class StubQuery(client.Query):
+
+            def __init__(query, action, creds, endpoint, bucket=None,
+                         object_name=None):
+                super(StubQuery, query).__init__(action=action, creds=creds,
+                                                 bucket=bucket,
+                                                 object_name=object_name)
+                self.assertEquals(action, "GET")
+                self.assertEqual(creds.access_key, "foo")
+                self.assertEqual(creds.secret_key, "bar")
+                self.assertEqual(query.bucket, "mybucket")
+                self.assertEqual(query.object_name, "?website")
+                self.assertEqual(query.data, "")
+                self.assertEqual(query.metadata, {})
+                self.assertEqual(query.amz_headers, {})
+
+            def submit(query, url_context=None):
+                return succeed(payload.
+                    sample_s3_get_bucket_website_no_error_result)
+
+        def check_results(website_config):
+            self.assertEquals(website_config.index_suffix, "index.html")
+            self.assertEquals(website_config.error_key, None)
+
+        creds = AWSCredentials("foo", "bar")
+        s3 = client.S3Client(creds, query_factory=StubQuery)
+        d = s3.get_bucket_website_config("mybucket")
+        return d.addCallback(check_results)
+
+    def test_get_bucket_website_config_with_error_doc(self):
+        """
+        L{S3Client.get_bucket_website_config} creates a L{Query} to get a
+        bucket's website configurtion.  It parses the returned
+        C{WebsiteConfiguration} XML document and returns a C{Deferred} that
+        fires with the bucket's region.
+        """
+
+        class StubQuery(client.Query):
+
+            def __init__(query, action, creds, endpoint, bucket=None,
+                         object_name=None):
+                super(StubQuery, query).__init__(action=action, creds=creds,
+                                                 bucket=bucket,
+                                                 object_name=object_name)
+                self.assertEquals(action, "GET")
+                self.assertEqual(creds.access_key, "foo")
+                self.assertEqual(creds.secret_key, "bar")
+                self.assertEqual(query.bucket, "mybucket")
+                self.assertEqual(query.object_name, "?website")
+                self.assertEqual(query.data, "")
+                self.assertEqual(query.metadata, {})
+                self.assertEqual(query.amz_headers, {})
+
+            def submit(query, url_context=None):
+                return succeed(payload.sample_s3_get_bucket_website_result)
+
+        def check_results(website_config):
+            self.assertEquals(website_config.index_suffix, "index.html")
+            self.assertEquals(website_config.error_key, "404.html")
+
+        creds = AWSCredentials("foo", "bar")
+        s3 = client.S3Client(creds, query_factory=StubQuery)
+        d = s3.get_bucket_website_config("mybucket")
+        return d.addCallback(check_results)
+
     def test_delete_bucket(self):
 
         class StubQuery(client.Query):
