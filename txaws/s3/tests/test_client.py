@@ -481,7 +481,7 @@ class S3ClientTestCase(TXAWSTestCase):
                 self.assertEqual(creds.access_key, "foo")
                 self.assertEqual(creds.secret_key, "bar")
                 self.assertEqual(query.bucket, "mybucket")
-                self.assertEqual(query.object_name, "?configuration")
+                self.assertEqual(query.object_name, "?versioning")
                 self.assertEqual(query.data, "")
                 self.assertEqual(query.metadata, {})
                 self.assertEqual(query.amz_headers, {})
@@ -494,7 +494,7 @@ class S3ClientTestCase(TXAWSTestCase):
 
         creds = AWSCredentials("foo", "bar")
         s3 = client.S3Client(creds, query_factory=StubQuery)
-        d = s3.get_bucket_versioning_configuration("mybucket")
+        d = s3.get_bucket_versioning_config("mybucket")
         return d.addCallback(check_results)
 
     def test_get_bucket_versioning_config_enabled(self):
@@ -531,7 +531,7 @@ class S3ClientTestCase(TXAWSTestCase):
 
         creds = AWSCredentials("foo", "bar")
         s3 = client.S3Client(creds, query_factory=StubQuery)
-        d = s3.get_bucket_versioning_status("mybucket")
+        d = s3.get_bucket_versioning_config("mybucket")
         return d.addCallback(check_results)
 
     def test_get_bucket_versioning_config_suspended(self):
@@ -568,7 +568,7 @@ class S3ClientTestCase(TXAWSTestCase):
 
         creds = AWSCredentials("foo", "bar")
         s3 = client.S3Client(creds, query_factory=StubQuery)
-        d = s3.get_bucket_versioning_status("mybucket")
+        d = s3.get_bucket_versioning_config("mybucket")
         return d.addCallback(check_results)
 
     def test_delete_bucket(self):

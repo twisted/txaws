@@ -90,9 +90,9 @@ class NotificationConfiguration(object):
         self.event = event
 
 
-class LoggingStatus(object):
+class VersioningConfiguration(object):
     """
-    Container for the bucket logging status.
+    Container for the bucket versioning configuration.
     """
     def __init__(self, status=None):
         self.status = status
