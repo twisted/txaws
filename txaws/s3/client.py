@@ -23,7 +23,7 @@ from txaws.s3.acls import AccessControlPolicy
 from txaws.s3.model import (
     Bucket, BucketItem, BucketListing, ItemOwner, LifecycleConfiguration,
     LifecycleConfigurationRule, NotificationConfiguration, RequestPayment,
-    WebsiteConfiguration)
+    VersioningConfiguration, WebsiteConfiguration)
 from txaws.s3.exception import S3Error
 from txaws.service import AWSServiceEndpoint, S3_ENDPOINT
 from txaws.util import XML, calculate_md5
@@ -252,6 +252,26 @@ class S3Client(BaseClient):
         event = root.findtext("TopicConfiguration/Event")
 
         return NotificationConfiguration(topic, event)
+
+    def get_bucket_versioning_config(self, bucket):
+        """
+        Get the versioning configuration of a bucket.
+
+        @param bucket: The name of the bucket.  @return: A C{Deferred} that
+        will request the bucket's versioning configuration.
+        """
+        query = self.query_factory(
+            action='GET', creds=self.creds, endpoint=self.endpoint,
+            bucket=bucket, object_name='?versioning')
+        return query.submit().addCallback(self._parse_versioning_config)
+
+    def _parse_versioning_config(self, xml_bytes):
+        """Parse a C{VersioningConfiguration} XML document."""
+        root = XML(xml_bytes)
+        mfa_delete = root.findtext("MfaDelete")
+        status = root.findtext("Status")
+
+        return VersioningConfiguration(mfa_delete=mfa_delete, status=status)
 
     def get_bucket_acl(self, bucket):
         """

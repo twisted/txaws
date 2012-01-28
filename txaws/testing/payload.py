@@ -1071,3 +1071,17 @@ sample_s3_get_bucket_notification_with_topic_result = """\
        <Event>s3:ReducedRedundancyLostObject</Event>
    </TopicConfiguration>
 </NotificationConfiguration>"""
+
+sample_s3_get_bucket_versioning_result = """\
+<VersioningConfiguration xmlns="http://s3.amazonaws.com/doc/2006-03-01/"/>"""
+
+sample_s3_get_bucket_versioning_enabled_result = """\
+<VersioningConfiguration xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
+  <Status>Enabled</Status>
+</VersioningConfiguration>"""
+
+sample_s3_get_bucket_versioning_mfa_disabled_result = """\
+<VersioningConfiguration xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
+  <Status>Enabled</Status>
+  <MfaDelete>Disabled</MfaDelete>
+</VersioningConfiguration>"""
