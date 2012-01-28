@@ -503,7 +503,7 @@ class S3ClientTestCase(TXAWSTestCase):
         bucket's versioning configuration.  It parses the returned
         C{VersioningConfiguration} XML document and returns a C{Deferred} that
         requests the bucket's versioning configuration that has a enabled
-        status.
+        C{Status}.
         """
 
         class StubQuery(client.Query):
