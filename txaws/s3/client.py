@@ -268,9 +268,10 @@ class S3Client(BaseClient):
     def _parse_versioning_config(self, xml_bytes):
         """Parse a C{VersioningConfiguration} XML document."""
         root = XML(xml_bytes)
+        mfa_delete = root.findtext("MfaDelete")
         status = root.findtext("Status")
 
-        return VersioningConfiguration(status)
+        return VersioningConfiguration(mfa_delete=mfa_delete, status=status)
 
     def get_bucket_acl(self, bucket):
         """

@@ -93,8 +93,19 @@ class NotificationConfiguration(object):
 class VersioningConfiguration(object):
     """
     Container for the bucket versioning configuration.
+
+    According to Amazon:
+
+    C{MfaDelete}: This element is only returned if the bucket has been
+    configured with C{MfaDelete}. If the bucket has never been so configured,
+    this element is not returned. The possible values are None, "Disabled" or
+    "Enabled".
+    
+    C{Status}: If the bucket has never been so configured, this element is not
+    returned. The possible values are None, "Suspended" or "Enabled".
     """
-    def __init__(self, status=None):
+    def __init__(self, mfa_delete=None, status=None):
+        self.mfa_delete = mfa_delete
         self.status = status
 
 
