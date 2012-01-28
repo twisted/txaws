@@ -100,7 +100,7 @@ class VersioningConfiguration(object):
     configured with C{MfaDelete}. If the bucket has never been so configured,
     this element is not returned. The possible values are None, "Disabled" or
     "Enabled".
-    
+
     C{Status}: If the bucket has never been so configured, this element is not
     returned. The possible values are None, "Suspended" or "Enabled".
     """
