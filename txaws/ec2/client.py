@@ -647,13 +647,15 @@ class Parser(object):
         root = XML(xml_bytes)
         result = []
         # May be a more elegant way to do this:
-        for instance in root.find("instancesSet"):
-            instanceId = instance.findtext("instanceId")
-            previousState = instance.find("previousState").findtext(
-                "name")
-            currentState = instance.find("currentState").findtext(
-                "name")
-            result.append((instanceId, previousState, currentState))
+        instances = root.find("instancesSet")
+        if instances is not None:
+            for instance in instances:
+                instanceId = instance.findtext("instanceId")
+                previousState = instance.find("previousState").findtext(
+                    "name")
+                currentState = instance.find("currentState").findtext(
+                    "name")
+                result.append((instanceId, previousState, currentState))
         return result
 
     def describe_security_groups(self, xml_bytes):
