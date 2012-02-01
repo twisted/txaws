@@ -2006,14 +2006,16 @@ class EC2ClientAddressTestCase(TXAWSTestCase):
         d.addCallback(self.assertTrue)
         return d
 
+
 class EC2ParserTestCase(TXAWSTestCase):
 
     def setUp(self):
         self.parser = client.Parser()
 
     def test_ec2_terminate_instances(self):
-        """ Given a well formed response from EC2, will we parse the correct thing. """
-
+        """
+        Given a well formed response from EC2, parse the correct thing.
+        """
         ec2_xml = """<?xml version="1.0" encoding="UTF-8"?>
 <TerminateInstancesResponse xmlns="http://ec2.amazonaws.com/doc/2008-12-01/">
     <requestId>d0adc305-7f97-4652-b7c2-6993b2bb8260</requestId>
@@ -2032,13 +2034,20 @@ class EC2ParserTestCase(TXAWSTestCase):
     </instancesSet>
 </TerminateInstancesResponse>"""
         ec2_response = self.parser.terminate_instances(ec2_xml)
-        self.assertEquals([('i-cab0c1aa','running','shutting-down')], ec2_response)
+        self.assertEquals(
+            [('i-cab0c1aa', 'running', 'shutting-down')], ec2_response)
 
     def test_nova_terminate_instances(self):
-        """ Ensure parser can handle the somewhat non-standard response from nova
-        Note that the bug has been reported in nova here: 
-        https://launchpad.net/bugs/862680 """
+        """
+        Ensure parser can handle the somewhat non-standard response from nova
+        Note that the bug has been reported in nova here:
+          https://launchpad.net/bugs/862680
+        """
 
-        nova_xml = """<?xml version="1.0" ?><TerminateInstancesResponse xmlns="http://ec2.amazonaws.com/doc/2008-12-01/"><requestId>4fe6643d-2346-4add-adb7-a1f61f37c043</requestId><return>true</return></TerminateInstancesResponse>"""
+        nova_xml = (
+            '<?xml version="1.0" ?><TerminateInstancesResponse '
+            'xmlns="http://ec2.amazonaws.com/doc/2008-12-01/"><requestId>'
+            '4fe6643d-2346-4add-adb7-a1f61f37c043</requestId>'
+            '<return>true</return></TerminateInstancesResponse>')
         nova_response = self.parser.terminate_instances(nova_xml)
         self.assertEquals([], nova_response)
