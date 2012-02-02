@@ -121,7 +121,7 @@ virtual-build-clean: clean-virtual-builds build virtual-builds
 
 check: MOD ?= txaws
 check: build
-	trial ./txaws
+	trial $(MOD)
 
 
 register:

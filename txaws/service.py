@@ -3,16 +3,19 @@
 # Licenced under the txaws licence available at /LICENSE in the txaws source.
 
 from txaws.credentials import AWSCredentials
+from txaws import regions
 from txaws.util import parse
+
 
 __all__ = ["AWSServiceEndpoint", "AWSServiceRegion", "REGION_US", "REGION_EU"]
 
 
-REGION_US = "US"
-REGION_EU = "EU"
-EC2_ENDPOINT_US = "https://us-east-1.ec2.amazonaws.com/"
-EC2_ENDPOINT_EU = "https://eu-west-1.ec2.amazonaws.com/"
-S3_ENDPOINT = "https://s3.amazonaws.com/"
+# These old variable names are maintained for backwards compatibility.
+REGION_US = regions.REGION_US
+REGION_EU = regions.REGION_EU
+EC2_ENDPOINT_US = regions.EC2_ENDPOINT_US
+EC2_ENDPOINT_EU = regions.EC2_ENDPOINT_EU
+S3_ENDPOINT = regions.S3_ENDPOINT
 
 
 class AWSServiceEndpoint(object):
