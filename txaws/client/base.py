@@ -4,8 +4,12 @@ except ImportError:
     from xml.parsers.expat import ExpatError as ParseError
 
 from twisted.internet.ssl import ClientContextFactory
+from twisted.internet.error import ConnectionLost
+from twisted.python import failure
 from twisted.web import http
 from twisted.web.client import HTTPClientFactory
+from twisted.web.client import Agent, StringProducer
+from twisted.web.http_headers import Headers
 from twisted.web.error import Error as TwistedWebError
 
 from txaws.util import parse
@@ -71,20 +75,58 @@ class BaseClient(object):
         self.query_factory = query_factory
         self.parser = parser
 
+class StreamingError(Exception):
+    """
+    Raised if more data or less data is received than expected.
+    """
+
+class StringIOBodyReceiver(Protocol)
+    """
+    Simple StringIO-based HTTP response body receiver.
+    """
+    finished = None
+    content_length = None
+
+    def __init__(self):
+        self._buffer = StringIO()
+        self._received = 0
+
+    def dataReceived(self, bytes):
+        if self._received > self.content_length:
+            self.transport.loseConnection()
+            raise StreamingError(
+                "Buffer overflow - received more data than "
+                "Content-Length dictated: %d" % self.content_length)
+        self._buffer.write(bytes)
+        self._received += len(bytes)
+
+    def connectionLost(self, reason):
+        reason.trap(ConnectionLost)
+        if self._received == self.content_length:
+            self.finished.callback(self._buffer.getvalue())
+        else:
+            f = failure.Failure(StreamingError("Connection lost before "
+                "receiving all data"))
+            self.finished.errback(f)
+        self.finished = None
+
 
 class BaseQuery(object):
 
-    def __init__(self, action=None, creds=None, endpoint=None, reactor=None):
+    def __init__(self, action=None, creds=None, endpoint=None, reactor=None,
+        producer=None, receiver_factory=None):
         if not action:
             raise TypeError("The query requires an action parameter.")
-        self.factory = HTTPClientFactory
         self.action = action
         self.creds = creds
         self.endpoint = endpoint
         if reactor is None:
             from twisted.internet import reactor
         self.reactor = reactor
-        self.client = None
+        self.request_headers = None
+        self.response_headers = None
+        self.producer = producer
+        self.receiver_factory = receiver_factory or StringIOBodyReceiver
 
     def get_page(self, url, *args, **kwds):
         """
@@ -95,16 +137,36 @@ class BaseQuery(object):
         """
         contextFactory = None
         scheme, host, port, path = parse(url)
-        self.client = self.factory(url, *args, **kwds)
+        data = kwds.get('postdata', None)
+        method = kwds.get('method', 'GET')
+        self.request_headers = self._headers(kwds.get('headers', {}))
+        if (self.producer is None) and (data is not None):
+            self.producer = StringProducer(data)
         if scheme == "https":
+            # FIXME
             if self.endpoint.ssl_hostname_verification:
                 contextFactory = VerifyingContextFactory(host)
             else:
                 contextFactory = ClientContextFactory()
             self.reactor.connectSSL(host, port, self.client, contextFactory)
         else:
-            self.reactor.connectTCP(host, port, self.client)
-        return self.client.deferred
+            agent = Agent(self.reactor)
+            d = agent.request(method, url, self.request_headers)
+        d.addCallback(self._handle_response)
+        return d
+
+    def _headers(self, headers_dict):
+        """
+        Convert dictionary of headers into twisted.web.client.Headers object.
+        """
+        return Headers(dict((k,[v]) for (k,v) in headers_dict))
+
+    def _unpack_headers(self, headers):
+        """
+        Unpack twisted.web.client.Headers object to dict. This is to provide
+        backwards compatability.
+        """
+        return dict((k,v[0]) for (k,v) in headers.getAllRawHeaders())
 
     def get_request_headers(self, *args, **kwds):
         """
@@ -114,8 +176,20 @@ class BaseQuery(object):
         The AWS S3 API depends upon setting headers. This method is provided as
         a convenience for debugging issues with the S3 communications.
         """
-        if self.client:
-            return self.client.headers
+        if self.request_headers:
+            return self._unpack_headers(self.request_headers)
+
+    def _handle_response(self, response):
+        """
+        Handle the HTTP response by memoing the headers and then delivering
+        bytes.
+        """
+        self.response_headers = response.headers
+        receiver = self.receiver_factory()
+        receiver.finished = d = Deferred()
+        receiver.content_length = headers.getRawHeaders('Content-Length')[0]
+        response.deliverBody(receiver)
+        return d
 
     def get_response_headers(self, *args, **kwargs):
         """
@@ -125,5 +199,6 @@ class BaseQuery(object):
         The AWS S3 API depends upon setting headers. This method is used by the
         head_object API call for getting a S3 object's metadata.
         """
-        if self.client:
-            return self.client.response_headers
+        if self.response_headers:
+            return self._unpack_headers(self.response_headers)
+
