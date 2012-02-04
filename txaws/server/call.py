@@ -20,7 +20,7 @@ class Call(object):
        calling the C{parse} method.
     @ivar rest: Extra parameters not included in the given arguments schema,
        it will be available after calling the L{parse} method.
-    @ivar version: The version of the API call. Defaults to 2008-12-01.
+    @ivar version: The version of the API call. Defaults to 2009-11-30.
     """
 
     def __init__(self, raw_params=None, principal=None, action=None,

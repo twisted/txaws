@@ -63,7 +63,7 @@ class URLContextTestCase(TXAWSTestCase):
             "http://localhost/mydocs/notes.txt")
 
     def test_custom_port_endpoint(self):
-        test_uri='http://0.0.0.0:12345/'
+        test_uri = 'http://0.0.0.0:12345/'
         endpoint = AWSServiceEndpoint(uri=test_uri)
         self.assertEquals(endpoint.port, 12345)
         self.assertEquals(endpoint.scheme, 'http')
@@ -74,7 +74,7 @@ class URLContextTestCase(TXAWSTestCase):
         self.assertEquals(context.get_url(), test_uri + 'foo/bar')
 
     def test_custom_port_endpoint_https(self):
-        test_uri='https://0.0.0.0:12345/'
+        test_uri = 'https://0.0.0.0:12345/'
         endpoint = AWSServiceEndpoint(uri=test_uri)
         self.assertEquals(endpoint.port, 12345)
         self.assertEquals(endpoint.scheme, 'https')
@@ -201,7 +201,8 @@ class S3ClientTestCase(TXAWSTestCase):
         """
         L{S3Client.get_bucket_location} creates a L{Query} to get a bucket's
         location.  It parses the returned C{LocationConstraint} XML document
-        and returns a C{Deferred} that fires with the bucket's region.
+        and returns a C{Deferred} that requests the bucket's location
+        constraint.
         """
 
         class StubQuery(client.Query):
@@ -229,6 +230,346 @@ class S3ClientTestCase(TXAWSTestCase):
         creds = AWSCredentials("foo", "bar")
         s3 = client.S3Client(creds, query_factory=StubQuery)
         d = s3.get_bucket_location("mybucket")
+        return d.addCallback(check_results)
+
+    def test_get_bucket_lifecycle_multiple_rules(self):
+        """
+        L{S3Client.get_bucket_lifecycle} creates a L{Query} to get a bucket's
+        lifecycle.  It parses the returned C{LifecycleConfiguration} XML
+        document and returns a C{Deferred} that requests the bucket's lifecycle
+        configuration with multiple rules.
+        """
+
+        class StubQuery(client.Query):
+
+            def __init__(query, action, creds, endpoint, bucket=None,
+                         object_name=None):
+                super(StubQuery, query).__init__(action=action, creds=creds,
+                                                 bucket=bucket,
+                                                 object_name=object_name)
+                self.assertEquals(action, "GET")
+                self.assertEqual(creds.access_key, "foo")
+                self.assertEqual(creds.secret_key, "bar")
+                self.assertEqual(query.bucket, "mybucket")
+                self.assertEqual(query.object_name, "?lifecycle")
+                self.assertEqual(query.data, "")
+                self.assertEqual(query.metadata, {})
+                self.assertEqual(query.amz_headers, {})
+
+            def submit(query, url_context=None):
+                return succeed(payload.
+                    sample_s3_get_bucket_lifecycle_multiple_rules_result)
+
+        def check_results(lifecycle_config):
+            self.assertTrue(len(lifecycle_config.rules) == 2)
+            rule = lifecycle_config.rules[1]
+            self.assertEquals(rule.id, 'another-id')
+            self.assertEquals(rule.prefix, 'another-logs')
+            self.assertEquals(rule.status, 'Disabled')
+            self.assertEquals(rule.expiration, 37)
+
+        creds = AWSCredentials("foo", "bar")
+        s3 = client.S3Client(creds, query_factory=StubQuery)
+        d = s3.get_bucket_lifecycle("mybucket")
+        return d.addCallback(check_results)
+
+    def test_get_bucket_lifecycle(self):
+        """
+        L{S3Client.get_bucket_lifecycle} creates a L{Query} to get a bucket's
+        lifecycle.  It parses the returned C{LifecycleConfiguration} XML
+        document and returns a C{Deferred} that requests the bucket's lifecycle
+        configuration.
+        """
+
+        class StubQuery(client.Query):
+
+            def __init__(query, action, creds, endpoint, bucket=None,
+                         object_name=None):
+                super(StubQuery, query).__init__(action=action, creds=creds,
+                                                 bucket=bucket,
+                                                 object_name=object_name)
+                self.assertEquals(action, "GET")
+                self.assertEqual(creds.access_key, "foo")
+                self.assertEqual(creds.secret_key, "bar")
+                self.assertEqual(query.bucket, "mybucket")
+                self.assertEqual(query.object_name, "?lifecycle")
+                self.assertEqual(query.data, "")
+                self.assertEqual(query.metadata, {})
+                self.assertEqual(query.amz_headers, {})
+
+            def submit(query, url_context=None):
+                return succeed(payload.sample_s3_get_bucket_lifecycle_result)
+
+        def check_results(lifecycle_config):
+            rule = lifecycle_config.rules[0]
+            self.assertEquals(rule.id, '30-day-log-deletion-rule')
+            self.assertEquals(rule.prefix, 'logs')
+            self.assertEquals(rule.status, 'Enabled')
+            self.assertEquals(rule.expiration, 30)
+
+        creds = AWSCredentials("foo", "bar")
+        s3 = client.S3Client(creds, query_factory=StubQuery)
+        d = s3.get_bucket_lifecycle("mybucket")
+        return d.addCallback(check_results)
+
+    def test_get_bucket_website_config(self):
+        """
+        L{S3Client.get_bucket_website_config} creates a L{Query} to get a
+        bucket's website configurtion.  It parses the returned
+        C{WebsiteConfiguration} XML document and returns a C{Deferred} that
+        requests the bucket's website configuration.
+        """
+
+        class StubQuery(client.Query):
+
+            def __init__(query, action, creds, endpoint, bucket=None,
+                         object_name=None):
+                super(StubQuery, query).__init__(action=action, creds=creds,
+                                                 bucket=bucket,
+                                                 object_name=object_name)
+                self.assertEquals(action, "GET")
+                self.assertEqual(creds.access_key, "foo")
+                self.assertEqual(creds.secret_key, "bar")
+                self.assertEqual(query.bucket, "mybucket")
+                self.assertEqual(query.object_name, "?website")
+                self.assertEqual(query.data, "")
+                self.assertEqual(query.metadata, {})
+                self.assertEqual(query.amz_headers, {})
+
+            def submit(query, url_context=None):
+                return succeed(payload.
+                    sample_s3_get_bucket_website_no_error_result)
+
+        def check_results(website_config):
+            self.assertEquals(website_config.index_suffix, "index.html")
+            self.assertEquals(website_config.error_key, None)
+
+        creds = AWSCredentials("foo", "bar")
+        s3 = client.S3Client(creds, query_factory=StubQuery)
+        d = s3.get_bucket_website_config("mybucket")
+        return d.addCallback(check_results)
+
+    def test_get_bucket_website_config_with_error_doc(self):
+        """
+        L{S3Client.get_bucket_website_config} creates a L{Query} to get a
+        bucket's website configurtion.  It parses the returned
+        C{WebsiteConfiguration} XML document and returns a C{Deferred} that
+        requests the bucket's website configuration with the error document.
+        """
+
+        class StubQuery(client.Query):
+
+            def __init__(query, action, creds, endpoint, bucket=None,
+                         object_name=None):
+                super(StubQuery, query).__init__(action=action, creds=creds,
+                                                 bucket=bucket,
+                                                 object_name=object_name)
+                self.assertEquals(action, "GET")
+                self.assertEqual(creds.access_key, "foo")
+                self.assertEqual(creds.secret_key, "bar")
+                self.assertEqual(query.bucket, "mybucket")
+                self.assertEqual(query.object_name, "?website")
+                self.assertEqual(query.data, "")
+                self.assertEqual(query.metadata, {})
+                self.assertEqual(query.amz_headers, {})
+
+            def submit(query, url_context=None):
+                return succeed(payload.sample_s3_get_bucket_website_result)
+
+        def check_results(website_config):
+            self.assertEquals(website_config.index_suffix, "index.html")
+            self.assertEquals(website_config.error_key, "404.html")
+
+        creds = AWSCredentials("foo", "bar")
+        s3 = client.S3Client(creds, query_factory=StubQuery)
+        d = s3.get_bucket_website_config("mybucket")
+        return d.addCallback(check_results)
+
+    def test_get_bucket_notification_config(self):
+        """
+        L{S3Client.get_bucket_notification_config} creates a L{Query} to get a
+        bucket's notification configuration.  It parses the returned
+        C{NotificationConfiguration} XML document and returns a C{Deferred}
+        that requests the bucket's notification configuration.
+        """
+
+        class StubQuery(client.Query):
+
+            def __init__(query, action, creds, endpoint, bucket=None,
+                         object_name=None):
+                super(StubQuery, query).__init__(action=action, creds=creds,
+                                                 bucket=bucket,
+                                                 object_name=object_name)
+                self.assertEquals(action, "GET")
+                self.assertEqual(creds.access_key, "foo")
+                self.assertEqual(creds.secret_key, "bar")
+                self.assertEqual(query.bucket, "mybucket")
+                self.assertEqual(query.object_name, "?notification")
+                self.assertEqual(query.data, "")
+                self.assertEqual(query.metadata, {})
+                self.assertEqual(query.amz_headers, {})
+
+            def submit(query, url_context=None):
+                return succeed(payload.
+                               sample_s3_get_bucket_notification_result)
+
+        def check_results(notification_config):
+            self.assertEquals(notification_config.topic, None)
+            self.assertEquals(notification_config.event, None)
+
+        creds = AWSCredentials("foo", "bar")
+        s3 = client.S3Client(creds, query_factory=StubQuery)
+        d = s3.get_bucket_notification_config("mybucket")
+        return d.addCallback(check_results)
+
+    def test_get_bucket_notification_config_with_topic(self):
+        """
+        L{S3Client.get_bucket_notification_config} creates a L{Query} to get a
+        bucket's notification configuration.  It parses the returned
+        C{NotificationConfiguration} XML document and returns a C{Deferred}
+        that requests the bucket's notification configuration with a topic.
+        """
+
+        class StubQuery(client.Query):
+
+            def __init__(query, action, creds, endpoint, bucket=None,
+                         object_name=None):
+                super(StubQuery, query).__init__(action=action, creds=creds,
+                                                 bucket=bucket,
+                                                 object_name=object_name)
+                self.assertEquals(action, "GET")
+                self.assertEqual(creds.access_key, "foo")
+                self.assertEqual(creds.secret_key, "bar")
+                self.assertEqual(query.bucket, "mybucket")
+                self.assertEqual(query.object_name, "?notification")
+                self.assertEqual(query.data, "")
+                self.assertEqual(query.metadata, {})
+                self.assertEqual(query.amz_headers, {})
+
+            def submit(query, url_context=None):
+                return succeed(
+                    payload.
+                        sample_s3_get_bucket_notification_with_topic_result)
+
+        def check_results(notification_config):
+            self.assertEquals(notification_config.topic,
+                              "arn:aws:sns:us-east-1:123456789012:myTopic")
+            self.assertEquals(notification_config.event,
+                              "s3:ReducedRedundancyLostObject")
+
+        creds = AWSCredentials("foo", "bar")
+        s3 = client.S3Client(creds, query_factory=StubQuery)
+        d = s3.get_bucket_notification_config("mybucket")
+        return d.addCallback(check_results)
+
+    def test_get_bucket_versioning_config(self):
+        """
+        L{S3Client.get_bucket_versioning_configuration} creates a L{Query} to
+        get a bucket's versioning status.  It parses the returned
+        C{VersioningConfiguration} XML document and returns a C{Deferred} that
+        requests the bucket's versioning configuration.
+        """
+
+        class StubQuery(client.Query):
+
+            def __init__(query, action, creds, endpoint, bucket=None,
+                         object_name=None):
+                super(StubQuery, query).__init__(action=action, creds=creds,
+                                                 bucket=bucket,
+                                                 object_name=object_name)
+                self.assertEquals(action, "GET")
+                self.assertEqual(creds.access_key, "foo")
+                self.assertEqual(creds.secret_key, "bar")
+                self.assertEqual(query.bucket, "mybucket")
+                self.assertEqual(query.object_name, "?versioning")
+                self.assertEqual(query.data, "")
+                self.assertEqual(query.metadata, {})
+                self.assertEqual(query.amz_headers, {})
+
+            def submit(query, url_context=None):
+                return succeed(payload.sample_s3_get_bucket_versioning_result)
+
+        def check_results(versioning_config):
+            self.assertEquals(versioning_config.status, None)
+
+        creds = AWSCredentials("foo", "bar")
+        s3 = client.S3Client(creds, query_factory=StubQuery)
+        d = s3.get_bucket_versioning_config("mybucket")
+        return d.addCallback(check_results)
+
+    def test_get_bucket_versioning_config_enabled(self):
+        """
+        L{S3Client.get_bucket_versioning_config} creates a L{Query} to get a
+        bucket's versioning configuration.  It parses the returned
+        C{VersioningConfiguration} XML document and returns a C{Deferred} that
+        requests the bucket's versioning configuration that has a enabled
+        C{Status}.
+        """
+
+        class StubQuery(client.Query):
+
+            def __init__(query, action, creds, endpoint, bucket=None,
+                         object_name=None):
+                super(StubQuery, query).__init__(action=action, creds=creds,
+                                                 bucket=bucket,
+                                                 object_name=object_name)
+                self.assertEquals(action, "GET")
+                self.assertEqual(creds.access_key, "foo")
+                self.assertEqual(creds.secret_key, "bar")
+                self.assertEqual(query.bucket, "mybucket")
+                self.assertEqual(query.object_name, "?versioning")
+                self.assertEqual(query.data, "")
+                self.assertEqual(query.metadata, {})
+                self.assertEqual(query.amz_headers, {})
+
+            def submit(query, url_context=None):
+                return succeed(payload.
+                               sample_s3_get_bucket_versioning_enabled_result)
+
+        def check_results(versioning_config):
+            self.assertEquals(versioning_config.status, 'Enabled')
+
+        creds = AWSCredentials("foo", "bar")
+        s3 = client.S3Client(creds, query_factory=StubQuery)
+        d = s3.get_bucket_versioning_config("mybucket")
+        return d.addCallback(check_results)
+
+    def test_get_bucket_versioning_config_mfa_disabled(self):
+        """
+        L{S3Client.get_bucket_versioning_config} creates a L{Query} to get a
+        bucket's versioning configuration.  It parses the returned
+        C{VersioningConfiguration} XML document and returns a C{Deferred} that
+        requests the bucket's versioning configuration that has a disabled
+        C{MfaDelete}.
+        """
+
+        class StubQuery(client.Query):
+
+            def __init__(query, action, creds, endpoint, bucket=None,
+                         object_name=None):
+                super(StubQuery, query).__init__(action=action, creds=creds,
+                                                 bucket=bucket,
+                                                 object_name=object_name)
+                self.assertEquals(action, "GET")
+                self.assertEqual(creds.access_key, "foo")
+                self.assertEqual(creds.secret_key, "bar")
+                self.assertEqual(query.bucket, "mybucket")
+                self.assertEqual(query.object_name, "?versioning")
+                self.assertEqual(query.data, "")
+                self.assertEqual(query.metadata, {})
+                self.assertEqual(query.amz_headers, {})
+
+            def submit(query, url_context=None):
+                return succeed(
+                    payload.
+                        sample_s3_get_bucket_versioning_mfa_disabled_result)
+
+        def check_results(versioning_config):
+            self.assertEquals(versioning_config.mfa_delete, 'Disabled')
+
+        creds = AWSCredentials("foo", "bar")
+        s3 = client.S3Client(creds, query_factory=StubQuery)
+        d = s3.get_bucket_versioning_config("mybucket")
         return d.addCallback(check_results)
 
     def test_delete_bucket(self):
@@ -523,6 +864,39 @@ class S3ClientTestCase(TXAWSTestCase):
         s3 = client.S3Client(creds, query_factory=StubQuery)
         return s3.delete_object("mybucket", "objectname")
 
+    def test_put_object_acl(self):
+
+        class StubQuery(client.Query):
+
+            def __init__(query, action, creds, endpoint, bucket=None,
+                         object_name=None, data=""):
+                super(StubQuery, query).__init__(action=action, creds=creds,
+                                                 bucket=bucket,
+                                                 object_name=object_name,
+                                                 data=data)
+                self.assertEquals(action, "PUT")
+                self.assertEqual(creds.access_key, "foo")
+                self.assertEqual(creds.secret_key, "bar")
+                self.assertEqual(query.bucket, "mybucket")
+                self.assertEqual(query.object_name, "myobject?acl")
+                self.assertEqual(query.data,
+                                 payload.sample_access_control_policy_result)
+                self.assertEqual(query.metadata, {})
+                self.assertEqual(query.metadata, {})
+
+            def submit(query, url_context=None):
+                return succeed(payload.sample_access_control_policy_result)
+
+        def check_result(result):
+            self.assert_(isinstance(result, AccessControlPolicy))
+
+        creds = AWSCredentials("foo", "bar")
+        s3 = client.S3Client(creds, query_factory=StubQuery)
+        policy = AccessControlPolicy.from_xml(
+            payload.sample_access_control_policy_result)
+        deferred = s3.put_object_acl("mybucket", "myobject", policy)
+        return deferred.addCallback(check_result)
+
     def test_get_object_acl(self):
 
         class StubQuery(client.Query):
@@ -735,7 +1109,7 @@ class QueryTestCase(TXAWSTestCase):
 QueryTestCase.skip = s3clientSkip
 
 
-class MiscellaneousTests(TXAWSTestCase):
+class MiscellaneousTestCase(TXAWSTestCase):
 
     def test_content_md5(self):
         self.assertEqual(calculate_md5("somedata"), "rvr3UC1SmUw7AZV2NqPN0g==")

@@ -5,7 +5,7 @@ from unittest import TestCase
 from txaws.server.exception import APIError
 
 
-class APIErrorTest(TestCase):
+class APIErrorTestCase(TestCase):
 
     def test_with_no_parameters(self):
         """
@@ -54,7 +54,7 @@ class APIErrorTest(TestCase):
 
     def test_with_unicode_message(self):
         """
-        L{APIError} will convert message to plain ASCII if converted to string. 
+        L{APIError} will convert message to plain ASCII if converted to string.
         """
         error = APIError(400, code="APIError", message=u"cittá")
         self.assertEqual(u"cittá", error.message)

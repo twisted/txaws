@@ -7,4 +7,3 @@ url = "http://launchpad.net/txaws"
 description = """
 Twisted-based Asynchronous Libraries for Amazon Web Services
 """
-

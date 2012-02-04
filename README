@@ -7,6 +7,7 @@ Dependencies
 
 * The dateutil python package (python-dateutil on Debian or similar systems)
 
+* lxml (only when using txaws.wsdl)
 
 Things present here
 -------------------

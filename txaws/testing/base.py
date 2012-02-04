@@ -24,4 +24,3 @@ class TXAWSTestCase(TestCase):
         for key in set(os.environ) - set(self.orig_environ):
             del os.environ[key]
         os.environ.update(self.orig_environ)
-

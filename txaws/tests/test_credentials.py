@@ -7,7 +7,7 @@ from txaws.credentials import AWSCredentials, ENV_ACCESS_KEY, ENV_SECRET_KEY
 from txaws.testing.base import TXAWSTestCase
 
 
-class TestCredentials(TXAWSTestCase):
+class CredentialsTestCase(TXAWSTestCase):
 
     def test_no_access_errors(self):
         # Without anything in os.environ, AWSService() blows up

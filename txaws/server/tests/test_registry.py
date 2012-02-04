@@ -4,22 +4,31 @@ from txaws.server.method import Method
 from txaws.server.registry import Registry
 from txaws.server.exception import APIError
 
-from txaws.server.tests.fixtures import (
-    has_venusian, importerror, amodule)
-from txaws.server.tests.fixtures.amodule import TestMethod
-from txaws.server.tests.fixtures.importerror.amodule import (
-    TestMethod as testmethod)
+try:
+    from txaws.server.tests.fixtures import (
+        has_venusian, importerror, amodule)
+    from txaws.server.tests.fixtures.amodule import TestMethod
+    from txaws.server.tests.fixtures.importerror.amodule import (
+        TestMethod as testmethod)
+    no_class_decorators = False
+except SyntaxError:
+    no_class_decorators = True
+    has_venusian = False
 
 
-class RegistryTest(TestCase):
+class RegistryTestCase(TestCase):
+
+    if no_class_decorators:
+        skip = ("Your version of Python doesn't seem to support class "
+                "decorators.")
 
     def setUp(self):
-        super(RegistryTest, self).setUp()
+        super(RegistryTestCase, self).setUp()
         self.registry = Registry()
 
     def test_add(self):
         """
-        L{MehtodRegistry.add} registers a method class for the given action
+        L{MethodRegistry.add} registers a method class for the given action
         and version.
         """
         self.registry.add(TestMethod, "test", "1.0")
@@ -31,7 +40,7 @@ class RegistryTest(TestCase):
 
     def test_add_duplicate_method(self):
         """
-        L{MehtodRegistry.add} fails if a method class for the given action
+        L{MethodRegistry.add} fails if a method class for the given action
         and version was already registered.
         """
 
@@ -44,7 +53,7 @@ class RegistryTest(TestCase):
 
     def test_get(self):
         """
-        L{MehtodRegistry.get} returns the method class registered for the
+        L{MethodRegistry.get} returns the method class registered for the
         given action and version.
         """
 
@@ -60,7 +69,7 @@ class RegistryTest(TestCase):
 
     def test_check_with_missing_action(self):
         """
-        L{MehtodRegistry.get} fails if the given action is not registered.
+        L{MethodRegistry.get} fails if the given action is not registered.
         """
         error = self.assertRaises(APIError, self.registry.check, "boom", "1.0")
         self.assertEqual(400, error.status)
@@ -70,7 +79,7 @@ class RegistryTest(TestCase):
 
     def test_check_with_missing_version(self):
         """
-        L{MehtodRegistry.get} fails if the given action is not registered.
+        L{MethodRegistry.get} fails if the given action is not registered.
         """
         self.registry.add(TestMethod, "test", "1.0")
         error = self.assertRaises(APIError, self.registry.check, "test", "2.0")
@@ -80,7 +89,7 @@ class RegistryTest(TestCase):
 
     def test_scan(self):
         """
-        L{MehtodRegistry.scan} registers the L{Method}s decorated with L{api}.
+        L{MethodRegistry.scan} registers the L{Method}s decorated with L{api}.
         """
         self.registry.scan(amodule)
         self.assertIdentical(TestMethod, self.registry.get("TestMethod", None))
@@ -98,6 +107,7 @@ class RegistryTest(TestCase):
         deal with scanning errors.
         """
         swallowed = []
+
         def swallow(error):
             swallowed.append(error)
 

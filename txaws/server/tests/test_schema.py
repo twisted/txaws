@@ -11,7 +11,7 @@ from txaws.server.schema import (
     Arguments, Bool, Date, Enum, Integer, Parameter, RawStr, Schema, Unicode)
 
 
-class ArgumentsTest(TestCase):
+class ArgumentsTestCase(TestCase):
 
     def test_instantiate_empty(self):
         """Creating an L{Arguments} object."""
@@ -56,7 +56,7 @@ class ArgumentsTest(TestCase):
         self.assertEqual("egg", arguments.foo[0])
 
 
-class ParameterTest(TestCase):
+class ParameterTestCase(TestCase):
 
     def test_coerce(self):
         """
@@ -188,7 +188,7 @@ class ParameterTest(TestCase):
         self.assertEqual("foo", parameter.coerce("foo"))
 
 
-class UnicodeTest(TestCase):
+class UnicodeTestCase(TestCase):
 
     def test_parse(self):
         """L{Unicode.parse} converts the given raw C{value} to C{unicode}."""
@@ -232,7 +232,7 @@ class UnicodeTest(TestCase):
         self.assertEqual("InvalidParameterValue", error.code)
 
 
-class RawStrTest(TestCase):
+class RawStrTestCase(TestCase):
 
     def test_parse(self):
         """L{RawStr.parse} checks that the given raw C{value} is a string."""
@@ -247,7 +247,7 @@ class RawStrTest(TestCase):
         self.assertTrue(isinstance(value, str))
 
 
-class IntegerTest(TestCase):
+class IntegerTestCase(TestCase):
 
     def test_parse(self):
         """L{Integer.parse} converts the given raw C{value} to C{int}."""
@@ -265,7 +265,7 @@ class IntegerTest(TestCase):
         self.assertEqual("123", parameter.format(123))
 
 
-class BoolTest(TestCase):
+class BoolTestCase(TestCase):
 
     def test_parse(self):
         """L{Bool.parse} converts 'true' to C{True}."""
@@ -292,7 +292,7 @@ class BoolTest(TestCase):
         self.assertEqual("false", parameter.format(False))
 
 
-class EnumTest(TestCase):
+class EnumTestCase(TestCase):
 
     def test_parse(self):
         """L{Enum.parse} accepts a map for translating values."""
@@ -313,7 +313,7 @@ class EnumTest(TestCase):
         self.assertEqual("foo", parameter.format("bar"))
 
 
-class DateTest(TestCase):
+class DateTestCase(TestCase):
 
     def test_parse(self):
         """L{Date.parse checks that the given raw C{value} is a date/time."""
@@ -328,11 +328,11 @@ class DateTest(TestCase):
         """
         parameter = Date("Test")
         date = datetime(2010, 9, 15, 23, 59, 59,
-                        tzinfo=tzoffset('UTC', 120*60))
+                        tzinfo=tzoffset('UTC', 120 * 60))
         self.assertEqual("2010-09-15T21:59:59Z", parameter.format(date))
 
 
-class SchemaTest(TestCase):
+class SchemaTestCase(TestCase):
 
     def test_extract(self):
         """

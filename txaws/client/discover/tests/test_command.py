@@ -20,7 +20,7 @@ class FakeHTTPClient(object):
         self.url = url
 
 
-class CommandTest(TXAWSTestCase):
+class CommandTestCase(TXAWSTestCase):
 
     def prepare_command(self, response, status, action, parameters={},
                         get_page=None, error=None):
@@ -74,9 +74,9 @@ class CommandTest(TXAWSTestCase):
             url = (
                 "http://endpoint?AWSAccessKeyId=key&"
                 "Action=DescribeRegions&"
-                "Signature=uAlV2ALkp7qTxZrTNNuJhHl0i9xiTK5faZOhJTgGS1E%3D&"
+                "Signature=3%2BHSkQQosF1Sr9AL3kdY31tEfTWQ2whjJOUSc3kvc2c%3D&"
                 "SignatureMethod=HmacSHA256&SignatureVersion=2&"
-                "Timestamp=2010-06-04T23%3A40%3A00Z&Version=2008-12-01")
+                "Timestamp=2010-06-04T23%3A40%3A00Z&Version=2009-11-30")
             self.assertEqual("GET", self.method)
             self.assertEqual(url, self.url)
             self.assertEqual("URL: %s\n"
@@ -99,9 +99,9 @@ class CommandTest(TXAWSTestCase):
             url = (
                 "http://endpoint?AWSAccessKeyId=key&"
                 "Action=DescribeRegions&RegionName.0=us-west-1&"
-                "Signature=P6C7cQJ7j93uIJyv2dTbpQG3EI7ArGBJT%2FzVH%2BDFhyY%3D&"
+                "Signature=6D8aCgSPQOYixowRHy26aRFzK2Vwgixl9uwegYX9nLA%3D&"
                 "SignatureMethod=HmacSHA256&SignatureVersion=2&"
-                "Timestamp=2010-06-04T23%3A40%3A00Z&Version=2008-12-01")
+                "Timestamp=2010-06-04T23%3A40%3A00Z&Version=2009-11-30")
             self.assertEqual("GET", self.method)
             self.assertEqual(url, self.url)
             self.assertEqual("URL: %s\n"
@@ -128,9 +128,9 @@ class CommandTest(TXAWSTestCase):
             url = (
                 "http://endpoint?AWSAccessKeyId=key&"
                 "Action=DescribeRegions&RegionName.0=us-west-1&"
-                "Signature=P6C7cQJ7j93uIJyv2dTbpQG3EI7ArGBJT%2FzVH%2BDFhyY%3D&"
+                "Signature=6D8aCgSPQOYixowRHy26aRFzK2Vwgixl9uwegYX9nLA%3D&"
                 "SignatureMethod=HmacSHA256&SignatureVersion=2&"
-                "Timestamp=2010-06-04T23%3A40%3A00Z&Version=2008-12-01")
+                "Timestamp=2010-06-04T23%3A40%3A00Z&Version=2009-11-30")
             self.assertEqual("GET", self.method)
             self.assertEqual(url, self.url)
             self.assertEqual("URL: %s\n"
@@ -159,7 +159,7 @@ class CommandTest(TXAWSTestCase):
                 "Action=DescribeRegions&RegionName.0=us-west-1&"
                 "Signature=P6C7cQJ7j93uIJyv2dTbpQG3EI7ArGBJT%2FzVH%2BDFhyY%3D&"
                 "SignatureMethod=HmacSHA256&SignatureVersion=2&"
-                "Timestamp=2010-06-04T23%3A40%3A00Z&Version=2008-12-01")
+                "Timestamp=2010-06-04T23%3A40%3A00Z&Version=2009-11-30")
             self.assertEqual("GET", self.method)
             self.assertEqual(url, self.url)
             self.assertEqual("URL: %s\n"
@@ -185,9 +185,9 @@ class CommandTest(TXAWSTestCase):
             url = (
                 "http://endpoint?AWSAccessKeyId=key&"
                 "Action=DescribeRegions&RegionName.0=us-west-1&"
-                "Signature=P6C7cQJ7j93uIJyv2dTbpQG3EI7ArGBJT%2FzVH%2BDFhyY%3D&"
+                "Signature=6D8aCgSPQOYixowRHy26aRFzK2Vwgixl9uwegYX9nLA%3D&"
                 "SignatureMethod=HmacSHA256&SignatureVersion=2&"
-                "Timestamp=2010-06-04T23%3A40%3A00Z&Version=2008-12-01")
+                "Timestamp=2010-06-04T23%3A40%3A00Z&Version=2009-11-30")
             self.assertEqual("GET", self.method)
             self.assertEqual(url, self.url)
             self.assertEqual("URL: %s\n"
