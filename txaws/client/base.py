@@ -201,7 +201,7 @@ class BaseQuery(object):
         bytes.
         """
         self.response_headers = headers = response.headers
-        if self._method.upper() == 'HEAD':
+        if self._method.upper() in ('HEAD', 'DELETE'):
             return succeed(None)
         receiver = self.receiver_factory()
         receiver.finished = d = Deferred()
