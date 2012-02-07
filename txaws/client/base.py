@@ -3,12 +3,17 @@ try:
 except ImportError:
     from xml.parsers.expat import ExpatError as ParseError
 
+from StringIO import StringIO
+
 from twisted.internet.ssl import ClientContextFactory
-from twisted.internet.error import ConnectionLost
+from twisted.internet.protocol import Protocol
+from twisted.internet.defer import Deferred, succeed
 from twisted.python import failure
 from twisted.web import http
+from twisted.web.iweb import UNKNOWN_LENGTH
 from twisted.web.client import HTTPClientFactory
-from twisted.web.client import Agent, StringProducer
+from twisted.web.client import Agent, FileBodyProducer
+from twisted.web.client import ResponseDone
 from twisted.web.http_headers import Headers
 from twisted.web.error import Error as TwistedWebError
 
@@ -80,7 +85,7 @@ class StreamingError(Exception):
     Raised if more data or less data is received than expected.
     """
 
-class StringIOBodyReceiver(Protocol)
+class StringIOBodyReceiver(Protocol):
     """
     Simple StringIO-based HTTP response body receiver.
     """
@@ -92,29 +97,38 @@ class StringIOBodyReceiver(Protocol)
         self._received = 0
 
     def dataReceived(self, bytes):
-        if self._received > self.content_length:
+        streaming = self.content_length is UNKNOWN_LENGTH
+        if not streaming and (self._received > self.content_length):
             self.transport.loseConnection()
             raise StreamingError(
                 "Buffer overflow - received more data than "
                 "Content-Length dictated: %d" % self.content_length)
+        # TODO should be some limit on how much we receive
         self._buffer.write(bytes)
         self._received += len(bytes)
 
     def connectionLost(self, reason):
-        reason.trap(ConnectionLost)
-        if self._received == self.content_length:
-            self.finished.callback(self._buffer.getvalue())
+        reason.trap(ResponseDone)
+        d = self.finished
+        self.finished = None
+        streaming = self.content_length is UNKNOWN_LENGTH
+        if streaming or (self._received == self.content_length):
+            d.callback(self._buffer.getvalue())
         else:
             f = failure.Failure(StreamingError("Connection lost before "
                 "receiving all data"))
-            self.finished.errback(f)
-        self.finished = None
+            d.errback(f)
+
+
+class WebClientContextFactory(ClientContextFactory):
+    def getContext(self, hostname, port):
+        return ClientContextFactory.getContext(self)
 
 
 class BaseQuery(object):
 
     def __init__(self, action=None, creds=None, endpoint=None, reactor=None,
-        producer=None, receiver_factory=None):
+        body_producer=None, receiver_factory=None):
         if not action:
             raise TypeError("The query requires an action parameter.")
         self.action = action
@@ -125,7 +139,7 @@ class BaseQuery(object):
         self.reactor = reactor
         self.request_headers = None
         self.response_headers = None
-        self.producer = producer
+        self.body_producer = body_producer
         self.receiver_factory = receiver_factory or StringIOBodyReceiver
 
     def get_page(self, url, *args, **kwds):
@@ -138,20 +152,22 @@ class BaseQuery(object):
         contextFactory = None
         scheme, host, port, path = parse(url)
         data = kwds.get('postdata', None)
-        method = kwds.get('method', 'GET')
+        self._method = method = kwds.get('method', 'GET')
         self.request_headers = self._headers(kwds.get('headers', {}))
-        if (self.producer is None) and (data is not None):
-            self.producer = StringProducer(data)
+        if (self.body_producer is None) and (data is not None):
+            self.body_producer = FileBodyProducer(StringIO(data))
         if scheme == "https":
-            # FIXME
             if self.endpoint.ssl_hostname_verification:
                 contextFactory = VerifyingContextFactory(host)
             else:
-                contextFactory = ClientContextFactory()
-            self.reactor.connectSSL(host, port, self.client, contextFactory)
+                contextFactory = WebClientContextFactory()
+            agent = Agent(self.reactor, contextFactory)
+            d = agent.request(method, url, self.request_headers,
+                self.body_producer)
         else:
             agent = Agent(self.reactor)
-            d = agent.request(method, url, self.request_headers)
+            d = agent.request(method, url, self.request_headers,
+                self.body_producer)
         d.addCallback(self._handle_response)
         return d
 
@@ -159,7 +175,7 @@ class BaseQuery(object):
         """
         Convert dictionary of headers into twisted.web.client.Headers object.
         """
-        return Headers(dict((k,[v]) for (k,v) in headers_dict))
+        return Headers(dict((k,[v]) for (k,v) in headers_dict.items()))
 
     def _unpack_headers(self, headers):
         """
@@ -184,10 +200,12 @@ class BaseQuery(object):
         Handle the HTTP response by memoing the headers and then delivering
         bytes.
         """
-        self.response_headers = response.headers
+        self.response_headers = headers = response.headers
+        if self._method.upper() == 'HEAD':
+            return succeed(None)
         receiver = self.receiver_factory()
         receiver.finished = d = Deferred()
-        receiver.content_length = headers.getRawHeaders('Content-Length')[0]
+        receiver.content_length = response.length
         response.deliverBody(receiver)
         return d
 
