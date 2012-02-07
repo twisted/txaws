@@ -99,7 +99,6 @@ class BaseQueryTestCase(TXAWSTestCase):
 
     def test_creation(self):
         query = BaseQuery("an action", "creds", "http://endpoint")
-        self.assertEquals(query.factory, HTTPClientFactory)
         self.assertEquals(query.action, "an action")
         self.assertEquals(query.creds, "creds")
         self.assertEquals(query.endpoint, "http://endpoint")
@@ -173,8 +172,9 @@ class BaseQueryTestCase(TXAWSTestCase):
             def __init__(self):
                 self.connects = []
 
-            def connectSSL(self, host, port, client, factory):
-                self.connects.append((host, port, client, factory))
+            def connectSSL(self, host, port, factory, contextFactory, timeout,
+                bindAddress):
+                self.connects.append((host, port, factory, contextFactory))
 
         certs = makeCertificate(O="Test Certificate", CN="something")[1]
         self.patch(ssl, "_ca_certs", certs)
@@ -182,9 +182,10 @@ class BaseQueryTestCase(TXAWSTestCase):
         endpoint = AWSServiceEndpoint(ssl_hostname_verification=True)
         query = BaseQuery("an action", "creds", endpoint, fake_reactor)
         query.get_page("https://example.com/file")
-        [(host, port, client, factory)] = fake_reactor.connects
+        [(host, port, factory, contextFactory)] = fake_reactor.connects
         self.assertEqual("example.com", host)
         self.assertEqual(443, port)
-        self.assertTrue(isinstance(factory, ssl.VerifyingContextFactory))
-        self.assertEqual("example.com", factory.host)
-        self.assertNotEqual([], factory.caCerts)
+        wrappedFactory = contextFactory._webContext
+        self.assertTrue(isinstance(wrappedFactory, ssl.VerifyingContextFactory))
+        self.assertEqual("example.com", wrappedFactory.host)
+        self.assertNotEqual([], wrappedFactory.caCerts)

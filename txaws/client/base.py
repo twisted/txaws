@@ -121,8 +121,15 @@ class StringIOBodyReceiver(Protocol):
 
 
 class WebClientContextFactory(ClientContextFactory):
+
     def getContext(self, hostname, port):
         return ClientContextFactory.getContext(self)
+
+
+class WebVerifyingContextFactory(VerifyingContextFactory):
+
+    def getContext(self, hostname, port):
+        return VerifyingContextFactory.getContext(self)
 
 
 class BaseQuery(object):
@@ -158,7 +165,7 @@ class BaseQuery(object):
             self.body_producer = FileBodyProducer(StringIO(data))
         if scheme == "https":
             if self.endpoint.ssl_hostname_verification:
-                contextFactory = VerifyingContextFactory(host)
+                contextFactory = WebVerifyingContextFactory(host)
             else:
                 contextFactory = WebClientContextFactory()
             agent = Agent(self.reactor, contextFactory)
