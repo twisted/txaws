@@ -10,7 +10,7 @@ else:
     s3clientSkip = None
 from txaws.s3.acls import AccessControlPolicy
 from txaws.s3.model import RequestPayment
-from txaws.s3.tests.util import StringBodyProducer
+from txaws.testing.producers import StringBodyProducer
 from txaws.service import AWSServiceEndpoint
 from txaws.testing import payload
 from txaws.testing.base import TXAWSTestCase
