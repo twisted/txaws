@@ -142,10 +142,16 @@ class BaseQueryTestCase(TXAWSTestCase):
     def test_get_response_headers_with_client(self):
 
         def check_results(results):
+            #self.assertEquals(sorted(results.keys()), [
+            #    "accept-ranges", "content-length", "content-type", "date",
+            #    "last-modified", "server"])
+            # XXX I think newclient exludes content-length from headers?
+            # Also the header names are capitalized ... do we need to worry
+            # about backwards compat?
             self.assertEquals(sorted(results.keys()), [
-                "accept-ranges", "content-length", "content-type", "date",
-                "last-modified", "server"])
-            self.assertEquals(len(results.values()), 6)
+                "Accept-Ranges", "Content-Type", "Date",
+                "Last-Modified", "Server"])
+            self.assertEquals(len(results.values()), 5)
 
         query = BaseQuery("an action", "creds", "http://endpoint")
         d = query.get_page(self._get_url("file"))
