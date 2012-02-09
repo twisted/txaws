@@ -74,10 +74,12 @@ class URLContext(object):
 class S3Client(BaseClient):
     """A client for S3."""
 
-    def __init__(self, creds=None, endpoint=None, query_factory=None):
+    def __init__(self, creds=None, endpoint=None, query_factory=None,
+        receiver_factory=None):
         if query_factory is None:
             query_factory = Query
-        super(S3Client, self).__init__(creds, endpoint, query_factory)
+        super(S3Client, self).__init__(creds, endpoint, query_factory,
+            receiver_factory=receiver_factory)
 
     def list_buckets(self):
         """
@@ -87,7 +89,8 @@ class S3Client(BaseClient):
         the request.
         """
         query = self.query_factory(
-            action="GET", creds=self.creds, endpoint=self.endpoint)
+            action="GET", creds=self.creds, endpoint=self.endpoint,
+            receiver_factory=self.receiver_factory)
         d = query.submit()
         return d.addCallback(self._parse_list_buckets)
 
@@ -131,7 +134,7 @@ class S3Client(BaseClient):
         """
         query = self.query_factory(
             action="GET", creds=self.creds, endpoint=self.endpoint,
-            bucket=bucket)
+            bucket=bucket, receiver_factory=self.receiver_factory)
         d = query.submit()
         return d.addCallback(self._parse_get_bucket)
 
@@ -174,7 +177,8 @@ class S3Client(BaseClient):
         """
         query = self.query_factory(action="GET", creds=self.creds,
                                    endpoint=self.endpoint, bucket=bucket,
-                                   object_name="?location")
+                                   object_name="?location",
+                                   receiver_factory=self.receiver_factory)
         d = query.submit()
         return d.addCallback(self._parse_bucket_location)
 
@@ -193,7 +197,8 @@ class S3Client(BaseClient):
         """
         query = self.query_factory(
             action='GET', creds=self.creds, endpoint=self.endpoint,
-            bucket=bucket, object_name='?lifecycle')
+            bucket=bucket, object_name='?lifecycle',
+            receiver_factory=self.receiver_factory)
         return query.submit().addCallback(self._parse_lifecycle_config)
 
     def _parse_lifecycle_config(self, xml_bytes):
@@ -221,7 +226,8 @@ class S3Client(BaseClient):
         """
         query = self.query_factory(
             action='GET', creds=self.creds, endpoint=self.endpoint,
-            bucket=bucket, object_name='?website')
+            bucket=bucket, object_name='?website',
+            receiver_factory=self.receiver_factory)
         return query.submit().addCallback(self._parse_website_config)
 
     def _parse_website_config(self, xml_bytes):
@@ -242,7 +248,8 @@ class S3Client(BaseClient):
         """
         query = self.query_factory(
             action='GET', creds=self.creds, endpoint=self.endpoint,
-            bucket=bucket, object_name='?notification')
+            bucket=bucket, object_name='?notification',
+            receiver_factory=self.receiver_factory)
         return query.submit().addCallback(self._parse_notification_config)
 
     def _parse_notification_config(self, xml_bytes):
@@ -262,7 +269,8 @@ class S3Client(BaseClient):
         """
         query = self.query_factory(
             action='GET', creds=self.creds, endpoint=self.endpoint,
-            bucket=bucket, object_name='?versioning')
+            bucket=bucket, object_name='?versioning',
+            receiver_factory=self.receiver_factory)
         return query.submit().addCallback(self._parse_versioning_config)
 
     def _parse_versioning_config(self, xml_bytes):
@@ -279,7 +287,8 @@ class S3Client(BaseClient):
         """
         query = self.query_factory(
             action='GET', creds=self.creds, endpoint=self.endpoint,
-            bucket=bucket, object_name='?acl')
+            bucket=bucket, object_name='?acl',
+            receiver_factory=self.receiver_factory)
         return query.submit().addCallback(self._parse_acl)
 
     def put_bucket_acl(self, bucket, access_control_policy):
@@ -289,7 +298,8 @@ class S3Client(BaseClient):
         data = access_control_policy.to_xml()
         query = self.query_factory(
             action='PUT', creds=self.creds, endpoint=self.endpoint,
-            bucket=bucket, object_name='?acl', data=data)
+            bucket=bucket, object_name='?acl', data=data,
+            receiver_factory=self.receiver_factory)
         return query.submit().addCallback(self._parse_acl)
 
     def _parse_acl(self, xml_bytes):
@@ -299,8 +309,8 @@ class S3Client(BaseClient):
         """
         return AccessControlPolicy.from_xml(xml_bytes)
 
-    def put_object(self, bucket, object_name, data, content_type=None,
-                   metadata={}, amz_headers={}):
+    def put_object(self, bucket, object_name, data=None, content_type=None,
+                   metadata={}, amz_headers={}, body_producer=None):
         """
         Put an object in a bucket.
 
@@ -318,7 +328,8 @@ class S3Client(BaseClient):
             action="PUT", creds=self.creds, endpoint=self.endpoint,
             bucket=bucket, object_name=object_name, data=data,
             content_type=content_type, metadata=metadata,
-            amz_headers=amz_headers)
+            amz_headers=amz_headers, body_producer=body_producer,
+            receiver_factory=self.receiver_factory)
         return query.submit()
 
     def copy_object(self, source_bucket, source_object_name, dest_bucket=None,
@@ -344,7 +355,8 @@ class S3Client(BaseClient):
         query = self.query_factory(
             action="PUT", creds=self.creds, endpoint=self.endpoint,
             bucket=dest_bucket, object_name=dest_object_name,
-            metadata=metadata, amz_headers=amz_headers)
+            metadata=metadata, amz_headers=amz_headers,
+            receiver_factory=self.receiver_factory)
         return query.submit()
 
     def get_object(self, bucket, object_name):
@@ -353,7 +365,8 @@ class S3Client(BaseClient):
         """
         query = self.query_factory(
             action="GET", creds=self.creds, endpoint=self.endpoint,
-            bucket=bucket, object_name=object_name)
+            bucket=bucket, object_name=object_name,
+            receiver_factory=self.receiver_factory)
         return query.submit()
 
     def head_object(self, bucket, object_name):
@@ -384,7 +397,8 @@ class S3Client(BaseClient):
         data = access_control_policy.to_xml()
         query = self.query_factory(
             action='PUT', creds=self.creds, endpoint=self.endpoint,
-            bucket=bucket, object_name='%s?acl' % object_name, data=data)
+            bucket=bucket, object_name='%s?acl' % object_name, data=data,
+            receiver_factory=self.receiver_factory)
         return query.submit().addCallback(self._parse_acl)
 
     def get_object_acl(self, bucket, object_name):
@@ -393,7 +407,8 @@ class S3Client(BaseClient):
         """
         query = self.query_factory(
             action='GET', creds=self.creds, endpoint=self.endpoint,
-            bucket=bucket, object_name='%s?acl' % object_name)
+            bucket=bucket, object_name='%s?acl' % object_name,
+            receiver_factory=self.receiver_factory)
         return query.submit().addCallback(self._parse_acl)
 
     def put_request_payment(self, bucket, payer):
@@ -407,7 +422,8 @@ class S3Client(BaseClient):
         data = RequestPayment(payer).to_xml()
         query = self.query_factory(
             action="PUT", creds=self.creds, endpoint=self.endpoint,
-            bucket=bucket, object_name="?requestPayment", data=data)
+            bucket=bucket, object_name="?requestPayment", data=data,
+            receiver_factory=self.receiver_factory)
         return query.submit()
 
     def get_request_payment(self, bucket):
@@ -419,7 +435,8 @@ class S3Client(BaseClient):
         """
         query = self.query_factory(
             action="GET", creds=self.creds, endpoint=self.endpoint,
-            bucket=bucket, object_name="?requestPayment")
+            bucket=bucket, object_name="?requestPayment",
+            receiver_factory=self.receiver_factory)
         return query.submit().addCallback(self._parse_get_request_payment)
 
     def _parse_get_request_payment(self, xml_bytes):
@@ -434,12 +451,13 @@ class Query(BaseQuery):
     """A query for submission to the S3 service."""
 
     def __init__(self, bucket=None, object_name=None, data="",
-                 content_type=None, metadata={}, amz_headers={}, *args,
-                 **kwargs):
+                 content_type=None, metadata={}, amz_headers={},
+                 body_producer=None, *args, **kwargs):
         super(Query, self).__init__(*args, **kwargs)
         self.bucket = bucket
         self.object_name = object_name
         self.data = data
+        self.body_producer = body_producer
         self.content_type = content_type
         self.metadata = metadata
         self.amz_headers = amz_headers
@@ -464,8 +482,9 @@ class Query(BaseQuery):
         Build the list of headers needed in order to perform S3 operations.
         """
         headers = {"Content-Length": len(self.data),
-                   "Content-MD5": calculate_md5(self.data),
                    "Date": self.date}
+        if self.body_producer is None:
+            headers["Content-MD5"] = calculate_md5(self.data)
         for key, value in self.metadata.iteritems():
             headers["x-amz-meta-" + key] = value
         for key, value in self.amz_headers.iteritems():
@@ -529,5 +548,6 @@ class Query(BaseQuery):
                 self.endpoint, self.bucket, self.object_name)
         d = self.get_page(
             url_context.get_url(), method=self.action, postdata=self.data,
-            headers=self.get_headers())
+            headers=self.get_headers(), body_producer=self.body_producer,
+            receiver_factory=self.receiver_factory)
         return d.addErrback(s3_error_wrapper)

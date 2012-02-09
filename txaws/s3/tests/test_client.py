@@ -100,7 +100,8 @@ class S3ClientTestCase(TXAWSTestCase):
 
         class StubQuery(client.Query):
 
-            def __init__(query, action, creds, endpoint):
+            def __init__(query, action, creds, endpoint,
+                body_producer=None, receiver_factory=None):
                 super(StubQuery, query).__init__(
                     action=action, creds=creds)
                 self.assertEquals(action, "GET")
@@ -134,7 +135,8 @@ class S3ClientTestCase(TXAWSTestCase):
 
         class StubQuery(client.Query):
 
-            def __init__(query, action, creds, endpoint, bucket=None):
+            def __init__(query, action, creds, endpoint, bucket=None,
+                body_producer=None, receiver_factory=None):
                 super(StubQuery, query).__init__(
                     action=action, creds=creds, bucket=bucket)
                 self.assertEquals(action, "PUT")
@@ -156,7 +158,8 @@ class S3ClientTestCase(TXAWSTestCase):
 
         class StubQuery(client.Query):
 
-            def __init__(query, action, creds, endpoint, bucket=None):
+            def __init__(query, action, creds, endpoint, bucket=None,
+                body_producer=None, receiver_factory=None):
                 super(StubQuery, query).__init__(
                     action=action, creds=creds, bucket=bucket)
                 self.assertEquals(action, "GET")
@@ -208,7 +211,8 @@ class S3ClientTestCase(TXAWSTestCase):
         class StubQuery(client.Query):
 
             def __init__(query, action, creds, endpoint, bucket=None,
-                         object_name=None):
+                         object_name=None, body_producer=None,
+                         receiver_factory=None):
                 super(StubQuery, query).__init__(action=action, creds=creds,
                                                  bucket=bucket,
                                                  object_name=object_name)
@@ -243,7 +247,8 @@ class S3ClientTestCase(TXAWSTestCase):
         class StubQuery(client.Query):
 
             def __init__(query, action, creds, endpoint, bucket=None,
-                         object_name=None):
+                         object_name=None, body_producer=None,
+                         receiver_factory=None):
                 super(StubQuery, query).__init__(action=action, creds=creds,
                                                  bucket=bucket,
                                                  object_name=object_name)
@@ -284,7 +289,8 @@ class S3ClientTestCase(TXAWSTestCase):
         class StubQuery(client.Query):
 
             def __init__(query, action, creds, endpoint, bucket=None,
-                         object_name=None):
+                         object_name=None, body_producer=None,
+                         receiver_factory=None):
                 super(StubQuery, query).__init__(action=action, creds=creds,
                                                  bucket=bucket,
                                                  object_name=object_name)
@@ -323,7 +329,8 @@ class S3ClientTestCase(TXAWSTestCase):
         class StubQuery(client.Query):
 
             def __init__(query, action, creds, endpoint, bucket=None,
-                         object_name=None):
+                         object_name=None, body_producer=None,
+                         receiver_factory=None):
                 super(StubQuery, query).__init__(action=action, creds=creds,
                                                  bucket=bucket,
                                                  object_name=object_name)
@@ -360,7 +367,8 @@ class S3ClientTestCase(TXAWSTestCase):
         class StubQuery(client.Query):
 
             def __init__(query, action, creds, endpoint, bucket=None,
-                         object_name=None):
+                         object_name=None, body_producer=None,
+                         receiver_factory=None):
                 super(StubQuery, query).__init__(action=action, creds=creds,
                                                  bucket=bucket,
                                                  object_name=object_name)
@@ -396,7 +404,8 @@ class S3ClientTestCase(TXAWSTestCase):
         class StubQuery(client.Query):
 
             def __init__(query, action, creds, endpoint, bucket=None,
-                         object_name=None):
+                         object_name=None, body_producer=None,
+                         receiver_factory=None):
                 super(StubQuery, query).__init__(action=action, creds=creds,
                                                  bucket=bucket,
                                                  object_name=object_name)
@@ -433,7 +442,8 @@ class S3ClientTestCase(TXAWSTestCase):
         class StubQuery(client.Query):
 
             def __init__(query, action, creds, endpoint, bucket=None,
-                         object_name=None):
+                         object_name=None, body_producer=None,
+                         receiver_factory=None):
                 super(StubQuery, query).__init__(action=action, creds=creds,
                                                  bucket=bucket,
                                                  object_name=object_name)
@@ -473,7 +483,8 @@ class S3ClientTestCase(TXAWSTestCase):
         class StubQuery(client.Query):
 
             def __init__(query, action, creds, endpoint, bucket=None,
-                         object_name=None):
+                         object_name=None, body_producer=None,
+                         receiver_factory=None):
                 super(StubQuery, query).__init__(action=action, creds=creds,
                                                  bucket=bucket,
                                                  object_name=object_name)
@@ -509,7 +520,8 @@ class S3ClientTestCase(TXAWSTestCase):
         class StubQuery(client.Query):
 
             def __init__(query, action, creds, endpoint, bucket=None,
-                         object_name=None):
+                         object_name=None, body_producer=None,
+                         receiver_factory=None):
                 super(StubQuery, query).__init__(action=action, creds=creds,
                                                  bucket=bucket,
                                                  object_name=object_name)
@@ -546,7 +558,8 @@ class S3ClientTestCase(TXAWSTestCase):
         class StubQuery(client.Query):
 
             def __init__(query, action, creds, endpoint, bucket=None,
-                         object_name=None):
+                         object_name=None, body_producer=None,
+                         receiver_factory=None):
                 super(StubQuery, query).__init__(action=action, creds=creds,
                                                  bucket=bucket,
                                                  object_name=object_name)
@@ -576,7 +589,8 @@ class S3ClientTestCase(TXAWSTestCase):
 
         class StubQuery(client.Query):
 
-            def __init__(query, action, creds, endpoint, bucket=None):
+            def __init__(query, action, creds, endpoint, bucket=None,
+                body_producer=None, receiver_factory=None):
                 super(StubQuery, query).__init__(
                     action=action, creds=creds, bucket=bucket)
                 self.assertEquals(action, "DELETE")
@@ -599,7 +613,8 @@ class S3ClientTestCase(TXAWSTestCase):
         class StubQuery(client.Query):
 
             def __init__(query, action, creds, endpoint, bucket=None,
-                         object_name=None, data=""):
+                         object_name=None, data="", body_producer=None,
+                         receiver_factory=None):
                 super(StubQuery, query).__init__(action=action, creds=creds,
                                                  bucket=bucket,
                                                  object_name=object_name,
@@ -630,7 +645,8 @@ class S3ClientTestCase(TXAWSTestCase):
         class StubQuery(client.Query):
 
             def __init__(query, action, creds, endpoint, bucket=None,
-                         object_name=None, data=""):
+                         object_name=None, data="", receiver_factory=None,
+                         body_producer=None):
                 super(StubQuery, query).__init__(action=action, creds=creds,
                                                  bucket=bucket,
                                                  object_name=object_name,
@@ -665,7 +681,7 @@ class S3ClientTestCase(TXAWSTestCase):
 
             def __init__(query, action, creds, endpoint, bucket=None,
                 object_name=None, data=None, content_type=None,
-                metadata=None):
+                metadata=None, body_producer=None, receiver_factory=None):
                 super(StubQuery, query).__init__(
                     action=action, creds=creds, bucket=bucket,
                     object_name=object_name, data=data,
@@ -701,7 +717,7 @@ class S3ClientTestCase(TXAWSTestCase):
 
             def __init__(query, action, creds, endpoint, bucket=None,
                 object_name=None, data=None, content_type=None,
-                metadata=None):
+                metadata=None, body_producer=None, receiver_factory=None):
                 super(StubQuery, query).__init__(
                     action=action, creds=creds, bucket=bucket,
                     object_name=object_name, data=data,
@@ -730,7 +746,8 @@ class S3ClientTestCase(TXAWSTestCase):
 
             def __init__(query, action, creds, endpoint, bucket=None,
                 object_name=None, data=None, content_type=None,
-                metadata=None, amz_headers=None):
+                metadata=None, amz_headers=None, body_producer=None,
+                receiver_factory=None):
                 super(StubQuery, query).__init__(
                     action=action, creds=creds, bucket=bucket,
                     object_name=object_name, data=data,
@@ -766,7 +783,8 @@ class S3ClientTestCase(TXAWSTestCase):
 
             def __init__(query, action, creds, endpoint, bucket=None,
                 object_name=None, data=None, content_type=None,
-                metadata=None, amz_headers=None):
+                metadata=None, amz_headers=None, body_producer=None,
+                receiver_factory=None):
                 super(StubQuery, query).__init__(
                     action=action, creds=creds, bucket=bucket,
                     object_name=object_name, data=data,
@@ -798,7 +816,8 @@ class S3ClientTestCase(TXAWSTestCase):
 
             def __init__(query, action, creds, endpoint, bucket=None,
                 object_name=None, data=None, content_type=None,
-                metadata=None, amz_headers=None):
+                metadata=None, amz_headers=None, body_producer=None,
+                receiver_factory=None):
                 super(StubQuery, query).__init__(
                     action=action, creds=creds, bucket=bucket,
                     object_name=object_name, data=data,
@@ -822,7 +841,7 @@ class S3ClientTestCase(TXAWSTestCase):
 
             def __init__(query, action, creds, endpoint, bucket=None,
                 object_name=None, data=None, content_type=None,
-                metadata=None):
+                metadata=None, body_producer=None, receiver_factory=None):
                 super(StubQuery, query).__init__(
                     action=action, creds=creds, bucket=bucket,
                     object_name=object_name, data=data,
@@ -846,7 +865,7 @@ class S3ClientTestCase(TXAWSTestCase):
 
             def __init__(query, action, creds, endpoint, bucket=None,
                 object_name=None, data=None, content_type=None,
-                metadata=None):
+                metadata=None, body_producer=None, receiver_factory=None):
                 super(StubQuery, query).__init__(
                     action=action, creds=creds, bucket=bucket,
                     object_name=object_name, data=data,
@@ -869,7 +888,8 @@ class S3ClientTestCase(TXAWSTestCase):
         class StubQuery(client.Query):
 
             def __init__(query, action, creds, endpoint, bucket=None,
-                         object_name=None, data=""):
+                         object_name=None, data="", body_producer=None,
+                         receiver_factory=None):
                 super(StubQuery, query).__init__(action=action, creds=creds,
                                                  bucket=bucket,
                                                  object_name=object_name,
@@ -902,7 +922,8 @@ class S3ClientTestCase(TXAWSTestCase):
         class StubQuery(client.Query):
 
             def __init__(query, action, creds, endpoint, bucket=None,
-                         object_name=None, data=""):
+                         object_name=None, data="", body_producer=None,
+                         receiver_factory=None):
                 super(StubQuery, query).__init__(action=action, creds=creds,
                                                  bucket=bucket,
                                                  object_name=object_name,
@@ -1077,7 +1098,8 @@ class QueryTestCase(TXAWSTestCase):
         """
         class StubQuery(client.Query):
 
-            def __init__(query, action, creds, endpoint, bucket):
+            def __init__(query, action, creds, endpoint, bucket,
+                body_producer=None, receiver_factory=None):
                 super(StubQuery, query).__init__(
                     action=action, creds=creds, bucket=bucket)
                 self.assertEquals(action, "GET")

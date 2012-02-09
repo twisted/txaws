@@ -68,9 +68,10 @@ class BaseClient(object):
     @param query_factory: The class or function that produces a query
         object for making requests to the EC2 service.
     @param parser: A parser object for parsing responses from the EC2 service.
+    @param receiver_factory: Factory for receiving responses from EC2 service.
     """
     def __init__(self, creds=None, endpoint=None, query_factory=None,
-                 parser=None):
+                 parser=None, receiver_factory=None):
         if creds is None:
             creds = AWSCredentials()
         if endpoint is None:
@@ -78,6 +79,7 @@ class BaseClient(object):
         self.creds = creds
         self.endpoint = endpoint
         self.query_factory = query_factory
+        self.receiver_factory = receiver_factory
         self.parser = parser
 
 class StreamingError(Exception):
