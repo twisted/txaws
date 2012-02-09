@@ -15,6 +15,7 @@ from twisted.web.iweb import UNKNOWN_LENGTH
 from twisted.web.client import HTTPClientFactory
 from twisted.web.client import Agent
 from twisted.web.client import ResponseDone
+from twisted.web.http import NO_CONTENT
 from twisted.web.http_headers import Headers
 from twisted.web.error import Error as TwistedWebError
 try:
@@ -90,9 +91,14 @@ class StreamingError(Exception):
     Raised if more data or less data is received than expected.
     """
 
+
 class StringIOBodyReceiver(Protocol):
     """
     Simple StringIO-based HTTP response body receiver.
+
+    TODO: perhaps there should be an interface specifying why
+    finished (Deferred) and content_length are necessary and
+    how to used them; eg. callback/errback finished on completion.
     """
     finished = None
     content_length = None
@@ -245,8 +251,8 @@ class BaseQuery(object):
         # XXX This workaround (which needs to be improved at that) for possible
         # bug in Twisted with new client:
         # http://twistedmatrix.com/trac/ticket/5476
-        if self._method.upper() in ('HEAD', 'DELETE'):
-            return succeed(None)
+        if self._method.upper() == 'HEAD' or response.code == NO_CONTENT:
+            return succeed('')
         receiver = self.receiver_factory()
         receiver.finished = d = Deferred()
         receiver.content_length = response.length
