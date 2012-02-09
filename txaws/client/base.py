@@ -3,6 +3,7 @@ try:
 except ImportError:
     from xml.parsers.expat import ExpatError as ParseError
 
+import warnings
 from StringIO import StringIO
 
 from twisted.internet.ssl import ClientContextFactory
@@ -136,6 +137,16 @@ class WebVerifyingContextFactory(VerifyingContextFactory):
         return VerifyingContextFactory.getContext(self)
 
 
+class FakeClient(object):
+    """
+    XXX
+    A fake client object for some degree of backwards compatability for
+    code using the client attibute on BaseQuery to check url, status
+    etc.
+    """
+    url = None
+    status = None
+
 class BaseQuery(object):
 
     def __init__(self, action=None, creds=None, endpoint=None, reactor=None,
@@ -148,10 +159,27 @@ class BaseQuery(object):
         if reactor is None:
             from twisted.internet import reactor
         self.reactor = reactor
+        self._client = None
         self.request_headers = None
         self.response_headers = None
         self.body_producer = body_producer
         self.receiver_factory = receiver_factory or StringIOBodyReceiver
+
+    @property
+    def client(self):
+        if self._client is None:
+            self._client_deprecation_warning()
+            self._client = FakeClient()
+        return self._client
+
+    @client.setter
+    def client(self, value):
+        self._client_deprecation_warning()
+        self._client = value 
+
+    def _client_deprecation_warning(self):
+        warnings.warn('The client attribute on BaseQuery is deprecated and'
+                      ' will go away in future release.')
 
     def get_page(self, url, *args, **kwds):
         """
@@ -173,6 +201,7 @@ class BaseQuery(object):
             else:
                 contextFactory = WebClientContextFactory()
             agent = Agent(self.reactor, contextFactory)
+            self.client.url = url
             d = agent.request(method, url, self.request_headers,
                 self.body_producer)
         else:
@@ -211,6 +240,7 @@ class BaseQuery(object):
         Handle the HTTP response by memoing the headers and then delivering
         bytes.
         """
+        self.client.status = response.code
         self.response_headers = headers = response.headers
         # XXX This workaround (which needs to be improved at that) for possible
         # bug in Twisted with new client:
