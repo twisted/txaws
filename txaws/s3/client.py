@@ -481,7 +481,11 @@ class Query(BaseQuery):
         """
         Build the list of headers needed in order to perform S3 operations.
         """
-        headers = {"Content-Length": len(self.data),
+        if self.body_producer:
+            content_length = self.body_producer.length
+        else:
+            content_length = len(self.data)
+        headers = {"Content-Length": content_length,
                    "Date": self.date}
         if self.body_producer is None:
             headers["Content-MD5"] = calculate_md5(self.data)
