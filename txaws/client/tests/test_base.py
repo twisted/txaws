@@ -17,6 +17,7 @@ from twisted.web.error import Error as TwistedWebError
 
 from txaws.client import ssl
 from txaws.client.base import BaseClient, BaseQuery, error_wrapper
+from txaws.client.base import StringIOBodyReceiver
 from txaws.service import AWSServiceEndpoint
 from txaws.testing.base import TXAWSTestCase
 from txaws.testing.producers import StringBodyProducer
@@ -171,6 +172,25 @@ class BaseQueryTestCase(TXAWSTestCase):
             body_producer=producer)
         d = query.get_page(self._get_url("file"), method='PUT')
         return d.addCallback(check_producer_was_used)
+
+    def test_custom_receiver_factory(self):
+
+        class TestReceiverProtocol(StringIOBodyReceiver):
+            used = False
+
+            def __init__(self):
+                StringIOBodyReceiver.__init__(self)
+                TestReceiverProtocol.used = True
+
+        def check_used(ignore):
+            self.assert_(TestReceiverProtocol.used)
+
+        query = BaseQuery("an action", "creds", "http://endpoint",
+            receiver_factory=TestReceiverProtocol)
+        d = query.get_page(self._get_url("file"))
+        d.addCallback(self.assertEquals, "0123456789")
+        d.addCallback(check_used)
+        return d
 
     # XXX for systems that don't have certs in the DEFAULT_CERT_PATH, this test
     # will fail; instead, let's create some certs in a temp directory and set
