@@ -12,7 +12,10 @@ from twisted.python import log
 from twisted.python.filepath import FilePath
 from twisted.test.test_sslverify import makeCertificate
 from twisted.web import server, static
-from twisted.web.client import ResponseFailed
+try:
+    from twisted.web.client import ResponseFailed
+except ImportError:
+    from twisted.web._newclient import ResponseFailed
 
 from txaws import exception
 from txaws.client import ssl
@@ -104,8 +107,14 @@ class BaseQuerySSLTestCase(TXAWSTestCase):
         endpoint = AWSServiceEndpoint(ssl_hostname_verification=True)
         query = BaseQuery("an action", "creds", endpoint)
         d = query.get_page(self._get_url("file"))
-        # XXX Change this to specific check for wrapped SSLError
-        return self.assertFailure(d, ResponseFailed)
+        def fail(ignore):
+            self.fail('Expected SSLError')
+        def check_exception(why):
+            # XXX kind of a mess here ... need to unwrap the
+            # exception and check
+            root_exc = why.value[0][0].value
+            self.assert_(isinstance(root_exc, SSLError))
+        return d.addCallbacks(fail, check_exception)
 
     def test_ssl_verification_bypassed(self):
         """

@@ -3,6 +3,7 @@ try:
 except ImportError:
     from xml.parsers.expat import ExpatError as ParseError
 
+import warnings
 from StringIO import StringIO
 
 from twisted.internet.ssl import ClientContextFactory
@@ -12,10 +13,14 @@ from twisted.python import failure
 from twisted.web import http
 from twisted.web.iweb import UNKNOWN_LENGTH
 from twisted.web.client import HTTPClientFactory
-from twisted.web.client import Agent, FileBodyProducer
+from twisted.web.client import Agent
 from twisted.web.client import ResponseDone
 from twisted.web.http_headers import Headers
 from twisted.web.error import Error as TwistedWebError
+try:
+    from twisted.web.client import FileBodyProducer
+except ImportError:
+    from txaws.client._producers import FileBodyProducer
 
 from txaws.util import parse
 from txaws.credentials import AWSCredentials
@@ -134,6 +139,16 @@ class WebVerifyingContextFactory(VerifyingContextFactory):
         return VerifyingContextFactory.getContext(self)
 
 
+class FakeClient(object):
+    """
+    XXX
+    A fake client object for some degree of backwards compatability for
+    code using the client attibute on BaseQuery to check url, status
+    etc.
+    """
+    url = None
+    status = None
+
 class BaseQuery(object):
 
     def __init__(self, action=None, creds=None, endpoint=None, reactor=None,
@@ -146,10 +161,27 @@ class BaseQuery(object):
         if reactor is None:
             from twisted.internet import reactor
         self.reactor = reactor
+        self._client = None
         self.request_headers = None
         self.response_headers = None
         self.body_producer = body_producer
         self.receiver_factory = receiver_factory or StringIOBodyReceiver
+
+    @property
+    def client(self):
+        if self._client is None:
+            self._client_deprecation_warning()
+            self._client = FakeClient()
+        return self._client
+
+    @client.setter
+    def client(self, value):
+        self._client_deprecation_warning()
+        self._client = value 
+
+    def _client_deprecation_warning(self):
+        warnings.warn('The client attribute on BaseQuery is deprecated and'
+                      ' will go away in future release.')
 
     def get_page(self, url, *args, **kwds):
         """
@@ -171,6 +203,7 @@ class BaseQuery(object):
             else:
                 contextFactory = WebClientContextFactory()
             agent = Agent(self.reactor, contextFactory)
+            self.client.url = url
             d = agent.request(method, url, self.request_headers,
                 self.body_producer)
         else:
@@ -209,7 +242,11 @@ class BaseQuery(object):
         Handle the HTTP response by memoing the headers and then delivering
         bytes.
         """
+        self.client.status = response.code
         self.response_headers = headers = response.headers
+        # XXX This workaround (which needs to be improved at that) for possible
+        # bug in Twisted with new client:
+        # http://twistedmatrix.com/trac/ticket/5476
         if self._method.upper() in ('HEAD', 'DELETE'):
             return succeed(None)
         receiver = self.receiver_factory()
