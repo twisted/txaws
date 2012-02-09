@@ -208,6 +208,9 @@ class BaseQuery(object):
         bytes.
         """
         self.response_headers = headers = response.headers
+        # XXX This workaround (which needs to be improved at that) for possible
+        # bug in Twisted with new client:
+        # http://twistedmatrix.com/trac/ticket/5476
         if self._method.upper() in ('HEAD', 'DELETE'):
             return succeed(None)
         receiver = self.receiver_factory()
