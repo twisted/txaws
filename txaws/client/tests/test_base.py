@@ -1,6 +1,9 @@
 import os
 
+from zope.interface import implements
+
 from twisted.internet import reactor
+from twisted.internet.defer import succeed
 from twisted.internet.error import ConnectionRefusedError
 from twisted.protocols.policies import WrappingFactory
 from twisted.python import log
@@ -8,6 +11,7 @@ from twisted.python.filepath import FilePath
 from twisted.python.failure import Failure
 from twisted.test.test_sslverify import makeCertificate
 from twisted.web import server, static
+from twisted.web.iweb import IBodyProducer
 from twisted.web.client import HTTPClientFactory
 from twisted.web.error import Error as TwistedWebError
 
@@ -15,7 +19,7 @@ from txaws.client import ssl
 from txaws.client.base import BaseClient, BaseQuery, error_wrapper
 from txaws.service import AWSServiceEndpoint
 from txaws.testing.base import TXAWSTestCase
-
+from txaws.testing.producers import StringBodyProducer
 
 class ErrorWrapperTestCase(TXAWSTestCase):
 
@@ -156,6 +160,17 @@ class BaseQueryTestCase(TXAWSTestCase):
         d = query.get_page(self._get_url("file"))
         d.addCallback(query.get_response_headers)
         return d.addCallback(check_results)
+
+    def test_custom_body_producer(self):
+
+        def check_producer_was_used(ignore):
+            self.assertEqual(producer.written, 'test data')
+
+        producer = StringBodyProducer('test data')
+        query = BaseQuery("an action", "creds", "http://endpoint",
+            body_producer=producer)
+        d = query.get_page(self._get_url("file"), method='PUT')
+        return d.addCallback(check_producer_was_used)
 
     # XXX for systems that don't have certs in the DEFAULT_CERT_PATH, this test
     # will fail; instead, let's create some certs in a temp directory and set

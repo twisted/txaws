@@ -175,7 +175,7 @@ class BaseQuery(object):
     @client.setter
     def client(self, value):
         self._client_deprecation_warning()
-        self._client = value 
+        self._client = value
 
     def _client_deprecation_warning(self):
         warnings.warn('The client attribute on BaseQuery is deprecated and'
