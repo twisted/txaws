@@ -92,9 +92,9 @@ class StreamingError(Exception):
     """
 
 
-class StringIOBodyReceiver(Protocol):
+class StreamingBodyReceiver(Protocol):
     """
-    Simple StringIO-based HTTP response body receiver.
+    Streaming HTTP response body receiver.
 
     TODO: perhaps there should be an interface specifying why
     finished (Deferred) and content_length are necessary and
@@ -103,9 +103,18 @@ class StringIOBodyReceiver(Protocol):
     finished = None
     content_length = None
 
-    def __init__(self):
-        self._buffer = StringIO()
+    def __init__(self, fd=None, readback=True):
+        """
+        @param fd: a file descriptor to write to
+        @param readback: if True read back data from fd to callback finished
+            with, otherwise we call back finish with fd itself
+        with
+        """
+        if fd is None:
+            fd = StringIO()
+        self._fd = fd
         self._received = 0
+        self._readback = readback
 
     def dataReceived(self, bytes):
         streaming = self.content_length is UNKNOWN_LENGTH
@@ -115,7 +124,7 @@ class StringIOBodyReceiver(Protocol):
                 "Buffer overflow - received more data than "
                 "Content-Length dictated: %d" % self.content_length)
         # TODO should be some limit on how much we receive
-        self._buffer.write(bytes)
+        self._fd.write(bytes)
         self._received += len(bytes)
 
     def connectionLost(self, reason):
@@ -124,7 +133,14 @@ class StringIOBodyReceiver(Protocol):
         self.finished = None
         streaming = self.content_length is UNKNOWN_LENGTH
         if streaming or (self._received == self.content_length):
-            d.callback(self._buffer.getvalue())
+            if self._readback:
+                self._fd.seek(0)
+                data = self._fd.read()
+                self._fd.close()
+                self._fd = None
+                d.callback(data)
+            else:
+                d.callback(self._fd)
         else:
             f = failure.Failure(StreamingError("Connection lost before "
                 "receiving all data"))
@@ -169,7 +185,7 @@ class BaseQuery(object):
         self.request_headers = None
         self.response_headers = None
         self.body_producer = body_producer
-        self.receiver_factory = receiver_factory or StringIOBodyReceiver
+        self.receiver_factory = receiver_factory or StreamingBodyReceiver
 
     @property
     def client(self):

@@ -1,9 +1,11 @@
 import os
 
+from StringIO import StringIO
+
 from zope.interface import implements
 
 from twisted.internet import reactor
-from twisted.internet.defer import succeed
+from twisted.internet.defer import succeed, Deferred
 from twisted.internet.error import ConnectionRefusedError
 from twisted.protocols.policies import WrappingFactory
 from twisted.python import log
@@ -13,11 +15,12 @@ from twisted.test.test_sslverify import makeCertificate
 from twisted.web import server, static
 from twisted.web.iweb import IBodyProducer
 from twisted.web.client import HTTPClientFactory
+from twisted.web.client import ResponseDone
 from twisted.web.error import Error as TwistedWebError
 
 from txaws.client import ssl
 from txaws.client.base import BaseClient, BaseQuery, error_wrapper
-from txaws.client.base import StringIOBodyReceiver
+from txaws.client.base import StreamingBodyReceiver
 from txaws.service import AWSServiceEndpoint
 from txaws.testing.base import TXAWSTestCase
 from txaws.testing.producers import StringBodyProducer
@@ -175,11 +178,11 @@ class BaseQueryTestCase(TXAWSTestCase):
 
     def test_custom_receiver_factory(self):
 
-        class TestReceiverProtocol(StringIOBodyReceiver):
+        class TestReceiverProtocol(StreamingBodyReceiver):
             used = False
 
             def __init__(self):
-                StringIOBodyReceiver.__init__(self)
+                StreamingBodyReceiver.__init__(self)
                 TestReceiverProtocol.used = True
 
         def check_used(ignore):
@@ -224,3 +227,49 @@ class BaseQueryTestCase(TXAWSTestCase):
         self.assertTrue(isinstance(wrappedFactory, ssl.VerifyingContextFactory))
         self.assertEqual("example.com", wrappedFactory.host)
         self.assertNotEqual([], wrappedFactory.caCerts)
+
+class StreamingBodyReceiverTestCase(TXAWSTestCase):
+
+    def test_readback_mode_on(self):
+        """
+        Test that when readback mode is on inside connectionLost() data will
+        be read back from the start of the file we're streaming and results
+        passed to finished callback.
+        """
+
+        receiver = StreamingBodyReceiver()
+        d = Deferred()
+        receiver.finished = d
+        receiver.content_length = 5
+        fd = receiver._fd
+        receiver.dataReceived('hello')
+        why = Failure(ResponseDone('done'))
+        receiver.connectionLost(why)
+        self.assertEqual(d.result, 'hello')
+        self.assert_(fd.closed)
+
+    def test_readback_mode_off(self):
+        """
+        Test that when readback mode is off connectionLost() will simply
+        callback finished with the fd.
+        """
+
+        receiver = StreamingBodyReceiver(readback=False)
+        d = Deferred()
+        receiver.finished = d
+        receiver.content_length = 5
+        fd = receiver._fd
+        receiver.dataReceived('hello')
+        why = Failure(ResponseDone('done'))
+        receiver.connectionLost(why)
+        self.assertIdentical(d.result, fd)
+        self.assertIdentical(receiver._fd, fd)
+        self.failIf(fd.closed)
+
+    def test_user_fd(self):
+        """
+        Test that user's own file descriptor can be passed to init
+        """
+        user_fd = StringIO()
+        receiver = StreamingBodyReceiver(user_fd)
+        self.assertIdentical(receiver._fd, user_fd)
