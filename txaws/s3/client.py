@@ -465,6 +465,22 @@ class S3Client(BaseClient):
         d = query.submit()
         return d.addCallback(MultipartInitiationResponse.from_xml)
 
+    def upload_part(self, bucket, object_name, upload_id, part_number, data=None,
+                    content_type=None, metadata={}, body_producer=None):
+        """
+        Upload a part of data correcsponding to a multipart upload.
+
+        @return: the C{Deferred} from underlying query.submit() call
+        """
+        parms = 'partNumber=%s&uploadId=%s' % (str(part_number), upload_id)
+        objectname_plus = '%s?%s' % (object_name, parms)
+        query = self.query_factory(
+            action="PUT", creds=self.creds, endpoint=self.endpoint,
+            bucket=bucket, object_name=objectname_plus, data=data,
+            content_type=content_type, metadata=metadata, body_producer=body_producer,
+            receiver_factory=self.receiver_factory)
+        d = query.submit()
+        return d.addCallback(query.get_response_headers)
 
 class Query(BaseQuery):
     """A query for submission to the S3 service."""
