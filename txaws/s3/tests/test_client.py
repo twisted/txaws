@@ -9,7 +9,7 @@ except ImportError:
 else:
     s3clientSkip = None
 from txaws.s3.acls import AccessControlPolicy
-from txaws.s3.model import RequestPayment
+from txaws.s3.model import RequestPayment, MultipartInitiationResponse
 from txaws.testing.producers import StringBodyProducer
 from txaws.service import AWSServiceEndpoint
 from txaws.testing import payload
@@ -982,6 +982,40 @@ class S3ClientTestCase(TXAWSTestCase):
         creds = AWSCredentials("foo", "bar")
         s3 = client.S3Client(creds, query_factory=StubQuery)
         deferred = s3.get_object_acl("mybucket", "myobject")
+        return deferred.addCallback(check_result)
+
+    def test_init_multipart_upload(self):
+
+        class StubQuery(client.Query):
+
+            def __init__(query, action, creds, endpoint, bucket=None,
+                         object_name=None, data="", body_producer=None,
+                         content_type=None, receiver_factory=None, metadata={}):
+                super(StubQuery, query).__init__(action=action, creds=creds,
+                                                 bucket=bucket,
+                                                 object_name=object_name,
+                                                 data=data)
+                self.assertEquals(action, "POST")
+                self.assertEqual(creds.access_key, "foo")
+                self.assertEqual(creds.secret_key, "bar")
+                self.assertEqual(query.bucket, "example-bucket")
+                self.assertEqual(query.object_name, "example-object?uploads")
+                self.assertEqual(query.data, "")
+                self.assertEqual(query.metadata, {})
+
+            def submit(query, url_context=None):
+                return succeed(payload.sample_s3_init_multipart_upload_result)
+
+
+        def check_result(result):
+            self.assert_(isinstance(result, MultipartInitiationResponse))
+            self.assertEqual(result.bucket, "example-bucket")
+            self.assertEqual(result.object_name, "example-object")
+            self.assertEqual(result.upload_id, "deadbeef")
+
+        creds = AWSCredentials("foo", "bar")
+        s3 = client.S3Client(creds, query_factory=StubQuery)
+        deferred = s3.init_multipart_upload("example-bucket", "example-object")
         return deferred.addCallback(check_result)
 
 S3ClientTestCase.skip = s3clientSkip
