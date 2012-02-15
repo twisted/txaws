@@ -990,9 +990,11 @@ class S3ClientTestCase(TXAWSTestCase):
 
             def __init__(query, action, creds, endpoint, bucket=None,
                          object_name=None, data="", body_producer=None,
-                         content_type=None, receiver_factory=None, metadata={}):
+                         content_type=None, receiver_factory=None, metadata={},
+                         amz_headers={}):
                 super(StubQuery, query).__init__(action=action, creds=creds,
                                                  bucket=bucket,
+                                                 amz_headers=amz_headers,
                                                  object_name=object_name,
                                                  data=data)
                 self.assertEquals(action, "POST")
@@ -1002,6 +1004,7 @@ class S3ClientTestCase(TXAWSTestCase):
                 self.assertEqual(query.object_name, "example-object?uploads")
                 self.assertEqual(query.data, "")
                 self.assertEqual(query.metadata, {})
+                self.assertEqual(query.amz_headers, {"acl": "public"})
 
             def submit(query, url_context=None):
                 return succeed(payload.sample_s3_init_multipart_upload_result)
@@ -1015,7 +1018,8 @@ class S3ClientTestCase(TXAWSTestCase):
 
         creds = AWSCredentials("foo", "bar")
         s3 = client.S3Client(creds, query_factory=StubQuery)
-        deferred = s3.init_multipart_upload("example-bucket", "example-object")
+        deferred = s3.init_multipart_upload("example-bucket", "example-object",
+            amz_headers={"acl": "public"})
         return deferred.addCallback(check_result)
 
 S3ClientTestCase.skip = s3clientSkip
