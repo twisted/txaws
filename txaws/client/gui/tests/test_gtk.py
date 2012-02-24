@@ -4,8 +4,7 @@
 from twisted.trial.unittest import TestCase
 
 
-class UITests(TestCase):
+class UITestCase(TestCase):
 
     pass
     # Really need some, but UI testing hurts my brain.
-

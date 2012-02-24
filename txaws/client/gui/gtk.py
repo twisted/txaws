@@ -63,7 +63,7 @@ class AWSStatusIcon(gtk.StatusIcon):
 
     def set_region(self, creds):
         from txaws.service import AWSServiceRegion
-	self.region = AWSServiceRegion(creds)
+        self.region = AWSServiceRegion(creds)
 
     def create_client(self, creds):
         if creds is not None:
@@ -98,6 +98,7 @@ class AWSStatusIcon(gtk.StatusIcon):
             gtk.STOCK_CANCEL,
             gtk.RESPONSE_REJECT))
         content = self.password_dialog.get_content_area()
+
         def add_entry(name):
             box = gtk.HBox()
             box.show()

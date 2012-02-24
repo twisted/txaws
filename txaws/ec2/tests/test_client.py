@@ -139,7 +139,8 @@ class EC2ClientTestCase(TXAWSTestCase):
 
             def submit(self):
                 return succeed(
-                    payload.sample_describe_availability_zones_multiple_results)
+                    payload.
+                        sample_describe_availability_zones_multiple_results)
 
         def check_parsed_availability_zones(results):
             self.assertEquals(len(results), 3)
@@ -1288,7 +1289,7 @@ class EC2ClientEBSTestCase(TXAWSTestCase):
                 self.assertEqual("foo", creds)
                 self.assertEquals(
                     other_params,
-                    {"KeyPair.1": "gsg-keypair"})
+                    {"KeyName.1": "gsg-keypair"})
 
             def submit(self):
                 return succeed(payload.sample_single_describe_keypairs_result)
@@ -1553,7 +1554,7 @@ class QueryTestCase(TXAWSTestCase):
             {"AWSAccessKeyId": "foo",
              "Action": "DescribeInstances",
              "SignatureVersion": "2",
-             "Version": "2008-12-01"})
+             "Version": "2009-11-30"})
 
     def test_init_other_args_are_params(self):
         query = client.Query(
@@ -1567,7 +1568,7 @@ class QueryTestCase(TXAWSTestCase):
              "InstanceId.0": "12345",
              "SignatureVersion": "2",
              "Timestamp": "2007-11-12T13:14:15Z",
-             "Version": "2008-12-01"})
+             "Version": "2009-11-30"})
 
     def test_no_timestamp_if_expires_in_other_params(self):
         """
@@ -1585,7 +1586,7 @@ class QueryTestCase(TXAWSTestCase):
              "Action": "DescribeInstances",
              "SignatureVersion": "2",
              "Expires": "2007-11-12T13:14:15Z",
-             "Version": "2008-12-01"})
+             "Version": "2009-11-30"})
 
     def test_sign(self):
         query = client.Query(
@@ -1593,7 +1594,7 @@ class QueryTestCase(TXAWSTestCase):
             endpoint=self.endpoint,
             time_tuple=(2007, 11, 12, 13, 14, 15, 0, 0, 0))
         query.sign()
-        self.assertEqual("aDmLr0Ktjsmt17UJD/EZf6DrfKWT1JW0fq2FDUCOPic=",
+        self.assertEqual("G4c2NtQaFNhWWT8EWPVIIOpHVr0mGUYwJVYss9krsMU=",
             query.params["Signature"])
 
     def test_old_sign(self):
@@ -1604,7 +1605,7 @@ class QueryTestCase(TXAWSTestCase):
             other_params={"SignatureVersion": "1"})
         query.sign()
         self.assertEqual(
-            "MBKyHoxqCd/lBQLVkCZYpwAtNJg=", query.params["Signature"])
+            "9xP+PIs/3QXW+4mWX6WGR4nGqfE=", query.params["Signature"])
 
     def test_unsupported_sign(self):
         query = client.Query(
@@ -1735,6 +1736,15 @@ class SignatureTestCase(TXAWSTestCase):
         signature = client.Signature(self.creds, self.endpoint, self.params)
         self.assertEqual("a%20space", signature.encode("a space"))
 
+    def test_encode_unicode(self):
+        """
+        L{Signature.encode} accepts unicode strings and encode them un UTF-8.
+        """
+        signature = client.Signature(self.creds, self.endpoint, self.params)
+        self.assertEqual(
+            "f%C3%A9e",
+            signature.encode(u"f\N{LATIN SMALL LETTER E WITH ACUTE}e"))
+
     def test_canonical_query(self):
         signature = client.Signature(self.creds, self.endpoint, self.params)
         time_tuple = (2007, 11, 12, 13, 14, 15, 0, 0, 0)
@@ -1743,15 +1753,16 @@ class SignatureTestCase(TXAWSTestCase):
                             "argwithnovalue": "",
                             "SignatureVersion": "2",
                             "Timestamp": iso8601time(time_tuple),
-                            "Version": "2008-12-01",
+                            "Version": "2009-11-30",
                             "Action": "DescribeInstances",
                             "InstanceId.1": "i-1234"})
         expected_params = ("AWSAccessKeyId=foo&Action=DescribeInstances"
             "&InstanceId.1=i-1234"
             "&SignatureVersion=2&"
-            "Timestamp=2007-11-12T13%3A14%3A15Z&Version=2008-12-01&"
+            "Timestamp=2007-11-12T13%3A14%3A15Z&Version=2009-11-30&"
             "argwithnovalue=&fu%20n=g%2Fames")
-        self.assertEqual(expected_params, signature.get_canonical_query_params())
+        self.assertEqual(
+            expected_params, signature.get_canonical_query_params())
 
     def test_signing_text(self):
         signature = client.Signature(self.creds, self.endpoint, self.params)
@@ -1795,14 +1806,14 @@ class SignatureTestCase(TXAWSTestCase):
         self.params.update({"AWSAccessKeyId": "foo",
                             "fun": "games",
                             "SignatureVersion": "2",
-                            "Version": "2008-12-01",
+                            "Version": "2009-11-30",
                             "Action": "DescribeInstances"})
 
         self.assertEqual([
             ("AWSAccessKeyId", "foo"),
             ("Action", "DescribeInstances"),
             ("SignatureVersion", "2"),
-            ("Version", "2008-12-01"),
+            ("Version", "2009-11-30"),
             ("fun", "games"),
             ], signature.sorted_params())
 
@@ -1994,3 +2005,49 @@ class EC2ClientAddressTestCase(TXAWSTestCase):
         d = ec2.disassociate_address("67.202.55.255")
         d.addCallback(self.assertTrue)
         return d
+
+
+class EC2ParserTestCase(TXAWSTestCase):
+
+    def setUp(self):
+        self.parser = client.Parser()
+
+    def test_ec2_terminate_instances(self):
+        """
+        Given a well formed response from EC2, parse the correct thing.
+        """
+        ec2_xml = """<?xml version="1.0" encoding="UTF-8"?>
+<TerminateInstancesResponse xmlns="http://ec2.amazonaws.com/doc/2008-12-01/">
+    <requestId>d0adc305-7f97-4652-b7c2-6993b2bb8260</requestId>
+    <instancesSet>
+        <item>
+            <instanceId>i-cab0c1aa</instanceId>
+            <currentState>
+                <code>32</code>
+                <name>shutting-down</name>
+            </currentState>
+            <previousState>
+                <code>16</code>
+                <name>running</name>
+            </previousState>
+        </item>
+    </instancesSet>
+</TerminateInstancesResponse>"""
+        ec2_response = self.parser.terminate_instances(ec2_xml)
+        self.assertEquals(
+            [('i-cab0c1aa', 'running', 'shutting-down')], ec2_response)
+
+    def test_nova_terminate_instances(self):
+        """
+        Ensure parser can handle the somewhat non-standard response from nova
+        Note that the bug has been reported in nova here:
+          https://launchpad.net/bugs/862680
+        """
+
+        nova_xml = (
+            '<?xml version="1.0" ?><TerminateInstancesResponse '
+            'xmlns="http://ec2.amazonaws.com/doc/2008-12-01/"><requestId>'
+            '4fe6643d-2346-4add-adb7-a1f61f37c043</requestId>'
+            '<return>true</return></TerminateInstancesResponse>')
+        nova_response = self.parser.terminate_instances(nova_xml)
+        self.assertEquals([], nova_response)

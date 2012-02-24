@@ -72,7 +72,8 @@ class Command(object):
             print >> self.output, "URL: %s" % query.client.url
             print >> self.output
             if getattr(query.client, "status", None) is not None:
-                print >> self.output, "HTTP status code: %s" % query.client.status
+                print >> self.output, "HTTP status code: %s" % (
+                    query.client.status,)
                 print >> self.output
             print >> self.output, message
 

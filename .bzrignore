@@ -1,1 +1,3 @@
 _trial_temp*
+.testrepository
+.venv-*
