@@ -552,6 +552,8 @@ class Parser(object):
             "instanceState").findtext("name")
         private_dns_name = instance_data.findtext("privateDnsName")
         dns_name = instance_data.findtext("dnsName")
+        private_ip_address = instance_data.findtext("privateIpAddress")
+        ip_address = instance_data.findtext("ipAddress")
         key_name = instance_data.findtext("keyName")
         ami_launch_index = instance_data.findtext("amiLaunchIndex")
         products = []
@@ -568,9 +570,9 @@ class Parser(object):
         image_id = instance_data.findtext("imageId")
         instance = model.Instance(
             instance_id, instance_state, instance_type, image_id,
-            private_dns_name, dns_name, key_name, ami_launch_index,
-            launch_time, placement, products, kernel_id, ramdisk_id,
-            reservation=reservation)
+            private_dns_name, dns_name, private_ip_address, ip_address,
+            key_name, ami_launch_index, launch_time, placement, products,
+            kernel_id, ramdisk_id, reservation=reservation)
         return instance
 
     def describe_instances(self, xml_bytes):

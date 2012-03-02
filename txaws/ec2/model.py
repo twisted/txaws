@@ -32,6 +32,9 @@ class Instance(object):
     @attrib dns_name: The public DNS name assigned to the instance. This DNS
         name is contactable from outside the Amazon EC2 network. This element
         remains empty until the instance enters a running state.
+    @attrib private_ip_address: The private IP address assigned to the
+        instance.
+    @attrib ip_address: The IP address of the instance.
     @attrib key_name: If this instance was launched with an associated key
         pair, this displays the key pair name.
     @attrib ami_launch_index: The AMI launch index, which can be used to find
@@ -43,7 +46,8 @@ class Instance(object):
     @attrib ramdisk_id: Optional. RAM disk associated with this instance.
     """
     def __init__(self, instance_id, instance_state, instance_type="",
-                 image_id="", private_dns_name="", dns_name="", key_name="",
+                 image_id="", private_dns_name="", dns_name="",
+                 private_ip_address="", ip_address="", key_name="",
                  ami_launch_index="", launch_time="", placement="",
                  product_codes=[], kernel_id=None, ramdisk_id=None,
                  reservation=None):
@@ -53,6 +57,8 @@ class Instance(object):
         self.image_id = image_id
         self.private_dns_name = private_dns_name
         self.dns_name = dns_name
+        self.private_ip_address = private_ip_address
+        self.ip_address = ip_address
         self.key_name = key_name
         self.ami_launch_index = ami_launch_index
         self.launch_time = launch_time

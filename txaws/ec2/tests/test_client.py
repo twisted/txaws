@@ -40,14 +40,17 @@ class InstanceTestCase(TXAWSTestCase):
 
     def test_instance_creation(self):
         instance = model.Instance(
-            "id1", "running", "type", "id2", "dns1", "dns2", "key", "ami",
-            "time", "placement", ["prod1", "prod2"], "id3", "id4")
+            "id1", "running", "type", "id2", "dns1", "dns2", "ip1",
+            "ip2", "key", "ami", "time", "placement",
+            ["prod1", "prod2"], "id3", "id4")
         self.assertEquals(instance.instance_id, "id1")
         self.assertEquals(instance.instance_state, "running")
         self.assertEquals(instance.instance_type, "type")
         self.assertEquals(instance.image_id, "id2")
         self.assertEquals(instance.private_dns_name, "dns1")
         self.assertEquals(instance.dns_name, "dns2")
+        self.assertEquals(instance.private_ip_address, "ip1")
+        self.assertEquals(instance.ip_address, "ip2")
         self.assertEquals(instance.key_name, "key")
         self.assertEquals(instance.ami_launch_index, "ami")
         self.assertEquals(instance.launch_time, "time")
@@ -180,6 +183,8 @@ class EC2ClientInstancesTestCase(TXAWSTestCase):
         self.assertEquals(
             instance.dns_name,
             "ec2-75-101-245-65.compute-1.amazonaws.com")
+        self.assertEquals(instance.private_ip_address, "10.0.0.1")
+        self.assertEquals(instance.ip_address, "75.101.245.65")
         self.assertEquals(instance.key_name, "keyname")
         self.assertEquals(instance.ami_launch_index, "0")
         self.assertEquals(instance.launch_time, "2009-04-27T02:23:18.000Z")
@@ -208,6 +213,8 @@ class EC2ClientInstancesTestCase(TXAWSTestCase):
         self.assertEquals(
             instance.dns_name,
             "ec2-75-101-245-65.compute-1.amazonaws.com")
+        self.assertEquals(instance.private_ip_address, "10.0.0.1")
+        self.assertEquals(instance.ip_address, "75.101.245.65")
         self.assertEquals(instance.key_name, None)
         self.assertEquals(instance.ami_launch_index, None)
         self.assertEquals(instance.launch_time, "2009-04-27T02:23:18.000Z")
