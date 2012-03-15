@@ -16,6 +16,7 @@ from twisted.web import server, static
 from twisted.web.iweb import IBodyProducer
 from twisted.web.client import HTTPClientFactory
 from twisted.web.client import ResponseDone
+from twisted.web.resource import Resource
 from twisted.web.error import Error as TwistedWebError
 
 from txaws.client import ssl
@@ -71,6 +72,12 @@ class BaseClientTestCase(TXAWSTestCase):
         self.assertEquals(client.parser, "parser")
 
 
+class PuttableResource(Resource):
+
+    def render_PUT(self, reuqest):
+        return ''
+
+
 class BaseQueryTestCase(TXAWSTestCase):
 
     def setUp(self):
@@ -79,6 +86,7 @@ class BaseQueryTestCase(TXAWSTestCase):
         os.mkdir(name)
         FilePath(name).child("file").setContent("0123456789")
         r = static.File(name)
+        r.putChild('thing_to_put', PuttableResource())
         self.site = server.Site(r, timeout=None)
         self.wrapper = WrappingFactory(self.site)
         self.port = self._listen(self.wrapper)
@@ -165,6 +173,12 @@ class BaseQueryTestCase(TXAWSTestCase):
         d.addCallback(query.get_response_headers)
         return d.addCallback(check_results)
 
+    def test_errors(self):
+        query = BaseQuery("an action", "creds", "http://endpoint")
+        d = query.get_page(self._get_url("not_there"))
+        self.assertFailure(d, TwistedWebError)
+        return d
+
     def test_custom_body_producer(self):
 
         def check_producer_was_used(ignore):
@@ -173,7 +187,7 @@ class BaseQueryTestCase(TXAWSTestCase):
         producer = StringBodyProducer('test data')
         query = BaseQuery("an action", "creds", "http://endpoint",
             body_producer=producer)
-        d = query.get_page(self._get_url("file"), method='PUT')
+        d = query.get_page(self._get_url("thing_to_put"), method='PUT')
         return d.addCallback(check_producer_was_used)
 
     def test_custom_receiver_factory(self):

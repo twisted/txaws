@@ -8,7 +8,7 @@ from StringIO import StringIO
 
 from twisted.internet.ssl import ClientContextFactory
 from twisted.internet.protocol import Protocol
-from twisted.internet.defer import Deferred, succeed
+from twisted.internet.defer import Deferred, succeed, fail
 from twisted.python import failure
 from twisted.web import http
 from twisted.web.iweb import UNKNOWN_LENGTH
@@ -273,7 +273,13 @@ class BaseQuery(object):
         receiver.finished = d = Deferred()
         receiver.content_length = response.length
         response.deliverBody(receiver)
+        if response.code >= 400:
+            d.addCallback(self._fail_response, response)
         return d
+
+    def _fail_response(self, data, response):
+       return fail(failure.Failure(
+           TwistedWebError(response.code, response=data)))
 
     def get_response_headers(self, *args, **kwargs):
         """
