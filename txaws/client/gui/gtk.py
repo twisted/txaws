@@ -8,6 +8,7 @@ import gnomekeyring
 import gobject
 import gtk
 import appindicator
+import sys
     
 
 # DO NOT IMPORT twisted.internet, or things that import
@@ -38,18 +39,18 @@ class AWSStatusIndicator(object):
             <ui>
              <menubar name="Menubar">
               <menu action="Menu">
-               <menuitem action="Stop instances"/>
                <menuitem action="Refresh"/>
+               <menuitem action="Stop instances"/>
               </menu>
              </menubar>
             </ui>
         """
         actions = [
             ("Menu",  None, "Menu"),
-            ("Stop instances", gtk.STOCK_STOP, "_Stop instances...", None,
-                "Stop instances", self.on_stop_instances),
             ("Refresh", gtk.STOCK_REFRESH, "_Refresh...", None,
                 "Refresh", self.on_activate),
+            ("Stop instances", gtk.STOCK_STOP, "_Stop instances...", None,
+                "Stop instances", self.on_stop_instances),
             ]
         ag = gtk.ActionGroup("Actions")
         ag.add_actions(actions)
