@@ -21,7 +21,7 @@ __all__ = ["main"]
 class AWSStatusIndicator(object):
     def __init__(self, reactor):
         self.indicator = appindicator.Indicator("aws-status","application-running",appindicator.CATEGORY_OTHER)
-        self.indicator.set_status(appindicator.STATUS_ACTIVE)
+        self.indicator.set_status(appindicator.STATUS_PASSIVE)
         self.reactor = reactor
         #self.connect("activate", self.on_activate)
         self.probing = False
@@ -57,6 +57,7 @@ class AWSStatusIndicator(object):
         self.menu = self.manager.get_widget(
             "/Menubar/Menu/Stop instances").props.parent
         self.indicator.set_menu(self.menu)
+        self.queue_check()
 
     def set_region(self, creds):
         from txaws.service import AWSServiceRegion
@@ -163,7 +164,7 @@ class AWSStatusIndicator(object):
             self.indicator.set_label("")
             self.indicator.set_status(appindicator.STATUS_PASSIVE)
         else:
-            self.indicator.set_label("%3d instances" % active, "100 instances")
+            self.indicator.set_label("%d instances" % active, "10 instances")
             self.indicator.set_status(appindicator.STATUS_ACTIVE)
         self.queue_check()
 
@@ -174,7 +175,7 @@ class AWSStatusIndicator(object):
 
     def queue_check(self):
         self.probing = False
-        self.reactor.callLater(60, self.on_activate, None)
+        self.reactor.callLater(10, self.on_activate, None)
 
     def show_error(self, error):
         # debugging output for now.
