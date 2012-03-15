@@ -20,10 +20,9 @@ __all__ = ["main"]
 
 class AWSStatusIndicator(object):
     def __init__(self, reactor):
-        self.indicator = appindicator.Indicator("aws-status","application-running",appindicator.CATEGORY_OTHER)
+        self.indicator = appindicator.Indicator("aws-status","stock_weather-cloudy",appindicator.CATEGORY_OTHER)
         self.indicator.set_status(appindicator.STATUS_PASSIVE)
         self.reactor = reactor
-        #self.connect("activate", self.on_activate)
         self.probing = False
         # Nested import because otherwise we get "reactor already installed".
         self.password_dialog = None
@@ -40,6 +39,7 @@ class AWSStatusIndicator(object):
              <menubar name="Menubar">
               <menu action="Menu">
                <menuitem action="Stop instances"/>
+               <menuitem action="Refresh"/>
               </menu>
              </menubar>
             </ui>
@@ -48,6 +48,8 @@ class AWSStatusIndicator(object):
             ("Menu",  None, "Menu"),
             ("Stop instances", gtk.STOCK_STOP, "_Stop instances...", None,
                 "Stop instances", self.on_stop_instances),
+            ("Refresh", gtk.STOCK_REFRESH, "_Refresh...", None,
+                "Refresh", self.on_activate),
             ]
         ag = gtk.ActionGroup("Actions")
         ag.add_actions(actions)
@@ -57,6 +59,8 @@ class AWSStatusIndicator(object):
         self.menu = self.manager.get_widget(
             "/Menubar/Menu/Stop instances").props.parent
         self.indicator.set_menu(self.menu)
+        # kickstart things
+        self.on_activate(None)
         self.queue_check()
 
     def set_region(self, creds):
@@ -164,7 +168,11 @@ class AWSStatusIndicator(object):
             self.indicator.set_label("")
             self.indicator.set_status(appindicator.STATUS_PASSIVE)
         else:
-            self.indicator.set_label("%d instances" % active, "10 instances")
+            if active == 1:
+                word = "instance"
+            else:
+                word = "instances"
+            self.indicator.set_label("%d %s" % (active,word), "10 instances")
             self.indicator.set_status(appindicator.STATUS_ACTIVE)
         self.queue_check()
 
@@ -175,7 +183,7 @@ class AWSStatusIndicator(object):
 
     def queue_check(self):
         self.probing = False
-        self.reactor.callLater(10, self.on_activate, None)
+        self.reactor.callLater(29, self.on_activate, None)
 
     def show_error(self, error):
         # debugging output for now.
