@@ -43,8 +43,12 @@ class Registry(object):
         else:
             return by_version[None]
 
-    def scan(self, module, onerror=None):
+    def scan(self, module, onerror=None, ignore=None):
         """Scan the given module object for L{Method}s and register them."""
         from venusian import Scanner
         scanner = Scanner(registry=self)
-        scanner.scan(module, onerror=onerror, categories=["method"])
+        kwargs = {"onerror": onerror, "categories": ["method"]}
+        if ignore is not None:
+            # Only pass it if specified, for backward compatibility
+            kwargs["ignore"] = ignore
+        scanner.scan(module, **kwargs)

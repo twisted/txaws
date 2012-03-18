@@ -117,6 +117,6 @@ class RegistryTestCase(TestCase):
 
     if not has_venusian:
         test_scan.skip = "venusian module not available"
-        test_scan_raises_error_on_importerror.skip = "venusian module not "
-        "available"
+        test_scan_raises_error_on_importerror.skip = (
+            "venusian module not available")
         test_scan_swallows_with_onerror.skip = "venusian module not available"
