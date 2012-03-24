@@ -7,9 +7,13 @@ from __future__ import absolute_import
 import gnomekeyring
 import gobject
 import gtk
-import appindicator
 import sys
     
+try:
+    import appindicator
+    have_appindicator = True
+except:
+    have_appindicator = False
 
 # DO NOT IMPORT twisted.internet, or things that import
 # twisted.internet.
@@ -21,8 +25,15 @@ __all__ = ["main"]
 
 class AWSStatusIndicator(object):
     def __init__(self, reactor):
-        self.indicator = appindicator.Indicator("aws-status","stock_weather-cloudy",appindicator.CATEGORY_OTHER)
-        self.indicator.set_status(appindicator.STATUS_PASSIVE)
+        # Even though we have appindicator, we may still need the status
+        # icon because we're on something that does not show them.
+        self.status_icon = gtk.StatusIcon()
+        self.status_icon.set_from_stock(gtk.STOCK_NETWORK)
+        self.status_icon.set_visible(True)
+        self.status_icon.connect("activate", self.on_activate)
+        if have_appindicator:
+            self.indicator = appindicator.Indicator("aws-status","stock_weather-cloudy",appindicator.CATEGORY_OTHER)
+            self.indicator.set_status(appindicator.STATUS_PASSIVE)
         self.reactor = reactor
         self.probing = False
         # Nested import because otherwise we get "reactor already installed".
@@ -59,7 +70,9 @@ class AWSStatusIndicator(object):
         self.manager.add_ui_from_string(menu)
         self.menu = self.manager.get_widget(
             "/Menubar/Menu/Stop instances").props.parent
-        self.indicator.set_menu(self.menu)
+        self.status_icon.connect("popup-menu", self.on_popup_menu)
+        if have_appindicator:
+            self.indicator.set_menu(self.menu)
         # kickstart things
         self.on_activate(None)
         self.queue_check()
@@ -166,15 +179,21 @@ class AWSStatusIndicator(object):
                 active += 1
         print "active=%d\n" % active
         if active == 0:
-            self.indicator.set_label("")
-            self.indicator.set_status(appindicator.STATUS_PASSIVE)
+            self.status_icon.set_visible(False)
+            if have_appindicator:
+                self.indicator.set_label("")
+                self.indicator.set_status(appindicator.STATUS_PASSIVE)
         else:
             if active == 1:
                 word = "instance"
             else:
                 word = "instances"
-            self.indicator.set_label("%d %s" % (active,word), "10 instances")
-            self.indicator.set_status(appindicator.STATUS_ACTIVE)
+            self.status_icon.set_tooltip(
+                    "AWS Status - %d %s" % (active,word))
+            self.status_icon.set_visible(True)
+            if have_appindicator:
+                self.indicator.set_label("%d %s" % (active,word), "10 instances")
+                self.indicator.set_status(appindicator.STATUS_ACTIVE)
         self.queue_check()
 
     def shutdown_instances(self, reservation):
