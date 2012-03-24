@@ -177,7 +177,6 @@ class AWSStatusIndicator(object):
         for instance in reservation:
             if instance.instance_state == "running":
                 active += 1
-        print "active=%d\n" % active
         if active == 0:
             self.status_icon.set_visible(False)
             if have_appindicator:
