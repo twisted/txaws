@@ -52,6 +52,7 @@ class AWSStatusIndicator(object):
               <menu action="Menu">
                <menuitem action="Refresh"/>
                <menuitem action="Stop instances"/>
+               <menuitem action="Quit"/>
               </menu>
              </menubar>
             </ui>
@@ -62,6 +63,8 @@ class AWSStatusIndicator(object):
                 "Refresh", self.on_activate),
             ("Stop instances", gtk.STOCK_STOP, "_Stop instances...", None,
                 "Stop instances", self.on_stop_instances),
+            ("Quit", gtk.STOCK_QUIT, "_Quit...", None,
+                "Quit", self.on_quit),
             ]
         ag = gtk.ActionGroup("Actions")
         ag.add_actions(actions)
@@ -142,6 +145,9 @@ class AWSStatusIndicator(object):
         self.probing = True
         deferred = self.client.describe_instances()
         deferred.addCallbacks(self.showhide, self.describe_error)
+
+    def on_quit(self, data):
+        self.reactor.stop()
 
     def on_popup_menu(self, status, button, time):
         self.menu.popup(None, None, None, button, time)
