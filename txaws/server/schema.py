@@ -179,14 +179,22 @@ class Integer(Parameter):
 
     kind = "integer"
 
+    lower_than_min_template = "Value must be at least %s."
+    greater_than_max_template = "Value exceeds maximum of %s."
+
+    def __init__(self, name, optional=False, default=None,
+                 min=0, max=None, allow_none=False, validator=None):
+        super(Integer, self).__init__(name, optional, default, min, max,
+                                      allow_none, validator)
+
     def parse(self, value):
-        number = int(value)
-        if number < 0:
-            raise ValueError()
-        return number
+        return int(value)
 
     def format(self, value):
         return str(value)
+
+    def measure(self, value):
+        return int(value)
 
 
 class Bool(Parameter):

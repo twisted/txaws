@@ -257,12 +257,29 @@ class IntegerTestCase(TestCase):
     def test_parse_with_negative(self):
         """L{Integer.parse} converts the given raw C{value} to C{int}."""
         parameter = Integer("Test")
-        self.assertRaises(ValueError, parameter.parse, "-1")
+        error = self.assertRaises(APIError, parameter.coerce, "-1")
+        self.assertEqual(400, error.status)
+        self.assertEqual("InvalidParameterValue", error.code)
+        self.assertIn("Value must be at least 0.", error.message)
 
     def test_format(self):
         """L{Integer.format} converts the given integer to a string."""
         parameter = Integer("Test")
         self.assertEqual("123", parameter.format(123))
+
+    def test_min_and_max(self):
+        """The L{Integer} parameter properly supports ranges."""
+        parameter = Integer("Test", min=2, max=4)
+
+        error = self.assertRaises(APIError, parameter.coerce, "1")
+        self.assertEqual(400, error.status)
+        self.assertEqual("InvalidParameterValue", error.code)
+        self.assertIn("Value must be at least 2.", error.message)
+
+        error = self.assertRaises(APIError, parameter.coerce, "5")
+        self.assertIn("Value exceeds maximum of 4.", error.message)
+        self.assertEqual(400, error.status)
+        self.assertEqual("InvalidParameterValue", error.code)
 
 
 class BoolTestCase(TestCase):
