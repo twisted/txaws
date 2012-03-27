@@ -281,6 +281,14 @@ class IntegerTestCase(TestCase):
         self.assertEqual(400, error.status)
         self.assertEqual("InvalidParameterValue", error.code)
 
+    def test_non_integer_string(self):
+        garbage = "blah"
+        parameter = Integer("Test")
+        error = self.assertRaises(APIError, parameter.coerce, garbage)
+        self.assertEqual(400, error.status)
+        self.assertEqual("InvalidParameterValue", error.code)
+        self.assertIn("Invalid integer value %s" % garbage, error.message)
+
 
 class BoolTestCase(TestCase):
 
