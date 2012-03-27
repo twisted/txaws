@@ -282,6 +282,10 @@ class IntegerTestCase(TestCase):
         self.assertEqual("InvalidParameterValue", error.code)
 
     def test_non_integer_string(self):
+        """
+        The L{Integer} parameter raises an L{APIError} when passed non-int
+        values (in this case, a string).
+        """
         garbage = "blah"
         parameter = Integer("Test")
         error = self.assertRaises(APIError, parameter.coerce, garbage)
