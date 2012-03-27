@@ -93,8 +93,8 @@ class Parameter(object):
             if not self.allow_none:
                 raise MissingParameterError(self.name)
             return self.default
-        self._check_range(value)
         try:
+            self._check_range(value)
             parsed = self.parse(value)
             if self.validator and not self.validator(parsed):
                 raise ValueError(value)
