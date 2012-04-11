@@ -130,3 +130,6 @@ register:
 
 upload: check build
 	python setup.py sdist upload --show-response
+
+fix-released:
+	./admin/update-bug-status fixcommitted fixreleased
