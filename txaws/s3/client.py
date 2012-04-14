@@ -75,11 +75,11 @@ class S3Client(BaseClient):
     """A client for S3."""
 
     def __init__(self, creds=None, endpoint=None, query_factory=None,
-        receiver_factory=None):
+                 receiver_factory=None):
         if query_factory is None:
             query_factory = Query
         super(S3Client, self).__init__(creds, endpoint, query_factory,
-            receiver_factory=receiver_factory)
+                                       receiver_factory=receiver_factory)
 
     def list_buckets(self):
         """
