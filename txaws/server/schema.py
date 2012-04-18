@@ -263,22 +263,31 @@ class Date(Parameter):
 
 
 class List(Parameter):
-    def __init__(self, name=None, item_parameter=None, optional=False, default=None):
-        if item_parameter is None:
-            raise MissingParameterError("Must provide item_parameter")
+    def __init__(self, name=None, item=None, optional=False, default=None):
+        if item is None:
+            raise MissingParameterError("Must provide item")
         super(List, self).__init__(name, optional=optional, default=default)
-        self.item_parameter = item_parameter
+        self.item = item
 
     def parse(self, value):
-        return self.item_parameter.parse(value)
+        result = [None] * len(value)
+        for k,v in value.iteritems():
+            result[int(k) - 1] = self.item.parse(v)
+        return result
 
 
 class Structure(Parameter):
-    def __init__(self, name=None, parameters=None, optional=False, default=None):
-        if parameters is None:
-            raise MissingParameterError("Must provide parameters")
+    def __init__(self, name=None, fields=None, optional=False, default=None):
+        if fields is None:
+            raise MissingParameterError("Must provide fields")
         super(Structure, self).__init__(name, optional=optional, default=default)
-        self.parameters = parameters
+        self.fields = fields
+
+    def parse(self, value):
+        result = {}
+        for k, v in value.iteritems():
+            result[k] = self.fields[k].parse(v)
+        return result
 
 
 class Arguments(object):
@@ -369,7 +378,6 @@ class Schema(object):
         for name, value in params.iteritems():
             template = self._get_template(name)
             parameter = self._parameters.get(template)
-            print "parameter", parameter, template
 
             if template.endswith(".#") and parameter is None:
                 # If we were unable to find a direct match for a template that
@@ -533,3 +541,42 @@ class Schema(object):
             else:
                 raise TypeError("Illegal argument %s" % item)
         return Schema(*parameters)
+
+
+def _convert_flat_to_nest(params):
+    """
+    Utility for converting a HTTP arguments in the form of::
+
+        {'foo.1.bar': 'value',
+         'foo.2.baz': 'value'}
+    to 
+        {'foo': {'1': {'bar': 'value'},
+                 '2': {'baz': 'value'}}}
+    """
+    structure = {}
+    for k, v in params.iteritems():
+        last = structure
+        segments = k.split('.')
+        for index, item in enumerate(segments):
+            if index == len(segments) - 1:
+                newd = v
+            else:
+                newd = {}
+            last = last.setdefault(item, newd)
+    return structure
+
+
+def extract(arguments, schema):
+    """
+    @param arguments: Dictionary of HTTP arguments.
+    @param schema: Dictionary of schema stuff.
+    """
+    intermediate_structure = _convert_flat_to_nest(arguments)
+    return _extract(intermediate_structure, schema)
+
+
+def _extract(intermediate, schema):
+    output = {}
+    for k,v in intermediate.iteritems():
+        output[k] = schema[k].parse(v)
+    return output
