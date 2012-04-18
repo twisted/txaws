@@ -67,7 +67,7 @@ class Parameter(object):
     @param validator: A callable to validate the parameter, returning a bool.
     """
 
-    def __init__(self, name, optional=False, default=None,
+    def __init__(self, name=None, optional=False, default=None,
                  min=None, max=None, allow_none=False, validator=None):
         self.name = name
         self.optional = optional
@@ -182,7 +182,7 @@ class Integer(Parameter):
     lower_than_min_template = "Value must be at least %s."
     greater_than_max_template = "Value exceeds maximum of %s."
 
-    def __init__(self, name, optional=False, default=None,
+    def __init__(self, name=None, optional=False, default=None,
                  min=0, max=None, allow_none=False, validator=None):
         super(Integer, self).__init__(name, optional, default, min, max,
                                       allow_none, validator)
@@ -228,8 +228,10 @@ class Enum(Parameter):
 
     kind = "enum"
 
-    def __init__(self, name, mapping, optional=False, default=None):
+    def __init__(self, name=None, mapping=None, optional=False, default=None):
         super(Enum, self).__init__(name, optional=optional, default=default)
+        if mapping is None:
+            raise MissingParameterError("Must provide mapping")
         self.mapping = mapping
         self.reverse = dict((value, key) for key, value in mapping.iteritems())
 
@@ -260,13 +262,32 @@ class Date(Parameter):
         return datetime.strftime(utc_value, "%Y-%m-%dT%H:%M:%SZ")
 
 
+class List(Parameter):
+    def __init__(self, name=None, item_parameter=None, optional=False, default=None):
+        if item_parameter is None:
+            raise MissingParameterError("Must provide item_parameter")
+        super(List, self).__init__(name, optional=optional, default=default)
+        self.item_parameter = item_parameter
+
+    def parse(self, value):
+        return self.item_parameter.parse(value)
+
+
+class Structure(Parameter):
+    def __init__(self, name=None, parameters=None, optional=False, default=None):
+        if parameters is None:
+            raise MissingParameterError("Must provide parameters")
+        super(Structure, self).__init__(name, optional=optional, default=default)
+        self.parameters = parameters
+
+
 class Arguments(object):
     """Arguments parsed from a request."""
 
     def __init__(self, tree):
         """Initialize a new L{Arguments} instance.
 
-        @param tree: The C{dict}-based structure of the L{Argument}instance
+        @param tree: The C{dict}-based structure of the L{Argument} instance
             to create.
         """
         for key, value in tree.iteritems():
@@ -308,7 +329,7 @@ class Schema(object):
     The schema that the arguments of an HTTP request must be compliant with.
     """
 
-    def __init__(self, *parameters):
+    def __init__(self, *parameters, **kwargs):
         """Initialize a new L{Schema} instance.
 
         Any number of L{Parameter} instances can be passed. The parameter path
@@ -337,10 +358,8 @@ class Schema(object):
         """Extract parameters from a raw C{dict} according to this schema.
 
         @param params: The raw parameters to parse.
-        @return: An L{Arguments} object holding the extracted arguments.
-
-        @raises UnknownParameterError: If C{params} contains keys that this
-            schema doesn't know about.
+        @return: A tuple of an L{Arguments} object holding the extracted arguments and any
+            unparsed arguments.
         """
         tree = {}
         rest = {}
@@ -350,6 +369,7 @@ class Schema(object):
         for name, value in params.iteritems():
             template = self._get_template(name)
             parameter = self._parameters.get(template)
+            print "parameter", parameter, template
 
             if template.endswith(".#") and parameter is None:
                 # If we were unable to find a direct match for a template that

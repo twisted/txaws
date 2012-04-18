@@ -8,7 +8,8 @@ from twisted.trial.unittest import TestCase
 
 from txaws.server.exception import APIError
 from txaws.server.schema import (
-    Arguments, Bool, Date, Enum, Integer, Parameter, RawStr, Schema, Unicode)
+    Arguments, Bool, Date, Enum, Integer, Parameter, RawStr, Schema, Unicode,
+    List)
 
 
 class ArgumentsTestCase(TestCase):
@@ -394,6 +395,12 @@ class SchemaTestCase(TestCase):
         arguments, _ = schema.extract({"name": "value"})
         self.assertEqual(u"value", arguments.name)
         self.assertEqual(None, arguments.count)
+
+    def test_extract_list(self):
+        """L{Schema.extract} can handle list parameters."""
+        schema = Schema(List("names", Unicode()))
+        arguments, _ = schema.extract({"names.0": "Joe", "names.1": "Tom"})
+        self.assertEqual(["Joe", "Tom"], arguments.names)
 
     def test_extract_with_numbered(self):
         """
