@@ -26,6 +26,12 @@ class MissingParameterError(SchemaError):
         super(MissingParameterError, self).__init__(message)
 
 
+class InconsistentParameterError(SchemaError):
+    def __init__(self, name):
+        message = "Parameter %s is used inconsistently" % (name,)
+        super(InconsistentParameterError, self).__init__(message)
+
+
 class InvalidParameterValueError(SchemaError):
     """Raised when the value of a parameter is invalid."""
 
@@ -270,9 +276,23 @@ class List(Parameter):
         self.item = item
 
     def parse(self, value):
+        """
+        @note: Lists can be 0-based OR 1-based.
+        """
+        indices = []
+        if not isinstance(value, dict):
+            raise InvalidParameterValueError("%r should be a dict." % (value,))
+        for index in value.keys():
+            try:
+                indices.append(int(index))
+            except ValueError:
+                raise UnknownParameterError(index)
         result = [None] * len(value)
-        for k,v in value.iteritems():
-            result[int(k) - 1] = self.item.parse(v)
+        for index_index, index in enumerate(sorted(indices)):
+            v = value[str(index)]
+            if index < 0:
+                raise UnknownParameterError(index)
+            result[index_index] = self.item.coerce(v)
         return result
 
 
@@ -286,7 +306,10 @@ class Structure(Parameter):
     def parse(self, value):
         result = {}
         for k, v in value.iteritems():
-            result[k] = self.fields[k].parse(v)
+            result[k] = self.fields[k].coerce(v)
+        for k, v in self.fields.iteritems():
+            if k not in result:
+                result[k] = v.coerce(None)
         return result
 
 
@@ -301,6 +324,11 @@ class Arguments(object):
         """
         for key, value in tree.iteritems():
             self.__dict__[key] = self._wrap(value)
+
+    def __str__(self):
+        return "Arguments(%s)" % (self.__dict__,)
+
+    __repr__ = __str__
 
     def __iter__(self):
         """Returns an iterator yielding C{(name, value)} tuples."""
@@ -318,7 +346,7 @@ class Arguments(object):
         """Wrap the given L{tree} with L{Arguments} as necessary.
 
         @param tree: A {dict}, containing L{dict}s and/or leaf values, nested
-        arbitrarily deep.
+            arbitrarily deep.
         """
         if isinstance(value, dict):
             if any(isinstance(name, int) for name in value.keys()):
@@ -329,6 +357,8 @@ class Arguments(object):
                 return [self._wrap(value) for (name, value) in items]
             else:
                 return Arguments(value)
+        elif isinstance(value, list):
+            return [self._wrap(x) for x in value]
         else:
             return value
 
@@ -370,43 +400,54 @@ class Schema(object):
         """
         tree = {}
         rest = {}
-        tree, rest = extract(params, self._parameters)
-        print "creating arguments from", tree
-        return Arguments(tree), rest
-
-        # Extract from the given arguments and parse according to the
-        # corresponding parameters.
-        for name, value in params.iteritems():
-            template = self._get_template(name)
-            parameter = self._parameters.get(template)
-
-            if template.endswith(".#") and parameter is None:
-                # If we were unable to find a direct match for a template that
-                # allows multiple values. Let's attempt to find it without the
-                # multiple value marker which Amazon allows. For example if the
-                # template is 'PublicIp', then a single key 'PublicIp.1' is
-                # allowed.
-                parameter = self._parameters.get(template[:-2])
-                if parameter is not None:
-                    name = name[:-2]
-
-                # At this point, we have a template that doesn't have the .#
-                # marker to indicate multiple values. We don't allow multiple
-                # "single" values for the same element.
-                if name in tree.keys():
-                    raise InvalidParameterCombinationError(name)
-
-            if parameter is None:
-                rest[name] = value
+        for k,v in _convert_flat_to_nest(params).iteritems():
+            if k in self._parameters:
+                # airgh, knowledge of particular parameter types :-(
+                if isinstance(v, dict) and not isinstance(self._parameters[k],
+                                                          (Structure, List)):
+                    if len(v) == 1:
+                        v = v.values()[0]
+                    else:
+                        raise InvalidParameterCombinationError(k)
+                tree[k] = self._parameters[k].coerce(v)
             else:
-                self._set_value(tree, name, parameter.coerce(value))
-
-        # Ensure that the tree arguments are consistent with constraints
-        # defined in the schema.
-        for template, parameter in self._parameters.iteritems():
-            self._ensure_tree(tree, parameter, *template.split("."))
+                rest[k] = v
 
         return Arguments(tree), rest
+
+        # # Extract from the given arguments and parse according to the
+        # # corresponding parameters.
+        # for name, value in params.iteritems():
+        #     template = self._get_template(name)
+        #     parameter = self._parameters.get(template)
+
+        #     if template.endswith(".#") and parameter is None:
+        #         # If we were unable to find a direct match for a template that
+        #         # allows multiple values. Let's attempt to find it without the
+        #         # multiple value marker which Amazon allows. For example if the
+        #         # template is 'PublicIp', then a single key 'PublicIp.1' is
+        #         # allowed.
+        #         parameter = self._parameters.get(template[:-2])
+        #         if parameter is not None:
+        #             name = name[:-2]
+
+        #         # At this point, we have a template that doesn't have the .#
+        #         # marker to indicate multiple values. We don't allow multiple
+        #         # "single" values for the same element.
+        #         if name in tree.keys():
+        #             raise InvalidParameterCombinationError(name)
+
+        #     if parameter is None:
+        #         rest[name] = value
+        #     else:
+        #         self._set_value(tree, name, parameter.coerce(value))
+
+        # # Ensure that the tree arguments are consistent with constraints
+        # # defined in the schema.
+        # for template, parameter in self._parameters.iteritems():
+        #     self._ensure_tree(tree, parameter, *template.split("."))
+
+        # return Arguments(tree), rest
 
     def bundle(self, *arguments, **extra):
         """Bundle the given arguments in a C{dict} with EC2-style format.
@@ -451,61 +492,61 @@ class Schema(object):
             parts[index * 2 + 1] = "#"
         return ".".join(parts)
 
-    def _set_value(self, tree, path, value):
-        """Set C{value} at C{path} in the given C{tree}.
+    # def _set_value(self, tree, path, value):
+    #     """Set C{value} at C{path} in the given C{tree}.
 
-        For example::
+    #     For example::
 
-          tree = {}
-          _set_value(tree, 'foo.1.bar.2', True)
+    #       tree = {}
+    #       _set_value(tree, 'foo.1.bar.2', True)
 
-        results in C{tree} becoming::
+    #     results in C{tree} becoming::
 
-          {'foo': {1: {'bar': {2: True}}}}
+    #       {'foo': {1: {'bar': {2: True}}}}
 
-        @param tree: A L{dict}.
-        @param path: A L{str}.
-        @param value: The value to set. Can be anything.
-        """
-        nodes = []
-        for index, node in enumerate(path.split(".")):
-            if index % 2:
-                # Nodes with odd indexes must be non-negative integers
-                try:
-                    node = int(node)
-                except ValueError:
-                    raise UnknownParameterError(path)
-                if node < 0:
-                    raise UnknownParameterError(path)
-            nodes.append(node)
-        for node in nodes[:-1]:
-            tree = tree.setdefault(node, {})
-        tree[nodes[-1]] = value
+    #     @param tree: A L{dict}.
+    #     @param path: A L{str}.
+    #     @param value: The value to set. Can be anything.
+    #     """
+    #     nodes = []
+    #     for index, node in enumerate(path.split(".")):
+    #         if index % 2:
+    #             # Nodes with odd indexes must be non-negative integers
+    #             try:
+    #                 node = int(node)
+    #             except ValueError:
+    #                 raise UnknownParameterError(path)
+    #             if node < 0:
+    #                 raise UnknownParameterError(path)
+    #         nodes.append(node)
+    #     for node in nodes[:-1]:
+    #         tree = tree.setdefault(node, {})
+    #     tree[nodes[-1]] = value
 
-    def _ensure_tree(self, tree, parameter, node, *nodes):
-        """Check that C{node} exists in C{tree} and is followed by C{nodes}.
+    # def _ensure_tree(self, tree, parameter, node, *nodes):
+    #     """Check that C{node} exists in C{tree} and is followed by C{nodes}.
 
-        C{node} and C{nodes} should correspond to a template path (i.e. where
-        there are no absolute indexes, but C{#} instead).
-        """
-        if node == "#":
-            if len(nodes) == 0:
-                if len(tree.keys()) == 0 and not parameter.optional:
-                    raise MissingParameterError(parameter.name)
-            else:
-                for subtree in tree.itervalues():
-                    self._ensure_tree(subtree, parameter, *nodes)
-        else:
-            if len(nodes) == 0:
-                if node not in tree.keys():
-                    # No value for this parameter is present, if it's not
-                    # optional nor allow_none is set, the call below will
-                    # raise a MissingParameterError
-                    tree[node] = parameter.coerce(None)
-            else:
-                if node not in tree.keys():
-                    tree[node] = {}
-                self._ensure_tree(tree[node], parameter, *nodes)
+    #     C{node} and C{nodes} should correspond to a template path (i.e. where
+    #     there are no absolute indexes, but C{#} instead).
+    #     """
+    #     if node == "#":
+    #         if len(nodes) == 0:
+    #             if len(tree.keys()) == 0 and not parameter.optional:
+    #                 raise MissingParameterError(parameter.name)
+    #         else:
+    #             for subtree in tree.itervalues():
+    #                 self._ensure_tree(subtree, parameter, *nodes)
+    #     else:
+    #         if len(nodes) == 0:
+    #             if node not in tree.keys():
+    #                 # No value for this parameter is present, if it's not
+    #                 # optional nor allow_none is set, the call below will
+    #                 # raise a MissingParameterError
+    #                 tree[node] = parameter.coerce(None)
+    #         else:
+    #             if node not in tree.keys():
+    #                 tree[node] = {}
+    #             self._ensure_tree(tree[node], parameter, *nodes)
 
     def _flatten(self, params, tree, path=""):
         """
@@ -561,7 +602,7 @@ def _convert_flat_to_nest(params):
     foo.n.bar.
     """
     result = {}
-    for k, v in params.iteritems():
+    for k, v in params.items():
         last = result
         segments = k.split('.')
         for index, item in enumerate(segments):
@@ -569,25 +610,13 @@ def _convert_flat_to_nest(params):
                 newd = v
             else:
                 newd = {}
+            print last, item, newd
+            if not isinstance(last, dict):
+                raise InconsistentParameterError(k)
+            if type(last.get(item)) is dict and type(newd) is not dict:
+                raise InconsistentParameterError(k)
             last = last.setdefault(item, newd)
     return result
-
-
-def extract(arguments, schema):
-    """
-    @param arguments: Dictionary of HTTP arguments.
-    @param schema: Dictionary of schema stuff.
-
-    @return: awesome stuff.
-    """
-    output = {}
-    rest = {}
-    for k,v in _convert_flat_to_nest(arguments).iteritems():
-        if k in schema:
-            output[k] = schema[k].parse(v)
-        else:
-            rest[k] = v
-    return output, rest
 
 
 def _convert_old_schema(parameters):
@@ -629,5 +658,4 @@ def _secret_convert_old_schema(stuff, depth):
         item = stuff.values()[0]
         item = _secret_convert_old_schema(item, depth + 1)
         return List(item=item)
-
     return stuff

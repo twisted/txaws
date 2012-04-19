@@ -9,7 +9,8 @@ from twisted.trial.unittest import TestCase
 from txaws.server.exception import APIError
 from txaws.server.schema import (
     Arguments, Bool, Date, Enum, Integer, Parameter, RawStr, Schema, Unicode,
-    List, Structure, extract, _convert_flat_to_nest, _convert_old_schema)
+    List, Structure, _convert_flat_to_nest, _convert_old_schema,
+    InconsistentParameterError, InvalidParameterValueError)
 
 
 class ArgumentsTestCase(TestCase):
@@ -396,12 +397,36 @@ class SchemaTestCase(TestCase):
         self.assertEqual(u"value", arguments.name)
         self.assertEqual(None, arguments.count)
 
+    def test_extract_with_optional_default(self):
+        schema = Schema(Unicode("name"), Integer("count", optional=True, default=5))
+        arguments, _ = schema.extract({"name": "value"})
+        self.assertEqual(u"value", arguments.name)
+        self.assertEqual(5, arguments.count)
+
+    def test_extract_structure_with_optional(self):
+        """L{Schema.extract} can handle optional parameters."""
+        schema = Schema(
+            Structure(
+                "struct",
+                fields={"name": Unicode(optional=True, default="radix")}))
+        arguments, _ = schema.extract({"struct": {}})
+        self.assertEqual(u"radix", arguments.struct.name)
+
     def test_extract_with_numbered(self):
         """
         L{Schema.extract} can handle parameters with numbered values.
         """
         schema = Schema(Unicode("name.n"))
         arguments, _ = schema.extract({"name.0": "Joe", "name.1": "Tom"})
+        self.assertEqual("Joe", arguments.name[0])
+        self.assertEqual("Tom", arguments.name[1])
+
+    def test_extract_with_goofy_numbered(self):
+        """
+        L{Schema.extract} can handle parameters with numbered values.
+        """
+        schema = Schema(Unicode("name.n"))
+        arguments, _ = schema.extract({"name.5": "Joe", "name.10": "Tom"})
         self.assertEqual("Joe", arguments.name[0])
         self.assertEqual("Tom", arguments.name[1])
 
@@ -459,8 +484,8 @@ class SchemaTestCase(TestCase):
         given without an index.
         """
         schema = Schema(Unicode("name.n"))
-        _, rest = schema.extract({"name": "foo", "name.1": "bar"})
-        self.assertEqual(rest, {"name": "foo"})
+        self.assertRaises(InconsistentParameterError, 
+                          schema.extract, {"name": "foo", "name.1": "bar"})
 
     def test_extract_with_non_numbered_template(self):
         """
@@ -481,7 +506,7 @@ class SchemaTestCase(TestCase):
         error = self.assertRaises(APIError, schema.extract, params)
         self.assertEqual(400, error.status)
         self.assertEqual("UnknownParameter", error.code)
-        self.assertEqual("The parameter name.one is not recognized",
+        self.assertEqual("The parameter one is not recognized",
                          error.message)
 
     def test_extract_with_negative_index(self):
@@ -494,7 +519,7 @@ class SchemaTestCase(TestCase):
         error = self.assertRaises(APIError, schema.extract, params)
         self.assertEqual(400, error.status)
         self.assertEqual("UnknownParameter", error.code)
-        self.assertEqual("The parameter name.-1 is not recognized",
+        self.assertEqual("The parameter -1 is not recognized",
                          error.message)
 
     def test_bundle(self):
@@ -597,6 +622,11 @@ class SchemaTestCase(TestCase):
         arguments, _ = schema.extract({"foo.1": "1", "foo.2": "2"})
         self.assertEqual([1, 2], arguments.foo)
 
+    def test_non_list(self):
+        schema = Schema(List("name", Unicode()))
+        self.assertRaises(InvalidParameterValueError,
+                          schema.extract, {"name": "foo"})
+
     def test_list_of_list(self):
         schema = Schema(List("foo", List(item=Unicode())))
         arguments, _ = schema.extract(
@@ -634,10 +664,9 @@ class SchemaTestCase(TestCase):
         self.assertEqual(4, arguments.foo[1]['b'])
 
     def test_structure_of_list(self):
-        schema = {"foo": Structure(fields={"l": List(item=Integer())})}
-        result, _ = extract({"foo.l.1": "1", "foo.l.2": "2"},
-                         schema)
-        self.assertEqual({"foo": {"l": [1, 2]}}, result)
+        schema = Schema(Structure("foo", fields={"l": List(item=Integer())}))
+        arguments, _ = schema.extract({"foo.l.1": "1", "foo.l.2": "2"})
+        self.assertEqual([1, 2], arguments.foo.l)
         
 
 
