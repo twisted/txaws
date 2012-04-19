@@ -9,7 +9,7 @@ from twisted.trial.unittest import TestCase
 from txaws.server.exception import APIError
 from txaws.server.schema import (
     Arguments, Bool, Date, Enum, Integer, Parameter, RawStr, Schema, Unicode,
-    List, Structure, extract, _convert_flat_to_nest)
+    List, Structure, extract, _convert_flat_to_nest, _convert_old_schema)
 
 
 class ArgumentsTestCase(TestCase):
@@ -592,51 +592,50 @@ class SchemaTestCase(TestCase):
         self.assertEqual("testing", arguments.computer)
         self.assertEqual(5, arguments.count)
 
-
-class ListTestCase(TestCase):
-
     def test_list(self):
-        result = extract({"foo.1": "1", "foo.2": "2"},
-                         {"foo": List(item=Integer())})
-        self.assertEqual({"foo": [1, 2]}, result)
+        schema = Schema(List("foo", Integer()))
+        arguments, _ = schema.extract({"foo.1": "1", "foo.2": "2"})
+        self.assertEqual([1, 2], arguments.foo)
 
     def test_list_of_list(self):
-        result = extract({"foo.1.1": "first-first", "foo.1.2": "first-second",
-                          "foo.2.1": "second-first", "foo.2.2": "second-second"},
-                         {"foo": List(item=List(item=Unicode()))})
-        self.assertEqual({"foo": [["first-first", "first-second"],
-                                  ["second-first", "second-second"]]},
-                         result)
+        schema = Schema(List("foo", List(item=Unicode())))
+        arguments, _ = schema.extract(
+            {"foo.1.1": "first-first", "foo.1.2": "first-second",
+             "foo.2.1": "second-first", "foo.2.2": "second-second"})
+        self.assertEqual([["first-first", "first-second"],
+                          ["second-first", "second-second"]],
+                         arguments.foo)
 
-class StructureTestCase(TestCase):
     def test_structure(self):
-        result = extract({"foo.a": "1", "foo.b": "2"},
-                         {"foo": Structure(fields={"a": Integer(), "b": Integer()})})
-        self.assertEqual({"foo": {"a": 1, "b": 2}}, result)
+        schema = Schema(Structure("foo", {"a": Integer(), "b": Integer()}))
+        arguments, _ = schema.extract({"foo.a": "1", "foo.b": "2"})
+        self.assertEqual(1, arguments.foo.a)
+        self.assertEqual(2, arguments.foo.b)
 
     def test_structure_of_structures(self):
         sub_struct = Structure(fields={"a": Unicode(), "b": Unicode()})
-        schema = {"foo": Structure(fields={"a": sub_struct,
-                                           "b": sub_struct})}
-        result = extract({"foo.a.a": "a-a", "foo.a.b": "a-b",
-                          "foo.b.a": "b-a", "foo.b.b": "b-b"},
-                         schema)
-        self.assertEqual({"foo": {"a": {"a": "a-a",
-                                        "b": "a-b"},
-                                  "b": {"a": "b-a",
-                                        "b": "b-b"}}},
-                         result)
+        schema = Schema(Structure("foo", fields={"a": sub_struct,
+                                                 "b": sub_struct}))
+        arguments, _ = schema.extract({"foo.a.a": "a-a", "foo.a.b": "a-b",
+                                       "foo.b.a": "b-a", "foo.b.b": "b-b"})
+        self.assertEqual("a-a", arguments.foo.a.a)
+        self.assertEqual("a-b", arguments.foo.a.b)
+        self.assertEqual("b-a", arguments.foo.b.a)
+        self.assertEqual("b-b", arguments.foo.b.b)
 
     def test_list_of_structures(self):
-        schema = {"foo": List(item=Structure(fields={"a": Integer(), "b": Integer()}))}
-        result = extract({"foo.1.a": "1", "foo.1.b": "2",
-                          "foo.2.a": "3", "foo.2.b": "4"},
-                         schema)
-        self.assertEqual({"foo": [{"a": 1, "b": 2}, {"a": 3, "b": 4}]}, result)
+        schema = Schema(
+            List("foo", Structure(fields={"a": Integer(), "b": Integer()})))
+        arguments, _ = schema.extract({"foo.1.a": "1", "foo.1.b": "2",
+                                       "foo.2.a": "3", "foo.2.b": "4"})
+        self.assertEqual(1, arguments.foo[0]['a'])
+        self.assertEqual(2, arguments.foo[0]['b'])
+        self.assertEqual(3, arguments.foo[1]['a'])
+        self.assertEqual(4, arguments.foo[1]['b'])
 
     def test_structure_of_list(self):
         schema = {"foo": Structure(fields={"l": List(item=Integer())})}
-        result = extract({"foo.l.1": "1", "foo.l.2": "2"},
+        result, _ = extract({"foo.l.1": "1", "foo.l.2": "2"},
                          schema)
         self.assertEqual({"foo": {"l": [1, 2]}}, result)
         
@@ -648,3 +647,24 @@ class JunkTestCase(TestCase):
         expected = {"foo": {"1": {"bar": "hey"}, "2": {"bar": "there"}},
                     "what": "unf"}
         self.assertEqual(expected, _convert_flat_to_nest(input))
+
+    def test_convert_old_schema_to_new(self):
+        """
+        """
+        int = Integer('root.index')
+        new_schema = _convert_old_schema([int])
+        self.assertEqual(['root'], new_schema.keys())
+        result, _ = extract({'root.1': '5', 'root.2': '6'}, new_schema)
+        self.assertEqual({'root': [5, 6]}, result)
+
+    def test_more_complex_conversion(self):
+        new_schema = _convert_old_schema([Integer('root.index.key')])
+        result, _ = extract({'root.1.key': '5'}, new_schema)
+        self.assertEqual({'root': [{'key': 5}]}, result)
+
+    def test_really_complex_conversion(self):
+        new_schema = _convert_old_schema([Integer('root.index.key'),
+                                          Unicode('root.index.value')])
+        result, _ = extract({'root.1.key': '5', 'root.1.value': 'hey'},
+                            new_schema)
+        self.assertEqual({'root': [{'key': 5, 'value': 'hey'}]}, result)

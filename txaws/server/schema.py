@@ -359,19 +359,20 @@ class Schema(object):
         attribute, which would itself contain a list of names. Similarly,
         L{Schema.bundle} would look for a C{Name} attribute.
         """
-        self._parameters = dict(
-            (self._get_template(parameter.name), parameter)
-            for parameter in parameters)
+        self._parameters = _convert_old_schema(parameters)
 
     def extract(self, params):
         """Extract parameters from a raw C{dict} according to this schema.
 
         @param params: The raw parameters to parse.
-        @return: A tuple of an L{Arguments} object holding the extracted arguments and any
-            unparsed arguments.
+        @return: A tuple of an L{Arguments} object holding the extracted
+            arguments and any unparsed arguments.
         """
         tree = {}
         rest = {}
+        tree, rest = extract(params, self._parameters)
+        print "creating arguments from", tree
+        return Arguments(tree), rest
 
         # Extract from the given arguments and parse according to the
         # corresponding parameters.
@@ -545,17 +546,23 @@ class Schema(object):
 
 def _convert_flat_to_nest(params):
     """
-    Utility for converting a HTTP arguments in the form of::
+    Utility for converting a structure in the form of::
 
         {'foo.1.bar': 'value',
          'foo.2.baz': 'value'}
-    to 
+
+    to::
+
         {'foo': {'1': {'bar': 'value'},
                  '2': {'baz': 'value'}}}
+
+    This is intended for use both during parsing of HTTP arguments like
+    'foo.1.bar=value' and when dealing with schema declarations that look like
+    foo.n.bar.
     """
-    structure = {}
+    result = {}
     for k, v in params.iteritems():
-        last = structure
+        last = result
         segments = k.split('.')
         for index, item in enumerate(segments):
             if index == len(segments) - 1:
@@ -563,20 +570,64 @@ def _convert_flat_to_nest(params):
             else:
                 newd = {}
             last = last.setdefault(item, newd)
-    return structure
+    return result
 
 
 def extract(arguments, schema):
     """
     @param arguments: Dictionary of HTTP arguments.
     @param schema: Dictionary of schema stuff.
+
+    @return: awesome stuff.
     """
-    intermediate_structure = _convert_flat_to_nest(arguments)
-    return _extract(intermediate_structure, schema)
-
-
-def _extract(intermediate, schema):
     output = {}
-    for k,v in intermediate.iteritems():
-        output[k] = schema[k].parse(v)
-    return output
+    rest = {}
+    for k,v in _convert_flat_to_nest(arguments).iteritems():
+        if k in schema:
+            output[k] = schema[k].parse(v)
+        else:
+            rest[k] = v
+    return output, rest
+
+
+def _convert_old_schema(parameters):
+    """
+    Convert an ugly old schema, using dotted names, to the hot new schema,
+    using List and Structure.
+
+    The old schema assumes that every other dot implies an array. So a list of
+    two parameters,
+
+        [Integer("foo.bar.baz.quux"),
+         Integer("foo.bar.shimmy")]
+
+    becomes::
+
+        {"foo": List(item=Structure(fields={"baz": List(item=Integer()),
+                                            "shimmy": Integer()}))}
+
+    By design, the old schema syntax ignored the names "bar" and "quux".
+    """
+    crap = {}
+    for parameter in parameters:
+        crap[parameter.name] = parameter
+    nest = _convert_flat_to_nest(crap)
+    return _secret_convert_old_schema(nest, 0).fields
+
+
+def _secret_convert_old_schema(stuff, depth):
+    if not isinstance(stuff, dict):
+        return stuff
+    if depth % 2 == 0:
+        fields = {}
+        for k,v in stuff.iteritems():
+            fields[k] = _secret_convert_old_schema(v, depth + 1)
+        return Structure(fields=fields)
+    else:
+        assert isinstance(stuff, dict)
+        assert len(stuff) == 1, "List had multiple names for index: %s" % stuff.keys()
+        item = stuff.values()[0]
+        item = _secret_convert_old_schema(item, depth + 1)
+        return List(item=item)
+
+    return stuff
