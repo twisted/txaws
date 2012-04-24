@@ -284,6 +284,7 @@ class Date(Parameter):
 
 class List(Parameter):
 
+    kind = "list"
     supports_multiple = True
 
     def __init__(self, name=None, item=None, optional=False, default=None):
@@ -312,9 +313,16 @@ class List(Parameter):
             result[index_index] = self.item.coerce(v)
         return result
 
+    def format(self, value):
+        # List.format can handle a list OR an Arguments instance
+        if isinstance(value, Arguments):
+            return dict((str(i), self.item.format(v)) for i, v in value)
+        return dict((str(i+1), self.item.format(v)) for i, v in enumerate(value))
+
 
 class Structure(Parameter):
 
+    kind = "structure"
     supports_multiple = True
 
     def __init__(self, name=None, fields=None, optional=False, default=None):
@@ -344,6 +352,9 @@ class Structure(Parameter):
         if rest:
             raise UnknownParametersError(result, rest)
         return result
+
+    def format(self, value):
+        return dict((k, self.fields[k].format(v)) for k, v in value)
 
 
 class Arguments(object):
@@ -422,7 +433,7 @@ class Schema(object):
         attribute, which would itself contain a list of names. Similarly,
         L{Schema.bundle} would look for a C{Name} attribute.
         """
-        self._parameters = _convert_old_schema(parameters)
+        self._parameters = self._convert_old_schema(parameters)
 
     def extract(self, params):
         """Extract parameters from a raw C{dict} according to this schema.
@@ -433,7 +444,7 @@ class Schema(object):
         """
         structure = Structure(fields=self._parameters)
         try:
-            tree = structure.coerce(_convert_flat_to_nest(params))
+            tree = structure.coerce(self._convert_flat_to_nest(params))
             rest = {}
         except UnknownParametersError, error:
             tree = error.result
@@ -451,61 +462,101 @@ class Schema(object):
         params = {}
 
         for argument in arguments:
-            self._flatten(params, argument)
-        self._flatten(params, extra)
+            params.update(argument)
 
+        params.update(extra)
+        result = {}
         for name, value in params.iteritems():
-            parameter = self._parameters.get(self._get_template(name))
+            if value is None:
+                continue
+            segments = name.split('.')
+            first = segments[0]
+            parameter = self._parameters.get(first)
             if parameter is None:
                 raise RuntimeError("Parameter '%s' not in schema" % name)
             else:
                 if value is None:
-                    params[name] = ""
+                    result[name] = ""
                 else:
-                    params[name] = parameter.format(value)
+                    result[name] = parameter.format(value)
 
-        return params
+        return self._convert_nest_to_flat(result)
 
-    def _get_template(self, key):
-        """Return the canonical template for a given parameter key.
-
-        For example::
-
-          'Child.1.Name.2'
-
-        becomes::
-
-          'Child.#.Name.#'
-
+    def _convert_flat_to_nest(self, params):
         """
-        parts = key.split(".")
-        for index, part in enumerate(parts[1::2]):
-            parts[index * 2 + 1] = "#"
-        return ".".join(parts)
+        Utility for converting a structure in the form of::
 
-    def _flatten(self, params, tree, path=""):
-        """
-        For every element in L{tree}, set C{path} to C{value} in the given
-        L{params} dictionary.
+            {'foo.1.bar': 'value',
+             'foo.2.baz': 'value'}
 
-        @param params: A L{dict} which will be populated.
-        @param tree: A structure made up of L{Argument}s, L{list}s, L{dict}s
-            and leaf values.
+        to::
+
+            {'foo': {'1': {'bar': 'value'},
+                     '2': {'baz': 'value'}}}
+
+        This is intended for use both during parsing of HTTP arguments like
+        'foo.1.bar=value' and when dealing with schema declarations that look like
+        foo.n.bar.
         """
-        if isinstance(tree, Arguments):
-            for name, value in tree:
-                self._flatten(params, value, "%s.%s" % (path, name))
-        elif isinstance(tree, dict):
-            for name, value in tree.iteritems():
-                self._flatten(params, value, "%s.%s" % (path, name))
-        elif isinstance(tree, list):
-            for index, value in enumerate(tree):
-                self._flatten(params, value, "%s.%d" % (path, index + 1))
-        elif tree is not None:
-            params[path.lstrip(".")] = tree
-        else:
-            # None is discarded.
-            pass
+        result = {}
+        for k, v in params.iteritems():
+            last = result
+            segments = k.split('.')
+            for index, item in enumerate(segments):
+                if index == len(segments) - 1:
+                    newd = v
+                else:
+                    newd = {}
+                if not isinstance(last, dict):
+                    raise InconsistentParameterError(k)
+                if type(last.get(item)) is dict and type(newd) is not dict:
+                    raise InconsistentParameterError(k)
+                last = last.setdefault(item, newd)
+        return result
+
+
+    def _convert_nest_to_flat(self, params):
+        result = {}
+        self._secret_convert_nest_to_flat(result, None, params)
+        return result
+
+    def _secret_convert_nest_to_flat(self, result, prefix, params):
+        for k, v in params.iteritems():
+            if prefix is None:
+                path = k
+            else:
+                path = prefix + '.' + k
+            if isinstance(v, dict):
+                return self._secret_convert_nest_to_flat(result, path, v)
+            else:
+                result[path] = v
+        return result
+        
+    
+
+    # def _flatten(self, params, tree, path=""):
+    #     """
+    #     For every element in L{tree}, set C{path} to C{value} in the given
+    #     L{params} dictionary.
+
+    #     @param params: A L{dict} which will be populated.
+    #     @param tree: A structure made up of L{Argument}s, L{list}s, L{dict}s
+    #         and leaf values.
+    #     """
+    #     if isinstance(tree, Arguments):
+    #         for name, value in tree:
+    #             self._flatten(params, value, "%s.%s" % (path, name))
+    #     elif isinstance(tree, dict):
+    #         for name, value in tree.iteritems():
+    #             self._flatten(params, value, "%s.%s" % (path, name))
+    #     elif isinstance(tree, list):
+    #         for index, value in enumerate(tree):
+    #             self._flatten(params, value, "%s.%d" % (path, index + 1))
+    #     elif tree is not None:
+    #         params[path.lstrip(".")] = tree
+    #     else:
+    #         # None is discarded.
+    #         pass
 
     def extend(self, *schema_items):
         """
@@ -520,76 +571,43 @@ class Schema(object):
         return Schema(*parameters)
 
 
-def _convert_flat_to_nest(params):
-    """
-    Utility for converting a structure in the form of::
+    def _convert_old_schema(self, parameters):
+        """
+        Convert an ugly old schema, using dotted names, to the hot new schema,
+        using List and Structure.
 
-        {'foo.1.bar': 'value',
-         'foo.2.baz': 'value'}
+        The old schema assumes that every other dot implies an array. So a list of
+        two parameters,
 
-    to::
+            [Integer("foo.bar.baz.quux"),
+             Integer("foo.bar.shimmy")]
 
-        {'foo': {'1': {'bar': 'value'},
-                 '2': {'baz': 'value'}}}
+        becomes::
 
-    This is intended for use both during parsing of HTTP arguments like
-    'foo.1.bar=value' and when dealing with schema declarations that look like
-    foo.n.bar.
-    """
-    result = {}
-    for k, v in params.items():
-        last = result
-        segments = k.split('.')
-        for index, item in enumerate(segments):
-            if index == len(segments) - 1:
-                newd = v
-            else:
-                newd = {}
-            if not isinstance(last, dict):
-                raise InconsistentParameterError(k)
-            if type(last.get(item)) is dict and type(newd) is not dict:
-                raise InconsistentParameterError(k)
-            last = last.setdefault(item, newd)
-    return result
+            {"foo": List(item=Structure(fields={"baz": List(item=Integer()),
+                                                "shimmy": Integer()}))}
+
+        By design, the old schema syntax ignored the names "bar" and "quux".
+        """
+        crap = {}
+        for parameter in parameters:
+            crap[parameter.name] = parameter
+        nest = self._convert_flat_to_nest(crap)
+        return self._secret_convert_old_schema(nest, 0).fields
 
 
-def _convert_old_schema(parameters):
-    """
-    Convert an ugly old schema, using dotted names, to the hot new schema,
-    using List and Structure.
-
-    The old schema assumes that every other dot implies an array. So a list of
-    two parameters,
-
-        [Integer("foo.bar.baz.quux"),
-         Integer("foo.bar.shimmy")]
-
-    becomes::
-
-        {"foo": List(item=Structure(fields={"baz": List(item=Integer()),
-                                            "shimmy": Integer()}))}
-
-    By design, the old schema syntax ignored the names "bar" and "quux".
-    """
-    crap = {}
-    for parameter in parameters:
-        crap[parameter.name] = parameter
-    nest = _convert_flat_to_nest(crap)
-    return _secret_convert_old_schema(nest, 0).fields
-
-
-def _secret_convert_old_schema(stuff, depth):
-    if not isinstance(stuff, dict):
+    def _secret_convert_old_schema(self, stuff, depth):
+        if not isinstance(stuff, dict):
+            return stuff
+        if depth % 2 == 0:
+            fields = {}
+            for k,v in stuff.iteritems():
+                fields[k] = self._secret_convert_old_schema(v, depth + 1)
+            return Structure(fields=fields)
+        else:
+            assert isinstance(stuff, dict)
+            assert len(stuff) == 1, "List had multiple names for index: %s" % stuff.keys()
+            item = stuff.values()[0]
+            item = self._secret_convert_old_schema(item, depth + 1)
+            return List(item=item)
         return stuff
-    if depth % 2 == 0:
-        fields = {}
-        for k,v in stuff.iteritems():
-            fields[k] = _secret_convert_old_schema(v, depth + 1)
-        return Structure(fields=fields)
-    else:
-        assert isinstance(stuff, dict)
-        assert len(stuff) == 1, "List had multiple names for index: %s" % stuff.keys()
-        item = stuff.values()[0]
-        item = _secret_convert_old_schema(item, depth + 1)
-        return List(item=item)
-    return stuff

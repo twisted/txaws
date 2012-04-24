@@ -9,7 +9,7 @@ from twisted.trial.unittest import TestCase
 from txaws.server.exception import APIError
 from txaws.server.schema import (
     Arguments, Bool, Date, Enum, Integer, Parameter, RawStr, Schema, Unicode,
-    List, Structure, _convert_flat_to_nest, _convert_old_schema,
+    List, Structure,
     InconsistentParameterError, InvalidParameterValueError)
 
 
@@ -550,7 +550,7 @@ class SchemaTestCase(TestCase):
         L{Schema.bundle} correctly handles an empty numbered arguments list.
         """
         schema = Schema(Unicode("name.n"))
-        params = schema.bundle(names=[])
+        params = schema.bundle(name=[])
         self.assertEqual({}, params)
 
     def test_bundle_with_numbered_not_supplied(self):
@@ -667,33 +667,4 @@ class SchemaTestCase(TestCase):
         schema = Schema(Structure("foo", fields={"l": List(item=Integer())}))
         arguments, _ = schema.extract({"foo.l.1": "1", "foo.l.2": "2"})
         self.assertEqual([1, 2], arguments.foo.l)
-        
 
-
-class JunkTestCase(TestCase):
-    def test_convert_flat_to_nest(self):
-        input = {"foo.1.bar": "hey", "foo.2.bar": "there", "what": "unf"}
-        expected = {"foo": {"1": {"bar": "hey"}, "2": {"bar": "there"}},
-                    "what": "unf"}
-        self.assertEqual(expected, _convert_flat_to_nest(input))
-
-    def test_convert_old_schema_to_new(self):
-        """
-        """
-        int = Integer('root.index')
-        new_schema = _convert_old_schema([int])
-        self.assertEqual(['root'], new_schema.keys())
-        result, _ = extract({'root.1': '5', 'root.2': '6'}, new_schema)
-        self.assertEqual({'root': [5, 6]}, result)
-
-    def test_more_complex_conversion(self):
-        new_schema = _convert_old_schema([Integer('root.index.key')])
-        result, _ = extract({'root.1.key': '5'}, new_schema)
-        self.assertEqual({'root': [{'key': 5}]}, result)
-
-    def test_really_complex_conversion(self):
-        new_schema = _convert_old_schema([Integer('root.index.key'),
-                                          Unicode('root.index.value')])
-        result, _ = extract({'root.1.key': '5', 'root.1.value': 'hey'},
-                            new_schema)
-        self.assertEqual({'root': [{'key': 5, 'value': 'hey'}]}, result)
