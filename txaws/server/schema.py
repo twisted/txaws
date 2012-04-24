@@ -283,20 +283,35 @@ class Date(Parameter):
 
 
 class List(Parameter):
+    """
+    A homogenous list of instances of a parameterized type.
+
+    There is a strange behavior that lists can have any starting index and any
+    gaps are ignored.  Conventionally they are 1-based, and so indexes proceed
+    like 1, 2, 3...  However, any non-negative index can be used and the
+    ordering will be used to determine the true index. So::
+
+        {5: 'a', 7: 'b', 9: 'c'}
+
+    becomes::
+
+        ['a', 'b', 'c']
+    """
 
     kind = "list"
     supports_multiple = True
 
     def __init__(self, name=None, item=None, optional=False, default=None):
+        """
+        @param item: A L{Parameter} instance which will be used to parse and
+            format the values in the list.
+        """
         if item is None:
             raise MissingParameterError("Must provide item")
         super(List, self).__init__(name, optional=optional, default=default)
         self.item = item
 
     def parse(self, value):
-        """
-        @note: Lists can be 0-based OR 1-based.
-        """
         indices = []
         if not isinstance(value, dict):
             raise InvalidParameterValueError("%r should be a dict." % (value,))
@@ -314,24 +329,34 @@ class List(Parameter):
         return result
 
     def format(self, value):
-        # List.format can handle a list OR an Arguments instance
+        # List.format can handle a list OR an Arguments instance. I don't know
+        # why, but there is a test for Arguments({1: 'foo', 2: 'bar'}).
         if isinstance(value, Arguments):
             return dict((str(i), self.item.format(v)) for i, v in value)
         return dict((str(i+1), self.item.format(v)) for i, v in enumerate(value))
 
 
 class Structure(Parameter):
+    """
+    A structure with named fields of parameterized types.
+    """
 
     kind = "structure"
     supports_multiple = True
 
     def __init__(self, name=None, fields=None, optional=False, default=None):
+        """
+        @param fields: A mapping of field name to field L{Parameter} instance.
+        """
         if fields is None:
             raise MissingParameterError("Must provide fields")
         super(Structure, self).__init__(name, optional=optional, default=default)
         self.fields = fields
 
     def parse(self, value):
+        """
+        Convert a dictionary of raw values to a coerced dictionary.
+        """
         result = {}
         rest = {}
         for k, v in value.iteritems():
@@ -339,7 +364,7 @@ class Structure(Parameter):
                 if isinstance(v, dict) and not self.fields[k].supports_multiple:
                     if len(v) == 1:
                         # We support "foo.1" as "foo" as long as there is only
-                        # "foo.#" parameter provided.... -_-
+                        # one "foo.#" parameter provided.... -_-
                         v = v.values()[0]
                     else:
                         raise InvalidParameterCombinationError(k)
@@ -412,7 +437,7 @@ class Schema(object):
     The schema that the arguments of an HTTP request must be compliant with.
     """
 
-    def __init__(self, *parameters, **kwargs):
+    def __init__(self, *_parameters, **kwargs):
         """Initialize a new L{Schema} instance.
 
         Any number of L{Parameter} instances can be passed. The parameter path
@@ -433,7 +458,12 @@ class Schema(object):
         attribute, which would itself contain a list of names. Similarly,
         L{Schema.bundle} would look for a C{Name} attribute.
         """
-        self._parameters = self._convert_old_schema(parameters)
+        if 'parameters' in kwargs:
+            if len(_parameters) > 0:
+                raise TypeError("parameters= must only be passed without positional arguments")
+            self._parameters = kwargs['parameters']
+        else:
+            self._parameters = self._convert_old_schema(_parameters)
 
     def extract(self, params):
         """Extract parameters from a raw C{dict} according to this schema.
@@ -514,50 +544,20 @@ class Schema(object):
                 last = last.setdefault(item, newd)
         return result
 
-
-    def _convert_nest_to_flat(self, params):
-        result = {}
-        self._secret_convert_nest_to_flat(result, None, params)
-        return result
-
-    def _secret_convert_nest_to_flat(self, result, prefix, params):
+    def _convert_nest_to_flat(self, params, _result=None, _prefix=None):
+        if _result is None:
+            _result = {}
         for k, v in params.iteritems():
-            if prefix is None:
+            if _prefix is None:
                 path = k
             else:
-                path = prefix + '.' + k
+                path = _prefix + '.' + k
             if isinstance(v, dict):
-                return self._secret_convert_nest_to_flat(result, path, v)
+                return self._convert_nest_to_flat(v, _result=_result, _prefix=path)
             else:
-                result[path] = v
-        return result
+                _result[path] = v
+        return _result
         
-    
-
-    # def _flatten(self, params, tree, path=""):
-    #     """
-    #     For every element in L{tree}, set C{path} to C{value} in the given
-    #     L{params} dictionary.
-
-    #     @param params: A L{dict} which will be populated.
-    #     @param tree: A structure made up of L{Argument}s, L{list}s, L{dict}s
-    #         and leaf values.
-    #     """
-    #     if isinstance(tree, Arguments):
-    #         for name, value in tree:
-    #             self._flatten(params, value, "%s.%s" % (path, name))
-    #     elif isinstance(tree, dict):
-    #         for name, value in tree.iteritems():
-    #             self._flatten(params, value, "%s.%s" % (path, name))
-    #     elif isinstance(tree, list):
-    #         for index, value in enumerate(tree):
-    #             self._flatten(params, value, "%s.%d" % (path, index + 1))
-    #     elif tree is not None:
-    #         params[path.lstrip(".")] = tree
-    #     else:
-    #         # None is discarded.
-    #         pass
-
     def extend(self, *schema_items):
         """
         Add any number of schema items to a new schema.
@@ -610,4 +610,3 @@ class Schema(object):
             item = stuff.values()[0]
             item = self._secret_convert_old_schema(item, depth + 1)
             return List(item=item)
-        return stuff

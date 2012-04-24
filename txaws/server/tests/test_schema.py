@@ -668,3 +668,16 @@ class SchemaTestCase(TestCase):
         arguments, _ = schema.extract({"foo.l.1": "1", "foo.l.2": "2"})
         self.assertEqual([1, 2], arguments.foo.l)
 
+    def test_new_parameters(self):
+        schema = Schema(parameters={"foo": Structure(fields={"l": List(item=Integer())})})
+        arguments, _ = schema.extract({"foo.l.1": "1", "foo.l.2": "2"})
+        self.assertEqual([1, 2], arguments.foo.l)
+
+# TODO
+# bundling structures
+# bundling lists with [], {}, and Arguments()
+# bundling structures with {} and Arguments()
+# Docstrings for everything
+# Lint
+# Try to get paths in errors working again
+# - generally strategize on the parameter name concept
