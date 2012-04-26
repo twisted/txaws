@@ -505,7 +505,7 @@ class Schema(object):
             rest = {}
         except UnknownParametersError, error:
             tree = error.result
-            rest = error.unknown
+            rest = self._convert_nest_to_flat(error.unknown)
         return Arguments(tree), rest
 
     def bundle(self, *arguments, **extra):

@@ -383,6 +383,11 @@ class SchemaTestCase(TestCase):
         _, rest = schema.extract({"name": "value"})
         self.assertEqual(rest, {"name": "value"})
 
+    def test_extract_with_nested_rest(self):
+        schema = Schema()
+        _, rest = schema.extract({"foo.1.bar": "hey", "foo.2.baz": "there"})
+        self.assertEqual({"foo.1.bar": "hey", "foo.2.baz": "there"}, rest)
+
     def test_extract_with_many_arguments(self):
         """L{Schema.extract} can handle multiple parameters."""
         schema = Schema(Unicode("name"), Integer("count"))
@@ -776,7 +781,7 @@ class SchemaTestCase(TestCase):
         Backwards-compatibility conversions maintains optional-ness of lists.
         """
         schema = Schema(Unicode("foos.N", optional=True))
-        arguments, rest = schema.extract({})
+        arguments, _ = schema.extract({})
         self.assertEqual([], arguments.foos)
 
     def test_schema_conversion_optional_structure_field(self):
@@ -786,6 +791,6 @@ class SchemaTestCase(TestCase):
         """
         schema = Schema(Unicode("foos.N.field"),
                         Unicode("foos.N.field2", optional=True, default=u"hi"))
-        arguments, rest = schema.extract({"foos.0.field": u"existent"})
+        arguments, _ = schema.extract({"foos.0.field": u"existent"})
         self.assertEqual(u"existent", arguments.foos[0].field)
         self.assertEqual(u"hi", arguments.foos[0].field2)
