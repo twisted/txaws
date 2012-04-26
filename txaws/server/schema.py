@@ -594,8 +594,7 @@ class Schema(object):
             else:
                 path = _prefix + '.' + k
             if isinstance(v, dict):
-                _result.update(self._convert_nest_to_flat(v, _result=_result,
-                                                          _prefix=path))
+                self._convert_nest_to_flat(v, _result=_result, _prefix=path)
             else:
                 _result[path] = v
         return _result
