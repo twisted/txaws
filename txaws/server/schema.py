@@ -57,7 +57,7 @@ class UnknownParameterError(SchemaError):
         super(UnknownParameterError, self).__init__(message)
 
 
-class UnknownParametersError(SchemaError):
+class UnknownParametersError(Exception):
     """
     @ivar result: The already coerced result representing the known parameters.
     @ivar unknown: The unknown parameters.
@@ -251,7 +251,7 @@ class Enum(Parameter):
     def __init__(self, name=None, mapping=None, optional=False, default=None):
         super(Enum, self).__init__(name, optional=optional, default=default)
         if mapping is None:
-            raise MissingParameterError("Must provide mapping")
+            raise TypeError("Must provide mapping")
         self.mapping = mapping
         self.reverse = dict((value, key) for key, value in mapping.iteritems())
 
@@ -307,11 +307,15 @@ class List(Parameter):
             format the values in the list.
         """
         if item is None:
-            raise MissingParameterError("Must provide item")
+            raise TypeError("Must provide item")
         super(List, self).__init__(name, optional=optional, default=default)
         self.item = item
 
     def parse(self, value):
+        """
+        Convert a dictionary of {relative index: value} to a list of parsed
+        C{value}s.
+        """
         indices = []
         if not isinstance(value, dict):
             raise InvalidParameterValueError("%r should be a dict." % (value,))
@@ -329,11 +333,22 @@ class List(Parameter):
         return result
 
     def format(self, value):
-        # List.format can handle a list OR an Arguments instance. I don't know
-        # why, but there is a test for Arguments({1: 'foo', 2: 'bar'}).
+        """
+        Convert a list like::
+
+            ["a", "b", "c"]
+
+        to:
+
+            {"1": "a", "2": "b", "3": "c"}
+
+        C{value} may also be an L{Arguments} instance, mapping indices to
+        values. Who knows why.
+        """
         if isinstance(value, Arguments):
             return dict((str(i), self.item.format(v)) for i, v in value)
-        return dict((str(i+1), self.item.format(v)) for i, v in enumerate(value))
+        return dict((str(i + 1), self.item.format(v))
+                        for i, v in enumerate(value))
 
 
 class Structure(Parameter):
@@ -349,19 +364,21 @@ class Structure(Parameter):
         @param fields: A mapping of field name to field L{Parameter} instance.
         """
         if fields is None:
-            raise MissingParameterError("Must provide fields")
-        super(Structure, self).__init__(name, optional=optional, default=default)
+            raise TypeError("Must provide fields")
+        super(Structure, self).__init__(name, optional=optional,
+                                        default=default)
         self.fields = fields
 
     def parse(self, value):
         """
-        Convert a dictionary of raw values to a coerced dictionary.
+        Convert a dictionary of raw values to a dictionary of processed values.
         """
         result = {}
         rest = {}
         for k, v in value.iteritems():
             if k in self.fields:
-                if isinstance(v, dict) and not self.fields[k].supports_multiple:
+                if (isinstance(v, dict)
+                    and not self.fields[k].supports_multiple):
                     if len(v) == 1:
                         # We support "foo.1" as "foo" as long as there is only
                         # one "foo.#" parameter provided.... -_-
@@ -379,6 +396,11 @@ class Structure(Parameter):
         return result
 
     def format(self, value):
+        """
+        Convert a dictionary of processed values to a dictionary of raw values.
+        """
+        if not isinstance(value, Arguments):
+            value = value.iteritems()
         return dict((k, self.fields[k].format(v)) for k, v in value)
 
 
@@ -460,7 +482,8 @@ class Schema(object):
         """
         if 'parameters' in kwargs:
             if len(_parameters) > 0:
-                raise TypeError("parameters= must only be passed without positional arguments")
+                raise TypeError("parameters= must only be passed "
+                                "without positional arguments")
             self._parameters = kwargs['parameters']
         else:
             self._parameters = self._convert_old_schema(_parameters)
@@ -514,7 +537,7 @@ class Schema(object):
 
     def _convert_flat_to_nest(self, params):
         """
-        Utility for converting a structure in the form of::
+        Convert a structure in the form of::
 
             {'foo.1.bar': 'value',
              'foo.2.baz': 'value'}
@@ -525,8 +548,10 @@ class Schema(object):
                      '2': {'baz': 'value'}}}
 
         This is intended for use both during parsing of HTTP arguments like
-        'foo.1.bar=value' and when dealing with schema declarations that look like
-        foo.n.bar.
+        'foo.1.bar=value' and when dealing with schema declarations that look
+        like 'foo.n.bar'.
+
+        This is the inverse of L{_convert_nest_to_flat}.
         """
         result = {}
         for k, v in params.iteritems():
@@ -545,6 +570,18 @@ class Schema(object):
         return result
 
     def _convert_nest_to_flat(self, params, _result=None, _prefix=None):
+        """
+        Convert a data structure that looks like::
+
+            {"foo": {"bar": "baz", "shimmy": "sham"}}
+
+        to::
+
+            {"foo.bar": "baz",
+             "foo.shimmy": "sham"}
+
+        This is the inverse of L{_convert_flat_to_nest}.
+        """
         if _result is None:
             _result = {}
         for k, v in params.iteritems():
@@ -553,11 +590,12 @@ class Schema(object):
             else:
                 path = _prefix + '.' + k
             if isinstance(v, dict):
-                return self._convert_nest_to_flat(v, _result=_result, _prefix=path)
+                return self._convert_nest_to_flat(v, _result=_result,
+                                                  _prefix=path)
             else:
                 _result[path] = v
         return _result
-        
+
     def extend(self, *schema_items):
         """
         Add any number of schema items to a new schema.
@@ -570,22 +608,22 @@ class Schema(object):
                 raise TypeError("Illegal argument %s" % item)
         return Schema(*parameters)
 
-
     def _convert_old_schema(self, parameters):
         """
         Convert an ugly old schema, using dotted names, to the hot new schema,
         using List and Structure.
 
-        The old schema assumes that every other dot implies an array. So a list of
-        two parameters,
+        The old schema assumes that every other dot implies an array. So a list
+        of two parameters,
 
-            [Integer("foo.bar.baz.quux"),
-             Integer("foo.bar.shimmy")]
+            [Integer("foo.bar.baz.quux"), Integer("foo.bar.shimmy")]
 
         becomes::
 
-            {"foo": List(item=Structure(fields={"baz": List(item=Integer()),
-                                                "shimmy": Integer()}))}
+            {"foo": List(
+                item=Structure(
+                    fields={"baz": List(item=Integer()),
+                            "shimmy": Integer()}))}
 
         By design, the old schema syntax ignored the names "bar" and "quux".
         """
@@ -595,18 +633,23 @@ class Schema(object):
         nest = self._convert_flat_to_nest(crap)
         return self._secret_convert_old_schema(nest, 0).fields
 
-
-    def _secret_convert_old_schema(self, stuff, depth):
-        if not isinstance(stuff, dict):
-            return stuff
+    def _secret_convert_old_schema(self, mapping, depth):
+        """
+        Internal recursion helper for L{_convert_old_schema}.
+        """
+        if not isinstance(mapping, dict):
+            return mapping
         if depth % 2 == 0:
             fields = {}
-            for k,v in stuff.iteritems():
+            for k, v in mapping.iteritems():
                 fields[k] = self._secret_convert_old_schema(v, depth + 1)
             return Structure(fields=fields)
         else:
-            assert isinstance(stuff, dict)
-            assert len(stuff) == 1, "List had multiple names for index: %s" % stuff.keys()
-            item = stuff.values()[0]
+            if not isinstance(mapping, dict):
+                raise TypeError("mapping %r must be a dict" % (mapping,))
+            if not len(mapping) == 1:
+                raise ValueError("mapping %r must only have one element"
+                                 % (mapping,))
+            item = mapping.values()[0]
             item = self._secret_convert_old_schema(item, depth + 1)
             return List(item=item)

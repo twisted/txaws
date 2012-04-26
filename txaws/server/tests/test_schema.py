@@ -398,7 +398,12 @@ class SchemaTestCase(TestCase):
         self.assertEqual(None, arguments.count)
 
     def test_extract_with_optional_default(self):
-        schema = Schema(Unicode("name"), Integer("count", optional=True, default=5))
+        """
+        The value of C{default} on a parameter is used as the value when it is
+        not provided as an argument and the parameter is C{optional}.
+        """
+        schema = Schema(Unicode("name"),
+                        Integer("count", optional=True, default=5))
         arguments, _ = schema.extract({"name": "value"})
         self.assertEqual(u"value", arguments.name)
         self.assertEqual(5, arguments.count)
@@ -484,7 +489,7 @@ class SchemaTestCase(TestCase):
         given without an index.
         """
         schema = Schema(Unicode("name.n"))
-        self.assertRaises(InconsistentParameterError, 
+        self.assertRaises(InconsistentParameterError,
                           schema.extract, {"name": "foo", "name.1": "bar"})
 
     def test_extract_with_non_numbered_template(self):
@@ -570,6 +575,41 @@ class SchemaTestCase(TestCase):
         self.assertEqual({"name.1": "Foo", "name.2": "Bar", "count": "123"},
                          params)
 
+    def test_bundle_with_structure(self):
+        """L{Schema.bundle} can bundle L{Structure}s."""
+        schema = Schema(
+            parameters={
+                "struct": Structure(fields={"field1": Unicode(),
+                                            "field2": Integer()})})
+        params = schema.bundle(struct={"field1": "hi", "field2": 59})
+        self.assertEqual({"struct.field1": "hi", "struct.field2": "59"},
+                         params)
+
+    def test_bundle_with_list(self):
+        """L{Schema.bundle} can bundle L{List}s."""
+        schema = Schema(parameters={"things": List(item=Unicode())})
+        params = schema.bundle(things=["foo", "bar"])
+        self.assertEqual({"things.1": "foo", "things.2": "bar"}, params)
+
+    def test_bundle_with_structure_with_arguments(self):
+        """
+        L{Schema.bundle} can bundle L{Structure}s (specified as L{Arguments}).
+        """
+        schema = Schema(
+            parameters={
+                "struct": Structure(fields={"field1": Unicode(),
+                                            "field2": Integer()})})
+        params = schema.bundle(struct=Arguments({"field1": "hi",
+                                                 "field2": 59}))
+        self.assertEqual({"struct.field1": "hi", "struct.field2": "59"},
+                         params)
+
+    def test_bundle_with_list_with_arguments(self):
+        """L{Schema.bundle} can bundle L{List}s (specified as L{Arguments})."""
+        schema = Schema(parameters={"things": List(item=Unicode())})
+        params = schema.bundle(things=Arguments({1: "foo", 2: "bar"}))
+        self.assertEqual({"things.1": "foo", "things.2": "bar"}, params)
+
     def test_bundle_with_arguments(self):
         """L{Schema.bundle} can bundle L{Arguments} too."""
         schema = Schema(Unicode("name.n"), Integer("count"))
@@ -618,16 +658,22 @@ class SchemaTestCase(TestCase):
         self.assertEqual(5, arguments.count)
 
     def test_list(self):
+        """L{List}s can be extracted."""
         schema = Schema(List("foo", Integer()))
         arguments, _ = schema.extract({"foo.1": "1", "foo.2": "2"})
         self.assertEqual([1, 2], arguments.foo)
 
     def test_non_list(self):
+        """
+        When a non-list argument is passed to a L{List} parameter, a
+        L{InvalidParameterValueError} is raised.
+        """
         schema = Schema(List("name", Unicode()))
         self.assertRaises(InvalidParameterValueError,
                           schema.extract, {"name": "foo"})
 
     def test_list_of_list(self):
+        """L{List}s can be nested."""
         schema = Schema(List("foo", List(item=Unicode())))
         arguments, _ = schema.extract(
             {"foo.1.1": "first-first", "foo.1.2": "first-second",
@@ -637,12 +683,16 @@ class SchemaTestCase(TestCase):
                          arguments.foo)
 
     def test_structure(self):
+        """
+        L{Schema}s with L{Structure} parameters can have arguments extracted.
+        """
         schema = Schema(Structure("foo", {"a": Integer(), "b": Integer()}))
         arguments, _ = schema.extract({"foo.a": "1", "foo.b": "2"})
         self.assertEqual(1, arguments.foo.a)
         self.assertEqual(2, arguments.foo.b)
 
     def test_structure_of_structures(self):
+        """L{Structure}s can be nested."""
         sub_struct = Structure(fields={"a": Unicode(), "b": Unicode()})
         schema = Schema(Structure("foo", fields={"a": sub_struct,
                                                  "b": sub_struct}))
@@ -654,6 +704,7 @@ class SchemaTestCase(TestCase):
         self.assertEqual("b-b", arguments.foo.b.b)
 
     def test_list_of_structures(self):
+        """L{List}s of L{Structure}s are extracted properly."""
         schema = Schema(
             List("foo", Structure(fields={"a": Integer(), "b": Integer()})))
         arguments, _ = schema.extract({"foo.1.a": "1", "foo.1.b": "2",
@@ -664,20 +715,18 @@ class SchemaTestCase(TestCase):
         self.assertEqual(4, arguments.foo[1]['b'])
 
     def test_structure_of_list(self):
+        """L{Structure}s of L{List}s are extracted properly."""
         schema = Schema(Structure("foo", fields={"l": List(item=Integer())}))
         arguments, _ = schema.extract({"foo.l.1": "1", "foo.l.2": "2"})
         self.assertEqual([1, 2], arguments.foo.l)
 
     def test_new_parameters(self):
-        schema = Schema(parameters={"foo": Structure(fields={"l": List(item=Integer())})})
+        """
+        L{Schema} accepts a C{parameters} parameter to specify parameters in a
+        {name: field} format.
+        """
+        schema = Schema(
+            parameters={"foo": Structure(
+                    fields={"l": List(item=Integer())})})
         arguments, _ = schema.extract({"foo.l.1": "1", "foo.l.2": "2"})
         self.assertEqual([1, 2], arguments.foo.l)
-
-# TODO
-# bundling structures
-# bundling lists with [], {}, and Arguments()
-# bundling structures with {} and Arguments()
-# Docstrings for everything
-# Lint
-# Try to get paths in errors working again
-# - generally strategize on the parameter name concept
