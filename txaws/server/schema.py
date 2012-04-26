@@ -59,6 +59,8 @@ class UnknownParameterError(SchemaError):
 
 class UnknownParametersError(Exception):
     """
+    Raised when extra unknown fields are passed to L{Structure.parse}.
+
     @ivar result: The already coerced result representing the known parameters.
     @ivar unknown: The unknown parameters.
     """
@@ -474,11 +476,11 @@ class Schema(object):
 
         A more complex example::
 
-          schema = Schema(Unicode('Name.#'))
+          schema = Schema(List('Names', item=Unicode()))
 
-        means that the result of L{Schema.extract} would have a C{Name}
+        means that the result of L{Schema.extract} would have a C{Names}
         attribute, which would itself contain a list of names. Similarly,
-        L{Schema.bundle} would look for a C{Name} attribute.
+        L{Schema.bundle} would look for a C{Names} attribute.
         """
         if 'parameters' in kwargs:
             if len(_parameters) > 0:
