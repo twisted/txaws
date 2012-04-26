@@ -696,6 +696,14 @@ class SchemaTestCase(TestCase):
         arguments, _ = schema.extract({})
         self.assertEqual([], arguments.names)
 
+    def test_default_list(self):
+        """
+        The default of a L{List} can be specified as a list.
+        """
+        schema = Schema(List("names", Unicode(), optional=True, default=[u"foo", u"bar"]))
+        arguments, _ = schema.extract({})
+        self.assertEqual([u"foo", u"bar"], arguments.names)
+
     def test_list_of_list(self):
         """L{List}s can be nested."""
         schema = Schema(List("foo", List(item=Unicode())))
