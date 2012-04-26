@@ -545,6 +545,16 @@ class SchemaTestCase(TestCase):
         params = schema.bundle(name=["foo", "bar"])
         self.assertEqual({"name.1": "foo", "name.2": "bar"}, params)
 
+    def test_bundle_with_two_numbered(self):
+        """
+        L{Schema.bundle} can bundle multiple numbered lists.
+        """
+        schema = Schema(Unicode("names.n"), Unicode("things.n"))
+        params = schema.bundle(names=["foo", "bar"], things=["baz", "quux"])
+        self.assertEqual({"names.1": "foo", "names.2": "bar",
+                          "things.1": "baz", "things.2": "quux"},
+                         params)
+
     def test_bundle_with_none(self):
         """L{None} values are discarded in L{Schema.bundle}."""
         schema = Schema(Unicode("name.n", optional=True))
@@ -673,6 +683,14 @@ class SchemaTestCase(TestCase):
         self.assertRaises(InvalidParameterValueError,
                           schema.extract, {"name": "foo"})
 
+    def test_optional_list(self):
+        """
+        The default value of an optional L{List} is C{[]}.
+        """
+        schema = Schema(List("names", Unicode(), optional=True))
+        arguments, _ = schema.extract({})
+        self.assertEqual([], arguments.names)
+
     def test_list_of_list(self):
         """L{List}s can be nested."""
         schema = Schema(List("foo", List(item=Unicode())))
@@ -731,3 +749,43 @@ class SchemaTestCase(TestCase):
                     fields={"l": List(item=Integer())})})
         arguments, _ = schema.extract({"foo.l.1": "1", "foo.l.2": "2"})
         self.assertEqual([1, 2], arguments.foo.l)
+
+    def test_schema_conversion_list_name(self):
+        """
+        Backwards-compatibility conversion maintains the name of lists.
+        """
+        schema = Schema(Unicode("foos.N"))
+        self.assertEqual("foos", schema._parameters["foos"].name)
+
+    def test_schema_conversion_structure_name(self):
+        """
+        Backwards-compatibility conversion maintains the names of fields in
+        structures.
+        """
+        schema = Schema(Unicode("foos.N.field"),
+                        Unicode("foos.N.field2"))
+        self.assertEqual("anonymous_structure",
+                         schema._parameters["foos"].item.name)
+        self.assertEqual("foos.N.field",
+                         schema._parameters["foos"].item.fields["field"].name)
+        self.assertEqual("foos.N.field2",
+                         schema._parameters["foos"].item.fields["field2"].name)
+
+    def test_schema_conversion_optional_list(self):
+        """
+        Backwards-compatibility conversions maintains optional-ness of lists.
+        """
+        schema = Schema(Unicode("foos.N", optional=True))
+        arguments, rest = schema.extract({})
+        self.assertEqual([], arguments.foos)
+
+    def test_schema_conversion_optional_structure_field(self):
+        """
+        Backwards-compatibility conversion maintains optional-ness of structure
+        fields.
+        """
+        schema = Schema(Unicode("foos.N.field"),
+                        Unicode("foos.N.field2", optional=True, default=u"hi"))
+        arguments, rest = schema.extract({"foos.0.field": u"existent"})
+        self.assertEqual(u"existent", arguments.foos[0].field)
+        self.assertEqual(u"hi", arguments.foos[0].field2)

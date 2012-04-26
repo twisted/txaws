@@ -312,6 +312,8 @@ class List(Parameter):
             raise TypeError("Must provide item")
         super(List, self).__init__(name, optional=optional, default=default)
         self.item = item
+        if default is None:
+            self.default = []
 
     def parse(self, value):
         """
@@ -592,8 +594,8 @@ class Schema(object):
             else:
                 path = _prefix + '.' + k
             if isinstance(v, dict):
-                return self._convert_nest_to_flat(v, _result=_result,
-                                                  _prefix=path)
+                _result.update(self._convert_nest_to_flat(v, _result=_result,
+                                                          _prefix=path))
             else:
                 _result[path] = v
         return _result
@@ -633,9 +635,9 @@ class Schema(object):
         for parameter in parameters:
             crap[parameter.name] = parameter
         nest = self._convert_flat_to_nest(crap)
-        return self._secret_convert_old_schema(nest, 0).fields
+        return self._inner_convert_old_schema(nest, 0).fields
 
-    def _secret_convert_old_schema(self, mapping, depth):
+    def _inner_convert_old_schema(self, mapping, depth):
         """
         Internal recursion helper for L{_convert_old_schema}.
         """
@@ -644,14 +646,15 @@ class Schema(object):
         if depth % 2 == 0:
             fields = {}
             for k, v in mapping.iteritems():
-                fields[k] = self._secret_convert_old_schema(v, depth + 1)
-            return Structure(fields=fields)
+                fields[k] = self._inner_convert_old_schema(v, depth + 1)
+            return Structure("anonymous_structure", fields=fields)
         else:
             if not isinstance(mapping, dict):
                 raise TypeError("mapping %r must be a dict" % (mapping,))
             if not len(mapping) == 1:
-                raise ValueError("mapping %r must only have one element"
-                                 % (mapping,))
+                raise ValueError("Multiple different index names specified: %r"
+                                 % (mapping.keys(),))
             item = mapping.values()[0]
-            item = self._secret_convert_old_schema(item, depth + 1)
-            return List(item=item)
+            item = self._inner_convert_old_schema(item, depth + 1)
+            name = item.name.split('.', 1)[0]
+            return List(name=name, item=item, optional=item.optional)
