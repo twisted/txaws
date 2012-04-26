@@ -428,7 +428,8 @@ class SchemaTestCase(TestCase):
 
     def test_extract_with_goofy_numbered(self):
         """
-        L{Schema.extract} can handle parameters with numbered values.
+        L{Schema.extract} only uses the relative values of indices to determine
+        the index in the resultant list.
         """
         schema = Schema(Unicode("name.n"))
         arguments, _ = schema.extract({"name.5": "Joe", "name.10": "Tom"})
