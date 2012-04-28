@@ -7,6 +7,13 @@ from __future__ import absolute_import
 import gnomekeyring
 import gobject
 import gtk
+import sys
+    
+try:
+    import appindicator
+    have_appindicator = True
+except:
+    have_appindicator = False
 
 # DO NOT IMPORT twisted.internet, or things that import
 # twisted.internet.
@@ -14,19 +21,20 @@ import gtk
 
 from txaws.credentials import AWSCredentials
 
-
 __all__ = ["main"]
 
-
-class AWSStatusIcon(gtk.StatusIcon):
-    """A status icon shown when instances are running."""
-
+class AWSStatusIndicator(object):
     def __init__(self, reactor):
-        gtk.StatusIcon.__init__(self)
-        self.set_from_stock(gtk.STOCK_NETWORK)
-        self.set_visible(True)
+        # Even though we have appindicator, we may still need the status
+        # icon because we're on something that does not show them.
+        self.status_icon = gtk.StatusIcon()
+        self.status_icon.set_from_stock(gtk.STOCK_NETWORK)
+        self.status_icon.set_visible(True)
+        self.status_icon.connect("activate", self.on_activate)
+        if have_appindicator:
+            self.indicator = appindicator.Indicator("aws-status","stock_weather-cloudy",appindicator.CATEGORY_OTHER)
+            self.indicator.set_status(appindicator.STATUS_PASSIVE)
         self.reactor = reactor
-        self.connect("activate", self.on_activate)
         self.probing = False
         # Nested import because otherwise we get "reactor already installed".
         self.password_dialog = None
@@ -42,15 +50,21 @@ class AWSStatusIcon(gtk.StatusIcon):
             <ui>
              <menubar name="Menubar">
               <menu action="Menu">
+               <menuitem action="Refresh"/>
                <menuitem action="Stop instances"/>
+               <menuitem action="Quit"/>
               </menu>
              </menubar>
             </ui>
         """
         actions = [
             ("Menu",  None, "Menu"),
+            ("Refresh", gtk.STOCK_REFRESH, "_Refresh...", None,
+                "Refresh", self.on_activate),
             ("Stop instances", gtk.STOCK_STOP, "_Stop instances...", None,
                 "Stop instances", self.on_stop_instances),
+            ("Quit", gtk.STOCK_QUIT, "_Quit...", None,
+                "Quit", self.on_quit),
             ]
         ag = gtk.ActionGroup("Actions")
         ag.add_actions(actions)
@@ -59,7 +73,12 @@ class AWSStatusIcon(gtk.StatusIcon):
         self.manager.add_ui_from_string(menu)
         self.menu = self.manager.get_widget(
             "/Menubar/Menu/Stop instances").props.parent
-        self.connect("popup-menu", self.on_popup_menu)
+        self.status_icon.connect("popup-menu", self.on_popup_menu)
+        if have_appindicator:
+            self.indicator.set_menu(self.menu)
+        # kickstart things
+        self.on_activate(None)
+        self.queue_check()
 
     def set_region(self, creds):
         from txaws.service import AWSServiceRegion
@@ -127,6 +146,9 @@ class AWSStatusIcon(gtk.StatusIcon):
         deferred = self.client.describe_instances()
         deferred.addCallbacks(self.showhide, self.describe_error)
 
+    def on_quit(self, data):
+        self.reactor.stop()
+
     def on_popup_menu(self, status, button, time):
         self.menu.popup(None, None, None, button, time)
 
@@ -161,8 +183,22 @@ class AWSStatusIcon(gtk.StatusIcon):
         for instance in reservation:
             if instance.instance_state == "running":
                 active += 1
-        self.set_tooltip("AWS Status - %d instances" % active)
-        self.set_visible(active != 0)
+        if active == 0:
+            self.status_icon.set_visible(False)
+            if have_appindicator:
+                self.indicator.set_label("")
+                self.indicator.set_status(appindicator.STATUS_PASSIVE)
+        else:
+            if active == 1:
+                word = "instance"
+            else:
+                word = "instances"
+            self.status_icon.set_tooltip(
+                    "AWS Status - %d %s" % (active,word))
+            self.status_icon.set_visible(True)
+            if have_appindicator:
+                self.indicator.set_label("%d %s" % (active,word), "10 instances")
+                self.indicator.set_status(appindicator.STATUS_ACTIVE)
         self.queue_check()
 
     def shutdown_instances(self, reservation):
@@ -172,7 +208,7 @@ class AWSStatusIcon(gtk.StatusIcon):
 
     def queue_check(self):
         self.probing = False
-        self.reactor.callLater(60, self.on_activate, None)
+        self.reactor.callLater(29, self.on_activate, None)
 
     def show_error(self, error):
         # debugging output for now.
@@ -210,7 +246,7 @@ def main(argv, reactor=None):
         gtk2reactor.install()
         from twisted.internet import reactor
     try:
-        AWSStatusIcon(reactor)
+        AWSStatusIndicator(reactor)
         gobject.set_application_name("aws-status")
         reactor.run()
     except ValueError:
