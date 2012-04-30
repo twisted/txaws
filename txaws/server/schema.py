@@ -474,9 +474,8 @@ class Schema(object):
     def __init__(self, *_parameters, **kwargs):
         """Initialize a new L{Schema} instance.
 
-        Any number of L{Parameter} instances can be passed. The parameter path
-        is used as the target in L{Schema.extract} and L{Schema.bundle}. For
-        example::
+        Any number of L{Parameter} instances can be passed. The parameter names
+        are used in L{Schema.extract} and L{Schema.bundle}. For example::
 
           schema = Schema(name="SetName", parameters={"Name": Unicode()})
 
@@ -493,6 +492,20 @@ class Schema(object):
         means that the result of L{Schema.extract} would have a C{Names}
         attribute, which would itself contain a list of names. Similarly,
         L{Schema.bundle} would look for a C{Names} attribute.
+
+        Currently all parameters other than C{parameters} have no effect; they
+        are merely exposed as attributes of instances of Schema, and are able
+        to be overridden in L{extend}.
+
+        @param name: The name of the API call that this schema
+            represents. Accessible via the C{name} attribute.
+        @param doc: The documentation of this API Call. Accessible via the
+            C{doc} attribute.
+        @param result: A description of the result of this API call, in the
+            same format as C{parameters}. Accessible via the C{result}
+            attribute.
+        @param errors: A list of exception classes that the API can potentially
+            raise. Accessible via the C{result} attribute.
         """
         self.name = kwargs.pop('name', None)
         self.doc = kwargs.pop('doc', None)
