@@ -875,7 +875,6 @@ class SchemaTestCase(TestCase):
         self.assertEqual(5, arguments.id)
         self.assertEqual(u'foo', arguments.scope)
 
-
     def test_extend_maintains_existing_attributes(self):
         """
         If additional schema attributes aren't passed to L{Schema.extend}, they
