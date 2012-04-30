@@ -917,3 +917,11 @@ class SchemaTestCase(TestCase):
         self.assertEqual(
             {'name': u'foo', 'id': 5},
             result_structure.coerce({'name': u'foo', 'id': '5'}))
+
+    def test_extend_errors(self):
+        """
+        Errors can be extended with L{Schema.extend}.
+        """
+        schema = Schema(parameters={}, errors=[APIError])
+        schema2 = schema.extend(errors=[ZeroDivisionError])
+        self.assertEqual([APIError, ZeroDivisionError], schema2.errors)

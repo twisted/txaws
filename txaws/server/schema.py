@@ -497,15 +497,17 @@ class Schema(object):
         are merely exposed as attributes of instances of Schema, and are able
         to be overridden in L{extend}.
 
-        @param name: The name of the API call that this schema
+        @param name: (keyword) The name of the API call that this schema
             represents. Accessible via the C{name} attribute.
-        @param doc: The documentation of this API Call. Accessible via the
-            C{doc} attribute.
-        @param result: A description of the result of this API call, in the
-            same format as C{parameters}. Accessible via the C{result}
+        @param parameters: (keyword) The parameters of the API, as a mapping
+            of parameter names to L{Parameter} instances.
+        @param doc: (keyword) The documentation of this API Call. Accessible
+            via the C{doc} attribute.
+        @param result: (keyword) A description of the result of this API call,
+            in the same format as C{parameters}. Accessible via the C{result}
             attribute.
-        @param errors: A list of exception classes that the API can potentially
-            raise. Accessible via the C{result} attribute.
+        @param errors: (keyword) A list of exception classes that the API can
+            potentially raise. Accessible via the C{result} attribute.
         """
         self.name = kwargs.pop('name', None)
         self.doc = kwargs.pop('doc', None)
@@ -628,17 +630,23 @@ class Schema(object):
 
     def extend(self, *schema_items, **kwargs):
         """
-        Add any number of schema items to a new schema. Takes the same
-        arguments as the constructor.
+        Add any number of schema items to a new schema.
+
+        Takes the same arguments as the constructor, and returns a new
+        L{Schema} instance.
+
+        If parameters, result, or errors is specified, they will be merged with
+        the existing parameters, result, or errors.
         """
         new_kwargs = {
             'name': self.name,
             'doc': self.doc,
             'parameters': self._parameters.copy(),
             'result': self.result.copy() if self.result else {},
-            'errors': self.errors}
+            'errors': self.errors[:] if self.errors else []}
         new_kwargs['parameters'].update(kwargs.pop('parameters', {}))
         new_kwargs['result'].update(kwargs.pop('result', {}))
+        new_kwargs['errors'].extend(kwargs.pop('errors', []))
         new_kwargs.update(kwargs)
 
         if schema_items:
