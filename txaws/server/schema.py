@@ -322,7 +322,9 @@ class List(Parameter):
         """
         indices = []
         if not isinstance(value, dict):
-            raise InvalidParameterValueError("%r should be a dict." % (value,))
+            # We interpret non-list inputs as a list of one element, for
+            # compatibility with certain EC2 APIs.
+            return [self.item.coerce(value)]
         for index in value.keys():
             try:
                 indices.append(int(index))
