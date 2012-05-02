@@ -79,10 +79,12 @@ class ParameterTestCase(TestCase):
         required but not present in the request.
         """
         parameter = Parameter("Test")
+        parameter.kind = "testy kind"
         error = self.assertRaises(APIError, parameter.coerce, None)
         self.assertEqual(400, error.status)
         self.assertEqual("MissingParameter", error.code)
-        self.assertEqual("The request must contain the parameter Test",
+        self.assertEqual("The request must contain the parameter Test "
+                         "(testy kind)",
                          error.message)
 
     def test_coerce_with_default(self):

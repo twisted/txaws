@@ -344,7 +344,8 @@ class QueryAPITestCase(TestCase):
             errors = self.flushLoggedErrors()
             self.assertEquals(0, len(errors))
             self.assertEqual("MissingParameter - The request must contain "
-                             "the parameter Action", request.response)
+                             "the parameter Action (unicode)",
+                             request.response)
             self.assertEqual(400, request.code)
 
         return self.api.handle(request).addCallback(check)
