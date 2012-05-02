@@ -79,10 +79,12 @@ class ParameterTestCase(TestCase):
         required but not present in the request.
         """
         parameter = Parameter("Test")
+        parameter.kind = "testy kind"
         error = self.assertRaises(APIError, parameter.coerce, None)
         self.assertEqual(400, error.status)
         self.assertEqual("MissingParameter", error.code)
-        self.assertEqual("The request must contain the parameter Test",
+        self.assertEqual("The request must contain the parameter Test "
+                         "(testy kind)",
                          error.message)
 
     def test_coerce_with_default(self):
@@ -460,10 +462,11 @@ class SchemaTestCase(TestCase):
 
     def test_extract_with_single_numbered(self):
         """
-        L{Schema.extract} can handle a single parameter with a numbered value.
+        L{Schema.extract} can handle an un-numbered argument passed in to a
+        numbered parameter.
         """
         schema = Schema(Unicode("name.n"))
-        arguments, _ = schema.extract({"name.0": "Joe"})
+        arguments, _ = schema.extract({"name": "Joe"})
         self.assertEqual("Joe", arguments.name[0])
 
     def test_extract_complex(self):
@@ -695,15 +698,6 @@ class SchemaTestCase(TestCase):
         schema = Schema(List("foo", Integer()))
         arguments, _ = schema.extract({"foo.1": "1", "foo.2": "2"})
         self.assertEqual([1, 2], arguments.foo)
-
-    def test_non_list(self):
-        """
-        When a non-list argument is passed to a L{List} parameter, a
-        L{InvalidParameterValueError} is raised.
-        """
-        schema = Schema(List("name", Unicode()))
-        self.assertRaises(InvalidParameterValueError,
-                          schema.extract, {"name": "foo"})
 
     def test_optional_list(self):
         """

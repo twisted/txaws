@@ -21,8 +21,10 @@ class MissingParameterError(SchemaError):
     @param name: The name of the missing parameter.
     """
 
-    def __init__(self, name):
+    def __init__(self, name, kind=None):
         message = "The request must contain the parameter %s" % name
+        if kind is not None:
+            message += " (%s)" % (kind,)
         super(MissingParameterError, self).__init__(message)
 
 
@@ -88,6 +90,7 @@ class Parameter(object):
     """
 
     supports_multiple = False
+    kind = None
 
     def __init__(self, name=None, optional=False, default=None,
                  min=None, max=None, allow_none=False, validator=None,
@@ -115,7 +118,7 @@ class Parameter(object):
                 value = ""
         if value == "":
             if not self.allow_none:
-                raise MissingParameterError(self.name)
+                raise MissingParameterError(self.name, kind=self.kind)
             return self.default
         try:
             self._check_range(value)
@@ -329,7 +332,9 @@ class List(Parameter):
         """
         indices = []
         if not isinstance(value, dict):
-            raise InvalidParameterValueError("%r should be a dict." % (value,))
+            # We interpret non-list inputs as a list of one element, for
+            # compatibility with certain EC2 APIs.
+            return [self.item.coerce(value)]
         for index in value.keys():
             try:
                 indices.append(int(index))
