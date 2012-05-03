@@ -35,7 +35,7 @@ Eucalyptus clouds.
 setup(
     name="txAWS",
     version=version.txaws,
-    description="Async library for EC2 and Eucalyptus",
+    description="Async library for EC2, OpenStack, and Eucalyptus",
     author="txAWS Developers",
     author_email="txaws-discuss@lists.launchpad.net",
     url="https://launchpad.net/txaws",

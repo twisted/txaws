@@ -25,6 +25,8 @@ sample_required_describe_instances_result = """\
           <privateDnsName>domU-12-31-39-03-15-11.compute-1.internal\
 </privateDnsName>
           <dnsName>ec2-75-101-245-65.compute-1.amazonaws.com</dnsName>
+          <privateIpAddress>10.0.0.1</privateIpAddress>
+          <ipAddress>75.101.245.65</ipAddress>
           <instanceType>c1.xlarge</instanceType>
           <launchTime>2009-04-27T02:23:18.000Z</launchTime>
           <placement>
@@ -62,6 +64,8 @@ sample_describe_instances_result = """\
           <privateDnsName>domU-12-31-39-03-15-11.compute-1.internal\
 </privateDnsName>
           <dnsName>ec2-75-101-245-65.compute-1.amazonaws.com</dnsName>
+          <privateIpAddress>10.0.0.1</privateIpAddress>
+          <ipAddress>75.101.245.65</ipAddress>
           <reason/>
           <keyName>keyname</keyName>
           <amiLaunchIndex>0</amiLaunchIndex>
