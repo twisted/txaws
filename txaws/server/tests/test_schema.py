@@ -837,7 +837,7 @@ class SchemaTestCase(TestCase):
         self.assertEqual("GetStuff", schema.name)
         self.assertEqual("Get the stuff.", schema.doc)
         self.assertEqual(result, schema.result)
-        self.assertEqual(errors, schema.errors)
+        self.assertEqual(set(errors), schema.errors)
 
     def test_extend_with_additional_schema_attributes(self):
         """
@@ -863,7 +863,7 @@ class SchemaTestCase(TestCase):
         self.assertEqual("GetStuff2", schema2.name)
         self.assertEqual("Get stuff 2", schema2.doc)
         self.assertEqual(result, schema2.result)
-        self.assertEqual(errors, schema2.errors)
+        self.assertEqual(set(errors), schema2.errors)
 
         arguments, _ = schema2.extract({'id': '5', 'scope': u'foo'})
         self.assertEqual(5, arguments.id)
@@ -892,7 +892,7 @@ class SchemaTestCase(TestCase):
         self.assertEqual("GetStuff", schema2.name)
         self.assertEqual("Get the stuff.", schema2.doc)
         self.assertEqual(result, schema2.result)
-        self.assertEqual(errors, schema2.errors)
+        self.assertEqual(set(errors), schema2.errors)
 
         arguments, _ = schema2.extract({'id': '5', 'scope': u'foo'})
         self.assertEqual(5, arguments.id)
@@ -918,4 +918,4 @@ class SchemaTestCase(TestCase):
         """
         schema = Schema(parameters={}, errors=[APIError])
         schema2 = schema.extend(errors=[ZeroDivisionError])
-        self.assertEqual([APIError, ZeroDivisionError], schema2.errors)
+        self.assertEqual(set([APIError, ZeroDivisionError]), schema2.errors)

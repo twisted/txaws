@@ -511,13 +511,14 @@ class Schema(object):
         @param result: (keyword) A description of the result of this API call,
             in the same format as C{parameters}. Accessible via the C{result}
             attribute.
-        @param errors: (keyword) A list of exception classes that the API can
-            potentially raise. Accessible via the C{result} attribute.
+        @param errors: (keyword) A sequence of exception classes that the API
+            can potentially raise. Accessible as a L{set} via the C{errors}
+            attribute.
         """
         self.name = kwargs.pop('name', None)
         self.doc = kwargs.pop('doc', None)
         self.result = kwargs.pop('result', None)
-        self.errors = kwargs.pop('errors', [])
+        self.errors = set(kwargs.pop('errors', []))
         if 'parameters' in kwargs:
             if len(_parameters) > 0:
                 raise TypeError("parameters= must only be passed "
@@ -648,10 +649,10 @@ class Schema(object):
             'doc': self.doc,
             'parameters': self._parameters.copy(),
             'result': self.result.copy() if self.result else {},
-            'errors': self.errors[:] if self.errors else []}
+            'errors': self.errors.copy() if self.errors else set()}
         new_kwargs['parameters'].update(kwargs.pop('parameters', {}))
         new_kwargs['result'].update(kwargs.pop('result', {}))
-        new_kwargs['errors'].extend(kwargs.pop('errors', []))
+        new_kwargs['errors'].update(kwargs.pop('errors', set()))
         new_kwargs.update(kwargs)
 
         if schema_items:
