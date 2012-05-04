@@ -10,7 +10,7 @@ from txaws.server.exception import APIError
 from txaws.server.schema import (
     Arguments, Bool, Date, Enum, Integer, Parameter, RawStr, Schema, Unicode,
     List, Structure,
-    InconsistentParameterError, InvalidParameterValueError)
+    InconsistentParameterError)
 
 
 class ArgumentsTestCase(TestCase):
@@ -711,7 +711,8 @@ class SchemaTestCase(TestCase):
         """
         The default of a L{List} can be specified as a list.
         """
-        schema = Schema(List("names", Unicode(), optional=True, default=[u"foo", u"bar"]))
+        schema = Schema(List("names", Unicode(), optional=True,
+                             default=[u"foo", u"bar"]))
         arguments, _ = schema.extract({})
         self.assertEqual([u"foo", u"bar"], arguments.names)
 
