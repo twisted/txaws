@@ -93,7 +93,8 @@ class Parameter(object):
     kind = None
 
     def __init__(self, name=None, optional=False, default=None,
-                 min=None, max=None, allow_none=False, validator=None):
+                 min=None, max=None, allow_none=False, validator=None,
+                 doc=None):
         self.name = name
         self.optional = optional
         self.default = default
@@ -101,6 +102,7 @@ class Parameter(object):
         self.max = max
         self.allow_none = allow_none
         self.validator = validator
+        self.doc = doc
 
     def coerce(self, value):
         """Coerce a single value according to this parameter's settings.
@@ -208,9 +210,10 @@ class Integer(Parameter):
     greater_than_max_template = "Value exceeds maximum of %s."
 
     def __init__(self, name=None, optional=False, default=None,
-                 min=0, max=None, allow_none=False, validator=None):
+                 min=0, max=None, allow_none=False, validator=None,
+                 doc=None):
         super(Integer, self).__init__(name, optional, default, min, max,
-                                      allow_none, validator)
+                                      allow_none, validator, doc=doc)
 
     def parse(self, value):
         return int(value)
@@ -253,8 +256,10 @@ class Enum(Parameter):
 
     kind = "enum"
 
-    def __init__(self, name=None, mapping=None, optional=False, default=None):
-        super(Enum, self).__init__(name, optional=optional, default=default)
+    def __init__(self, name=None, mapping=None, optional=False, default=None,
+                 doc=None):
+        super(Enum, self).__init__(name, optional=optional, default=default,
+                                   doc=doc)
         if mapping is None:
             raise TypeError("Must provide mapping")
         self.mapping = mapping
@@ -306,14 +311,16 @@ class List(Parameter):
     kind = "list"
     supports_multiple = True
 
-    def __init__(self, name=None, item=None, optional=False, default=None):
+    def __init__(self, name=None, item=None, optional=False, default=None,
+                 doc=None):
         """
         @param item: A L{Parameter} instance which will be used to parse and
             format the values in the list.
         """
         if item is None:
             raise TypeError("Must provide item")
-        super(List, self).__init__(name, optional=optional, default=default)
+        super(List, self).__init__(name, optional=optional, default=default,
+                                   doc=doc)
         self.item = item
         if default is None:
             self.default = []
@@ -368,14 +375,15 @@ class Structure(Parameter):
     kind = "structure"
     supports_multiple = True
 
-    def __init__(self, name=None, fields=None, optional=False, default=None):
+    def __init__(self, name=None, fields=None, optional=False, default=None,
+                 doc=None):
         """
         @param fields: A mapping of field name to field L{Parameter} instance.
         """
         if fields is None:
             raise TypeError("Must provide fields")
         super(Structure, self).__init__(name, optional=optional,
-                                        default=default)
+                                        default=default, doc=doc)
         self.fields = fields
 
     def parse(self, value):
@@ -471,11 +479,10 @@ class Schema(object):
     def __init__(self, *_parameters, **kwargs):
         """Initialize a new L{Schema} instance.
 
-        Any number of L{Parameter} instances can be passed. The parameter path
-        is used as the target in L{Schema.extract} and L{Schema.bundle}. For
-        example::
+        Any number of L{Parameter} instances can be passed. The parameter names
+        are used in L{Schema.extract} and L{Schema.bundle}. For example::
 
-          schema = Schema(Unicode('Name'))
+          schema = Schema(name="SetName", parameters={"Name": Unicode()})
 
         means that the result of L{Schema.extract} would have a C{Name}
         attribute. Similarly, L{Schema.bundle} would look for a C{Name}
@@ -483,12 +490,35 @@ class Schema(object):
 
         A more complex example::
 
-          schema = Schema(List('Names', item=Unicode()))
+          schema = Schema(
+              name="SetNames",
+              parameters={"Names": List(item=Unicode())})
 
         means that the result of L{Schema.extract} would have a C{Names}
         attribute, which would itself contain a list of names. Similarly,
         L{Schema.bundle} would look for a C{Names} attribute.
+
+        Currently all parameters other than C{parameters} have no effect; they
+        are merely exposed as attributes of instances of Schema, and are able
+        to be overridden in L{extend}.
+
+        @param name: (keyword) The name of the API call that this schema
+            represents. Accessible via the C{name} attribute.
+        @param parameters: (keyword) The parameters of the API, as a mapping
+            of parameter names to L{Parameter} instances.
+        @param doc: (keyword) The documentation of this API Call. Accessible
+            via the C{doc} attribute.
+        @param result: (keyword) A description of the result of this API call,
+            in the same format as C{parameters}. Accessible via the C{result}
+            attribute.
+        @param errors: (keyword) A sequence of exception classes that the API
+            can potentially raise. Accessible as a L{set} via the C{errors}
+            attribute.
         """
+        self.name = kwargs.pop('name', None)
+        self.doc = kwargs.pop('doc', None)
+        self.result = kwargs.pop('result', None)
+        self.errors = set(kwargs.pop('errors', []))
         if 'parameters' in kwargs:
             if len(_parameters) > 0:
                 raise TypeError("parameters= must only be passed "
@@ -604,17 +634,31 @@ class Schema(object):
                 _result[path] = v
         return _result
 
-    def extend(self, *schema_items):
+    def extend(self, *schema_items, **kwargs):
         """
         Add any number of schema items to a new schema.
+
+        Takes the same arguments as the constructor, and returns a new
+        L{Schema} instance.
+
+        If parameters, result, or errors is specified, they will be merged with
+        the existing parameters, result, or errors.
         """
-        parameters = self._parameters.values()
-        for item in schema_items:
-            if isinstance(item, Parameter):
-                parameters.append(item)
-            else:
-                raise TypeError("Illegal argument %s" % item)
-        return Schema(*parameters)
+        new_kwargs = {
+            'name': self.name,
+            'doc': self.doc,
+            'parameters': self._parameters.copy(),
+            'result': self.result.copy() if self.result else {},
+            'errors': self.errors.copy() if self.errors else set()}
+        new_kwargs['parameters'].update(kwargs.pop('parameters', {}))
+        new_kwargs['result'].update(kwargs.pop('result', {}))
+        new_kwargs['errors'].update(kwargs.pop('errors', set()))
+        new_kwargs.update(kwargs)
+
+        if schema_items:
+            parameters = self._convert_old_schema(schema_items)
+            new_kwargs['parameters'].update(parameters)
+        return Schema(**new_kwargs)
 
     def _convert_old_schema(self, parameters):
         """

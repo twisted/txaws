@@ -10,7 +10,7 @@ from txaws.server.exception import APIError
 from txaws.server.schema import (
     Arguments, Bool, Date, Enum, Integer, Parameter, RawStr, Schema, Unicode,
     List, Structure,
-    InconsistentParameterError, InvalidParameterValueError)
+    InconsistentParameterError)
 
 
 class ArgumentsTestCase(TestCase):
@@ -190,6 +190,23 @@ class ParameterTestCase(TestCase):
         parameter.parse = lambda value: value
         parameter.kind = "test_parameter"
         self.assertEqual("foo", parameter.coerce("foo"))
+
+    def test_parameter_doc(self):
+        """
+        All L{Parameter} subclasses accept a 'doc' keyword argument.
+        """
+        parameters = [
+            Unicode(doc="foo"),
+            RawStr(doc="foo"),
+            Integer(doc="foo"),
+            Bool(doc="foo"),
+            Enum(mapping={"hey": 1}, doc="foo"),
+            Date(doc="foo"),
+            List(item=Integer(), doc="foo"),
+            Structure(fields={}, doc="foo")
+            ]
+        for parameter in parameters:
+            self.assertEqual("foo", parameter.doc)
 
 
 class UnicodeTestCase(TestCase):
@@ -694,7 +711,8 @@ class SchemaTestCase(TestCase):
         """
         The default of a L{List} can be specified as a list.
         """
-        schema = Schema(List("names", Unicode(), optional=True, default=[u"foo", u"bar"]))
+        schema = Schema(List("names", Unicode(), optional=True,
+                             default=[u"foo", u"bar"]))
         arguments, _ = schema.extract({})
         self.assertEqual([u"foo", u"bar"], arguments.names)
 
@@ -796,3 +814,109 @@ class SchemaTestCase(TestCase):
         arguments, _ = schema.extract({"foos.0.field": u"existent"})
         self.assertEqual(u"existent", arguments.foos[0].field)
         self.assertEqual(u"hi", arguments.foos[0].field2)
+
+    def test_additional_schema_attributes(self):
+        """
+        Additional data can be specified on the Schema class for specifying a
+        more rich schema.
+        """
+        result = {
+                'id': Integer(),
+                'name': Unicode(),
+                'data': RawStr()}
+        errors = [APIError]
+
+        schema = Schema(
+            name="GetStuff",
+            doc="""Get the stuff.""",
+            parameters={
+                'id': Integer(),
+                'scope': Unicode()},
+            result=result,
+            errors=errors)
+
+        self.assertEqual("GetStuff", schema.name)
+        self.assertEqual("Get the stuff.", schema.doc)
+        self.assertEqual(result, schema.result)
+        self.assertEqual(set(errors), schema.errors)
+
+    def test_extend_with_additional_schema_attributes(self):
+        """
+        The additional schema attributes can be passed to L{Schema.extend}.
+        """
+        result = {
+                'id': Integer(),
+                'name': Unicode(),
+                'data': RawStr()}
+        errors = [APIError]
+
+        schema = Schema(
+            name="GetStuff",
+            parameters={"id": Integer()})
+
+        schema2 = schema.extend(
+            name="GetStuff2",
+            doc="Get stuff 2",
+            parameters={'scope': Unicode()},
+            result=result,
+            errors=errors)
+
+        self.assertEqual("GetStuff2", schema2.name)
+        self.assertEqual("Get stuff 2", schema2.doc)
+        self.assertEqual(result, schema2.result)
+        self.assertEqual(set(errors), schema2.errors)
+
+        arguments, _ = schema2.extract({'id': '5', 'scope': u'foo'})
+        self.assertEqual(5, arguments.id)
+        self.assertEqual(u'foo', arguments.scope)
+
+    def test_extend_maintains_existing_attributes(self):
+        """
+        If additional schema attributes aren't passed to L{Schema.extend}, they
+        stay the same.
+        """
+        result = {
+                'id': Integer(),
+                'name': Unicode(),
+                'data': RawStr()}
+        errors = [APIError]
+
+        schema = Schema(
+            name="GetStuff",
+            doc="""Get the stuff.""",
+            parameters={'id': Integer()},
+            result=result,
+            errors=errors)
+
+        schema2 = schema.extend(parameters={'scope': Unicode()})
+
+        self.assertEqual("GetStuff", schema2.name)
+        self.assertEqual("Get the stuff.", schema2.doc)
+        self.assertEqual(result, schema2.result)
+        self.assertEqual(set(errors), schema2.errors)
+
+        arguments, _ = schema2.extract({'id': '5', 'scope': u'foo'})
+        self.assertEqual(5, arguments.id)
+        self.assertEqual(u'foo', arguments.scope)
+
+    def test_extend_result(self):
+        """
+        Result fields can also be extended with L{Schema.extend}.
+        """
+        schema = Schema(
+            result={'name': Unicode()}
+            )
+        schema2 = schema.extend(
+            result={'id': Integer()})
+        result_structure = Structure(fields=schema2.result)
+        self.assertEqual(
+            {'name': u'foo', 'id': 5},
+            result_structure.coerce({'name': u'foo', 'id': '5'}))
+
+    def test_extend_errors(self):
+        """
+        Errors can be extended with L{Schema.extend}.
+        """
+        schema = Schema(parameters={}, errors=[APIError])
+        schema2 = schema.extend(errors=[ZeroDivisionError])
+        self.assertEqual(set([APIError, ZeroDivisionError]), schema2.errors)
