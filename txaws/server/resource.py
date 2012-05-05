@@ -12,7 +12,7 @@ from txaws.ec2.client import Signature
 from txaws.service import AWSServiceEndpoint
 from txaws.credentials import AWSCredentials
 from txaws.server.schema import (
-    Schema, Unicode, Integer, Enum, RawStr, Date)
+    Schema, Unicode, Integer, RawStr, Date)
 from txaws.server.exception import APIError
 from txaws.server.call import Call
 
@@ -277,7 +277,8 @@ class QueryAPI(Resource):
                            "RequestExpired",
                            "Request has expired. Expires date is %s" % (
                                 args['expires'].strftime(self.time_format)))
-        if args['timestamp'] and args['timestamp'] + timedelta(minutes=15) < utc_now:
+        if (args['timestamp']
+            and args['timestamp'] + timedelta(minutes=15) < utc_now):
             raise APIError(400,
                            "RequestExpired",
                            "Request has expired. Timestamp date is %s" % (
