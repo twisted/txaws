@@ -2,22 +2,26 @@ from cStringIO import StringIO
 from datetime import datetime
 
 from dateutil.tz import tzutc
+from dateutil.parser import parse
 
 try:
     import json
 except ImportError:
     import simplejson as json
 
+
 from twisted.trial.unittest import TestCase
 from twisted.python.reflect import safe_str
 
 from txaws.credentials import AWSCredentials
 from txaws.service import AWSServiceEndpoint
-from txaws.ec2.client import Query
+from txaws.ec2.client import Query, Signature
 from txaws.server.method import Method
 from txaws.server.registry import Registry
 from txaws.server.resource import QueryAPI
 from txaws.server.exception import APIError
+from txaws import version
+from txaws.util import iso8601time
 
 
 class FakeRequest(object):
@@ -102,6 +106,30 @@ class TestQueryAPI(QueryAPI):
         return str("%s - %s" % (error.code, safe_str(error.message)))
 
 
+class AlternativeWireFormatQueryAPI(TestQueryAPI):
+    def __init__(self, registry):
+        TestQueryAPI.__init__(self, registry=registry)
+
+    def get_call_arguments(self, request):
+        result = {
+            'action': 'SomeAction',
+            'version': version.ec2_api,
+            'signature_version': 2,
+            'expires': None,
+            'timestamp': parse(iso8601time(None)),
+            'access_key_id': request.args["access_key"][0],
+            'signature_method': 'Hmacsha256',
+            'signature_version': 2,
+            'signature': request.args["signature"][0],
+            }
+        params = dict((k, v[-1]) for k, v in request.args.iteritems())
+        raw = params.copy()
+        raw.pop("signature")
+        return {"transport_args": result,
+                "handler_args": params,
+                "raw_args": raw}
+
+
 class QueryAPITestCase(TestCase):
 
     def setUp(self):
@@ -129,6 +157,56 @@ class QueryAPITestCase(TestCase):
 
         self.api.principal = TestPrincipal(creds)
         return self.api.handle(request).addCallback(check)
+
+    def test_handle_custom_get_call_arguments(self):
+        """
+        L{QueryAPI.handle} uses L{QueryAPI.get_call_arguments} to get the
+        arguments for a call.
+        """
+        creds = AWSCredentials("access", "secret")
+        endpoint = AWSServiceEndpoint("http://uri")
+        api = AlternativeWireFormatQueryAPI(self.registry)
+        params = {"foo": "bar", "access_key": creds.access_key}
+        signature = Signature(
+            creds, endpoint, params.copy(),
+            signature_method='Hmacsha256',
+            signature_version=2)
+        params["signature"] = signature.compute()
+        request = FakeRequest(params, endpoint)
+
+        def check(ignored):
+            self.assertTrue(request.finished)
+            self.assertEqual("data", request.response)
+            self.assertEqual("4", request.headers["Content-Length"])
+            self.assertEqual("text/plain", request.headers["Content-Type"])
+            self.assertEqual(200, request.code)
+
+        api.principal = TestPrincipal(creds)
+        return api.handle(request).addCallback(check)
+
+    def test_signature_verification_custom_get_call_arguments(self):
+        """
+        The third value returned from L{QueryAPI.get_call_arguments} is used
+        for signature verification.
+        """
+        creds = AWSCredentials("access", "secret")
+        endpoint = AWSServiceEndpoint("http://uri")
+        api = AlternativeWireFormatQueryAPI(self.registry)
+        params = {"foo": "bar", "access_key": creds.access_key}
+        signature = Signature(
+            creds, endpoint, params.copy(),
+            signature_method='Hmacsha256',
+            signature_version=2)
+        params["signature"] = signature.compute()
+        params["foo"] = "HACKEDNOTBAR"
+        request = FakeRequest(params, endpoint)
+
+        def check(ignored):
+            self.assertTrue(request.finished)
+            self.assertIn("SignatureDoesNotMatch", request.response)
+
+        api.principal = TestPrincipal(creds)
+        return api.handle(request).addCallback(check)
 
     def test_handle_with_dump_result(self):
         """

@@ -44,8 +44,8 @@ class QueryAPI(Resource):
         Date("Timestamp", optional=True),
         Date("Expires", optional=True),
         RawStr("Version", optional=True),
-        Enum("SignatureMethod", {"HmacSHA256": "sha256", "HmacSHA1": "sha1"},
-             optional=True, default="HmacSHA256"),
+        Unicode("SignatureMethod",
+                optional=True, default="HmacSHA256"),
         Unicode("Signature"),
         Integer("SignatureVersion", optional=True, default=2))
 
@@ -163,12 +163,14 @@ class QueryAPI(Resource):
 
     def get_call_arguments(self, request):
         """
-        Get call arguments from a request. Override this if you want to use an
-        alternative wire format.
+        Get call arguments from a request. Override this if you want to use a
+        wire format different from AWS's.
 
-        The return value is a two-tuple of 'transport' arguments and
-        'application' arguments. The 'transport' arguments must contain the
-        following keys:
+        The return value is a dictionary with three keys: 'transport_args',
+        'handler_args', and 'raw_args'.
+
+        The value of 'transport_args' must be a dictionary with the following
+        keys:
 
         - action
         - access_key_id
@@ -179,21 +181,32 @@ class QueryAPI(Resource):
         - signature
         - signature_version
 
-        The application arguments are any arguments that are meant to be passed
-        to the action handler.
+        The value of 'handler_args' should be the application arguments that
+        are meant to be passed to the action handler.
+
+        The value of 'raw_args', the unprocessed arguments, are used for
+        signature verification. This should be the same dictionary of data that
+        the client used to sign the request. Note that this data must not
+        contain the signature itself.
         """
         params = dict((k, v[-1]) for k, v in request.args.iteritems())
         args, rest = self.schema.extract(params)
+        # Get rid of Signature so it doesn't mess with signature verification
+        params.pop("Signature")
         result = {
-            'action': args.Action,
-            'access_key_id': args.AWSAccessKeyId,
-            'timestamp': args.Timestamp,
-            'expires': args.Expires,
-            'version': args.Version,
-            'signature_method': args.SignatureMethod,
-            'signature': args.Signature,
-            'signature_version': args.SignatureVersion}
-        return result, rest
+            "transport_args": {
+                'action': args.Action,
+                'access_key_id': args.AWSAccessKeyId,
+                'timestamp': args.Timestamp,
+                'expires': args.Expires,
+                'version': args.Version,
+                'signature_method': args.SignatureMethod,
+                'signature': args.Signature,
+                'signature_version': args.SignatureVersion},
+            "handler_args": rest,
+            "raw_args": params
+        }
+        return result
 
     def _validate(self, request):
         """Validate an L{HTTPRequest} before executing it.
@@ -210,8 +223,10 @@ class QueryAPI(Resource):
         @return: The validated L{Call}, set with its default arguments and the
            the principal of the accessing L{User}.
         """
-        params = dict((k, v[-1]) for k, v in request.args.iteritems())
-        args, rest = self.get_call_arguments(request)
+        call_arguments = self.get_call_arguments(request)
+        args = call_arguments["transport_args"]
+        rest = call_arguments["handler_args"]
+        params = call_arguments["raw_args"]
 
         self._validate_generic_parameters(args)
 
@@ -285,8 +300,10 @@ class QueryAPI(Resource):
         if self.path is not None:
             path = "%s/%s" % (self.path.rstrip("/"), path.lstrip("/"))
         endpoint.set_path(path)
-        params.pop("Signature")
-        signature = Signature(creds, endpoint, params)
+        signature = Signature(creds, endpoint, params,
+                              signature_method=args['signature_method'],
+                              signature_version=args['signature_version']
+                              )
         if signature.compute() != args['signature']:
             raise APIError(403, "SignatureDoesNotMatch",
                            "The request signature we calculated does not "
