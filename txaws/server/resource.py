@@ -12,7 +12,7 @@ from txaws.ec2.client import Signature
 from txaws.service import AWSServiceEndpoint
 from txaws.credentials import AWSCredentials
 from txaws.server.schema import (
-    Schema, Unicode, Integer, Enum, RawStr, Date)
+    Schema, Unicode, Integer, RawStr, Date)
 from txaws.server.exception import APIError
 from txaws.server.call import Call
 
@@ -44,8 +44,8 @@ class QueryAPI(Resource):
         Date("Timestamp", optional=True),
         Date("Expires", optional=True),
         RawStr("Version", optional=True),
-        Enum("SignatureMethod", {"HmacSHA256": "sha256", "HmacSHA1": "sha1"},
-             optional=True, default="HmacSHA256"),
+        Unicode("SignatureMethod",
+                optional=True, default="HmacSHA256"),
         Unicode("Signature"),
         Integer("SignatureVersion", optional=True, default=2))
 
@@ -161,6 +161,53 @@ class QueryAPI(Resource):
         """Return a C{datetime} object with the current time in UTC."""
         return datetime.now(tzutc())
 
+    def get_call_arguments(self, request):
+        """
+        Get call arguments from a request. Override this if you want to use a
+        wire format different from AWS's.
+
+        The return value is a dictionary with three keys: 'transport_args',
+        'handler_args', and 'raw_args'.
+
+        The value of 'transport_args' must be a dictionary with the following
+        keys:
+
+        - action
+        - access_key_id
+        - timestamp
+        - expires
+        - version
+        - signature_method
+        - signature
+        - signature_version
+
+        The value of 'handler_args' should be the application arguments that
+        are meant to be passed to the action handler.
+
+        The value of 'raw_args', the unprocessed arguments, are used for
+        signature verification. This should be the same dictionary of data that
+        the client used to sign the request. Note that this data must not
+        contain the signature itself.
+        """
+        params = dict((k, v[-1]) for k, v in request.args.iteritems())
+        args, rest = self.schema.extract(params)
+        # Get rid of Signature so it doesn't mess with signature verification
+        params.pop("Signature")
+        result = {
+            "transport_args": {
+                "action": args.Action,
+                "access_key_id": args.AWSAccessKeyId,
+                "timestamp": args.Timestamp,
+                "expires": args.Expires,
+                "version": args.Version,
+                "signature_method": args.SignatureMethod,
+                "signature": args.Signature,
+                "signature_version": args.SignatureVersion},
+            "handler_args": rest,
+            "raw_args": params
+        }
+        return result
+
     def _validate(self, request):
         """Validate an L{HTTPRequest} before executing it.
 
@@ -176,8 +223,10 @@ class QueryAPI(Resource):
         @return: The validated L{Call}, set with its default arguments and the
            the principal of the accessing L{User}.
         """
-        params = dict((k, v[-1]) for k, v in request.args.iteritems())
-        args, rest = self.schema.extract(params)
+        call_arguments = self.get_call_arguments(request)
+        args = call_arguments["transport_args"]
+        rest = call_arguments["handler_args"]
+        params = call_arguments["raw_args"]
 
         self._validate_generic_parameters(args)
 
@@ -186,11 +235,11 @@ class QueryAPI(Resource):
             self._validate_signature(request, principal, args, params)
             return Call(raw_params=rest,
                         principal=principal,
-                        action=args.Action,
-                        version=args.Version,
+                        action=args["action"],
+                        version=args["version"],
                         id=request.id)
 
-        deferred = maybeDeferred(self.get_principal, args.AWSAccessKeyId)
+        deferred = maybeDeferred(self.get_principal, args["access_key_id"])
         deferred.addCallback(create_call)
         return deferred
 
@@ -209,37 +258,38 @@ class QueryAPI(Resource):
 
         if getattr(self, "actions", None) is not None:
             # Check the deprecated 'actions' attribute
-            if not args.Action in self.actions:
+            if not args["action"] in self.actions:
                 raise APIError(400, "InvalidAction", "The action %s is not "
-                               "valid for this web service." % args.Action)
+                               "valid for this web service." % args["action"])
         else:
-            self.registry.check(args.Action, args.Version)
+            self.registry.check(args["action"], args["version"])
 
-        if not args.SignatureVersion in self.signature_versions:
+        if not args["signature_version"] in self.signature_versions:
             raise APIError(403, "InvalidSignature", "SignatureVersion '%s' "
-                           "not supported" % args.SignatureVersion)
+                           "not supported" % args["signature_version"])
 
-        if args.Expires and args.Timestamp:
+        if args["expires"] and args["timestamp"]:
             raise APIError(400, "InvalidParameterCombination",
                            "The parameter Timestamp cannot be used with "
                            "the parameter Expires")
-        if args.Expires and args.Expires < utc_now:
+        if args["expires"] and args["expires"] < utc_now:
             raise APIError(400,
                            "RequestExpired",
                            "Request has expired. Expires date is %s" % (
-                                args.Expires.strftime(self.time_format)))
-        if args.Timestamp and args.Timestamp + timedelta(minutes=15) < utc_now:
+                                args["expires"].strftime(self.time_format)))
+        if (args["timestamp"]
+            and args["timestamp"] + timedelta(minutes=15) < utc_now):
             raise APIError(400,
                            "RequestExpired",
                            "Request has expired. Timestamp date is %s" % (
-                               args.Timestamp.strftime(self.time_format)))
+                               args["timestamp"].strftime(self.time_format)))
 
     def _validate_principal(self, principal, args):
         """Validate the principal."""
         if principal is None:
             raise APIError(401, "AuthFailure",
                            "No user with access key '%s'" %
-                           args.AWSAccessKeyId)
+                           args["access_key_id"])
 
     def _validate_signature(self, request, principal, args, params):
         """Validate the signature."""
@@ -251,9 +301,11 @@ class QueryAPI(Resource):
         if self.path is not None:
             path = "%s/%s" % (self.path.rstrip("/"), path.lstrip("/"))
         endpoint.set_path(path)
-        params.pop("Signature")
-        signature = Signature(creds, endpoint, params)
-        if signature.compute() != args.Signature:
+        signature = Signature(creds, endpoint, params,
+                              signature_method=args["signature_method"],
+                              signature_version=args["signature_version"]
+                              )
+        if signature.compute() != args["signature"]:
             raise APIError(403, "SignatureDoesNotMatch",
                            "The request signature we calculated does not "
                            "match the signature you provided. Check your "
