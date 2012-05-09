@@ -112,15 +112,15 @@ class AlternativeWireFormatQueryAPI(TestQueryAPI):
 
     def get_call_arguments(self, request):
         result = {
-            'action': 'SomeAction',
-            'version': version.ec2_api,
-            'signature_version': 2,
-            'expires': None,
-            'timestamp': parse(iso8601time(None)),
-            'access_key_id': request.args["access_key"][0],
-            'signature_method': 'Hmacsha256',
-            'signature_version': 2,
-            'signature': request.args["signature"][0],
+            "action": "SomeAction",
+            "version": version.ec2_api,
+            "signature_version": 2,
+            "expires": None,
+            "timestamp": parse(iso8601time(None)),
+            "access_key_id": request.args["access_key"][0],
+            "signature_method": "Hmacsha256",
+            "signature_version": 2,
+            "signature": request.args["signature"][0],
             }
         params = dict((k, v[-1]) for k, v in request.args.iteritems())
         raw = params.copy()
@@ -169,7 +169,7 @@ class QueryAPITestCase(TestCase):
         params = {"foo": "bar", "access_key": creds.access_key}
         signature = Signature(
             creds, endpoint, params.copy(),
-            signature_method='Hmacsha256',
+            signature_method="Hmacsha256",
             signature_version=2)
         params["signature"] = signature.compute()
         request = FakeRequest(params, endpoint)
@@ -186,8 +186,8 @@ class QueryAPITestCase(TestCase):
 
     def test_signature_verification_custom_get_call_arguments(self):
         """
-        The third value returned from L{QueryAPI.get_call_arguments} is used
-        for signature verification.
+        The 'raw_args' returned from L{QueryAPI.get_call_arguments} is used for
+        signature verification.
         """
         creds = AWSCredentials("access", "secret")
         endpoint = AWSServiceEndpoint("http://uri")
@@ -195,7 +195,7 @@ class QueryAPITestCase(TestCase):
         params = {"foo": "bar", "access_key": creds.access_key}
         signature = Signature(
             creds, endpoint, params.copy(),
-            signature_method='Hmacsha256',
+            signature_method="Hmacsha256",
             signature_version=2)
         params["signature"] = signature.compute()
         params["foo"] = "HACKEDNOTBAR"

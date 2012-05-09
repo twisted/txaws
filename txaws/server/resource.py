@@ -195,14 +195,14 @@ class QueryAPI(Resource):
         params.pop("Signature")
         result = {
             "transport_args": {
-                'action': args.Action,
-                'access_key_id': args.AWSAccessKeyId,
-                'timestamp': args.Timestamp,
-                'expires': args.Expires,
-                'version': args.Version,
-                'signature_method': args.SignatureMethod,
-                'signature': args.Signature,
-                'signature_version': args.SignatureVersion},
+                "action": args.Action,
+                "access_key_id": args.AWSAccessKeyId,
+                "timestamp": args.Timestamp,
+                "expires": args.Expires,
+                "version": args.Version,
+                "signature_method": args.SignatureMethod,
+                "signature": args.Signature,
+                "signature_version": args.SignatureVersion},
             "handler_args": rest,
             "raw_args": params
         }
@@ -235,11 +235,11 @@ class QueryAPI(Resource):
             self._validate_signature(request, principal, args, params)
             return Call(raw_params=rest,
                         principal=principal,
-                        action=args['action'],
-                        version=args['version'],
+                        action=args["action"],
+                        version=args["version"],
                         id=request.id)
 
-        deferred = maybeDeferred(self.get_principal, args['access_key_id'])
+        deferred = maybeDeferred(self.get_principal, args["access_key_id"])
         deferred.addCallback(create_call)
         return deferred
 
@@ -258,38 +258,38 @@ class QueryAPI(Resource):
 
         if getattr(self, "actions", None) is not None:
             # Check the deprecated 'actions' attribute
-            if not args['action'] in self.actions:
+            if not args["action"] in self.actions:
                 raise APIError(400, "InvalidAction", "The action %s is not "
-                               "valid for this web service." % args['action'])
+                               "valid for this web service." % args["action"])
         else:
-            self.registry.check(args['action'], args['version'])
+            self.registry.check(args["action"], args["version"])
 
-        if not args['signature_version'] in self.signature_versions:
+        if not args["signature_version"] in self.signature_versions:
             raise APIError(403, "InvalidSignature", "SignatureVersion '%s' "
-                           "not supported" % args['signature_version'])
+                           "not supported" % args["signature_version"])
 
-        if args['expires'] and args['timestamp']:
+        if args["expires"] and args["timestamp"]:
             raise APIError(400, "InvalidParameterCombination",
                            "The parameter Timestamp cannot be used with "
                            "the parameter Expires")
-        if args['expires'] and args['expires'] < utc_now:
+        if args["expires"] and args["expires"] < utc_now:
             raise APIError(400,
                            "RequestExpired",
                            "Request has expired. Expires date is %s" % (
-                                args['expires'].strftime(self.time_format)))
-        if (args['timestamp']
-            and args['timestamp'] + timedelta(minutes=15) < utc_now):
+                                args["expires"].strftime(self.time_format)))
+        if (args["timestamp"]
+            and args["timestamp"] + timedelta(minutes=15) < utc_now):
             raise APIError(400,
                            "RequestExpired",
                            "Request has expired. Timestamp date is %s" % (
-                               args['timestamp'].strftime(self.time_format)))
+                               args["timestamp"].strftime(self.time_format)))
 
     def _validate_principal(self, principal, args):
         """Validate the principal."""
         if principal is None:
             raise APIError(401, "AuthFailure",
                            "No user with access key '%s'" %
-                           args['access_key_id'])
+                           args["access_key_id"])
 
     def _validate_signature(self, request, principal, args, params):
         """Validate the signature."""
@@ -302,10 +302,10 @@ class QueryAPI(Resource):
             path = "%s/%s" % (self.path.rstrip("/"), path.lstrip("/"))
         endpoint.set_path(path)
         signature = Signature(creds, endpoint, params,
-                              signature_method=args['signature_method'],
-                              signature_version=args['signature_version']
+                              signature_method=args["signature_method"],
+                              signature_version=args["signature_version"]
                               )
-        if signature.compute() != args['signature']:
+        if signature.compute() != args["signature"]:
             raise APIError(403, "SignatureDoesNotMatch",
                            "The request signature we calculated does not "
                            "match the signature you provided. Check your "
