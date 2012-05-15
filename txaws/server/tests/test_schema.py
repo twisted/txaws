@@ -8,7 +8,9 @@ from twisted.trial.unittest import TestCase
 
 from txaws.server.exception import APIError
 from txaws.server.schema import (
-    Arguments, Bool, Date, Enum, Integer, Parameter, RawStr, Schema, Unicode)
+    Arguments, Bool, Date, Enum, Integer, Parameter, RawStr, Schema, Unicode,
+    List, Structure,
+    InconsistentParameterError)
 
 
 class ArgumentsTestCase(TestCase):
@@ -77,10 +79,12 @@ class ParameterTestCase(TestCase):
         required but not present in the request.
         """
         parameter = Parameter("Test")
+        parameter.kind = "testy kind"
         error = self.assertRaises(APIError, parameter.coerce, None)
         self.assertEqual(400, error.status)
         self.assertEqual("MissingParameter", error.code)
-        self.assertEqual("The request must contain the parameter Test",
+        self.assertEqual("The request must contain the parameter Test "
+                         "(testy kind)",
                          error.message)
 
     def test_coerce_with_default(self):
@@ -186,6 +190,23 @@ class ParameterTestCase(TestCase):
         parameter.parse = lambda value: value
         parameter.kind = "test_parameter"
         self.assertEqual("foo", parameter.coerce("foo"))
+
+    def test_parameter_doc(self):
+        """
+        All L{Parameter} subclasses accept a 'doc' keyword argument.
+        """
+        parameters = [
+            Unicode(doc="foo"),
+            RawStr(doc="foo"),
+            Integer(doc="foo"),
+            Bool(doc="foo"),
+            Enum(mapping={"hey": 1}, doc="foo"),
+            Date(doc="foo"),
+            List(item=Integer(), doc="foo"),
+            Structure(fields={}, doc="foo")
+            ]
+        for parameter in parameters:
+            self.assertEqual("foo", parameter.doc)
 
 
 class UnicodeTestCase(TestCase):
@@ -381,6 +402,11 @@ class SchemaTestCase(TestCase):
         _, rest = schema.extract({"name": "value"})
         self.assertEqual(rest, {"name": "value"})
 
+    def test_extract_with_nested_rest(self):
+        schema = Schema()
+        _, rest = schema.extract({"foo.1.bar": "hey", "foo.2.baz": "there"})
+        self.assertEqual({"foo.1.bar": "hey", "foo.2.baz": "there"}, rest)
+
     def test_extract_with_many_arguments(self):
         """L{Schema.extract} can handle multiple parameters."""
         schema = Schema(Unicode("name"), Integer("count"))
@@ -395,6 +421,26 @@ class SchemaTestCase(TestCase):
         self.assertEqual(u"value", arguments.name)
         self.assertEqual(None, arguments.count)
 
+    def test_extract_with_optional_default(self):
+        """
+        The value of C{default} on a parameter is used as the value when it is
+        not provided as an argument and the parameter is C{optional}.
+        """
+        schema = Schema(Unicode("name"),
+                        Integer("count", optional=True, default=5))
+        arguments, _ = schema.extract({"name": "value"})
+        self.assertEqual(u"value", arguments.name)
+        self.assertEqual(5, arguments.count)
+
+    def test_extract_structure_with_optional(self):
+        """L{Schema.extract} can handle optional parameters."""
+        schema = Schema(
+            Structure(
+                "struct",
+                fields={"name": Unicode(optional=True, default="radix")}))
+        arguments, _ = schema.extract({"struct": {}})
+        self.assertEqual(u"radix", arguments.struct.name)
+
     def test_extract_with_numbered(self):
         """
         L{Schema.extract} can handle parameters with numbered values.
@@ -404,12 +450,23 @@ class SchemaTestCase(TestCase):
         self.assertEqual("Joe", arguments.name[0])
         self.assertEqual("Tom", arguments.name[1])
 
-    def test_extract_with_single_numbered(self):
+    def test_extract_with_goofy_numbered(self):
         """
-        L{Schema.extract} can handle a single parameter with a numbered value.
+        L{Schema.extract} only uses the relative values of indices to determine
+        the index in the resultant list.
         """
         schema = Schema(Unicode("name.n"))
-        arguments, _ = schema.extract({"name.0": "Joe"})
+        arguments, _ = schema.extract({"name.5": "Joe", "name.10": "Tom"})
+        self.assertEqual("Joe", arguments.name[0])
+        self.assertEqual("Tom", arguments.name[1])
+
+    def test_extract_with_single_numbered(self):
+        """
+        L{Schema.extract} can handle an un-numbered argument passed in to a
+        numbered parameter.
+        """
+        schema = Schema(Unicode("name.n"))
+        arguments, _ = schema.extract({"name": "Joe"})
         self.assertEqual("Joe", arguments.name[0])
 
     def test_extract_complex(self):
@@ -458,8 +515,8 @@ class SchemaTestCase(TestCase):
         given without an index.
         """
         schema = Schema(Unicode("name.n"))
-        _, rest = schema.extract({"name": "foo", "name.1": "bar"})
-        self.assertEqual(rest, {"name": "foo"})
+        self.assertRaises(InconsistentParameterError,
+                          schema.extract, {"name": "foo", "name.1": "bar"})
 
     def test_extract_with_non_numbered_template(self):
         """
@@ -480,7 +537,7 @@ class SchemaTestCase(TestCase):
         error = self.assertRaises(APIError, schema.extract, params)
         self.assertEqual(400, error.status)
         self.assertEqual("UnknownParameter", error.code)
-        self.assertEqual("The parameter name.one is not recognized",
+        self.assertEqual("The parameter one is not recognized",
                          error.message)
 
     def test_extract_with_negative_index(self):
@@ -493,7 +550,7 @@ class SchemaTestCase(TestCase):
         error = self.assertRaises(APIError, schema.extract, params)
         self.assertEqual(400, error.status)
         self.assertEqual("UnknownParameter", error.code)
-        self.assertEqual("The parameter name.-1 is not recognized",
+        self.assertEqual("The parameter -1 is not recognized",
                          error.message)
 
     def test_bundle(self):
@@ -513,6 +570,16 @@ class SchemaTestCase(TestCase):
         params = schema.bundle(name=["foo", "bar"])
         self.assertEqual({"name.1": "foo", "name.2": "bar"}, params)
 
+    def test_bundle_with_two_numbered(self):
+        """
+        L{Schema.bundle} can bundle multiple numbered lists.
+        """
+        schema = Schema(Unicode("names.n"), Unicode("things.n"))
+        params = schema.bundle(names=["foo", "bar"], things=["baz", "quux"])
+        self.assertEqual({"names.1": "foo", "names.2": "bar",
+                          "things.1": "baz", "things.2": "quux"},
+                         params)
+
     def test_bundle_with_none(self):
         """L{None} values are discarded in L{Schema.bundle}."""
         schema = Schema(Unicode("name.n", optional=True))
@@ -524,7 +591,7 @@ class SchemaTestCase(TestCase):
         L{Schema.bundle} correctly handles an empty numbered arguments list.
         """
         schema = Schema(Unicode("name.n"))
-        params = schema.bundle(names=[])
+        params = schema.bundle(name=[])
         self.assertEqual({}, params)
 
     def test_bundle_with_numbered_not_supplied(self):
@@ -543,6 +610,41 @@ class SchemaTestCase(TestCase):
         params = schema.bundle(name=["Foo", "Bar"], count=123)
         self.assertEqual({"name.1": "Foo", "name.2": "Bar", "count": "123"},
                          params)
+
+    def test_bundle_with_structure(self):
+        """L{Schema.bundle} can bundle L{Structure}s."""
+        schema = Schema(
+            parameters={
+                "struct": Structure(fields={"field1": Unicode(),
+                                            "field2": Integer()})})
+        params = schema.bundle(struct={"field1": "hi", "field2": 59})
+        self.assertEqual({"struct.field1": "hi", "struct.field2": "59"},
+                         params)
+
+    def test_bundle_with_list(self):
+        """L{Schema.bundle} can bundle L{List}s."""
+        schema = Schema(parameters={"things": List(item=Unicode())})
+        params = schema.bundle(things=["foo", "bar"])
+        self.assertEqual({"things.1": "foo", "things.2": "bar"}, params)
+
+    def test_bundle_with_structure_with_arguments(self):
+        """
+        L{Schema.bundle} can bundle L{Structure}s (specified as L{Arguments}).
+        """
+        schema = Schema(
+            parameters={
+                "struct": Structure(fields={"field1": Unicode(),
+                                            "field2": Integer()})})
+        params = schema.bundle(struct=Arguments({"field1": "hi",
+                                                 "field2": 59}))
+        self.assertEqual({"struct.field1": "hi", "struct.field2": "59"},
+                         params)
+
+    def test_bundle_with_list_with_arguments(self):
+        """L{Schema.bundle} can bundle L{List}s (specified as L{Arguments})."""
+        schema = Schema(parameters={"things": List(item=Unicode())})
+        params = schema.bundle(things=Arguments({1: "foo", 2: "bar"}))
+        self.assertEqual({"things.1": "foo", "things.2": "bar"}, params)
 
     def test_bundle_with_arguments(self):
         """L{Schema.bundle} can bundle L{Arguments} too."""
@@ -590,3 +692,231 @@ class SchemaTestCase(TestCase):
         self.assertEqual(u"value", arguments.name)
         self.assertEqual("testing", arguments.computer)
         self.assertEqual(5, arguments.count)
+
+    def test_list(self):
+        """L{List}s can be extracted."""
+        schema = Schema(List("foo", Integer()))
+        arguments, _ = schema.extract({"foo.1": "1", "foo.2": "2"})
+        self.assertEqual([1, 2], arguments.foo)
+
+    def test_optional_list(self):
+        """
+        The default value of an optional L{List} is C{[]}.
+        """
+        schema = Schema(List("names", Unicode(), optional=True))
+        arguments, _ = schema.extract({})
+        self.assertEqual([], arguments.names)
+
+    def test_default_list(self):
+        """
+        The default of a L{List} can be specified as a list.
+        """
+        schema = Schema(List("names", Unicode(), optional=True,
+                             default=[u"foo", u"bar"]))
+        arguments, _ = schema.extract({})
+        self.assertEqual([u"foo", u"bar"], arguments.names)
+
+    def test_list_of_list(self):
+        """L{List}s can be nested."""
+        schema = Schema(List("foo", List(item=Unicode())))
+        arguments, _ = schema.extract(
+            {"foo.1.1": "first-first", "foo.1.2": "first-second",
+             "foo.2.1": "second-first", "foo.2.2": "second-second"})
+        self.assertEqual([["first-first", "first-second"],
+                          ["second-first", "second-second"]],
+                         arguments.foo)
+
+    def test_structure(self):
+        """
+        L{Schema}s with L{Structure} parameters can have arguments extracted.
+        """
+        schema = Schema(Structure("foo", {"a": Integer(), "b": Integer()}))
+        arguments, _ = schema.extract({"foo.a": "1", "foo.b": "2"})
+        self.assertEqual(1, arguments.foo.a)
+        self.assertEqual(2, arguments.foo.b)
+
+    def test_structure_of_structures(self):
+        """L{Structure}s can be nested."""
+        sub_struct = Structure(fields={"a": Unicode(), "b": Unicode()})
+        schema = Schema(Structure("foo", fields={"a": sub_struct,
+                                                 "b": sub_struct}))
+        arguments, _ = schema.extract({"foo.a.a": "a-a", "foo.a.b": "a-b",
+                                       "foo.b.a": "b-a", "foo.b.b": "b-b"})
+        self.assertEqual("a-a", arguments.foo.a.a)
+        self.assertEqual("a-b", arguments.foo.a.b)
+        self.assertEqual("b-a", arguments.foo.b.a)
+        self.assertEqual("b-b", arguments.foo.b.b)
+
+    def test_list_of_structures(self):
+        """L{List}s of L{Structure}s are extracted properly."""
+        schema = Schema(
+            List("foo", Structure(fields={"a": Integer(), "b": Integer()})))
+        arguments, _ = schema.extract({"foo.1.a": "1", "foo.1.b": "2",
+                                       "foo.2.a": "3", "foo.2.b": "4"})
+        self.assertEqual(1, arguments.foo[0]['a'])
+        self.assertEqual(2, arguments.foo[0]['b'])
+        self.assertEqual(3, arguments.foo[1]['a'])
+        self.assertEqual(4, arguments.foo[1]['b'])
+
+    def test_structure_of_list(self):
+        """L{Structure}s of L{List}s are extracted properly."""
+        schema = Schema(Structure("foo", fields={"l": List(item=Integer())}))
+        arguments, _ = schema.extract({"foo.l.1": "1", "foo.l.2": "2"})
+        self.assertEqual([1, 2], arguments.foo.l)
+
+    def test_new_parameters(self):
+        """
+        L{Schema} accepts a C{parameters} parameter to specify parameters in a
+        {name: field} format.
+        """
+        schema = Schema(
+            parameters={"foo": Structure(
+                    fields={"l": List(item=Integer())})})
+        arguments, _ = schema.extract({"foo.l.1": "1", "foo.l.2": "2"})
+        self.assertEqual([1, 2], arguments.foo.l)
+
+    def test_schema_conversion_list_name(self):
+        """
+        Backwards-compatibility conversion maintains the name of lists.
+        """
+        schema = Schema(Unicode("foos.N"))
+        self.assertEqual("foos", schema._parameters["foos"].name)
+
+    def test_schema_conversion_structure_name(self):
+        """
+        Backwards-compatibility conversion maintains the names of fields in
+        structures.
+        """
+        schema = Schema(Unicode("foos.N.field"),
+                        Unicode("foos.N.field2"))
+        self.assertEqual("anonymous_structure",
+                         schema._parameters["foos"].item.name)
+        self.assertEqual("foos.N.field",
+                         schema._parameters["foos"].item.fields["field"].name)
+        self.assertEqual("foos.N.field2",
+                         schema._parameters["foos"].item.fields["field2"].name)
+
+    def test_schema_conversion_optional_list(self):
+        """
+        Backwards-compatibility conversions maintains optional-ness of lists.
+        """
+        schema = Schema(Unicode("foos.N", optional=True))
+        arguments, _ = schema.extract({})
+        self.assertEqual([], arguments.foos)
+
+    def test_schema_conversion_optional_structure_field(self):
+        """
+        Backwards-compatibility conversion maintains optional-ness of structure
+        fields.
+        """
+        schema = Schema(Unicode("foos.N.field"),
+                        Unicode("foos.N.field2", optional=True, default=u"hi"))
+        arguments, _ = schema.extract({"foos.0.field": u"existent"})
+        self.assertEqual(u"existent", arguments.foos[0].field)
+        self.assertEqual(u"hi", arguments.foos[0].field2)
+
+    def test_additional_schema_attributes(self):
+        """
+        Additional data can be specified on the Schema class for specifying a
+        more rich schema.
+        """
+        result = {
+                'id': Integer(),
+                'name': Unicode(),
+                'data': RawStr()}
+        errors = [APIError]
+
+        schema = Schema(
+            name="GetStuff",
+            doc="""Get the stuff.""",
+            parameters={
+                'id': Integer(),
+                'scope': Unicode()},
+            result=result,
+            errors=errors)
+
+        self.assertEqual("GetStuff", schema.name)
+        self.assertEqual("Get the stuff.", schema.doc)
+        self.assertEqual(result, schema.result)
+        self.assertEqual(set(errors), schema.errors)
+
+    def test_extend_with_additional_schema_attributes(self):
+        """
+        The additional schema attributes can be passed to L{Schema.extend}.
+        """
+        result = {
+                'id': Integer(),
+                'name': Unicode(),
+                'data': RawStr()}
+        errors = [APIError]
+
+        schema = Schema(
+            name="GetStuff",
+            parameters={"id": Integer()})
+
+        schema2 = schema.extend(
+            name="GetStuff2",
+            doc="Get stuff 2",
+            parameters={'scope': Unicode()},
+            result=result,
+            errors=errors)
+
+        self.assertEqual("GetStuff2", schema2.name)
+        self.assertEqual("Get stuff 2", schema2.doc)
+        self.assertEqual(result, schema2.result)
+        self.assertEqual(set(errors), schema2.errors)
+
+        arguments, _ = schema2.extract({'id': '5', 'scope': u'foo'})
+        self.assertEqual(5, arguments.id)
+        self.assertEqual(u'foo', arguments.scope)
+
+    def test_extend_maintains_existing_attributes(self):
+        """
+        If additional schema attributes aren't passed to L{Schema.extend}, they
+        stay the same.
+        """
+        result = {
+                'id': Integer(),
+                'name': Unicode(),
+                'data': RawStr()}
+        errors = [APIError]
+
+        schema = Schema(
+            name="GetStuff",
+            doc="""Get the stuff.""",
+            parameters={'id': Integer()},
+            result=result,
+            errors=errors)
+
+        schema2 = schema.extend(parameters={'scope': Unicode()})
+
+        self.assertEqual("GetStuff", schema2.name)
+        self.assertEqual("Get the stuff.", schema2.doc)
+        self.assertEqual(result, schema2.result)
+        self.assertEqual(set(errors), schema2.errors)
+
+        arguments, _ = schema2.extract({'id': '5', 'scope': u'foo'})
+        self.assertEqual(5, arguments.id)
+        self.assertEqual(u'foo', arguments.scope)
+
+    def test_extend_result(self):
+        """
+        Result fields can also be extended with L{Schema.extend}.
+        """
+        schema = Schema(
+            result={'name': Unicode()}
+            )
+        schema2 = schema.extend(
+            result={'id': Integer()})
+        result_structure = Structure(fields=schema2.result)
+        self.assertEqual(
+            {'name': u'foo', 'id': 5},
+            result_structure.coerce({'name': u'foo', 'id': '5'}))
+
+    def test_extend_errors(self):
+        """
+        Errors can be extended with L{Schema.extend}.
+        """
+        schema = Schema(parameters={}, errors=[APIError])
+        schema2 = schema.extend(errors=[ZeroDivisionError])
+        self.assertEqual(set([APIError, ZeroDivisionError]), schema2.errors)

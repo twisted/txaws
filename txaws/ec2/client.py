@@ -1002,25 +1002,37 @@ class Signature(object):
     @ivar params: A C{dict} of parameters to consider. They should be byte
         strings, but unicode strings are supported and will be encoded in
         UTF-8.
+    @ivar signature_method: The signature method to use.
+    @ivar signature_version: The version of the AWS signature system to use.
     """
 
-    def __init__(self, creds, endpoint, params):
+    def __init__(self, creds, endpoint, params,
+                 signature_method=None, signature_version=None):
         """Create a Query to submit to EC2."""
         self.creds = creds
         self.endpoint = endpoint
         self.params = params
+        self.signature_method = signature_method
+        self.signature_version = signature_version
 
     def compute(self):
         """Compute and return the signature according to the given data."""
         if "Signature" in self.params:
             raise RuntimeError("Existing signature in parameters")
-        version = self.params["SignatureVersion"]
-        if version == "1":
+        if self.signature_version is not None:
+            version = self.signature_version
+        else:
+            version = self.params["SignatureVersion"]
+        if str(version) == "1":
             bytes = self.old_signing_text()
             hash_type = "sha1"
-        elif version == "2":
+        elif str(version) == "2":
             bytes = self.signing_text()
-            hash_type = self.params["SignatureMethod"][len("Hmac"):].lower()
+            if self.signature_method is not None:
+                signature_method = self.signature_method
+            else:
+                signature_method = self.params["SignatureMethod"]
+            hash_type = signature_method[len("Hmac"):].lower()
         else:
             raise RuntimeError("Unsupported SignatureVersion: '%s'" % version)
         return self.creds.sign(bytes, hash_type)
