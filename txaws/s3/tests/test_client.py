@@ -1022,6 +1022,34 @@ class S3ClientTestCase(TXAWSTestCase):
             amz_headers={"acl": "public"})
         return deferred.addCallback(check_result)
 
+    def test_upload_part(self):
+
+        class StubQuery(client.Query):
+
+            def __init__(query, action, creds, endpoint, bucket=None,
+                         object_name=None, data="", body_producer=None,
+                         content_type=None, receiver_factory=None, metadata={}):
+                super(StubQuery, query).__init__(action=action, creds=creds,
+                                                 bucket=bucket,
+                                                 object_name=object_name,
+                                                 data=data)
+                self.assertEquals(action, "PUT")
+                self.assertEqual(creds.access_key, "foo")
+                self.assertEqual(creds.secret_key, "bar")
+                self.assertEqual(query.bucket, "example-bucket")
+                self.assertEqual(query.object_name,
+                    "example-object?partNumber=3&uploadId=testid")
+                self.assertEqual(query.data, "some data")
+                self.assertEqual(query.metadata, {})
+
+            def submit(query, url_context=None):
+                return succeed(None)
+
+        creds = AWSCredentials("foo", "bar")
+        s3 = client.S3Client(creds, query_factory=StubQuery)
+        return s3.upload_part("example-bucket", "example-object", "testid", 3,
+                              "some data")
+
 S3ClientTestCase.skip = s3clientSkip
 
 
