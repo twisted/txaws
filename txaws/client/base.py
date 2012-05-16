@@ -3,10 +3,25 @@ try:
 except ImportError:
     from xml.parsers.expat import ExpatError as ParseError
 
+import warnings
+from StringIO import StringIO
+
 from twisted.internet.ssl import ClientContextFactory
+from twisted.internet.protocol import Protocol
+from twisted.internet.defer import Deferred, succeed
+from twisted.python import failure
 from twisted.web import http
+from twisted.web.iweb import UNKNOWN_LENGTH
 from twisted.web.client import HTTPClientFactory
+from twisted.web.client import Agent
+from twisted.web.client import ResponseDone
+from twisted.web.http import NO_CONTENT
+from twisted.web.http_headers import Headers
 from twisted.web.error import Error as TwistedWebError
+try:
+    from twisted.web.client import FileBodyProducer
+except ImportError:
+    from txaws.client._producers import FileBodyProducer
 
 from txaws.util import parse
 from txaws.credentials import AWSCredentials
@@ -59,9 +74,10 @@ class BaseClient(object):
     @param query_factory: The class or function that produces a query
         object for making requests to the EC2 service.
     @param parser: A parser object for parsing responses from the EC2 service.
+    @param receiver_factory: Factory for receiving responses from EC2 service.
     """
     def __init__(self, creds=None, endpoint=None, query_factory=None,
-                 parser=None):
+                 parser=None, receiver_factory=None):
         if creds is None:
             creds = AWSCredentials()
         if endpoint is None:
@@ -69,22 +85,109 @@ class BaseClient(object):
         self.creds = creds
         self.endpoint = endpoint
         self.query_factory = query_factory
+        self.receiver_factory = receiver_factory
         self.parser = parser
 
+class StreamingError(Exception):
+    """
+    Raised if more data or less data is received than expected.
+    """
+
+
+class StringIOBodyReceiver(Protocol):
+    """
+    Simple StringIO-based HTTP response body receiver.
+
+    TODO: perhaps there should be an interface specifying why
+    finished (Deferred) and content_length are necessary and
+    how to used them; eg. callback/errback finished on completion.
+    """
+    finished = None
+    content_length = None
+
+    def __init__(self):
+        self._buffer = StringIO()
+        self._received = 0
+
+    def dataReceived(self, bytes):
+        streaming = self.content_length is UNKNOWN_LENGTH
+        if not streaming and (self._received > self.content_length):
+            self.transport.loseConnection()
+            raise StreamingError(
+                "Buffer overflow - received more data than "
+                "Content-Length dictated: %d" % self.content_length)
+        # TODO should be some limit on how much we receive
+        self._buffer.write(bytes)
+        self._received += len(bytes)
+
+    def connectionLost(self, reason):
+        reason.trap(ResponseDone)
+        d = self.finished
+        self.finished = None
+        streaming = self.content_length is UNKNOWN_LENGTH
+        if streaming or (self._received == self.content_length):
+            d.callback(self._buffer.getvalue())
+        else:
+            f = failure.Failure(StreamingError("Connection lost before "
+                "receiving all data"))
+            d.errback(f)
+
+
+class WebClientContextFactory(ClientContextFactory):
+
+    def getContext(self, hostname, port):
+        return ClientContextFactory.getContext(self)
+
+
+class WebVerifyingContextFactory(VerifyingContextFactory):
+
+    def getContext(self, hostname, port):
+        return VerifyingContextFactory.getContext(self)
+
+
+class FakeClient(object):
+    """
+    XXX
+    A fake client object for some degree of backwards compatability for
+    code using the client attibute on BaseQuery to check url, status
+    etc.
+    """
+    url = None
+    status = None
 
 class BaseQuery(object):
 
-    def __init__(self, action=None, creds=None, endpoint=None, reactor=None):
+    def __init__(self, action=None, creds=None, endpoint=None, reactor=None,
+        body_producer=None, receiver_factory=None):
         if not action:
             raise TypeError("The query requires an action parameter.")
-        self.factory = HTTPClientFactory
         self.action = action
         self.creds = creds
         self.endpoint = endpoint
         if reactor is None:
             from twisted.internet import reactor
         self.reactor = reactor
-        self.client = None
+        self._client = None
+        self.request_headers = None
+        self.response_headers = None
+        self.body_producer = body_producer
+        self.receiver_factory = receiver_factory or StringIOBodyReceiver
+
+    @property
+    def client(self):
+        if self._client is None:
+            self._client_deprecation_warning()
+            self._client = FakeClient()
+        return self._client
+
+    @client.setter
+    def client(self, value):
+        self._client_deprecation_warning()
+        self._client = value
+
+    def _client_deprecation_warning(self):
+        warnings.warn('The client attribute on BaseQuery is deprecated and'
+                      ' will go away in future release.')
 
     def get_page(self, url, *args, **kwds):
         """
@@ -95,16 +198,39 @@ class BaseQuery(object):
         """
         contextFactory = None
         scheme, host, port, path = parse(url)
-        self.client = self.factory(url, *args, **kwds)
+        data = kwds.get('postdata', None)
+        self._method = method = kwds.get('method', 'GET')
+        self.request_headers = self._headers(kwds.get('headers', {}))
+        if (self.body_producer is None) and (data is not None):
+            self.body_producer = FileBodyProducer(StringIO(data))
         if scheme == "https":
             if self.endpoint.ssl_hostname_verification:
-                contextFactory = VerifyingContextFactory(host)
+                contextFactory = WebVerifyingContextFactory(host)
             else:
-                contextFactory = ClientContextFactory()
-            self.reactor.connectSSL(host, port, self.client, contextFactory)
+                contextFactory = WebClientContextFactory()
+            agent = Agent(self.reactor, contextFactory)
+            self.client.url = url
+            d = agent.request(method, url, self.request_headers,
+                self.body_producer)
         else:
-            self.reactor.connectTCP(host, port, self.client)
-        return self.client.deferred
+            agent = Agent(self.reactor)
+            d = agent.request(method, url, self.request_headers,
+                self.body_producer)
+        d.addCallback(self._handle_response)
+        return d
+
+    def _headers(self, headers_dict):
+        """
+        Convert dictionary of headers into twisted.web.client.Headers object.
+        """
+        return Headers(dict((k,[v]) for (k,v) in headers_dict.items()))
+
+    def _unpack_headers(self, headers):
+        """
+        Unpack twisted.web.client.Headers object to dict. This is to provide
+        backwards compatability.
+        """
+        return dict((k,v[0]) for (k,v) in headers.getAllRawHeaders())
 
     def get_request_headers(self, *args, **kwds):
         """
@@ -114,8 +240,26 @@ class BaseQuery(object):
         The AWS S3 API depends upon setting headers. This method is provided as
         a convenience for debugging issues with the S3 communications.
         """
-        if self.client:
-            return self.client.headers
+        if self.request_headers:
+            return self._unpack_headers(self.request_headers)
+
+    def _handle_response(self, response):
+        """
+        Handle the HTTP response by memoing the headers and then delivering
+        bytes.
+        """
+        self.client.status = response.code
+        self.response_headers = headers = response.headers
+        # XXX This workaround (which needs to be improved at that) for possible
+        # bug in Twisted with new client:
+        # http://twistedmatrix.com/trac/ticket/5476
+        if self._method.upper() == 'HEAD' or response.code == NO_CONTENT:
+            return succeed('')
+        receiver = self.receiver_factory()
+        receiver.finished = d = Deferred()
+        receiver.content_length = response.length
+        response.deliverBody(receiver)
+        return d
 
     def get_response_headers(self, *args, **kwargs):
         """
@@ -125,5 +269,6 @@ class BaseQuery(object):
         The AWS S3 API depends upon setting headers. This method is used by the
         head_object API call for getting a S3 object's metadata.
         """
-        if self.client:
-            return self.client.response_headers
+        if self.response_headers:
+            return self._unpack_headers(self.response_headers)
+

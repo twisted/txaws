@@ -1,6 +1,9 @@
 import os
 
+from zope.interface import implements
+
 from twisted.internet import reactor
+from twisted.internet.defer import succeed
 from twisted.internet.error import ConnectionRefusedError
 from twisted.protocols.policies import WrappingFactory
 from twisted.python import log
@@ -8,14 +11,16 @@ from twisted.python.filepath import FilePath
 from twisted.python.failure import Failure
 from twisted.test.test_sslverify import makeCertificate
 from twisted.web import server, static
+from twisted.web.iweb import IBodyProducer
 from twisted.web.client import HTTPClientFactory
 from twisted.web.error import Error as TwistedWebError
 
 from txaws.client import ssl
 from txaws.client.base import BaseClient, BaseQuery, error_wrapper
+from txaws.client.base import StringIOBodyReceiver
 from txaws.service import AWSServiceEndpoint
 from txaws.testing.base import TXAWSTestCase
-
+from txaws.testing.producers import StringBodyProducer
 
 class ErrorWrapperTestCase(TXAWSTestCase):
 
@@ -99,7 +104,6 @@ class BaseQueryTestCase(TXAWSTestCase):
 
     def test_creation(self):
         query = BaseQuery("an action", "creds", "http://endpoint")
-        self.assertEquals(query.factory, HTTPClientFactory)
         self.assertEquals(query.action, "an action")
         self.assertEquals(query.creds, "creds")
         self.assertEquals(query.endpoint, "http://endpoint")
@@ -142,15 +146,51 @@ class BaseQueryTestCase(TXAWSTestCase):
     def test_get_response_headers_with_client(self):
 
         def check_results(results):
+            #self.assertEquals(sorted(results.keys()), [
+            #    "accept-ranges", "content-length", "content-type", "date",
+            #    "last-modified", "server"])
+            # XXX I think newclient exludes content-length from headers?
+            # Also the header names are capitalized ... do we need to worry
+            # about backwards compat?
             self.assertEquals(sorted(results.keys()), [
-                "accept-ranges", "content-length", "content-type", "date",
-                "last-modified", "server"])
-            self.assertEquals(len(results.values()), 6)
+                "Accept-Ranges", "Content-Type", "Date",
+                "Last-Modified", "Server"])
+            self.assertEquals(len(results.values()), 5)
 
         query = BaseQuery("an action", "creds", "http://endpoint")
         d = query.get_page(self._get_url("file"))
         d.addCallback(query.get_response_headers)
         return d.addCallback(check_results)
+
+    def test_custom_body_producer(self):
+
+        def check_producer_was_used(ignore):
+            self.assertEqual(producer.written, 'test data')
+
+        producer = StringBodyProducer('test data')
+        query = BaseQuery("an action", "creds", "http://endpoint",
+            body_producer=producer)
+        d = query.get_page(self._get_url("file"), method='PUT')
+        return d.addCallback(check_producer_was_used)
+
+    def test_custom_receiver_factory(self):
+
+        class TestReceiverProtocol(StringIOBodyReceiver):
+            used = False
+
+            def __init__(self):
+                StringIOBodyReceiver.__init__(self)
+                TestReceiverProtocol.used = True
+
+        def check_used(ignore):
+            self.assert_(TestReceiverProtocol.used)
+
+        query = BaseQuery("an action", "creds", "http://endpoint",
+            receiver_factory=TestReceiverProtocol)
+        d = query.get_page(self._get_url("file"))
+        d.addCallback(self.assertEquals, "0123456789")
+        d.addCallback(check_used)
+        return d
 
     # XXX for systems that don't have certs in the DEFAULT_CERT_PATH, this test
     # will fail; instead, let's create some certs in a temp directory and set
@@ -167,8 +207,9 @@ class BaseQueryTestCase(TXAWSTestCase):
             def __init__(self):
                 self.connects = []
 
-            def connectSSL(self, host, port, client, factory):
-                self.connects.append((host, port, client, factory))
+            def connectSSL(self, host, port, factory, contextFactory, timeout,
+                bindAddress):
+                self.connects.append((host, port, factory, contextFactory))
 
         certs = makeCertificate(O="Test Certificate", CN="something")[1]
         self.patch(ssl, "_ca_certs", certs)
@@ -176,9 +217,10 @@ class BaseQueryTestCase(TXAWSTestCase):
         endpoint = AWSServiceEndpoint(ssl_hostname_verification=True)
         query = BaseQuery("an action", "creds", endpoint, fake_reactor)
         query.get_page("https://example.com/file")
-        [(host, port, client, factory)] = fake_reactor.connects
+        [(host, port, factory, contextFactory)] = fake_reactor.connects
         self.assertEqual("example.com", host)
         self.assertEqual(443, port)
-        self.assertTrue(isinstance(factory, ssl.VerifyingContextFactory))
-        self.assertEqual("example.com", factory.host)
-        self.assertNotEqual([], factory.caCerts)
+        wrappedFactory = contextFactory._webContext
+        self.assertTrue(isinstance(wrappedFactory, ssl.VerifyingContextFactory))
+        self.assertEqual("example.com", wrappedFactory.host)
+        self.assertNotEqual([], wrappedFactory.caCerts)
