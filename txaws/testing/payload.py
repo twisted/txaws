@@ -1097,4 +1097,11 @@ sample_s3_init_multipart_upload_result = """\
   <UploadId>deadbeef</UploadId>
 </InitiateMultipartUploadResult>"""
 
-
+sample_s3_complete_multipart_upload_result = """\
+<?xml version="1.0" encoding="UTF-8"?>
+<CompleteMultipartUploadResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
+  <Location>http://example-bucket.s3.amazonaws.com/example-object</Location>
+  <Bucket>example-bucket</Bucket>
+  <Key>example-object</Key>
+  <ETag>"3858f62230ac3c915f300c664312c11f-9"</ETag>
+</CompleteMultipartUploadResult>"""

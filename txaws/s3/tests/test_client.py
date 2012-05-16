@@ -9,7 +9,8 @@ except ImportError:
 else:
     s3clientSkip = None
 from txaws.s3.acls import AccessControlPolicy
-from txaws.s3.model import RequestPayment, MultipartInitiationResponse
+from txaws.s3.model import (RequestPayment, MultipartInitiationResponse,
+    MultipartCompletionResponse)
 from txaws.testing.producers import StringBodyProducer
 from txaws.service import AWSServiceEndpoint
 from txaws.testing import payload
@@ -1049,6 +1050,51 @@ class S3ClientTestCase(TXAWSTestCase):
         s3 = client.S3Client(creds, query_factory=StubQuery)
         return s3.upload_part("example-bucket", "example-object", "testid", 3,
                               "some data")
+
+    def test_complete_multipart_upload(self):
+
+        class StubQuery(client.Query):
+
+            def __init__(query, action, creds, endpoint, bucket=None,
+                         object_name=None, data="", body_producer=None,
+                         content_type=None, receiver_factory=None, metadata={}):
+                super(StubQuery, query).__init__(action=action, creds=creds,
+                                                 bucket=bucket,
+                                                 object_name=object_name,
+                                                 data=data)
+                self.assertEquals(action, "POST")
+                self.assertEqual(creds.access_key, "foo")
+                self.assertEqual(creds.secret_key, "bar")
+                self.assertEqual(query.bucket, "example-bucket")
+                self.assertEqual(query.object_name,
+                    "example-object?uploadId=testid")
+                self.assertEqual(query.data, "<CompleteMultipartUpload>\n"
+                    "<Part>\n<PartNumber>1</PartNumber>\n<ETag>a</ETag>\n"
+                    "</Part>\n<Part>\n<PartNumber>2</PartNumber>\n"
+                    "<ETag>b</ETag>\n</Part>\n</CompleteMultipartUpload>")
+                self.assertEqual(query.metadata, {})
+
+            def submit(query, url_context=None):
+                return succeed(
+                    payload.sample_s3_complete_multipart_upload_result)
+
+
+        def check_result(result):
+            self.assert_(isinstance(result, MultipartCompletionResponse))
+            self.assertEqual(result.bucket, "example-bucket")
+            self.assertEqual(result.object_name, "example-object")
+            self.assertEqual(result.location,
+                "http://example-bucket.s3.amazonaws.com/example-object")
+            self.assertEqual(result.etag,
+                '"3858f62230ac3c915f300c664312c11f-9"')
+
+        creds = AWSCredentials("foo", "bar")
+        s3 = client.S3Client(creds, query_factory=StubQuery)
+        deferred = s3.complete_multipart_upload("example-bucket",
+                                                "example-object",
+                                                "testid", [(1, "a"), (2, "b")])
+        return deferred.addCallback(check_result)
+
 
 S3ClientTestCase.skip = s3clientSkip
 

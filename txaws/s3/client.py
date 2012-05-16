@@ -23,7 +23,8 @@ from txaws.s3.acls import AccessControlPolicy
 from txaws.s3.model import (
     Bucket, BucketItem, BucketListing, ItemOwner, LifecycleConfiguration,
     LifecycleConfigurationRule, NotificationConfiguration, RequestPayment,
-    VersioningConfiguration, WebsiteConfiguration, MultipartInitiationResponse)
+    VersioningConfiguration, WebsiteConfiguration, MultipartInitiationResponse,
+    MultipartCompletionResponse)
 from txaws.s3.exception import S3Error
 from txaws.service import AWSServiceEndpoint, S3_ENDPOINT
 from txaws.util import XML, calculate_md5
@@ -467,11 +468,21 @@ class S3Client(BaseClient):
         d = query.submit()
         return d.addCallback(MultipartInitiationResponse.from_xml)
 
-    def upload_part(self, bucket, object_name, upload_id, part_number, data=None,
-                    content_type=None, metadata={}, body_producer=None):
+    def upload_part(self, bucket, object_name, upload_id, part_number,
+                    data=None, content_type=None, metadata={},
+                    body_producer=None):
         """
-        Upload a part of data correcsponding to a multipart upload.
+        Upload a part of data corresponding to a multipart upload.
 
+        @param bucket: The bucket name
+        @param object_name: The object name
+        @param upload_id: The multipart upload id
+        @param part_number: The part number
+        @param data: Data (optional, requires body_producer if not specified)
+        @param content_type: The Content-Type
+        @param metadata: Additional metadata
+        @param body_producer: an C{IBodyProducer} (optional, requires data if
+            not specified)
         @return: the C{Deferred} from underlying query.submit() call
         """
         parms = 'partNumber=%s&uploadId=%s' % (str(part_number), upload_id)
@@ -479,10 +490,49 @@ class S3Client(BaseClient):
         query = self.query_factory(
             action="PUT", creds=self.creds, endpoint=self.endpoint,
             bucket=bucket, object_name=objectname_plus, data=data,
-            content_type=content_type, metadata=metadata, body_producer=body_producer,
-            receiver_factory=self.receiver_factory)
+            content_type=content_type, metadata=metadata,
+            body_producer=body_producer, receiver_factory=self.receiver_factory)
         d = query.submit()
         return d.addCallback(query.get_response_headers)
+
+    def complete_multipart_upload(self, bucket, object_name, upload_id,
+                                  parts_list, content_type=None, metadata={}):
+        """
+        Complete a multipart upload.
+
+        N.B. This can be possibly be a slow operation.
+
+        @param bucket: The bucket name
+        @param object_name: The object name
+        @param upload_id: The multipart upload id
+        @param parts_list: A List of all the parts
+            (2-tuples of part sequence number and etag)
+        @param content_type: The Content-Type of the object
+        @param metadata: C{dict} containing additional metadata
+        @return: a C{Deferred} that fires after request is complete
+        """
+        data = self._build_complete_multipart_upload_xml(parts_list)
+        objectname_plus = '%s?uploadId=%s' % (object_name, upload_id)
+        query = self.query_factory(
+            action="POST", creds=self.creds, endpoint=self.endpoint,
+            bucket=bucket, object_name=objectname_plus, data=data,
+            content_type=content_type, metadata=metadata)
+        d = query.submit()
+        # TODO - handle error responses
+        return d.addCallback(MultipartCompletionResponse.from_xml)
+
+    def _build_complete_multipart_upload_xml(self, parts_list):
+        xml = []
+        parts_list.sort(key=lambda p: int(p[0]))
+        xml.append('<CompleteMultipartUpload>')
+        for pt in parts_list:
+            xml.append('<Part>')
+            xml.append('<PartNumber>%s</PartNumber>' % pt[0])
+            xml.append('<ETag>%s</ETag>' % pt[1])
+            xml.append('</Part>')
+        xml.append('</CompleteMultipartUpload>')
+        return '\n'.join(xml)
+
 
 class Query(BaseQuery):
     """A query for submission to the S3 service."""
