@@ -1089,3 +1089,12 @@ sample_s3_get_bucket_versioning_mfa_disabled_result = """\
   <Status>Enabled</Status>
   <MfaDelete>Disabled</MfaDelete>
 </VersioningConfiguration>"""
+
+sample_s3_init_multipart_upload_result = """\
+<InitiateMultipartUploadResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
+  <Bucket>example-bucket</Bucket>
+  <Key>example-object</Key>
+  <UploadId>deadbeef</UploadId>
+</InitiateMultipartUploadResult>"""
+
+

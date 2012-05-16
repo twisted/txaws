@@ -23,7 +23,7 @@ from txaws.s3.acls import AccessControlPolicy
 from txaws.s3.model import (
     Bucket, BucketItem, BucketListing, ItemOwner, LifecycleConfiguration,
     LifecycleConfigurationRule, NotificationConfiguration, RequestPayment,
-    VersioningConfiguration, WebsiteConfiguration)
+    VersioningConfiguration, WebsiteConfiguration, MultipartInitiationResponse)
 from txaws.s3.exception import S3Error
 from txaws.service import AWSServiceEndpoint, S3_ENDPOINT
 from txaws.util import XML, calculate_md5
@@ -445,6 +445,27 @@ class S3Client(BaseClient):
         payer.
         """
         return RequestPayment.from_xml(xml_bytes).payer
+
+    def init_multipart_upload(self, bucket, object_name, content_type=None,
+                              amz_headers={}, metadata={}):
+        """
+        Initiate a multipart upload to a bucket.
+
+        @param bucket: The name of the bucket
+        @param object_name: The object name
+        @param content_type: The Content-Type for the object
+        @param metadata: C{dict} containing additional metadata
+        @param amz_headers: A C{dict} used to build C{x-amz-*} headers.
+        @return: C{str} upload_id
+        """
+        objectname_plus = '%s?uploads' % object_name
+        query = self.query_factory(
+            action="POST", creds=self.creds, endpoint=self.endpoint,
+            bucket=bucket, object_name=objectname_plus, data='',
+            content_type=content_type, amz_headers=amz_headers,
+            metadata=metadata)
+        d = query.submit()
+        return d.addCallback(MultipartInitiationResponse.from_xml)
 
 
 class Query(BaseQuery):
