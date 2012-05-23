@@ -473,6 +473,10 @@ class Arguments(object):
 
 
 def _namify_arguments(mapping):
+    """
+    Ensure that a mapping of names to parameters has the parameters set to the
+    correct name.
+    """
     result = []
     for name, parameter in mapping.iteritems():
         parameter.name = name
@@ -553,7 +557,8 @@ class Schema(object):
         @return: A tuple of an L{Arguments} object holding the extracted
             arguments and any unparsed arguments.
         """
-        structure = Structure(fields=dict([(p.name, p) for p in self._parameters]))
+        structure = Structure(fields=dict([(p.name, p)
+                                           for p in self._parameters]))
         try:
             tree = structure.coerce(self._convert_flat_to_nest(params))
             rest = {}
@@ -582,7 +587,7 @@ class Schema(object):
                 continue
             segments = name.split('.')
             first = segments[0]
-            parameter = dict([(p.name, p) for p in self._parameters]).get(first)
+            parameter = self.get_parameter(first)
             if parameter is None:
                 raise RuntimeError("Parameter '%s' not in schema" % name)
             else:
@@ -592,6 +597,14 @@ class Schema(object):
                     result[name] = parameter.format(value)
 
         return self._convert_nest_to_flat(result)
+
+    def get_parameter(self, name):
+        """
+        Get the parameter on this schema with the given C{name}.
+        """
+        for parameter in self._parameters:
+            if parameter.name == name:
+                return parameter
 
     def _convert_flat_to_nest(self, params):
         """
@@ -761,4 +774,3 @@ def _merge_alist(alist, path, value):
             alist.append((key, subalist))
             alist = subalist
     alist.append((path[-1], value))
-
