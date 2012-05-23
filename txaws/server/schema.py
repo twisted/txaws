@@ -613,8 +613,19 @@ class Schema(object):
         """
         result = {}
         for k, v in params.iteritems():
-            _merge(result, k.split('.'), v)
-        return dict(result)
+            last = result
+            segments = k.split('.')
+            for index, item in enumerate(segments):
+                if index == len(segments) - 1:
+                    newd = v
+                else:
+                    newd = {}
+                if not isinstance(last, dict):
+                    raise InconsistentParameterError(k)
+                if type(last.get(item)) is dict and type(newd) is not dict:
+                    raise InconsistentParameterError(k)
+                last = last.setdefault(item, newd)
+        return result
 
     def _convert_nest_to_flat(self, params, _result=None, _prefix=None):
         """
@@ -695,7 +706,7 @@ class Schema(object):
         merged = []
         for parameter in parameters:
             segments = parameter.name.split('.')
-            _merge_tuples(merged, segments, parameter)
+            _merge_alist(merged, segments, parameter)
         result = []
         for k, v in merged:
             result.append(self._inner_convert_old_schema(v, 1, k))
@@ -724,37 +735,30 @@ class Schema(object):
             return List(name=name, item=item, optional=item.optional)
 
 
-def _merge(mapping, path, value):
+def _merge_alist(alist, path, value):
     """
-        d = {}
-        _merge(d, ['foo', 'bar'], 'baz')
-        d == {'foo': {'bar': 'baz'}}
+    Merge a value into an associative list at the given path, maintaining
+    insertion order. Examples will explain it::
+
+        >>> alist = []
+        >>> _merge_alist(alist, ["foo", "bar"], "barvalue")
+        >>> _merge_alist(alist, ["foo", "baz"], "bazvalue")
+        >>> alist == [("foo", [("bar", "barvalue"), ("baz", "bazvalue")])]
+
+    @param alist: An associative list of names to values.
+    @param path: A path through sub-alists which we ultimately want to point to
+    C{value}.
+    @param value: The value to set.
+    @return: None. This operation mutates the associative list in place.
     """
     for key in path[:-1]:
-        mapping = mapping.setdefault(key, {})
-    if path[-1] in mapping:
-        raise InconsistentParameterError('.'.join(path))
-    if not isinstance(mapping, dict):
-        raise InconsistentParameterError('.'.join(path))
-    mapping[path[-1]] = value
-
-
-def _merge_tuples(mapping, path, value):
-    """
-    Like _merge, but it works on lists of tuples instead, to maintain order.
-
-        d = []
-        _merge(d, ['foo', 'bar'], 'baz')
-        d == [('foo', [('bar', 'baz')])]
-    """
-    for key in path[:-1]:
-        for item in mapping:
+        for item in alist:
             if item[0] == key:
-                mapping = item[1]
+                alist = item[1]
                 break
         else:
-            newmapping = []
-            mapping.append((key, newmapping))
-            mapping = newmapping
-    mapping.append((path[-1], value))
+            subalist = []
+            alist.append((key, subalist))
+            alist = subalist
+    alist.append((path[-1], value))
 
