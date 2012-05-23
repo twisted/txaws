@@ -384,6 +384,43 @@ class DateTestCase(TestCase):
 
 class SchemaTestCase(TestCase):
 
+    def test_get_parameters(self):
+        """
+        L{Schema.get_parameters} returns the original list of parameters.
+        """
+        schema = Schema(parameters=[
+                Unicode("name"),
+                List("scores", Integer())])
+        parameters = schema.get_parameters()
+        self.assertEqual("name", parameters[0].name)
+        self.assertEqual("scores", parameters[1].name)
+
+    def test_get_parameters_order_on_parameter_only_construction(self):
+        """
+        L{Schema.get_parameters} returns the original list of L{Parameter}s
+        even when they are passed as positional arguments to L{Schema}.
+        """
+        schema = Schema(
+            Unicode("name"),
+            List("scores", Integer()),
+            Integer("index", Integer()))
+        self.assertEqual(["name", "scores", "index"],
+                         [p.name for p in schema.get_parameters()])
+
+    def test_get_parameters_with_dict_parameters(self):
+        """
+        If a dictionary as passed as the parameters to a L{Schema},
+        L{Schema.get_parameters} returns them in an arbitrary order.
+        """
+        schema = Schema(parameters={
+                "name": Unicode(),
+                "scores": List(item=Integer())})
+        parameters = schema.get_parameters()
+        self.assertTrue(isinstance(parameters, list))
+        self.assertEqual(2, len(parameters))
+        self.assertIn("name", [parameter.name for parameter in parameters])
+        self.assertIn("scores", [parameter.name for parameter in parameters])
+
     def test_extract(self):
         """
         L{Schema.extract} returns an L{Argument} object whose attributes are
@@ -516,7 +553,7 @@ class SchemaTestCase(TestCase):
         """
         schema = Schema(Unicode("name.n"))
         self.assertRaises(InconsistentParameterError,
-                          schema.extract, {"name": "foo", "name.1": "bar"})
+                          schema.extract, {"nameFOOO": "foo", "nameFOOO.1": "bar"})
 
     def test_extract_with_non_numbered_template(self):
         """
@@ -775,12 +812,15 @@ class SchemaTestCase(TestCase):
         arguments, _ = schema.extract({"foo.l.1": "1", "foo.l.2": "2"})
         self.assertEqual([1, 2], arguments.foo.l)
 
-    def test_schema_conversion_list_name(self):
+    def test_schema_conversion_list(self):
         """
         Backwards-compatibility conversion maintains the name of lists.
         """
         schema = Schema(Unicode("foos.N"))
-        self.assertEqual("foos", schema._parameters["foos"].name)
+        parameters = schema.get_parameters()
+        self.assertEqual(1, len(parameters))
+        self.assertTrue(isinstance(parameters[0], List))
+        self.assertEqual("foos", parameters[0].name)
 
     def test_schema_conversion_structure_name(self):
         """
@@ -789,12 +829,16 @@ class SchemaTestCase(TestCase):
         """
         schema = Schema(Unicode("foos.N.field"),
                         Unicode("foos.N.field2"))
-        self.assertEqual("anonymous_structure",
-                         schema._parameters["foos"].item.name)
-        self.assertEqual("foos.N.field",
-                         schema._parameters["foos"].item.fields["field"].name)
-        self.assertEqual("foos.N.field2",
-                         schema._parameters["foos"].item.fields["field2"].name)
+        parameters = schema.get_parameters()
+        self.assertEqual(1, len(parameters))
+        self.assertTrue(isinstance(parameters[0], List))
+        self.assertEqual("foos", parameters[0].name)
+        self.assertEqual("N",
+                         parameters[0].item.name)
+        self.assertEqual("field",
+                         parameters[0].item.fields["field"].name)
+        self.assertEqual("field2",
+                         parameters[0].item.fields["field2"].name)
 
     def test_schema_conversion_optional_list(self):
         """
@@ -920,3 +964,17 @@ class SchemaTestCase(TestCase):
         schema = Schema(parameters={}, errors=[APIError])
         schema2 = schema.extend(errors=[ZeroDivisionError])
         self.assertEqual(set([APIError, ZeroDivisionError]), schema2.errors)
+
+    def test_extend_maintains_parameter_order(self):
+        """
+        Extending a schema with additional parameters puts the new parameters
+        at the end.
+        """
+        schema = Schema(parameters=[Unicode("name"), Unicode("value")])
+        schema2 = schema.extend(parameters=[Integer("foo"), Unicode("index")])
+        self.assertEqual(["name", "value", "foo", "index"],
+                         [p.name for p in schema2.get_parameters()])
+
+    def test_schema_field_names(self):
+        structure = Structure(fields={"foo": Integer()})
+        self.assertEqual("foo", structure.fields["foo"].name)

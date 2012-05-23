@@ -384,6 +384,7 @@ class Structure(Parameter):
             raise TypeError("Must provide fields")
         super(Structure, self).__init__(name, optional=optional,
                                         default=default, doc=doc)
+        _namify_arguments(fields)
         self.fields = fields
 
     def parse(self, value):
@@ -471,6 +472,14 @@ class Arguments(object):
             return value
 
 
+def _namify_arguments(mapping):
+    result = []
+    for name, parameter in mapping.iteritems():
+        parameter.name = name
+        result.append(parameter)
+    return result
+
+
 class Schema(object):
     """
     The schema that the arguments of an HTTP request must be compliant with.
@@ -482,7 +491,7 @@ class Schema(object):
         Any number of L{Parameter} instances can be passed. The parameter names
         are used in L{Schema.extract} and L{Schema.bundle}. For example::
 
-          schema = Schema(name="SetName", parameters={"Name": Unicode()})
+          schema = Schema(name="SetName", parameters=[Unicode("Name")])
 
         means that the result of L{Schema.extract} would have a C{Name}
         attribute. Similarly, L{Schema.bundle} would look for a C{Name}
@@ -492,7 +501,7 @@ class Schema(object):
 
           schema = Schema(
               name="SetNames",
-              parameters={"Names": List(item=Unicode())})
+              parameters=[List("Names", Unicode())])
 
         means that the result of L{Schema.extract} would have a C{Names}
         attribute, which would itself contain a list of names. Similarly,
@@ -504,8 +513,9 @@ class Schema(object):
 
         @param name: (keyword) The name of the API call that this schema
             represents. Accessible via the C{name} attribute.
-        @param parameters: (keyword) The parameters of the API, as a mapping
-            of parameter names to L{Parameter} instances.
+        @param parameters: (keyword) The parameters of the API, as a either a
+            list of named L{Parameter} instances, or a mapping of parameter
+            names to L{Parameter} instances.
         @param doc: (keyword) The documentation of this API Call. Accessible
             via the C{doc} attribute.
         @param result: (keyword) A description of the result of this API call,
@@ -523,9 +533,18 @@ class Schema(object):
             if len(_parameters) > 0:
                 raise TypeError("parameters= must only be passed "
                                 "without positional arguments")
-            self._parameters = kwargs['parameters']
+            if isinstance(kwargs['parameters'], list):
+                self._parameters = kwargs['parameters']
+            else:
+                self._parameters = _namify_arguments(kwargs['parameters'])
         else:
             self._parameters = self._convert_old_schema(_parameters)
+
+    def get_parameters(self):
+        """
+        Get the list of parameters this schema supports.
+        """
+        return self._parameters[:]
 
     def extract(self, params):
         """Extract parameters from a raw C{dict} according to this schema.
@@ -534,7 +553,7 @@ class Schema(object):
         @return: A tuple of an L{Arguments} object holding the extracted
             arguments and any unparsed arguments.
         """
-        structure = Structure(fields=self._parameters)
+        structure = Structure(fields=dict([(p.name, p) for p in self._parameters]))
         try:
             tree = structure.coerce(self._convert_flat_to_nest(params))
             rest = {}
@@ -563,7 +582,7 @@ class Schema(object):
                 continue
             segments = name.split('.')
             first = segments[0]
-            parameter = self._parameters.get(first)
+            parameter = dict([(p.name, p) for p in self._parameters]).get(first)
             if parameter is None:
                 raise RuntimeError("Parameter '%s' not in schema" % name)
             else:
@@ -594,19 +613,8 @@ class Schema(object):
         """
         result = {}
         for k, v in params.iteritems():
-            last = result
-            segments = k.split('.')
-            for index, item in enumerate(segments):
-                if index == len(segments) - 1:
-                    newd = v
-                else:
-                    newd = {}
-                if not isinstance(last, dict):
-                    raise InconsistentParameterError(k)
-                if type(last.get(item)) is dict and type(newd) is not dict:
-                    raise InconsistentParameterError(k)
-                last = last.setdefault(item, newd)
-        return result
+            _merge(result, k.split('.'), v)
+        return dict(result)
 
     def _convert_nest_to_flat(self, params, _result=None, _prefix=None):
         """
@@ -647,17 +655,21 @@ class Schema(object):
         new_kwargs = {
             'name': self.name,
             'doc': self.doc,
-            'parameters': self._parameters.copy(),
+            'parameters': self._parameters[:],
             'result': self.result.copy() if self.result else {},
             'errors': self.errors.copy() if self.errors else set()}
-        new_kwargs['parameters'].update(kwargs.pop('parameters', {}))
+        if 'parameters' in kwargs:
+            new_params = kwargs.pop('parameters')
+            if not isinstance(new_params, list):
+                new_params = _namify_arguments(new_params)
+            new_kwargs['parameters'].extend(new_params)
         new_kwargs['result'].update(kwargs.pop('result', {}))
         new_kwargs['errors'].update(kwargs.pop('errors', set()))
         new_kwargs.update(kwargs)
 
         if schema_items:
             parameters = self._convert_old_schema(schema_items)
-            new_kwargs['parameters'].update(parameters)
+            new_kwargs['parameters'].extend(parameters)
         return Schema(**new_kwargs)
 
     def _convert_old_schema(self, parameters):
@@ -672,37 +684,77 @@ class Schema(object):
 
         becomes::
 
-            {"foo": List(
+            [List(
+                "foo",
                 item=Structure(
                     fields={"baz": List(item=Integer()),
-                            "shimmy": Integer()}))}
+                            "shimmy": Integer()}))]
 
         By design, the old schema syntax ignored the names "bar" and "quux".
         """
-        crap = {}
+        merged = []
         for parameter in parameters:
-            crap[parameter.name] = parameter
-        nest = self._convert_flat_to_nest(crap)
-        return self._inner_convert_old_schema(nest, 0).fields
+            segments = parameter.name.split('.')
+            _merge_tuples(merged, segments, parameter)
+        result = []
+        for k, v in merged:
+            result.append(self._inner_convert_old_schema(v, 1, k))
+        return result
 
-    def _inner_convert_old_schema(self, mapping, depth):
+    def _inner_convert_old_schema(self, mapping, depth, name):
         """
         Internal recursion helper for L{_convert_old_schema}.
         """
-        if not isinstance(mapping, dict):
+        if not isinstance(mapping, list):
             return mapping
         if depth % 2 == 0:
             fields = {}
-            for k, v in mapping.iteritems():
-                fields[k] = self._inner_convert_old_schema(v, depth + 1)
-            return Structure("anonymous_structure", fields=fields)
+            for k, v in mapping:
+                fields[k] = self._inner_convert_old_schema(v, depth + 1, k)
+            return Structure(name, fields=fields)
         else:
-            if not isinstance(mapping, dict):
-                raise TypeError("mapping %r must be a dict" % (mapping,))
+            if not isinstance(mapping, list):
+                raise TypeError("mapping %r must be an alist" % (mapping,))
             if not len(mapping) == 1:
                 raise ValueError("Multiple different index names specified: %r"
-                                 % (mapping.keys(),))
-            item = mapping.values()[0]
-            item = self._inner_convert_old_schema(item, depth + 1)
-            name = item.name.split('.', 1)[0]
+                                 % ([item[0] for item in mapping],))
+            item = mapping[0][1]
+            item = self._inner_convert_old_schema(item, depth + 1,
+                                                  mapping[0][0])
             return List(name=name, item=item, optional=item.optional)
+
+
+def _merge(mapping, path, value):
+    """
+        d = {}
+        _merge(d, ['foo', 'bar'], 'baz')
+        d == {'foo': {'bar': 'baz'}}
+    """
+    for key in path[:-1]:
+        mapping = mapping.setdefault(key, {})
+    if path[-1] in mapping:
+        raise InconsistentParameterError('.'.join(path))
+    if not isinstance(mapping, dict):
+        raise InconsistentParameterError('.'.join(path))
+    mapping[path[-1]] = value
+
+
+def _merge_tuples(mapping, path, value):
+    """
+    Like _merge, but it works on lists of tuples instead, to maintain order.
+
+        d = []
+        _merge(d, ['foo', 'bar'], 'baz')
+        d == [('foo', [('bar', 'baz')])]
+    """
+    for key in path[:-1]:
+        for item in mapping:
+            if item[0] == key:
+                mapping = item[1]
+                break
+        else:
+            newmapping = []
+            mapping.append((key, newmapping))
+            mapping = newmapping
+    mapping.append((path[-1], value))
+
