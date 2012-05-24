@@ -517,14 +517,12 @@ class Schema(object):
 
         @param name: (keyword) The name of the API call that this schema
             represents. Accessible via the C{name} attribute.
-        @param parameters: (keyword) The parameters of the API, as a either a
-            list of named L{Parameter} instances, or a mapping of parameter
-            names to L{Parameter} instances.
+        @param parameters: (keyword) The parameters of the API, as a list of
+            named L{Parameter} instances.
         @param doc: (keyword) The documentation of this API Call. Accessible
             via the C{doc} attribute.
-        @param result: (keyword) A description of the result of this API call,
-            in the same format as C{parameters}. Accessible via the C{result}
-            attribute.
+        @param result: (keyword) A description of the result of this API
+            call. Accessible via the C{result} attribute.
         @param errors: (keyword) A sequence of exception classes that the API
             can potentially raise. Accessible as a L{set} via the C{errors}
             attribute.
@@ -537,10 +535,7 @@ class Schema(object):
             if len(_parameters) > 0:
                 raise TypeError("parameters= must only be passed "
                                 "without positional arguments")
-            if isinstance(kwargs['parameters'], list):
-                self._parameters = kwargs['parameters']
-            else:
-                self._parameters = _namify_arguments(kwargs['parameters'])
+            self._parameters = kwargs['parameters']
         else:
             self._parameters = self._convert_old_schema(_parameters)
 
@@ -684,8 +679,6 @@ class Schema(object):
             'errors': self.errors.copy() if self.errors else set()}
         if 'parameters' in kwargs:
             new_params = kwargs.pop('parameters')
-            if not isinstance(new_params, list):
-                new_params = _namify_arguments(new_params)
             new_kwargs['parameters'].extend(new_params)
         new_kwargs['result'].update(kwargs.pop('result', {}))
         new_kwargs['errors'].update(kwargs.pop('errors', set()))
@@ -716,46 +709,68 @@ class Schema(object):
 
         By design, the old schema syntax ignored the names "bar" and "quux".
         """
+        # 'merged' here is an associative list that maps parameter names to
+        # Parameter instances, OR sub-associative lists which represent nested
+        # lists and structures.
+        # e.g.,
+        #    [Integer("foo")]
+        # becomes
+        #    [("foo", Integer("foo"))]
+        # and
+        #    [Integer("foo.bar")]
+        # (which represents a list of integers called "foo" with a meaningless
+        # index name of "bar") becomes
+        #     [("foo", [("bar", Integer("foo.bar"))])].
         merged = []
         for parameter in parameters:
             segments = parameter.name.split('.')
-            _merge_alist(merged, segments, parameter)
-        result = []
-        for k, v in merged:
-            result.append(self._inner_convert_old_schema(v, 1, k))
+            _merge_associative_list(merged, segments, parameter)
+        result = [self._inner_convert_old_schema(node, 1) for node in merged]
         return result
 
-    def _inner_convert_old_schema(self, mapping, depth, name):
+    def _inner_convert_old_schema(self, node, depth):
         """
         Internal recursion helper for L{_convert_old_schema}.
+
+        @param node: A node in the associative list tree as described in
+            _convert_old_schema. A two tuple of (name, parameter).
+        @param depth: The depth that the node is at. This is important to know
+            if we're currently processing a list or a structure. ("foo.N" is a
+            list called "foo", "foo.N.fieldname" describes a field in a list of
+            structs).
         """
-        if not isinstance(mapping, list):
-            return mapping
+        name, parameter_description = node
+        if not isinstance(parameter_description, list):
+            # This is a leaf, i.e., an actual L{Parameter} instance.
+            return parameter_description
         if depth % 2 == 0:
+            # we're processing a structure.
             fields = {}
-            for k, v in mapping:
-                fields[k] = self._inner_convert_old_schema(v, depth + 1, k)
+            for node in parameter_description:
+                fields[node[0]] = self._inner_convert_old_schema(node, depth + 1)
             return Structure(name, fields=fields)
         else:
-            if not isinstance(mapping, list):
-                raise TypeError("mapping %r must be an alist" % (mapping,))
-            if not len(mapping) == 1:
-                raise ValueError("Multiple different index names specified: %r"
-                                 % ([item[0] for item in mapping],))
-            item = mapping[0][1]
-            item = self._inner_convert_old_schema(item, depth + 1,
-                                                  mapping[0][0])
+            # we're processing a list.
+            if not isinstance(parameter_description, list):
+                raise TypeError("node %r must be an associative list"
+                                % (parameter_description,))
+            if not len(parameter_description) == 1:
+                raise ValueError(
+                    "Multiple different index names specified: %r"
+                    % ([item[0] for item in parameter_description],))
+            subnode = parameter_description[0]
+            item = self._inner_convert_old_schema(subnode, depth + 1)
             return List(name=name, item=item, optional=item.optional)
 
 
-def _merge_alist(alist, path, value):
+def _merge_associative_list(alist, path, value):
     """
     Merge a value into an associative list at the given path, maintaining
     insertion order. Examples will explain it::
 
         >>> alist = []
-        >>> _merge_alist(alist, ["foo", "bar"], "barvalue")
-        >>> _merge_alist(alist, ["foo", "baz"], "bazvalue")
+        >>> _merge_associative_list(alist, ["foo", "bar"], "barvalue")
+        >>> _merge_associative_list(alist, ["foo", "baz"], "bazvalue")
         >>> alist == [("foo", [("bar", "barvalue"), ("baz", "bazvalue")])]
 
     @param alist: An associative list of names to values.

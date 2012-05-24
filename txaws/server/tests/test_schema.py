@@ -407,20 +407,6 @@ class SchemaTestCase(TestCase):
         self.assertEqual(["name", "scores", "index"],
                          [p.name for p in schema.get_parameters()])
 
-    def test_get_parameters_with_dict_parameters(self):
-        """
-        If a dictionary as passed as the parameters to a L{Schema},
-        L{Schema.get_parameters} returns them in an arbitrary order.
-        """
-        schema = Schema(parameters={
-                "name": Unicode(),
-                "scores": List(item=Integer())})
-        parameters = schema.get_parameters()
-        self.assertTrue(isinstance(parameters, list))
-        self.assertEqual(2, len(parameters))
-        self.assertIn("name", [parameter.name for parameter in parameters])
-        self.assertIn("scores", [parameter.name for parameter in parameters])
-
     def test_extract(self):
         """
         L{Schema.extract} returns an L{Argument} object whose attributes are
@@ -651,16 +637,16 @@ class SchemaTestCase(TestCase):
     def test_bundle_with_structure(self):
         """L{Schema.bundle} can bundle L{Structure}s."""
         schema = Schema(
-            parameters={
-                "struct": Structure(fields={"field1": Unicode(),
-                                            "field2": Integer()})})
+            parameters=[
+                Structure("struct", fields={"field1": Unicode(),
+                                            "field2": Integer()})])
         params = schema.bundle(struct={"field1": "hi", "field2": 59})
         self.assertEqual({"struct.field1": "hi", "struct.field2": "59"},
                          params)
 
     def test_bundle_with_list(self):
         """L{Schema.bundle} can bundle L{List}s."""
-        schema = Schema(parameters={"things": List(item=Unicode())})
+        schema = Schema(parameters=[List("things", item=Unicode())])
         params = schema.bundle(things=["foo", "bar"])
         self.assertEqual({"things.1": "foo", "things.2": "bar"}, params)
 
@@ -669,9 +655,9 @@ class SchemaTestCase(TestCase):
         L{Schema.bundle} can bundle L{Structure}s (specified as L{Arguments}).
         """
         schema = Schema(
-            parameters={
-                "struct": Structure(fields={"field1": Unicode(),
-                                            "field2": Integer()})})
+            parameters=[
+                Structure("struct", fields={"field1": Unicode(),
+                                            "field2": Integer()})])
         params = schema.bundle(struct=Arguments({"field1": "hi",
                                                  "field2": 59}))
         self.assertEqual({"struct.field1": "hi", "struct.field2": "59"},
@@ -679,7 +665,7 @@ class SchemaTestCase(TestCase):
 
     def test_bundle_with_list_with_arguments(self):
         """L{Schema.bundle} can bundle L{List}s (specified as L{Arguments})."""
-        schema = Schema(parameters={"things": List(item=Unicode())})
+        schema = Schema(parameters=[List("things", item=Unicode())])
         params = schema.bundle(things=Arguments({1: "foo", 2: "bar"}))
         self.assertEqual({"things.1": "foo", "things.2": "bar"}, params)
 
@@ -807,8 +793,8 @@ class SchemaTestCase(TestCase):
         {name: field} format.
         """
         schema = Schema(
-            parameters={"foo": Structure(
-                    fields={"l": List(item=Integer())})})
+            parameters=[Structure("foo",
+                    fields={"l": List(item=Integer())})])
         arguments, _ = schema.extract({"foo.l.1": "1", "foo.l.2": "2"})
         self.assertEqual([1, 2], arguments.foo.l)
 
@@ -873,9 +859,9 @@ class SchemaTestCase(TestCase):
         schema = Schema(
             name="GetStuff",
             doc="""Get the stuff.""",
-            parameters={
-                'id': Integer(),
-                'scope': Unicode()},
+            parameters=[
+                Integer("id"),
+                Unicode("scope")],
             result=result,
             errors=errors)
 
@@ -896,12 +882,12 @@ class SchemaTestCase(TestCase):
 
         schema = Schema(
             name="GetStuff",
-            parameters={"id": Integer()})
+            parameters=[Integer("id")])
 
         schema2 = schema.extend(
             name="GetStuff2",
             doc="Get stuff 2",
-            parameters={'scope': Unicode()},
+            parameters=[Unicode("scope")],
             result=result,
             errors=errors)
 
@@ -928,11 +914,11 @@ class SchemaTestCase(TestCase):
         schema = Schema(
             name="GetStuff",
             doc="""Get the stuff.""",
-            parameters={'id': Integer()},
+            parameters=[Integer("id")],
             result=result,
             errors=errors)
 
-        schema2 = schema.extend(parameters={'scope': Unicode()})
+        schema2 = schema.extend(parameters=[Unicode("scope")])
 
         self.assertEqual("GetStuff", schema2.name)
         self.assertEqual("Get the stuff.", schema2.doc)
@@ -961,7 +947,7 @@ class SchemaTestCase(TestCase):
         """
         Errors can be extended with L{Schema.extend}.
         """
-        schema = Schema(parameters={}, errors=[APIError])
+        schema = Schema(parameters=[], errors=[APIError])
         schema2 = schema.extend(errors=[ZeroDivisionError])
         self.assertEqual(set([APIError, ZeroDivisionError]), schema2.errors)
 
