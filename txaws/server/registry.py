@@ -52,3 +52,15 @@ class Registry(object):
             # Only pass it if specified, for backward compatibility
             kwargs["ignore"] = ignore
         scanner.scan(module, **kwargs)
+
+    def get_actions(self):
+        """
+        Get a list of all action names.
+        """
+        return self._by_action.keys()
+
+    def get_versions(self, action_name):
+        """
+        Get a list of versions supported by the given action name.
+        """
+        return self._by_action[action_name].keys()
