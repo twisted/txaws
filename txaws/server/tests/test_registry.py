@@ -51,6 +51,29 @@ class RegistryTestCase(TestCase):
         self.assertRaises(RuntimeError, self.registry.add, TestMethod2,
                           "test", "1.0")
 
+    def test_get_actions(self):
+        """
+        L{MethodRegistry.get_actions} returns a list of action names.
+        """
+        self.registry.add(TestMethod, "test", "1.0")
+        self.registry.add(TestMethod, "test", "2.0")
+        self.registry.add(TestMethod, "test2", "1.0")
+        self.assertEqual(["test", "test2"],
+                         sorted(self.registry.get_actions()))
+
+    def test_get_versions(self):
+        """
+        L{MethodRegistry.get_versions} returns a list of versions supported by
+        the action.
+        """
+        self.registry.add(TestMethod, "test", "1.0")
+        self.registry.add(TestMethod, "test", "2.0")
+        self.registry.add(TestMethod, "test2", "1.0")
+        self.assertEqual(["1.0", "2.0"],
+                         sorted(self.registry.get_versions("test")))
+        self.assertEqual(["1.0"],
+                         sorted(self.registry.get_versions("test2")))
+
     def test_get(self):
         """
         L{MethodRegistry.get} returns the method class registered for the
