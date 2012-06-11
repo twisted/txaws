@@ -42,6 +42,15 @@ class ArgumentsTestCase(TestCase):
         arguments = Arguments({})
         self.assertRaises(KeyError, arguments.__getitem__, 1)
 
+    def test_contains(self):
+        """
+        The presence of a certain argument can be inspected using the 'in'
+        keyword.
+        ."""
+        arguments = Arguments({"foo": 1})
+        self.assertIn("foo", arguments)
+        self.assertNotIn("bar", arguments)
+
     def test_len(self):
         """C{len()} can be used with an L{Arguments} instance."""
         self.assertEqual(0, len(Arguments({})))

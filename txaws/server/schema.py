@@ -451,6 +451,10 @@ class Arguments(object):
         """Return the number of arguments."""
         return len(self.__dict__)
 
+    def __contains__(self, key):
+        """Return whether an argument with the given name is present."""
+        return key in self.__dict__
+
     def _wrap(self, value):
         """Wrap the given L{tree} with L{Arguments} as necessary.
 
