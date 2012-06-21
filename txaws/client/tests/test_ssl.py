@@ -12,6 +12,10 @@ from twisted.python import log
 from twisted.python.filepath import FilePath
 from twisted.test.test_sslverify import makeCertificate
 from twisted.web import server, static
+try:
+    from twisted.web.client import ResponseFailed
+except ImportError:
+    from twisted.web._newclient import ResponseFailed
 
 from txaws import exception
 from txaws.client import ssl
@@ -30,6 +34,11 @@ BADPRIVKEY = sibpath("badprivate.ssl")
 BADPUBKEY = sibpath("badpublic.ssl")
 PRIVSANKEY = sibpath("private_san.ssl")
 PUBSANKEY = sibpath("public_san.ssl")
+
+
+class WebDefaultOpenSSLContextFactory(DefaultOpenSSLContextFactory):
+    def getContext(self, hostname=None, port=None):
+        return DefaultOpenSSLContextFactory.getContext(self)
 
 
 class BaseQuerySSLTestCase(TXAWSTestCase):
@@ -75,7 +84,7 @@ class BaseQuerySSLTestCase(TXAWSTestCase):
         The L{VerifyingContextFactory} properly allows to connect to the
         endpoint if the certificates match.
         """
-        context_factory = DefaultOpenSSLContextFactory(PRIVKEY, PUBKEY)
+        context_factory = WebDefaultOpenSSLContextFactory(PRIVKEY, PUBKEY)
         self.port = reactor.listenSSL(
             0, self.site, context_factory, interface="127.0.0.1")
         self.portno = self.port.getHost().port
@@ -90,7 +99,7 @@ class BaseQuerySSLTestCase(TXAWSTestCase):
         The L{VerifyingContextFactory} fails with a SSL error the certificates
         can't be checked.
         """
-        context_factory = DefaultOpenSSLContextFactory(BADPRIVKEY, BADPUBKEY)
+        context_factory = WebDefaultOpenSSLContextFactory(BADPRIVKEY, BADPUBKEY)
         self.port = reactor.listenSSL(
             0, self.site, context_factory, interface="127.0.0.1")
         self.portno = self.port.getHost().port
@@ -98,7 +107,14 @@ class BaseQuerySSLTestCase(TXAWSTestCase):
         endpoint = AWSServiceEndpoint(ssl_hostname_verification=True)
         query = BaseQuery("an action", "creds", endpoint)
         d = query.get_page(self._get_url("file"))
-        return self.assertFailure(d, SSLError)
+        def fail(ignore):
+            self.fail('Expected SSLError')
+        def check_exception(why):
+            # XXX kind of a mess here ... need to unwrap the
+            # exception and check
+            root_exc = why.value[0][0].value
+            self.assert_(isinstance(root_exc, SSLError))
+        return d.addCallbacks(fail, check_exception)
 
     def test_ssl_verification_bypassed(self):
         """
@@ -121,7 +137,7 @@ class BaseQuerySSLTestCase(TXAWSTestCase):
         L{VerifyingContextFactory} supports checking C{subjectAltName} in the
         certificate if it's available.
         """
-        context_factory = DefaultOpenSSLContextFactory(PRIVSANKEY, PUBSANKEY)
+        context_factory = WebDefaultOpenSSLContextFactory(PRIVSANKEY, PUBSANKEY)
         self.port = reactor.listenSSL(
             0, self.site, context_factory, interface="127.0.0.1")
         self.portno = self.port.getHost().port

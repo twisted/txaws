@@ -150,3 +150,65 @@ class RequestPayment(object):
         """
         root = XML(xml_bytes)
         return cls(root.findtext("Payer"))
+
+
+class MultipartInitiationResponse(object):
+    """
+    A response to Initiate Multipart Upload
+    """
+
+    def __init__(self, bucket, object_name, upload_id):
+        """
+        @param bucket: The bucket name
+        @param object_name: The object name
+        @param upload_id: The upload id
+        """
+        self.bucket = bucket
+        self.object_name = object_name
+        self.upload_id = upload_id
+
+    @classmethod
+    def from_xml(cls, xml_bytes):
+        """
+        Create an instance of this from XML bytes.
+
+        @param xml_bytes: C{str} bytes of XML to parse
+        @return: an instance of L{MultipartInitiationResponse}
+        """
+        root = XML(xml_bytes)
+        return cls(root.findtext('Bucket'),
+                   root.findtext('Key'),
+                   root.findtext('UploadId'))
+
+
+class MultipartCompletionResponse(object):
+    """
+    Represents a response to Complete Multipart Upload
+    """
+
+    def __init__(self, location, bucket, object_name, etag):
+        """
+        @param location: The URI identifying newly created object
+        @param bucket: The bucket name
+        @param object_name: The object name / key
+        @param etag: The entity tag
+        """
+        self.location = location
+        self.bucket = bucket
+        self.object_name = object_name
+        self.etag = etag
+
+    @classmethod
+    def from_xml(cls, xml_bytes):
+        """
+        Create an instance of this class from XML bytes.
+
+        @param xml_bytes: C{str} bytes of XML to parse
+        @return: an instance of L{MultipartCompletionResponse}
+        """
+        root = XML(xml_bytes)
+        return cls(root.findtext('Location'),
+                   root.findtext('Bucket'),
+                   root.findtext('Key'),
+                   root.findtext('ETag'))
+
