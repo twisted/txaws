@@ -37,21 +37,33 @@ def s3_error_wrapper(error):
 class URLContext(object):
     """
     The hosts and the paths that form an S3 endpoint change depending upon the
-    context in which they are called.  While S3 supports bucket names in the
-    host name, we use the convention of providing it in the path so that
-    using IP addresses and alternative implementations of S3 actually works
-    (e.g. Walrus).
+    context in which they are called.  S3 ostensibly supports bucket names either
+    in the host name or in the path, but the former works better for Amazon's
+    implementation (avoiding errors in some cases), while the latter works for
+    IP addresses and alternative implementations of S3 (e.g. Walrus).
     """
-    def __init__(self, service_endpoint, bucket="", object_name=""):
+    def __init__(self, service_endpoint, bucket="", object_name="", bucket_in_host=None):
         self.endpoint = service_endpoint
         self.bucket = bucket
         self.object_name = object_name
+        if bucket_in_host is None:
+            # default is to use bucket in host if the endpoint is recognizably Amazon
+            bucket_in_host = service_endpoint.get_host().endswith('.amazonaws.com')
+        self.bucket_in_host = bucket_in_host
 
     def get_host(self):
-        return self.endpoint.get_host()
+        if self.bucket_in_host:
+            return "%s.%s" % (self.bucket, self.endpoint.get_host())
+        else:
+            return self.endpoint.get_host()
 
     def get_path(self):
         path = "/"
+        if self.bucket_in_host:
+            if self.object_name:
+                path += self.object_name
+            return path
+
         if self.bucket is not None:
             path += self.bucket
         if self.bucket is not None and self.object_name:
