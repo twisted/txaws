@@ -99,6 +99,8 @@ def get_ca_certs():
     cert_paths = os.getenv("TXAWS_CERTS_PATH", DEFAULT_CERTS_PATH).split(":")
     certificate_authority_map = {}
     for path in cert_paths:
+        if not path:
+            continue
         for cert_file_name in glob(os.path.join(path, "*.pem")):
             # There might be some dead symlinks in there, so let's make sure
             # it's real.
