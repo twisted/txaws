@@ -169,6 +169,7 @@ class CertsFilesTestCase(TXAWSTestCase):
         self.two_certs_dir = tempfile.mkdtemp()
         self.cert2 = self._write_pem(cert2, self.two_certs_dir, "cert2.pem")
         self.cert3 = self._write_pem(cert3, self.two_certs_dir, "cert3.pem")
+        self.curdir = os.getcwd()
 
     def tearDown(self):
         super(CertsFilesTestCase, self).tearDown()
@@ -178,6 +179,7 @@ class CertsFilesTestCase(TXAWSTestCase):
         os.removedirs(self.no_certs_dir)
         os.removedirs(self.one_cert_dir)
         os.removedirs(self.two_certs_dir)
+        os.chdir(self.curdir)
 
     def _write_pem(self, cert, dir, filename):
         data = dump_certificate(FILETYPE_PEM, cert[1])
@@ -213,3 +215,8 @@ class CertsFilesTestCase(TXAWSTestCase):
             self.no_certs_dir, self.one_cert_dir)
         certs = ssl.get_ca_certs()
         self.assertEqual(len(certs), 1)
+
+    def test_get_ca_certs_no_current_dir(self):
+        os.environ["TXAWS_CERTS_PATH"] = "%s:" % self.no_certs_dir
+        os.chdir(self.one_cert_dir)
+        self.assertRaises(exception.CertsNotFoundError, ssl.get_ca_certs)
