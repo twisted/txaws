@@ -223,10 +223,10 @@ class CertsFilesTestCase(TXAWSTestCase):
         self.addCleanup(os.chdir, original_dir)
         os.chdir(self.one_cert_dir)
         original_certs_path = os.environ.get("TXAWS_CERTS_PATH")
-        if original_certs_path:
+        if original_certs_path is None:
+            self.addCleanup(os.environ.__delitem__, "TXAWS_CERTS_PATH")
+        else:
             self.addCleanup(os.environ.__setitem__, "TXAWS_CERTS_PATH",
                             original_certs_path)
-        else:
-            self.addCleanup(os.environ.__delitem__, "TXAWS_CERTS_PATH")
         os.environ["TXAWS_CERTS_PATH"] = "%s:" % self.no_certs_dir
         self.assertRaises(exception.CertsNotFoundError, ssl.get_ca_certs)
