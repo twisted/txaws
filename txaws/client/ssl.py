@@ -16,11 +16,11 @@ __all__ = ["VerifyingContextFactory", "get_ca_certs"]
 
 # Multiple defaults are supported; just add more paths, separated by colons.
 if sys.platform == "darwin":
-    DEFAULT_CERTS_PATH = "/System/Library/OpenSSL/certs/:"
+    DEFAULT_CERTS_PATH = "/System/Library/OpenSSL/certs/"
 # XXX Windows users can file a bug to add theirs, since we don't know what
 # the right path is
 else:
-    DEFAULT_CERTS_PATH = "/etc/ssl/certs/:"
+    DEFAULT_CERTS_PATH = "/etc/ssl/certs/"
 
 
 class VerifyingContextFactory(CertificateOptions):
