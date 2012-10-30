@@ -222,8 +222,7 @@ class CertsFilesTestCase(TXAWSTestCase):
         Do not include the current directory if the TXAWS_CERTS_PATH
         environment variable ends with a ":".
         """
-        original_dir = os.getcwd()
-        self.addCleanup(os.chdir, original_dir)
+        self.addCleanup(os.chdir, os.getcwd())
         os.chdir(self.one_cert_dir)
         os.environ["TXAWS_CERTS_PATH"] = "%s:" % self.no_certs_dir
         self.assertRaises(exception.CertsNotFoundError, ssl.get_ca_certs)
