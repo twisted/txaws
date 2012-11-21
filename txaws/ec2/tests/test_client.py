@@ -171,7 +171,7 @@ class EC2ClientInstancesTestCase(TXAWSTestCase):
         self.assertEquals(reservation.owner_id, "123456789012")
         # check groups
         group = reservation.groups[0]
-        self.assertEquals(group, "default")
+        self.assertEquals(group, "sg-64f9eb08")
         # check instance
         self.assertEquals(instance.instance_id, "i-abcdef01")
         self.assertEquals(instance.instance_state, "running")
@@ -201,7 +201,7 @@ class EC2ClientInstancesTestCase(TXAWSTestCase):
         self.assertEquals(reservation.owner_id, "123456789012")
         # check groups
         group = reservation.groups[0]
-        self.assertEquals(group, "default")
+        self.assertEquals(group, "sg-64f9eb08")
         # check instance
         self.assertEquals(instance.instance_id, "i-abcdef01")
         self.assertEquals(instance.instance_state, "running")
@@ -331,7 +331,7 @@ class EC2ClientInstancesTestCase(TXAWSTestCase):
         self.assertEquals(reservation.owner_id, "495219933132")
         # check groups
         group = reservation.groups[0]
-        self.assertEquals(group, "default")
+        self.assertEquals(group, "sg-64f9eb08")
         # check instance
         self.assertEquals(instance.instance_id, "i-2ba64342")
         self.assertEquals(instance.instance_state, "pending")
@@ -377,6 +377,59 @@ class EC2ClientInstancesTestCase(TXAWSTestCase):
             ramdisk_id=u"r-1234")
         d.addCallback(self.check_parsed_run_instances)
 
+    def test_run_instances_with_subnet(self):
+        class StubQuery(object):
+            def __init__(stub, action="", creds=None, endpoint=None,
+                         other_params={}):
+                self.assertEqual(action, "RunInstances")
+                self.assertEqual(creds.access_key, "foo")
+                self.assertEqual(creds.secret_key, "bar")
+                self.assertEquals(
+                    other_params,
+                    {"ImageId": "ami-1234", "MaxCount": "2", "MinCount": "1",
+                     "SecurityGroupId.1": u"sg-a72d9f92e", "KeyName": u"default",
+                     "UserData": "Zm9v", "InstanceType": u"m1.small",
+                     "Placement.AvailabilityZone": u"us-east-1b",
+                     "KernelId": u"k-1234", "RamdiskId": u"r-1234",
+                     "SubnetId": "subnet-a72d829f"})
+
+            def submit(self):
+                return succeed(
+                    payload.sample_run_instances_result)
+
+        creds = AWSCredentials("foo", "bar")
+        ec2 = client.EC2Client(creds, query_factory=StubQuery)
+        d = ec2.run_instances("ami-1234", 1, 2, security_group_ids=[u"sg-a72d9f92e"],
+            key_name=u"default", user_data=u"foo", instance_type=u"m1.small",
+            availability_zone=u"us-east-1b", kernel_id=u"k-1234",
+            ramdisk_id=u"r-1234", subnet_id="subnet-a72d829f")
+        d.addCallback(self.check_parsed_run_instances)
+
+    def test_run_instances_with_subnet_but_without_secgroup_id(self):
+        creds = AWSCredentials("foo", "bar")
+        ec2 = client.EC2Client(creds)
+        error = self.assertRaises(ValueError, ec2.run_instances, "ami-1234", 1, 2,
+            key_name=u"default", user_data=u"foo", instance_type=u"m1.small",
+            availability_zone=u"us-east-1b", kernel_id=u"k-1234",
+            ramdisk_id=u"r-1234", subnet_id="subnet-a72d829f")
+        self.assertEqual(
+            str(error),
+            "You must specify the security_group_ids with the subnet_id"
+        )
+
+    def test_run_instances_without_subnet_and_secgroups(self):
+        creds = AWSCredentials("foo", "bar")
+        ec2 = client.EC2Client(creds)
+        error = self.assertRaises(ValueError, ec2.run_instances, "ami-1234", 1, 2,
+            key_name=u"default", user_data=u"foo", instance_type=u"m1.small",
+            availability_zone=u"us-east-1b", kernel_id=u"k-1234",
+            ramdisk_id=u"r-1234")
+        self.assertEqual(
+            str(error),
+            ("You must specify either the subnet_id and "
+             "security_group_ids or security_groups")
+        )
+
 
 class EC2ClientSecurityGroupsTestCase(TXAWSTestCase):
 
@@ -400,6 +453,7 @@ class EC2ClientSecurityGroupsTestCase(TXAWSTestCase):
 
         def check_results(security_groups):
             [security_group] = security_groups
+            self.assertEquals(security_group.id, "sg-a1a1a1")
             self.assertEquals(security_group.owner_id,
                               "UYY3TLBUXIEON5NQVUUX6OMPWBZIQNFM")
             self.assertEquals(security_group.name, "WebServers")
@@ -440,6 +494,7 @@ class EC2ClientSecurityGroupsTestCase(TXAWSTestCase):
             security_group = security_groups[0]
             self.assertEquals(security_group.owner_id,
                               "UYY3TLBUXIEON5NQVUUX6OMPWBZIQNFM")
+            self.assertEquals(security_group.id, "sg-a1a1a1")
             self.assertEquals(security_group.name, "MessageServers")
             self.assertEquals(security_group.description, "Message Servers")
             self.assertEquals(security_group.allowed_groups, [])
@@ -451,6 +506,7 @@ class EC2ClientSecurityGroupsTestCase(TXAWSTestCase):
             security_group = security_groups[1]
             self.assertEquals(security_group.owner_id,
                               "UYY3TLBUXIEON5NQVUUX6OMPWBZIQNFM")
+            self.assertEquals(security_group.id, "sg-c3c3c3")
             self.assertEquals(security_group.name, "WebServers")
             self.assertEquals(security_group.description, "Web Servers")
             self.assertEquals([(pair.user_id, pair.group_name)
@@ -583,14 +639,45 @@ class EC2ClientSecurityGroupsTestCase(TXAWSTestCase):
             def submit(self):
                 return succeed(payload.sample_create_security_group)
 
+        def check_result(id):
+            self.assertEquals(id, "sg-1a2b3c4d")
+
         creds = AWSCredentials("foo", "bar")
         ec2 = client.EC2Client(creds, query_factory=StubQuery)
         d = ec2.create_security_group(
             "WebServers",
             "The group for the web server farm.")
-        return self.assertTrue(d)
+        return d.addCallback(check_result)
 
-    def test_delete_security_group(self):
+    def test_create_security_group_with_VPC(self):
+        class StubQuery(object):
+
+            def __init__(stub, action="", creds=None, endpoint=None,
+                         other_params={}):
+                self.assertEqual(action, "CreateSecurityGroup")
+                self.assertEqual(creds.access_key, "foo")
+                self.assertEqual(creds.secret_key, "bar")
+                self.assertEqual(other_params, {
+                    "GroupName": "WebServers",
+                    "GroupDescription": "The group for the web server farm.",
+                    "VpcId": "vpc-a4f2",
+                    })
+
+            def submit(self):
+                return succeed(payload.sample_create_security_group)
+
+        def check_result(id):
+            self.assertEquals(id, "sg-1a2b3c4d")
+
+        creds = AWSCredentials("foo", "bar")
+        ec2 = client.EC2Client(creds, query_factory=StubQuery)
+        d = ec2.create_security_group(
+            "WebServers",
+            "The group for the web server farm.",
+            "vpc-a4f2")
+        return d.addCallback(check_result)
+
+    def test_delete_security_group_using_name(self):
         """
         L{EC2Client.delete_security_group} returns a C{Deferred} that
         eventually fires with a true value, indicating the success of the
@@ -614,6 +701,40 @@ class EC2ClientSecurityGroupsTestCase(TXAWSTestCase):
         ec2 = client.EC2Client(creds, query_factory=StubQuery)
         d = ec2.delete_security_group("WebServers")
         return self.assertTrue(d)
+
+    def test_delete_security_group_using_id(self):
+        """
+        L{EC2Client.delete_security_group} returns a C{Deferred} that
+        eventually fires with a true value, indicating the success of the
+        operation.
+        """
+        class StubQuery(object):
+
+            def __init__(stub, action="", creds=None, endpoint=None,
+                         other_params={}):
+                self.assertEqual(action, "DeleteSecurityGroup")
+                self.assertEqual(creds.access_key, "foo")
+                self.assertEqual(creds.secret_key, "bar")
+                self.assertEqual(other_params, {
+                    "GroupId": "sg-a1a1a1",
+                    })
+
+            def submit(self):
+                return succeed(payload.sample_delete_security_group)
+
+        creds = AWSCredentials("foo", "bar")
+        ec2 = client.EC2Client(creds, query_factory=StubQuery)
+        d = ec2.delete_security_group(id="sg-a1a1a1")
+        return self.assertTrue(d)
+
+    def test_delete_security_group_without_id_and_name(self):
+        creds = AWSCredentials("foo", "bar")
+        ec2 = client.EC2Client(creds)
+        error = self.assertRaises(ValueError, ec2.delete_security_group)
+        self.assertEquals(
+            str(error),
+            "You must provide either the security group name or id",
+        )
 
     def test_delete_security_group_failure(self):
         """
@@ -676,9 +797,42 @@ class EC2ClientSecurityGroupsTestCase(TXAWSTestCase):
         creds = AWSCredentials("foo", "bar")
         ec2 = client.EC2Client(creds, query_factory=StubQuery)
         d = ec2.authorize_security_group(
-            "WebServers", source_group_name="AppServers",
+            group_name="WebServers", source_group_name="AppServers",
             source_group_owner_id="123456789123")
         return self.assertTrue(d)
+
+    def test_authorize_security_group_using_group_id(self):
+        class StubQuery(object):
+
+            def __init__(stub, action="", creds=None, endpoint=None,
+                         other_params={}):
+                self.assertEqual(action, "AuthorizeSecurityGroupIngress")
+                self.assertEqual(creds.access_key, "foo")
+                self.assertEqual(creds.secret_key, "bar")
+                self.assertEqual(other_params, {
+                    "GroupId": "sg-a1b2c3d4e5f6",
+                    "SourceSecurityGroupName": "AppServers",
+                    "SourceSecurityGroupOwnerId": "123456789123",
+                    })
+
+            def submit(self):
+                return succeed(payload.sample_authorize_security_group)
+
+        creds = AWSCredentials("foo", "bar")
+        ec2 = client.EC2Client(creds, query_factory=StubQuery)
+        d = ec2.authorize_security_group(
+            group_id="sg-a1b2c3d4e5f6", source_group_name="AppServers",
+            source_group_owner_id="123456789123")
+        return self.assertTrue(d)
+
+    def test_authorize_security_group_without_group_id_and_group_name(self):
+        creds = AWSCredentials("foo", "bar")
+        ec2 = client.EC2Client(creds)
+        error = self.assertRaises(ValueError, ec2.authorize_security_group,
+                source_group_name="AppServers", source_group_owner_id="123456789123")
+        self.assertEquals(
+            str(error),
+            "You must specify either the group name of the group id.")
 
     def test_authorize_security_group_with_ip_permissions(self):
         """
@@ -707,7 +861,7 @@ class EC2ClientSecurityGroupsTestCase(TXAWSTestCase):
         creds = AWSCredentials("foo", "bar")
         ec2 = client.EC2Client(creds, query_factory=StubQuery)
         d = ec2.authorize_security_group(
-            "WebServers", ip_protocol="tcp", from_port="22", to_port="80",
+            group_name="WebServers", ip_protocol="tcp", from_port="22", to_port="80",
             cidr_ip="0.0.0.0/0")
         return self.assertTrue(d)
 
@@ -722,16 +876,12 @@ class EC2ClientSecurityGroupsTestCase(TXAWSTestCase):
         """
         creds = AWSCredentials("foo", "bar")
         ec2 = client.EC2Client(creds)
-        self.assertRaises(ValueError, ec2.authorize_security_group,
-                "WebServers", ip_protocol="tcp", from_port="22")
-        try:
-            ec2.authorize_security_group(
-                "WebServers", ip_protocol="tcp", from_port="22")
-        except Exception, error:
-            self.assertEquals(
-                str(error),
-                ("You must specify either both group parameters or all the "
-                 "ip parameters."))
+        error = self.assertRaises(ValueError, ec2.authorize_security_group,
+                group_name="WebServers", ip_protocol="tcp", from_port="22")
+        self.assertEquals(
+            str(error),
+            ("You must specify either both group parameters or all the "
+             "ip parameters."))
 
     def test_authorize_group_permission(self):
         """
@@ -822,6 +972,30 @@ class EC2ClientSecurityGroupsTestCase(TXAWSTestCase):
             source_group_owner_id="123456789123")
         return self.assertTrue(d)
 
+    def test_revoke_security_group_using_group_id(self):
+        class StubQuery(object):
+
+            def __init__(stub, action="", creds=None, endpoint=None,
+                         other_params={}):
+                self.assertEqual(action, "RevokeSecurityGroupIngress")
+                self.assertEqual(creds.access_key, "foo")
+                self.assertEqual(creds.secret_key, "bar")
+                self.assertEqual(other_params, {
+                    "GroupId": "sg-a1a1a1",
+                    "SourceSecurityGroupName": "AppServers",
+                    "SourceSecurityGroupOwnerId": "123456789123",
+                    })
+
+            def submit(self):
+                return succeed(payload.sample_revoke_security_group)
+
+        creds = AWSCredentials("foo", "bar")
+        ec2 = client.EC2Client(creds, query_factory=StubQuery)
+        d = ec2.revoke_security_group(
+            group_id="sg-a1a1a1", source_group_name="AppServers",
+            source_group_owner_id="123456789123")
+        return self.assertTrue(d)
+
     def test_revoke_security_group_with_ip_permissions(self):
         """
         L{EC2Client.revoke_security_group} returns a C{Deferred} that
@@ -853,6 +1027,15 @@ class EC2ClientSecurityGroupsTestCase(TXAWSTestCase):
             cidr_ip="0.0.0.0/0")
         return self.assertTrue(d)
 
+    def test_revoke_security_group_without_group_id_and_group_name(self):
+        creds = AWSCredentials("foo", "bar")
+        ec2 = client.EC2Client(creds)
+        error = self.assertRaises(ValueError, ec2.revoke_security_group,
+                source_group_name="AppServers", source_group_owner_id="123456789123")
+        self.assertEquals(
+            str(error),
+            "You must specify either the group name of the group id.")
+
     def test_revoke_security_group_with_missing_parameters(self):
         """
         L{EC2Client.revoke_security_group} returns a C{Deferred} that
@@ -864,16 +1047,12 @@ class EC2ClientSecurityGroupsTestCase(TXAWSTestCase):
         """
         creds = AWSCredentials("foo", "bar")
         ec2 = client.EC2Client(creds)
-        self.assertRaises(ValueError, ec2.authorize_security_group,
-                "WebServers", ip_protocol="tcp", from_port="22")
-        try:
-            ec2.authorize_security_group(
-                "WebServers", ip_protocol="tcp", from_port="22")
-        except Exception, error:
-            self.assertEquals(
-                str(error),
-                ("You must specify either both group parameters or all the "
-                 "ip parameters."))
+        error = self.assertRaises(ValueError, ec2.revoke_security_group,
+                group_name="WebServers", ip_protocol="tcp", from_port="22")
+        self.assertEquals(
+            str(error),
+            ("You must specify either both group parameters or all the "
+             "ip parameters."))
 
     def test_revoke_group_permission(self):
         """
@@ -1561,7 +1740,7 @@ class QueryTestCase(TXAWSTestCase):
             {"AWSAccessKeyId": "foo",
              "Action": "DescribeInstances",
              "SignatureVersion": "2",
-             "Version": "2009-11-30"})
+             "Version": "2012-08-15"})
 
     def test_init_other_args_are_params(self):
         query = client.Query(
@@ -1575,7 +1754,7 @@ class QueryTestCase(TXAWSTestCase):
              "InstanceId.0": "12345",
              "SignatureVersion": "2",
              "Timestamp": "2007-11-12T13:14:15Z",
-             "Version": "2009-11-30"})
+             "Version": "2012-08-15"})
 
     def test_no_timestamp_if_expires_in_other_params(self):
         """
@@ -1593,7 +1772,7 @@ class QueryTestCase(TXAWSTestCase):
              "Action": "DescribeInstances",
              "SignatureVersion": "2",
              "Expires": "2007-11-12T13:14:15Z",
-             "Version": "2009-11-30"})
+             "Version": "2012-08-15"})
 
     def test_sign(self):
         query = client.Query(
@@ -1601,7 +1780,7 @@ class QueryTestCase(TXAWSTestCase):
             endpoint=self.endpoint,
             time_tuple=(2007, 11, 12, 13, 14, 15, 0, 0, 0))
         query.sign()
-        self.assertEqual("G4c2NtQaFNhWWT8EWPVIIOpHVr0mGUYwJVYss9krsMU=",
+        self.assertEqual("c0gbkemrGEJdqxWOl2UZYaygYiBLVjrpWBs7bTN7Ndo=",
             query.params["Signature"])
 
     def test_old_sign(self):
@@ -1612,7 +1791,7 @@ class QueryTestCase(TXAWSTestCase):
             other_params={"SignatureVersion": "1"})
         query.sign()
         self.assertEqual(
-            "9xP+PIs/3QXW+4mWX6WGR4nGqfE=", query.params["Signature"])
+            "7tWrIC5VYvXOjVE+roVoyDUt2Yw=", query.params["Signature"])
 
     def test_unsupported_sign(self):
         query = client.Query(
