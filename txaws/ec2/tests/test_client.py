@@ -171,7 +171,8 @@ class EC2ClientInstancesTestCase(TXAWSTestCase):
         self.assertEquals(reservation.owner_id, "123456789012")
         # check groups
         group = reservation.groups[0]
-        self.assertEquals(group, "sg-64f9eb08")
+        self.assertEquals(group[0], "sg-64f9eb08")
+        self.assertEquals(group[1], "default")
         # check instance
         self.assertEquals(instance.instance_id, "i-abcdef01")
         self.assertEquals(instance.instance_state, "running")
@@ -201,7 +202,8 @@ class EC2ClientInstancesTestCase(TXAWSTestCase):
         self.assertEquals(reservation.owner_id, "123456789012")
         # check groups
         group = reservation.groups[0]
-        self.assertEquals(group, "sg-64f9eb08")
+        self.assertEquals(group[0], "sg-64f9eb08")
+        self.assertEquals(group[1], "default")
         # check instance
         self.assertEquals(instance.instance_id, "i-abcdef01")
         self.assertEquals(instance.instance_state, "running")
@@ -331,7 +333,8 @@ class EC2ClientInstancesTestCase(TXAWSTestCase):
         self.assertEquals(reservation.owner_id, "495219933132")
         # check groups
         group = reservation.groups[0]
-        self.assertEquals(group, "sg-64f9eb08")
+        self.assertEquals(group[0], "sg-64f9eb08")
+        self.assertEquals(group[1], "default")
         # check instance
         self.assertEquals(instance.instance_id, "i-2ba64342")
         self.assertEquals(instance.instance_state, "pending")

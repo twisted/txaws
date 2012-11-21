@@ -582,7 +582,8 @@ class Parser(object):
         """
         for group_data in instance_data.find("groupSet"):
             group_id = group_data.findtext("groupId")
-            reservation.groups.append(group_id)
+            group_name = group_data.findtext("groupName")
+            reservation.groups.append((group_id, group_name))
         instance_id = instance_data.findtext("instanceId")
         instance_state = instance_data.find(
             "instanceState").findtext("name")
