@@ -212,8 +212,7 @@ class ParameterTestCase(TestCase):
             Enum(mapping={"hey": 1}, doc="foo"),
             Date(doc="foo"),
             List(item=Integer(), doc="foo"),
-            Structure(fields={}, doc="foo")
-            ]
+            Structure(fields={}, doc="foo")]
         for parameter in parameters:
             self.assertEqual("foo", parameter.doc)
 
@@ -398,8 +397,8 @@ class SchemaTestCase(TestCase):
         L{Schema.get_parameters} returns the original list of parameters.
         """
         schema = Schema(parameters=[
-                Unicode("name"),
-                List("scores", Integer())])
+            Unicode("name"),
+            List("scores", Integer())])
         parameters = schema.get_parameters()
         self.assertEqual("name", parameters[0].name)
         self.assertEqual("scores", parameters[1].name)
@@ -547,8 +546,9 @@ class SchemaTestCase(TestCase):
         given without an index.
         """
         schema = Schema(Unicode("name.n"))
-        self.assertRaises(InconsistentParameterError,
-                          schema.extract, {"nameFOOO": "foo", "nameFOOO.1": "bar"})
+        self.assertRaises(
+            InconsistentParameterError,
+            schema.extract, {"nameFOOO": "foo", "nameFOOO.1": "bar"})
 
     def test_extract_with_non_numbered_template(self):
         """
@@ -803,7 +803,7 @@ class SchemaTestCase(TestCase):
         """
         schema = Schema(
             parameters=[Structure("foo",
-                    fields={"l": List(item=Integer())})])
+                                  fields={"l": List(item=Integer())})])
         arguments, _ = schema.extract({"foo.l.1": "1", "foo.l.2": "2"})
         self.assertEqual([1, 2], arguments.foo.l)
 
@@ -816,6 +816,19 @@ class SchemaTestCase(TestCase):
         self.assertEqual(1, len(parameters))
         self.assertTrue(isinstance(parameters[0], List))
         self.assertEqual("foos", parameters[0].name)
+
+    def test_coerce_list(self):
+        """
+        When a L{List} coerces the value of one of its item, it uses the the
+        proper name in the C{MissingParameter} error raised.
+        """
+        parameter = List("foo", Unicode())
+        error = self.assertRaises(APIError, parameter.item.coerce, "")
+        self.assertEqual(400, error.status)
+        self.assertEqual("MissingParameter", error.code)
+        self.assertEqual("The request must contain the parameter foo "
+                         "(unicode)",
+                         error.message)
 
     def test_schema_conversion_structure_name(self):
         """
@@ -859,10 +872,7 @@ class SchemaTestCase(TestCase):
         Additional data can be specified on the Schema class for specifying a
         more rich schema.
         """
-        result = {
-                'id': Integer(),
-                'name': Unicode(),
-                'data': RawStr()}
+        result = {'id': Integer(), 'name': Unicode(), 'data': RawStr()}
         errors = [APIError]
 
         schema = Schema(
@@ -883,10 +893,7 @@ class SchemaTestCase(TestCase):
         """
         The additional schema attributes can be passed to L{Schema.extend}.
         """
-        result = {
-                'id': Integer(),
-                'name': Unicode(),
-                'data': RawStr()}
+        result = {'id': Integer(), 'name': Unicode(), 'data': RawStr()}
         errors = [APIError]
 
         schema = Schema(
@@ -914,10 +921,7 @@ class SchemaTestCase(TestCase):
         If additional schema attributes aren't passed to L{Schema.extend}, they
         stay the same.
         """
-        result = {
-                'id': Integer(),
-                'name': Unicode(),
-                'data': RawStr()}
+        result = {'id': Integer(), 'name': Unicode(), 'data': RawStr()}
         errors = [APIError]
 
         schema = Schema(
@@ -942,9 +946,7 @@ class SchemaTestCase(TestCase):
         """
         Result fields can also be extended with L{Schema.extend}.
         """
-        schema = Schema(
-            result={'name': Unicode()}
-            )
+        schema = Schema(result={'name': Unicode()})
         schema2 = schema.extend(
             result={'id': Integer()})
         result_structure = Structure(fields=schema2.result)

@@ -321,6 +321,8 @@ class List(Parameter):
             raise TypeError("Must provide item")
         super(List, self).__init__(name, optional=optional, default=default,
                                    doc=doc)
+        if item.name is None:
+            item.name = name
         self.item = item
         if default is None:
             self.default = []
@@ -364,7 +366,7 @@ class List(Parameter):
         if isinstance(value, Arguments):
             return dict((str(i), self.item.format(v)) for i, v in value)
         return dict((str(i + 1), self.item.format(v))
-                        for i, v in enumerate(value))
+                    for i, v in enumerate(value))
 
 
 class Structure(Parameter):
@@ -396,7 +398,7 @@ class Structure(Parameter):
         for k, v in value.iteritems():
             if k in self.fields:
                 if (isinstance(v, dict)
-                    and not self.fields[k].supports_multiple):
+                        and not self.fields[k].supports_multiple):
                     if len(v) == 1:
                         # We support "foo.1" as "foo" as long as there is only
                         # one "foo.#" parameter provided.... -_-
@@ -751,7 +753,8 @@ class Schema(object):
             # we're processing a structure.
             fields = {}
             for node in parameter_description:
-                fields[node[0]] = self._inner_convert_old_schema(node, depth + 1)
+                fields[node[0]] = self._inner_convert_old_schema(
+                    node, depth + 1)
             return Structure(name, fields=fields)
         else:
             # we're processing a list.
