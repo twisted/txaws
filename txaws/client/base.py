@@ -1,3 +1,6 @@
+import os
+import urlparse
+
 try:
     from xml.etree.ElementTree import ParseError
 except ImportError:
@@ -6,16 +9,16 @@ except ImportError:
 import warnings
 from StringIO import StringIO
 
+from twisted.internet.endpoints import TCP4ClientEndpoint
 from twisted.internet.ssl import ClientContextFactory
 from twisted.internet.protocol import Protocol
 from twisted.internet.defer import Deferred, succeed, fail
 from twisted.python import failure
 from twisted.web import http
 from twisted.web.iweb import UNKNOWN_LENGTH
-from twisted.web.client import HTTPClientFactory
-from twisted.web.client import Agent
+from twisted.web.client import Agent, ProxyAgent
 from twisted.web.client import ResponseDone
-from twisted.web.http import NO_CONTENT
+from twisted.web.http import NO_CONTENT, PotentialDataLoss
 from twisted.web.http_headers import Headers
 from twisted.web.error import Error as TwistedWebError
 try:
@@ -130,7 +133,7 @@ class StreamingBodyReceiver(Protocol):
         self._received += len(bytes)
 
     def connectionLost(self, reason):
-        reason.trap(ResponseDone)
+        reason.trap(ResponseDone, PotentialDataLoss)
         d = self.finished
         self.finished = None
         streaming = self.content_length is UNKNOWN_LENGTH
@@ -220,16 +223,28 @@ class BaseQuery(object):
         if (self.body_producer is None) and (data is not None):
             self.body_producer = FileBodyProducer(StringIO(data))
         if scheme == "https":
-            if self.endpoint.ssl_hostname_verification:
-                contextFactory = WebVerifyingContextFactory(host)
+            proxy_endpoint = os.environ.get("https_proxy")
+            if proxy_endpoint:
+                proxy_url = urlparse.urlparse(proxy_endpoint)
+                endpoint = TCP4ClientEndpoint(self.reactor, proxy_url.hostname, proxy_url.port)
+                agent = ProxyAgent(endpoint)
             else:
-                contextFactory = WebClientContextFactory()
-            agent = Agent(self.reactor, contextFactory)
+                if self.endpoint.ssl_hostname_verification:
+                    contextFactory = WebVerifyingContextFactory(host)
+                else:
+                    contextFactory = WebClientContextFactory()
+                agent = Agent(self.reactor, contextFactory)
             self.client.url = url
             d = agent.request(method, url, self.request_headers,
                 self.body_producer)
         else:
-            agent = Agent(self.reactor)
+            proxy_endpoint = os.environ.get("http_proxy")
+            if proxy_endpoint:
+                proxy_url = urlparse.urlparse(proxy_endpoint)
+                endpoint = TCP4ClientEndpoint(self.reactor, proxy_url.hostname, proxy_url.port)
+                agent = ProxyAgent(endpoint)
+            else:
+                agent = Agent(self.reactor)
             d = agent.request(method, url, self.request_headers,
                 self.body_producer)
         d.addCallback(self._handle_response)
