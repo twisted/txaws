@@ -48,7 +48,7 @@ class EC2Client(BaseClient):
     def run_instances(self, image_id, min_count, max_count,
         security_groups=None, key_name=None, instance_type=None,
         user_data=None, availability_zone=None, kernel_id=None,
-        ramdisk_id=None):
+        ramdisk_id=None, subnet_id=None, security_group_ids=None):
         """Run new instances.
 
         TODO: blockDeviceMapping, monitoring, subnetId
@@ -57,9 +57,21 @@ class EC2Client(BaseClient):
                   "MaxCount": str(max_count)}
         if key_name is not None:
             params["KeyName"] = key_name
-        if security_groups is not None:
+        if subnet_id is not None:
+            params["SubnetId"] = subnet_id
+            if security_group_ids is not None:
+                for i, id in enumerate(security_group_ids):
+                    params["SecurityGroupId.%d" % (i + 1)] = id
+            else:
+                msg = "You must specify the security_group_ids with the subnet_id"
+                raise ValueError(msg)
+        elif security_groups is not None:
             for i, name in enumerate(security_groups):
                 params["SecurityGroup.%d" % (i + 1)] = name
+        else:
+            msg = ("You must specify either the subnet_id and "
+                   "security_group_ids or security_groups")
+            raise ValueError(msg)
         if user_data is not None:
             params["UserData"] = b64encode(user_data)
         if instance_type is not None:
@@ -110,28 +122,37 @@ class EC2Client(BaseClient):
         d = query.submit()
         return d.addCallback(self.parser.describe_security_groups)
 
-    def create_security_group(self, name, description):
+    def create_security_group(self, name, description, vpc_id=None):
         """Create security group.
 
         @param name: Name of the new security group.
         @param description: Description of the new security group.
+        @param vpc_id: ID of the VPC to which the security group will belong.
         @return: A C{Deferred} that will fire with a truth value for the
             success of the operation.
         """
         parameters = {"GroupName":  name, "GroupDescription": description}
+        if vpc_id:
+            parameters["VpcId"] = vpc_id
         query = self.query_factory(
             action="CreateSecurityGroup", creds=self.creds,
             endpoint=self.endpoint, other_params=parameters)
         d = query.submit()
-        return d.addCallback(self.parser.truth_return)
+        return d.addCallback(self.parser.create_security_group)
 
-    def delete_security_group(self, name):
+    def delete_security_group(self, name=None, id=None):
         """
-        @param name: Name of the new security group.
+        @param name: Name of the security group.
+        @param id: Id of the security group.
         @return: A C{Deferred} that will fire with a truth value for the
             success of the operation.
         """
-        parameter = {"GroupName":  name}
+        if name:
+            parameter = {"GroupName":  name}
+        elif id:
+            parameter = {"GroupId": id}
+        else:
+            raise ValueError("You must provide either the security group name or id")
         query = self.query_factory(
             action="DeleteSecurityGroup", creds=self.creds,
             endpoint=self.endpoint, other_params=parameter)
@@ -139,7 +160,7 @@ class EC2Client(BaseClient):
         return d.addCallback(self.parser.truth_return)
 
     def authorize_security_group(
-        self, group_name, source_group_name="", source_group_owner_id="",
+        self, group_name=None, group_id=None, source_group_name="", source_group_owner_id="",
         ip_protocol="", from_port="", to_port="", cidr_ip=""):
         """
         There are two ways to use C{authorize_security_group}:
@@ -150,6 +171,8 @@ class EC2Client(BaseClient):
 
         @param group_name: The group you will be modifying with a new
             authorization.
+        @param group_id: The id of the group you will be modifying with
+            a new authorization.
 
         Optionally, the following parameters:
         @param source_group_name: Name of security group to authorize access to
@@ -188,7 +211,12 @@ class EC2Client(BaseClient):
             msg = ("You must specify either both group parameters or "
                    "all the ip parameters.")
             raise ValueError(msg)
-        parameters["GroupName"] = group_name
+        if group_id:
+            parameters["GroupId"] = group_id
+        elif group_name:
+            parameters["GroupName"] = group_name
+        else:
+            raise ValueError("You must specify either the group name of the group id.")
         query = self.query_factory(
             action="AuthorizeSecurityGroupIngress", creds=self.creds,
             endpoint=self.endpoint, other_params=parameters)
@@ -224,7 +252,7 @@ class EC2Client(BaseClient):
         return d
 
     def revoke_security_group(
-        self, group_name, source_group_name="", source_group_owner_id="",
+        self, group_name=None, group_id=None, source_group_name="", source_group_owner_id="",
         ip_protocol="", from_port="", to_port="", cidr_ip=""):
         """
         There are two ways to use C{revoke_security_group}:
@@ -273,7 +301,12 @@ class EC2Client(BaseClient):
             msg = ("You must specify either both group parameters or "
                    "all the ip parameters.")
             raise ValueError(msg)
-        parameters["GroupName"] = group_name
+        if group_id:
+            parameters["GroupId"] = group_id
+        elif group_name:
+            parameters["GroupName"] = group_name
+        else:
+            raise ValueError("You must specify either the group name of the group id.")
         query = self.query_factory(
             action="RevokeSecurityGroupIngress", creds=self.creds,
             endpoint=self.endpoint, other_params=parameters)
@@ -547,6 +580,10 @@ class Parser(object):
               ipAddress, stateReason, architecture, rootDeviceName,
               blockDeviceMapping, instanceLifecycle, spotInstanceRequestId.
         """
+        for group_data in instance_data.find("groupSet"):
+            group_id = group_data.findtext("groupId")
+            group_name = group_data.findtext("groupName")
+            reservation.groups.append((group_id, group_name))
         instance_id = instance_data.findtext("instanceId")
         instance_state = instance_data.find(
             "instanceState").findtext("name")
@@ -599,16 +636,10 @@ class Parser(object):
         results = []
         # May be a more elegant way to do this:
         for reservation_data in root.find("reservationSet"):
-            # Get the security group information.
-            groups = []
-            for group_data in reservation_data.find("groupSet"):
-                group_id = group_data.findtext("groupId")
-                groups.append(group_id)
             # Create a reservation object with the parsed data.
             reservation = model.Reservation(
                 reservation_id=reservation_data.findtext("reservationId"),
-                owner_id=reservation_data.findtext("ownerId"),
-                groups=groups)
+                owner_id=reservation_data.findtext("ownerId"))
             # Get the list of instances.
             instances = self.instances_set(
                 reservation_data, reservation)
@@ -670,6 +701,7 @@ class Parser(object):
         root = XML(xml_bytes)
         result = []
         for group_info in root.findall("securityGroupInfo/item"):
+            id = group_info.findtext("groupId")
             name = group_info.findtext("groupName")
             description = group_info.findtext("groupDescription")
             owner_id = group_info.findtext("ownerId")
@@ -709,10 +741,14 @@ class Parser(object):
                               for user_id, group_name in allowed_groups]
 
             security_group = model.SecurityGroup(
-                name, description, owner_id=owner_id,
+                id, name, description, owner_id=owner_id,
                 groups=allowed_groups, ips=allowed_ips)
             result.append(security_group)
         return result
+
+    def create_security_group(self, xml_bytes):
+        root = XML(xml_bytes)
+        return root.findtext("groupId")
 
     def truth_return(self, xml_bytes):
         """Parse the XML for a truth value.

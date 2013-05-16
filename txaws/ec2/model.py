@@ -80,7 +80,8 @@ class SecurityGroup(object):
     @ivar allowed_ips: The sequence of L{IPPermission} instances for this
         security group.
     """
-    def __init__(self, name, description, owner_id="", groups=None, ips=None):
+    def __init__(self, id, name, description, owner_id="", groups=None, ips=None):
+        self.id = id
         self.name = name
         self.description = description
         self.owner_id = owner_id
