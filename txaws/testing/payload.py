@@ -9,11 +9,7 @@ sample_required_describe_instances_result = """\
     <item>
       <reservationId>r-cf24b1a6</reservationId>
       <ownerId>123456789012</ownerId>
-      <groupSet>
-        <item>
-          <groupId>default</groupId>
-        </item>
-      </groupSet>
+      <groupSet/>
       <instancesSet>
         <item>
           <instanceId>i-abcdef01</instanceId>
@@ -22,6 +18,12 @@ sample_required_describe_instances_result = """\
             <code>16</code>
             <name>running</name>
           </instanceState>
+          <groupSet>
+            <item>
+              <groupId>sg-64f9eb08</groupId>
+              <groupName>default</groupName>
+            </item>
+          </groupSet>
           <privateDnsName>domU-12-31-39-03-15-11.compute-1.internal\
 </privateDnsName>
           <dnsName>ec2-75-101-245-65.compute-1.amazonaws.com</dnsName>
@@ -48,11 +50,7 @@ sample_describe_instances_result = """\
     <item>
       <reservationId>r-cf24b1a6</reservationId>
       <ownerId>123456789012</ownerId>
-      <groupSet>
-        <item>
-          <groupId>default</groupId>
-        </item>
-      </groupSet>
+      <groupSet/>
       <instancesSet>
         <item>
           <instanceId>i-abcdef01</instanceId>
@@ -67,6 +65,12 @@ sample_describe_instances_result = """\
           <privateIpAddress>10.0.0.1</privateIpAddress>
           <ipAddress>75.101.245.65</ipAddress>
           <reason/>
+          <groupSet>
+            <item>
+              <groupId>sg-64f9eb08</groupId>
+              <groupName>default</groupName>
+            </item>
+          </groupSet>
           <keyName>keyname</keyName>
           <amiLaunchIndex>0</amiLaunchIndex>
           <productCodes>
@@ -92,18 +96,14 @@ sample_run_instances_result = """\
 <RunInstancesResponse xmlns="http://ec2.amazonaws.com/doc/%s/">
   <reservationId>r-47a5402e</reservationId>
   <ownerId>495219933132</ownerId>
-  <groupSet>
-    <item>
-      <groupId>default</groupId>
-    </item>
-  </groupSet>
+  <groupSet/>
   <instancesSet>
     <item>
       <instanceId>i-2ba64342</instanceId>
       <imageId>ami-60a54009</imageId>
       <instanceState>
         <code>0</code>
-    <name>pending</name>
+        <name>pending</name>
       </instanceState>
       <privateDnsName></privateDnsName>
       <dnsName></dnsName>
@@ -111,6 +111,12 @@ sample_run_instances_result = """\
        <amiLaunchIndex>0</amiLaunchIndex>
       <instanceType>m1.small</instanceType>
       <launchTime>2007-08-07T11:51:50.000Z</launchTime>
+      <groupSet>
+        <item>
+          <groupId>sg-64f9eb08</groupId>
+          <groupName>default</groupName>
+        </item>
+      </groupSet>
       <placement>
         <availabilityZone>us-east-1b</availabilityZone>
       </placement>
@@ -120,7 +126,7 @@ sample_run_instances_result = """\
       <imageId>ami-60a54009</imageId>
       <instanceState>
         <code>0</code>
-    <name>pending</name>
+        <name>pending</name>
       </instanceState>
       <privateDnsName></privateDnsName>
       <dnsName></dnsName>
@@ -128,6 +134,12 @@ sample_run_instances_result = """\
       <amiLaunchIndex>1</amiLaunchIndex>
       <instanceType>m1.small</instanceType>
       <launchTime>2007-08-07T11:51:50.000Z</launchTime>
+      <groupSet>
+        <item>
+          <groupId>sg-64f9eb08</groupId>
+          <groupName>default</groupName>
+        </item>
+      </groupSet>
       <placement>
         <availabilityZone>us-east-1b</availabilityZone>
       </placement>
@@ -145,6 +157,12 @@ sample_run_instances_result = """\
       <amiLaunchIndex>2</amiLaunchIndex>
       <instanceType>m1.small</instanceType>
       <launchTime>2007-08-07T11:51:50.000Z</launchTime>
+      <groupSet>
+        <item>
+          <groupId>sg-64f9eb08</groupId>
+          <groupName>default</groupName>
+        </item>
+      </groupSet>
       <placement>
         <availabilityZone>us-east-1b</availabilityZone>
       </placement>
@@ -213,6 +231,7 @@ sample_describe_security_groups_with_openstack = """\
          <fromPort/>
         </item>
       </ipPermissions>
+      <groupId>sg-a1a1a1</groupId>
       <groupName>WebServers</groupName>
       <groupDescription>Web servers</groupDescription>
       <ownerId>UYY3TLBUXIEON5NQVUUX6OMPWBZIQNFM</ownerId>
@@ -228,6 +247,7 @@ sample_describe_security_groups_result = """\
   <securityGroupInfo>
     <item>
       <ownerId>UYY3TLBUXIEON5NQVUUX6OMPWBZIQNFM</ownerId>
+      <groupId>sg-a1a1a1</groupId>
       <groupName>WebServers</groupName>
       <groupDescription>Web Servers</groupDescription>
       <ipPermissions>
@@ -256,6 +276,7 @@ sample_describe_security_groups_multiple_result = """\
   <securityGroupInfo>
     <item>
       <ownerId>UYY3TLBUXIEON5NQVUUX6OMPWBZIQNFM</ownerId>
+      <groupId>sg-a1a1a1</groupId>
       <groupName>MessageServers</groupName>
       <groupDescription>Message Servers</groupDescription>
       <ipPermissions>
@@ -274,6 +295,7 @@ sample_describe_security_groups_multiple_result = """\
     </item>
     <item>
       <ownerId>UYY3TLBUXIEON5NQVUUX6OMPWBZIQNFM</ownerId>
+      <groupId>sg-c3c3c3</groupId>
       <groupName>WebServers</groupName>
       <groupDescription>Web Servers</groupDescription>
       <ipPermissions>
@@ -457,6 +479,7 @@ sample_describe_security_groups_multiple_groups = """\
 sample_create_security_group = """\
 <CreateSecurityGroupResponse xmlns="http://ec2.amazonaws.com/doc/%s/">
   <return>true</return>
+  <groupId>sg-1a2b3c4d</groupId>
 </CreateSecurityGroupResponse>
 """ % (version.ec2_api,)
 

@@ -8,7 +8,8 @@ from txaws.testing.base import TXAWSTestCase
 class SecurityGroupTestCase(TXAWSTestCase):
 
     def test_creation_defaults(self):
-        group = model.SecurityGroup("name", "desc")
+        group = model.SecurityGroup("sg-a3f2", "name", "desc")
+        self.assertEquals(group.id, "sg-a3f2")
         self.assertEquals(group.name, "name")
         self.assertEquals(group.description, "desc")
         self.assertEquals(group.owner_id, "")
@@ -18,14 +19,15 @@ class SecurityGroupTestCase(TXAWSTestCase):
     def test_creation_all_parameters(self):
         user = "somegal24"
         other_groups = [
-            model.SecurityGroup("other1", "another group 1"),
-            model.SecurityGroup("other2", "another group 2")]
+            model.SecurityGroup("sg-other1", "other1", "another group 1"),
+            model.SecurityGroup("sg-other2", "other2", "another group 2")]
         user_group_pairs = [
             model.UserIDGroupPair(user, other_groups[0].name),
             model.UserIDGroupPair(user, other_groups[1].name)]
         ips = [model.IPPermission("tcp", "80", "80", "10.0.1.0/24")]
         group = model.SecurityGroup(
-            "name", "desc", owner_id="me", groups=user_group_pairs, ips=ips)
+            "id", "name", "desc", owner_id="me", groups=user_group_pairs, ips=ips)
+        self.assertEquals(group.id, "id")
         self.assertEquals(group.name, "name")
         self.assertEquals(group.description, "desc")
         self.assertEquals(group.owner_id, "me")
