@@ -189,6 +189,15 @@ class Unicode(Parameter):
         return len(value)
 
 
+class UnicodeLine(Unicode):
+    """A parameter that must be a C{unicode} string without newlines."""
+
+    def coerce(self, value):
+        super(UnicodeLine, self).coerce(value)
+        if "\n" in value:
+            raise InvalidParameterValueError("Can't contain newlines.")
+
+
 class RawStr(Parameter):
     """A parameter that must be a C{str}."""
 
@@ -469,7 +478,7 @@ class Arguments(object):
                     raise RuntimeError("Integer and non-integer keys: %r"
                                        % value.keys())
                 items = sorted(value.iteritems(), key=itemgetter(0))
-                return [self._wrap(value) for (name, value) in items]
+                return [self._wrap(val) for _, val in items]
             else:
                 return Arguments(value)
         elif isinstance(value, list):
