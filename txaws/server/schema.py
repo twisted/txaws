@@ -192,10 +192,13 @@ class Unicode(Parameter):
 class UnicodeLine(Unicode):
     """A parameter that must be a C{unicode} string without newlines."""
 
-    def coerce(self, value):
-        super(UnicodeLine, self).coerce(value)
+    kind = "unicode line"
+
+    def parse(self, value):
+        value = super(UnicodeLine, self).parse(value)
         if "\n" in value:
-            raise InvalidParameterValueError("Can't contain newlines.")
+            raise ValueError()
+        return value
 
 
 class RawStr(Parameter):

@@ -275,7 +275,9 @@ class UnicodeLineTestCase(TestCase):
         """
         parameter = UnicodeLine("Test")
         error = self.assertRaises(APIError, parameter.coerce, "Test\nError")
-        self.assertIn(u"Can't contain newlines", error.message)
+        self.assertIn(
+            u"Invalid unicode line value Test\nError",
+            error.message)
         self.assertEqual(400, error.status)
 
 
