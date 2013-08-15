@@ -117,6 +117,7 @@ class QueryAPI(Resource):
                 bytes = safe_str(failure.value)
                 status = 500
             request.setResponseCode(status)
+            request.setHeader("Content-Type", self.content_type)
             request.write(bytes)
             request.finish()
 

@@ -428,6 +428,28 @@ class QueryAPITestCase(TestCase):
 
         return self.api.handle(request).addCallback(check)
 
+    def test_handle_with_parameter_error_is_api_content_type(self):
+        """
+        If an error occurs while parsing the parameters, L{QueryAPI.handle}
+        responds with HTTP status 400, and the resulting response has a
+        Content-Type header matching the content type defined in the QueryAPI.
+        """
+        creds = AWSCredentials("access", "secret")
+        endpoint = AWSServiceEndpoint("http://uri")
+        query = Query(action="SomeAction", creds=creds, endpoint=endpoint)
+        query.sign()
+        query.params.pop("Action")
+        request = FakeRequest(query.params, endpoint)
+
+        def check(ignored):
+            errors = self.flushLoggedErrors()
+            self.assertEquals(0, len(errors))
+            self.assertEqual(400, request.code)
+            request_type = request.headers['Content-Type']
+            self.assertEqual(self.api.content_type, request_type)
+
+        return self.api.handle(request).addCallback(check)
+
     def test_handle_unicode_api_error(self):
         """
         If an L{APIError} contains a unicode message, L{QueryAPI} is able to
