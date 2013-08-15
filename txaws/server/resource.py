@@ -1,3 +1,5 @@
+from cgi import escape
+
 from datetime import datetime, timedelta
 from uuid import uuid4
 from dateutil.tz import tzutc
@@ -109,16 +111,16 @@ class QueryAPI(Resource):
                     log.msg("status: %s message: %s" % (
                         status, safe_str(failure.value)))
 
-                bytes = failure.value.response
-                if bytes is None:
-                    bytes = self.dump_error(failure.value, request)
+                body = failure.value.response
+                if body is None:
+                    body = self.dump_error(failure.value, request)
             else:
                 log.err(failure)
-                bytes = safe_str(failure.value)
+                body = safe_str(failure.value)
                 status = 500
             request.setResponseCode(status)
             request.setHeader("Content-Type", self.content_type)
-            request.write(bytes)
+            request.write(escape(body))
             request.finish()
 
         deferred.addCallback(write_response)

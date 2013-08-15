@@ -1,3 +1,5 @@
+from cgi import escape
+
 from cStringIO import StringIO
 from datetime import datetime
 
@@ -428,7 +430,7 @@ class QueryAPITestCase(TestCase):
 
         return self.api.handle(request).addCallback(check)
 
-    def test_handle_with_parameter_error_is_api_content_type(self):
+    def test_handle_error_is_api_content_type(self):
         """
         If an error occurs while parsing the parameters, L{QueryAPI.handle}
         responds with HTTP status 400, and the resulting response has a
@@ -445,6 +447,7 @@ class QueryAPITestCase(TestCase):
             errors = self.flushLoggedErrors()
             self.assertEquals(0, len(errors))
             self.assertEqual(400, request.code)
+
             request_type = request.headers['Content-Type']
             self.assertEqual(self.api.content_type, request_type)
 
@@ -471,6 +474,39 @@ class QueryAPITestCase(TestCase):
             self.assertEquals(0, len(errors))
             self.assertTrue(request.finished)
             self.assertTrue(request.response.startswith("LangError"))
+            self.assertEqual(400, request.code)
+
+        self.api.principal = TestPrincipal(creds)
+        return self.api.handle(request).addCallback(check)
+
+    def test_api_error_is_HTML_safe(self):
+        """
+        In some cases, an attacker can trigger an API error in which the passed
+        value is returned in the error message. Should a victim be tricked to
+        a properly crafted URL, the error message would be passed unchecked to
+        her web browser, resulting in arbitrary code execution.
+        """
+        creds = AWSCredentials("access", "secret")
+        endpoint = AWSServiceEndpoint("http://uri")
+        query = Query(action="SomeAction", creds=creds, endpoint=endpoint)
+        query.sign()
+        request = FakeRequest(query.params, endpoint)
+
+        toxic = u"<script>alert('Owned!');</script>"
+
+        escaped = escape(toxic)
+
+        def fail_execute(call):
+            raise APIError(400, code="LangError", message=toxic)
+        self.api.execute = fail_execute
+
+        def check(ignored):
+            errors = self.flushLoggedErrors()
+            self.assertEquals(0, len(errors))
+            self.assertTrue(request.finished)
+
+            self.assertTrue(toxic not in request.response)
+            self.assertTrue(escaped in request.response)
             self.assertEqual(400, request.code)
 
         self.api.principal = TestPrincipal(creds)
