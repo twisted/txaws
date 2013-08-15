@@ -492,9 +492,9 @@ class QueryAPITestCase(TestCase):
         query.sign()
         request = FakeRequest(query.params, endpoint)
 
-        toxic = u"<script>alert('Owned!');</script>"
+        toxic = u"<script>alert(\"Owned!\");</script>"
 
-        escaped = escape(toxic)
+        escaped = escape(toxic, True)
 
         def fail_execute(call):
             raise APIError(400, code="LangError", message=toxic)

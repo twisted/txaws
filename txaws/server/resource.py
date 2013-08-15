@@ -120,7 +120,7 @@ class QueryAPI(Resource):
                 status = 500
             request.setResponseCode(status)
             request.setHeader("Content-Type", self.content_type)
-            request.write(escape(body))
+            request.write(escape(body, True))
             request.finish()
 
         deferred.addCallback(write_response)
