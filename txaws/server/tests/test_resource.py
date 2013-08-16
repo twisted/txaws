@@ -502,7 +502,7 @@ class QueryAPITestCase(TestCase):
 
         def check(ignored):
             errors = self.flushLoggedErrors()
-            self.assertEquals(0, len(errors))
+            self.assertEqual(0, len(errors))
             self.assertTrue(request.finished)
 
             self.assertTrue(toxic not in request.response)

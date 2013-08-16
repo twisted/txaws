@@ -119,9 +119,7 @@ class QueryAPI(Resource):
                 body = safe_str(failure.value)
                 status = 500
             request.setResponseCode(status)
-            request.setHeader("Content-Type", self.content_type)
-            request.write(escape(body, True))
-            request.finish()
+            write_response(escape(body, True))
 
         deferred.addCallback(write_response)
         deferred.addErrback(write_error)
