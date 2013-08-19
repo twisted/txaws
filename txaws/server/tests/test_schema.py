@@ -9,8 +9,7 @@ from twisted.trial.unittest import TestCase
 from txaws.server.exception import APIError
 from txaws.server.schema import (
     Arguments, Bool, Date, Enum, Integer, Parameter, RawStr, Schema, Unicode,
-    List, Structure,
-    InconsistentParameterError)
+    UnicodeLine, List, Structure, InconsistentParameterError)
 
 
 class ArgumentsTestCase(TestCase):
@@ -259,6 +258,27 @@ class UnicodeTestCase(TestCase):
         self.assertIn(u"Invalid unicode value", error.message)
         self.assertEqual(400, error.status)
         self.assertEqual("InvalidParameterValue", error.code)
+
+
+class UnicodeLineTestCase(TestCase):
+
+    def test_parse(self):
+        """L{UnicodeLine.parse} converts the given raw C{value} to
+        C{unicode}."""
+        parameter = UnicodeLine("Test")
+        self.assertEqual(u"foo", parameter.parse("foo"))
+
+    def test_newlines_in_text(self):
+        """
+        The L{UnicodeLine} parameter returns an error if text contains
+        newlines.
+        """
+        parameter = UnicodeLine("Test")
+        error = self.assertRaises(APIError, parameter.coerce, "Test\nError")
+        self.assertIn(
+            u"Invalid unicode line value Test\nError",
+            error.message)
+        self.assertEqual(400, error.status)
 
 
 class RawStrTestCase(TestCase):
