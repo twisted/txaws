@@ -376,8 +376,7 @@ class QueryAPITestCase(TestCase):
             errors = self.flushLoggedErrors()
             self.assertEquals(1, len(errors))
             self.assertTrue(request.finished)
-            self.assertEqual("integer division or modulo by zero",
-                             request.response)
+            self.assertEqual("Server error", request.response)
             self.assertEqual(500, request.code)
 
         self.api.principal = TestPrincipal(creds)
@@ -528,10 +527,10 @@ class QueryAPITestCase(TestCase):
         self.api.execute = fail_execute
 
         def check(ignored):
-            errors = self.flushLoggedErrors()
-            self.assertEquals(1, len(errors))
+            [error] = self.flushLoggedErrors()
+            self.assertIsInstance(error.value, ValueError)
             self.assertTrue(request.finished)
-            self.assertIn("ValueError", request.response)
+            self.assertEqual("Server error", request.response)
             self.assertEqual(500, request.code)
 
         self.api.principal = TestPrincipal(creds)
