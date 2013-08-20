@@ -505,8 +505,8 @@ class QueryAPITestCase(TestCase):
             self.assertEqual(0, len(errors))
             self.assertTrue(request.finished)
 
-            self.assertTrue(toxic not in request.response)
-            self.assertTrue(escaped in request.response)
+            self.assertNotIn(toxic, request.response)
+            self.assertIn(escaped, request.response)
             self.assertEqual(400, request.code)
 
         self.api.principal = TestPrincipal(creds)
