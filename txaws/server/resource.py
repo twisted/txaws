@@ -117,7 +117,7 @@ class QueryAPI(Resource):
             else:
                 # If the error is a generic one (not an APIError), log the
                 # message , but don't send it back to the client, as it could
-                # contain sensible information. Send a generic server error
+                # contain sensitive information. Send a generic server error
                 # message instead.
                 log.err(failure)
                 body = "Server error"
