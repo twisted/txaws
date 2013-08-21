@@ -1,5 +1,3 @@
-from cgi import escape
-
 from datetime import datetime, timedelta
 from uuid import uuid4
 from dateutil.tz import tzutc
@@ -96,6 +94,8 @@ class QueryAPI(Resource):
         def write_response(response):
             request.setHeader("Content-Length", str(len(response)))
             request.setHeader("Content-Type", self.content_type)
+            # Prevent browsers from trying to guess a different content type.
+            request.setHeader("X-Content-Type-Options", "nosniff")
             request.write(response)
             request.finish()
             return response
@@ -119,7 +119,7 @@ class QueryAPI(Resource):
                 body = safe_str(failure.value)
                 status = 500
             request.setResponseCode(status)
-            write_response(escape(body, True))
+            write_response(body)
 
         deferred.addCallback(write_response)
         deferred.addErrback(write_error)
