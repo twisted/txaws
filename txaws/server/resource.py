@@ -115,8 +115,12 @@ class QueryAPI(Resource):
                 if body is None:
                     body = self.dump_error(failure.value, request)
             else:
+                # If the error is a generic one (not an APIError), log the
+                # message , but don't send it back to the client, as it could
+                # contain sensitive information. Send a generic server error
+                # message instead.
                 log.err(failure)
-                body = safe_str(failure.value)
+                body = "Server error"
                 status = 500
             request.setResponseCode(status)
             write_response(body)
