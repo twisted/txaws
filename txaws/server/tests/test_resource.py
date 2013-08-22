@@ -120,8 +120,7 @@ class AlternativeWireFormatQueryAPI(TestQueryAPI):
             "access_key_id": request.args["access_key"][0],
             "signature_method": "Hmacsha256",
             "signature_version": 2,
-            "signature": request.args["signature"][0],
-            }
+            "signature": request.args["signature"][0]}
         params = dict((k, v[-1]) for k, v in request.args.iteritems())
         raw = params.copy()
         raw.pop("signature")
@@ -153,6 +152,8 @@ class QueryAPITestCase(TestCase):
             self.assertEqual("data", request.response)
             self.assertEqual("4", request.headers["Content-Length"])
             self.assertEqual("text/plain", request.headers["Content-Type"])
+            self.assertEqual(
+                "nosniff", request.headers["X-Content-Type-Options"])
             self.assertEqual(200, request.code)
 
         self.api.principal = TestPrincipal(creds)
@@ -425,6 +426,30 @@ class QueryAPITestCase(TestCase):
                              "the parameter Action (unicode)",
                              request.response)
             self.assertEqual(400, request.code)
+
+        return self.api.handle(request).addCallback(check)
+
+    def test_handle_error_is_api_content_type(self):
+        """
+        If an error occurs while parsing the parameters, L{QueryAPI.handle}
+        responds with HTTP status 400, and the resulting response has a
+        Content-Type header matching the content type defined in the QueryAPI.
+        """
+        creds = AWSCredentials("access", "secret")
+        endpoint = AWSServiceEndpoint("http://uri")
+        query = Query(action="SomeAction", creds=creds, endpoint=endpoint)
+        query.sign()
+        query.params.pop("Action")
+        request = FakeRequest(query.params, endpoint)
+
+        def check(ignored):
+            errors = self.flushLoggedErrors()
+            self.assertEquals(0, len(errors))
+            self.assertEqual(400, request.code)
+            self.assertEqual(
+                self.api.content_type, request.headers['Content-Type'])
+            self.assertEqual(
+                "nosniff", request.headers["X-Content-Type-Options"])
 
         return self.api.handle(request).addCallback(check)
 

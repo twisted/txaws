@@ -94,6 +94,8 @@ class QueryAPI(Resource):
         def write_response(response):
             request.setHeader("Content-Length", str(len(response)))
             request.setHeader("Content-Type", self.content_type)
+            # Prevent browsers from trying to guess a different content type.
+            request.setHeader("X-Content-Type-Options", "nosniff")
             request.write(response)
             request.finish()
             return response
@@ -109,16 +111,15 @@ class QueryAPI(Resource):
                     log.msg("status: %s message: %s" % (
                         status, safe_str(failure.value)))
 
-                bytes = failure.value.response
-                if bytes is None:
-                    bytes = self.dump_error(failure.value, request)
+                body = failure.value.response
+                if body is None:
+                    body = self.dump_error(failure.value, request)
             else:
                 log.err(failure)
-                bytes = safe_str(failure.value)
+                body = safe_str(failure.value)
                 status = 500
             request.setResponseCode(status)
-            request.write(bytes)
-            request.finish()
+            write_response(body)
 
         deferred.addCallback(write_response)
         deferred.addErrback(write_error)
