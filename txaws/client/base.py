@@ -308,4 +308,3 @@ class BaseQuery(object):
         """
         if self.response_headers:
             return self._unpack_headers(self.response_headers)
-
