@@ -8,8 +8,8 @@ from twisted.trial.unittest import TestCase
 
 from txaws.server.exception import APIError
 from txaws.server.schema import (
-    Arguments, Bool, Date, Enum, Integer, Parameter, RawStr, Schema, Unicode,
-    UnicodeLine, List, Structure, InconsistentParameterError)
+    Arguments, Bool, Date, Enum, Integer, Float, Parameter, RawStr, Schema,
+    Unicode, UnicodeLine, List, Structure, InconsistentParameterError)
 
 
 class ArgumentsTestCase(TestCase):
@@ -341,6 +341,45 @@ class IntegerTestCase(TestCase):
         self.assertEqual(400, error.status)
         self.assertEqual("InvalidParameterValue", error.code)
         self.assertIn("Invalid integer value %s" % garbage, error.message)
+
+
+class FloatTestCase(TestCase):
+
+    def test_parse(self):
+        """L{Float.parse} converts the given raw C{value} to C{float}."""
+        parameter = Float("Test")
+        self.assertEqual(123.45, parameter.parse("123.45"))
+
+    def test_format(self):
+        """L{Float.format} converts the given float to a string."""
+        parameter = Float("Test")
+        self.assertEqual("123.45", parameter.format(123.45))
+
+    def test_min_and_max(self):
+        """The L{Float} parameter properly supports ranges."""
+        parameter = Float("Test", min=2.3, max=4.5)
+
+        error = self.assertRaises(APIError, parameter.coerce, "1.2")
+        self.assertEqual(400, error.status)
+        self.assertEqual("InvalidParameterValue", error.code)
+        self.assertIn("Value must be at least 2.3.", error.message)
+
+        error = self.assertRaises(APIError, parameter.coerce, "5")
+        self.assertIn("Value exceeds maximum of 4.5.", error.message)
+        self.assertEqual(400, error.status)
+        self.assertEqual("InvalidParameterValue", error.code)
+
+    def test_non_float_string(self):
+        """
+        The L{Float} parameter raises an L{APIError} when passed non-float
+        values (in this case, a string).
+        """
+        garbage = "blah"
+        parameter = Float("Test")
+        error = self.assertRaises(APIError, parameter.coerce, garbage)
+        self.assertEqual(400, error.status)
+        self.assertEqual("InvalidParameterValue", error.code)
+        self.assertIn("Invalid float value {}".format(garbage), error.message)
 
 
 class BoolTestCase(TestCase):
