@@ -237,6 +237,30 @@ class Integer(Parameter):
         return int(value)
 
 
+class Float(Parameter):
+    """A parameter that must be a {float}."""
+
+    kind = "float"
+
+    lower_than_min_template = "Value must be at least %s."
+    greater_than_max_template = "Value exceeds maximum of %s."
+
+    def __init__(self, name=None, optional=False, default=None,
+                 min=0, max=None, allow_none=False, validator=None,
+                 doc=None):
+        super(Float, self).__init__(
+            name, optional, default, min, max, allow_none, validator, doc=doc)
+
+    def parse(self, value):
+        return float(value)
+
+    def format(self, value):
+        return str(value)
+
+    def measure(self, value):
+        return float(value)
+
+
 class Bool(Parameter):
     """A parameter that must be a C{bool}."""
 
