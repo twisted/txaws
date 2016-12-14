@@ -10,12 +10,28 @@ from txaws.util import parse
 __all__ = ["AWSServiceEndpoint", "AWSServiceRegion", "REGION_US", "REGION_EU"]
 
 
-# These old variable names are maintained for backwards compatibility.
-REGION_US = regions.REGION_US
-REGION_EU = regions.REGION_EU
-EC2_ENDPOINT_US = regions.EC2_ENDPOINT_US
-EC2_ENDPOINT_EU = regions.EC2_ENDPOINT_EU
-S3_ENDPOINT = regions.S3_ENDPOINT
+REGION_US = "US"
+REGION_EU = "EU"
+
+REGION_US_EAST_1 = "us-east-1"
+REGION_US_EAST_2 = "us-east-2"
+REGION_US_WEST_1 = "us-west-1"
+REGION_US_WEST_2 = "us-west-2"
+REGION_CA_CENTRAL_1 = "ca-central-1"
+REGION_AP_SOUTH_1 = "ap-south-1"
+REGION_AP_NORTHEAST_1 = "ap-northeast-1"
+REGION_AP_NORTHEAST_2 = "ap-northeast-2"
+REGION_AP_SOUTHEAST_1 = "ap-southeast-1"
+REGION_AP_SOUTHEAST_2 = "ap-southeast-2"
+REGION_EU_CENTRAL_1 = "eu-central-1"
+REGION_EU_WEST_1 = "eu-west-1"
+REGION_EU_WEST_2 = "eu-west-2"
+REGION_SA_EAST_1 = "sa-east-1"
+
+EC2_ENDPOINT_US = "https://us-east-1.ec2.amazonaws.com/"
+EC2_ENDPOINT_EU = "https://eu-west-1.ec2.amazonaws.com/"
+
+S3_ENDPOINT = "https://s3.amazonaws.com/"
 
 
 class AWSServiceEndpoint(object):
