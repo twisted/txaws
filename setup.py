@@ -37,7 +37,7 @@ setup(
     version=version.txaws,
     description="Async library for EC2, OpenStack, and Eucalyptus",
     author="txAWS Developers",
-    url="https://github.com/oubiwann/txaws",
+    url="https://github.com/twisted/txaws",
     license="MIT",
     packages=find_packages(),
     scripts=glob("./bin/*"),
