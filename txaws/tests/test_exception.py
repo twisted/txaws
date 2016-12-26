@@ -14,8 +14,9 @@ REQUEST_ID = "0ef9fc37-6230-4d81-b2e6-1b36277d4247"
 class AWSErrorTestCase(TestCase):
 
     def test_creation(self):
-        error = AWSError("<dummy1 />", 500, "Server Error", "<dummy2 />")
-        self.assertEquals(error.status, 500)
+        status = "500"
+        error = AWSError("<dummy1 />", int(status), "Server Error", "<dummy2 />")
+        self.assertEquals(error.status, status)
         self.assertEquals(error.response, "<dummy2 />")
         self.assertEquals(error.original, "<dummy1 />")
         self.assertEquals(error.errors, [])
