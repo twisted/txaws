@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/twisted/txaws.svg)](https://travis-ci.org/twisted/txaws)
+
 Dependencies
 ------------
 
