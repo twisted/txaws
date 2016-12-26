@@ -52,6 +52,9 @@ setup(
         "Topic :: Internet :: WWW/HTTP",
         "License :: OSI Approved :: MIT License",
        ],
+    extras_require={
+        "dev": ["zope.datetime"],
+    },
     **extra_setup_args
     )
 

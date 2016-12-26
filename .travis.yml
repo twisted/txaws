@@ -1,0 +1,21 @@
+#
+# This is the Travis-CI configuration.
+#
+
+language: "python"
+
+# This is how you get container-based environments on Travis-CI.  And
+# container-based environments are how you get fast test runs.
+sudo: false
+
+cache:
+  directories:
+    # Cache the pip download cache across runs to avoid having to
+    # repeatedly download packages over the network.
+    - "$HOME/.cache/pip"
+
+install:
+  - "pip install .[dev]"
+
+script:
+  - "trial txaws"
