@@ -10,7 +10,7 @@ extra_setup_args = {}
 try:
     import setuptools
     from setuptools import find_packages
-    extra_setup_args['install_requires'] = ['python-dateutil', 'twisted', 'pyOpenSSL']
+    extra_setup_args['install_requires'] = ['python-dateutil', 'twisted[tls]']
 except ImportError:
     def find_packages():
         """
