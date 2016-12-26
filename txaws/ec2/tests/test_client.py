@@ -1630,18 +1630,15 @@ class EC2ErrorWrapperTestCase(TXAWSTestCase):
         TXAWSTestCase.setUp(self)
 
     def make_failure(self, status=None, type=None, message="", response=""):
-        if type == TwistedWebError:
-            error = type(status)
+        if not response:
+            response = payload.sample_ec2_error_message
+        if type is TwistedWebError:
+            error = type(status, message, response)
         elif message:
             error = type(message)
         else:
             error = type()
-        failure = Failure(error)
-        if not response:
-            response = payload.sample_ec2_error_message
-        failure.value.response = response
-        failure.value.status = status
-        return failure
+        return Failure(error)
 
     def test_302_error(self):
         failure = self.make_failure(302, Exception, "found")
