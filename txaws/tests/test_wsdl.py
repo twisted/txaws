@@ -512,7 +512,7 @@ class WDSLParserTestCase(WsdlBaseTestCase):
     def setUp(self):
         super(WDSLParserTestCase, self).setUp()
         parser = WSDLParser()
-        wsdl_dir = os.path.join(os.path.dirname(__file__), "../../wsdl")
+        wsdl_dir = os.path.join(os.path.dirname(__file__), "../wsdl")
         wsdl_path = os.path.join(wsdl_dir, "2009-11-30.ec2.wsdl")
         self.schemas = parser.parse(open(wsdl_path).read())
 
