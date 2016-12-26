@@ -54,6 +54,8 @@ setup(
         "Topic :: Internet :: WWW/HTTP",
         "License :: OSI Approved :: MIT License",
        ],
+    include_package_data=True,
+    zip_safe=False,
     extras_require={
         "dev": ["zope.datetime"],
     },
