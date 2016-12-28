@@ -1192,6 +1192,54 @@ class QueryTestCase(TXAWSTestCase):
         result = query.get_canonicalized_resource()
         self.assertEquals(result, "/images/advicedog.jpg")
 
+    def test_get_canonicalized_resource_with_subresource(self):
+        """
+        If a _subresource_ of the object is addressed via a query argument
+        at the end of the object name, the _subresource_ is included
+        in the canonical resource.
+        """
+        query = client.Query(
+            action="GET", bucket="images", object_name="advicedog.jpg?acl",
+        )
+        result = query.get_canonicalized_resource()
+        self.assertEquals(result, "/images/advicedog.jpg?acl")
+
+    def test_get_canonicalized_resource_with_other_query_args(self):
+        """
+        If there are query arguments on the object name which are not
+        subresources, they are not included in the canonical resource.
+        """
+        query = client.Query(
+            action="PUT", bucket="images",
+            object_name="advicedog.jpg?partNumber=3&uploadId=abc",
+        )
+        result = query.get_canonicalized_resource()
+        self.assertEquals(result, "/images/advicedog.jpg")
+
+    def test_get_canonicalized_resource_with_subresource_and_query_args(self):
+        """
+        If there is a subresource and other query arguments, only the
+        subresource is included in the canonical resource.
+        """
+        query = client.Query(
+            action="POST", bucket="images",
+            object_name="advicedog.jpg?restore&versionId=VersionID",
+        )
+        result = query.get_canonicalized_resource()
+        self.assertEquals(result, "/images/advicedog.jpg?restore")
+
+    def test_get_canonicalized_resource_with_query_args_and_subresource(self):
+        """
+        If there are query arguments and a subresource, only the
+        subresource is included in the canonical resource.
+        """
+        query = client.Query(
+            action="POST", bucket="images",
+            object_name="advicedog.jpg?versionId=VersionID&restore",
+        )
+        result = query.get_canonicalized_resource()
+        self.assertEquals(result, "/images/advicedog.jpg?restore")
+
     def test_sign(self):
         query = client.Query(action="PUT", creds=self.creds)
         signed = query.sign({})
