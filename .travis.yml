@@ -24,7 +24,7 @@ addons:
     - "libssl1.0.0"
 
 install:
-  - "pip install --upgrade pip"
+  - "pip install --upgrade pip setuptools wheel"
   - "pip install .[dev]"
 
 script:
