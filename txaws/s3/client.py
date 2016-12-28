@@ -599,7 +599,7 @@ class Query(BaseQuery):
             content_length = self.body_producer.length
         else:
             content_length = len(self.data)
-        headers = {"Content-Length": content_length,
+        headers = {"Content-Length": b"%d" % (content_length,),
                    "Date": self.date}
         if self.body_producer is None:
             headers["Content-MD5"] = calculate_md5(self.data)

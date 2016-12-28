@@ -30,7 +30,7 @@ class MemoryS3(object):
         self._state = WeakKeyDictionary()
 
     def get_state(self, client):
-        return self._state.setdefault(client, _S3ClientState())
+        return self._state.setdefault(client, S3ClientState())
 
     def client(self, *a, **kw):
         client = _MemoryS3Client(self, *a, **kw)
@@ -45,7 +45,7 @@ class S3ClientState(object):
     """
     from time import time
 
-    rate_limited_exceeded = False
+    rate_limit_exceeded = False
 
     def __init__(self):
         self.buckets = {}
@@ -66,7 +66,7 @@ class _ControllerState(object):
 
 
 class _MemoryS3Client(object):
-    _state = ControllerState()
+    _state = _ControllerState()
 
     def __init__(self, controller, creds, endpoint):
         self._controller = controller
