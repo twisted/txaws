@@ -1,0 +1,31 @@
+#
+# This is the Travis-CI configuration.
+#
+
+language: "python"
+
+# This is how you get container-based environments on Travis-CI.  And
+# container-based environments are how you get fast test runs.
+sudo: false
+
+cache:
+  directories:
+    # Cache the pip download cache across runs to avoid having to
+    # repeatedly download packages over the network.
+    - "$HOME/.cache/pip"
+
+# A special travis-based way to say that we need some additional OS
+# packages.  These are required to build pyOpenSSL, on which txAWS
+# depends.
+addons:
+  apt:
+    packages:
+    - "libssl-dev"
+    - "libssl1.0.0"
+
+install:
+  - "pip install --upgrade pip setuptools wheel"
+  - "pip install .[dev]"
+
+script:
+  - "trial txaws"

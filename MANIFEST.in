@@ -1,6 +1,10 @@
 include README
 include LICENSE
 include setup.py
+include txaws/client/tests/*.ssl
+include txaws/wsdl/*.wsdl
+
 graft bin
-graft wsdl
+prune admin
+
 recursive-include txaws *.py

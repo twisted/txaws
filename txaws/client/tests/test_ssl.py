@@ -12,6 +12,7 @@ from twisted.python import log
 from twisted.python.filepath import FilePath
 from twisted.test.test_sslverify import makeCertificate
 from twisted.web import server, static
+
 try:
     from twisted.web.client import ResponseFailed
 except ImportError:
@@ -25,7 +26,7 @@ from txaws.testing.base import TXAWSTestCase
 
 
 def sibpath(path):
-    return os.path.join(os.path.dirname(__file__), path)
+    return FilePath(__file__).sibling(path).path
 
 
 PRIVKEY = sibpath("private.ssl")
