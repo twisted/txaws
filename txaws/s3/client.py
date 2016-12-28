@@ -627,7 +627,7 @@ class Query(BaseQuery):
                     part
                     for part
                     in query_parts
-                    if "=" not in part and part in subresources
+                    if part.split("=")[0] in subresources
                 )
                 if subs:
                     resource += "?" + "&".join(sorted(subs))

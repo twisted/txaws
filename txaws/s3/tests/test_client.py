@@ -1204,6 +1204,18 @@ class QueryTestCase(TXAWSTestCase):
         result = query.get_canonicalized_resource()
         self.assertEquals(result, "/images/advicedog.jpg?acl")
 
+    def test_get_canonicalized_resource_with_subresource_with_value(self):
+        """
+        If a subresource of the object is addressed via a query argument
+        with a value at the end of the object name, the subresource
+        (including value) is included in the canonical resource.
+        """
+        query = client.Query(
+            action="GET", bucket="images", object_name="advicedog.jpg?versionId=7",
+        )
+        result = query.get_canonicalized_resource()
+        self.assertEquals(result, "/images/advicedog.jpg?versionId=7")
+
     def test_get_canonicalized_resource_with_other_query_args(self):
         """
         If there are query arguments on the object name which are not
