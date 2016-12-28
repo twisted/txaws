@@ -635,15 +635,39 @@ class Query(BaseQuery):
         """
         Get an S3 resource path.
         """
+        # As <http://docs.amazonwebservices.com/AmazonS3/latest/dev/RESTAuthentication.html>
+        # says, if there is a subresource (e.g. ?acl), it is included, but other query
+        # parameters (e.g. ?prefix=... in a GET Bucket request) are not included.
+        # Yes, that makes no sense in terms of either security or consistency.
+        subresources = {
+            "acl", "lifecycle", "location", "logging", "notification",
+            "partNumber", "policy", "requestPayment", "torrent", "uploadId",
+            "uploads", "versionId", "versioning", "versions", "website",
+        }
+        resource = self.object_name
+        if resource:
+            parts = resource.split("?")
+            if len(parts) == 2:
+                resource, query = parts
+                query_parts = query.split("&")
+                subs = list(
+                    part
+                    for part
+                    in query_parts
+                    if part.split("=")[0] in subresources
+                )
+                if subs:
+                    resource += "?" + "&".join(sorted(subs))
+
         path = "/"
         if self.bucket is not None:
             path += self.bucket
-        if self.bucket is not None and self.object_name:
-            if not self.object_name.startswith("/"):
+            if resource:
+                if not resource.startswith("/"):
+                    path += "/"
+                path += resource
+            elif not path.endswith("/"):
                 path += "/"
-            path += self.object_name
-        elif self.bucket is not None and not path.endswith("/"):
-            path += "/"
         return path
 
     def sign(self, headers):
