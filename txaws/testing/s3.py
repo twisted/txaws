@@ -75,7 +75,11 @@ class _MemoryS3Client(object):
 
     @_rate_limited
     def list_buckets(self):
-        return succeed(self._state.buckets.keys())
+        return succeed(list(
+            item["bucket"]
+            for item
+            in self._state.buckets.itervalues()
+        ))
 
     @_rate_limited
     def create_bucket(self, bucket):
