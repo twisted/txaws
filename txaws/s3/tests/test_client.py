@@ -1210,8 +1210,8 @@ class QueryTestCase(TXAWSTestCase):
         subresources, they are not included in the canonical resource.
         """
         query = client.Query(
-            action="PUT", bucket="images",
-            object_name="advicedog.jpg?partNumber=3&uploadId=abc",
+            action="GET", bucket="images",
+            object_name="advicedog.jpg?max-keys=50&marker=puppy",
         )
         result = query.get_canonicalized_resource()
         self.assertEquals(result, "/images/advicedog.jpg")
@@ -1222,11 +1222,11 @@ class QueryTestCase(TXAWSTestCase):
         subresource is included in the canonical resource.
         """
         query = client.Query(
-            action="POST", bucket="images",
-            object_name="advicedog.jpg?restore&versionId=VersionID",
+            action="GET", bucket="images",
+            object_name="advicedog.jpg?acl&max-keys=50",
         )
         result = query.get_canonicalized_resource()
-        self.assertEquals(result, "/images/advicedog.jpg?restore")
+        self.assertEquals(result, "/images/advicedog.jpg?acl")
 
     def test_get_canonicalized_resource_with_query_args_and_subresource(self):
         """
@@ -1235,10 +1235,22 @@ class QueryTestCase(TXAWSTestCase):
         """
         query = client.Query(
             action="POST", bucket="images",
-            object_name="advicedog.jpg?versionId=VersionID&restore",
+            object_name="advicedog.jpg?max-keys=50&acl",
         )
         result = query.get_canonicalized_resource()
-        self.assertEquals(result, "/images/advicedog.jpg?restore")
+        self.assertEquals(result, "/images/advicedog.jpg?acl")
+
+    def test_get_canonicalized_resource_with_subresources(self):
+        """
+        If there are multiple subresources, they are included in
+        lexicographical order.
+        """
+        query = client.Query(
+            action="POST", bucket="images",
+            object_name="advicedog.jpg?website&acl",
+        )
+        result = query.get_canonicalized_resource()
+        self.assertEquals(result, "/images/advicedog.jpg?acl&website")
 
     def test_sign(self):
         query = client.Query(action="PUT", creds=self.creds)
