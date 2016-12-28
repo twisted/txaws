@@ -16,6 +16,7 @@ import mimetypes
 
 from twisted.web.http import datetimeToString
 
+from urllib import urlencode
 from dateutil.parser import parse as parseTime
 
 from txaws.client.base import BaseClient, BaseQuery, error_wrapper
@@ -129,15 +130,41 @@ class S3Client(BaseClient):
             bucket=bucket)
         return query.submit()
 
-    def get_bucket(self, bucket):
+    def get_bucket(self, bucket, marker=None, max_keys=None):
         """
         Get a list of all the objects in a bucket.
+
+        @param marker: If given, indicate a position in the overall
+            results where the results of this call should begin.  The
+            first result is the first object that sorts greater than
+            this marker.
+        @type marker: L{bytes} or L{NoneType}
+
+        @param max_keys: If given, the maximum number of objects to
+            return.
+        @type max_keys: L{int} or L{NoneType}
+
+        @return: A L{Deferred} that fires with a L{BucketListing}
+            describing the result.
+
+        @see: U{http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketGET.html}
         """
         query = self.query_factory(
             action="GET", creds=self.creds, endpoint=self.endpoint,
             bucket=bucket, receiver_factory=self.receiver_factory)
-        d = query.submit()
-        return d.addCallback(self._parse_get_bucket)
+        args = []
+        if marker is not None:
+            args.append(("marker", marker))
+        if max_keys is not None:
+            args.append(("max-keys", "%d" % (max_keys,)))
+        if args:
+            object_name = "?" + urlencode(args)
+        else:
+            object_name = None
+        url_context = URLContext(self.endpoint, bucket, object_name)
+        d = query.submit(url_context)
+        d.addCallback(self._parse_get_bucket)
+        return d
 
     def _parse_get_bucket(self, xml_bytes):
         root = XML(xml_bytes)
@@ -608,15 +635,39 @@ class Query(BaseQuery):
         """
         Get an S3 resource path.
         """
+        # As <http://docs.amazonwebservices.com/AmazonS3/latest/dev/RESTAuthentication.html>
+        # says, if there is a subresource (e.g. ?acl), it is included, but other query
+        # parameters (e.g. ?prefix=... in a GET Bucket request) are not included.
+        # Yes, that makes no sense in terms of either security or consistency.
+        subresources = {
+            "acl", "lifecycle", "location", "logging", "notification",
+            "partNumber", "policy", "requestPayment", "torrent", "uploadId",
+            "uploads", "versionId", "versioning", "versions", "website",
+        }
+        resource = self.object_name
+        if resource:
+            parts = resource.split("?")
+            if len(parts) == 2:
+                resource, query = parts
+                query_parts = query.split("&")
+                subs = list(
+                    part
+                    for part
+                    in query_parts
+                    if part.split("=")[0] in subresources
+                )
+                if subs:
+                    resource += "?" + "&".join(sorted(subs))
+
         path = "/"
         if self.bucket is not None:
             path += self.bucket
-        if self.bucket is not None and self.object_name:
-            if not self.object_name.startswith("/"):
+            if resource:
+                if not resource.startswith("/"):
+                    path += "/"
+                path += resource
+            elif not path.endswith("/"):
                 path += "/"
-            path += self.object_name
-        elif self.bucket is not None and not path.endswith("/"):
-            path += "/"
         return path
 
     def sign(self, headers):

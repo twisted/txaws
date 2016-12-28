@@ -202,6 +202,24 @@ class S3ClientTestCase(TXAWSTestCase):
         d = s3.get_bucket("mybucket")
         return d.addCallback(check_results)
 
+    def test_get_bucket_pagination(self):
+        """
+        L{S3Client.get_bucket} accepts C{marker} and C{max_keys} arguments
+        to control pagination of results.
+        """
+        class StubQuery(client.Query):
+            def submit(query, url_context):
+                self.assertEqual(
+                    "http:///mybucket/?marker=abcdef&max-keys=42",
+                    url_context.get_url(),
+                )
+                return succeed(payload.sample_get_bucket_result)
+
+        creds = AWSCredentials("foo", "bar")
+        s3 = client.S3Client(creds, query_factory=StubQuery)
+        d = s3.get_bucket("mybucket", marker="abcdef", max_keys=42)
+        return d
+
     def test_get_bucket_location(self):
         """
         L{S3Client.get_bucket_location} creates a L{Query} to get a bucket's
@@ -1191,6 +1209,78 @@ class QueryTestCase(TXAWSTestCase):
             action="PUT", bucket="images", object_name="/advicedog.jpg")
         result = query.get_canonicalized_resource()
         self.assertEquals(result, "/images/advicedog.jpg")
+
+    def test_get_canonicalized_resource_with_subresource(self):
+        """
+        If a _subresource_ of the object is addressed via a query argument
+        at the end of the object name, the _subresource_ is included
+        in the canonical resource.
+        """
+        query = client.Query(
+            action="GET", bucket="images", object_name="advicedog.jpg?acl",
+        )
+        result = query.get_canonicalized_resource()
+        self.assertEquals(result, "/images/advicedog.jpg?acl")
+
+    def test_get_canonicalized_resource_with_subresource_with_value(self):
+        """
+        If a subresource of the object is addressed via a query argument
+        with a value at the end of the object name, the subresource
+        (including value) is included in the canonical resource.
+        """
+        query = client.Query(
+            action="GET", bucket="images", object_name="advicedog.jpg?versionId=7",
+        )
+        result = query.get_canonicalized_resource()
+        self.assertEquals(result, "/images/advicedog.jpg?versionId=7")
+
+    def test_get_canonicalized_resource_with_other_query_args(self):
+        """
+        If there are query arguments on the object name which are not
+        subresources, they are not included in the canonical resource.
+        """
+        query = client.Query(
+            action="GET", bucket="images",
+            object_name="advicedog.jpg?max-keys=50&marker=puppy",
+        )
+        result = query.get_canonicalized_resource()
+        self.assertEquals(result, "/images/advicedog.jpg")
+
+    def test_get_canonicalized_resource_with_subresource_and_query_args(self):
+        """
+        If there is a subresource and other query arguments, only the
+        subresource is included in the canonical resource.
+        """
+        query = client.Query(
+            action="GET", bucket="images",
+            object_name="advicedog.jpg?acl&max-keys=50",
+        )
+        result = query.get_canonicalized_resource()
+        self.assertEquals(result, "/images/advicedog.jpg?acl")
+
+    def test_get_canonicalized_resource_with_query_args_and_subresource(self):
+        """
+        If there are query arguments and a subresource, only the
+        subresource is included in the canonical resource.
+        """
+        query = client.Query(
+            action="POST", bucket="images",
+            object_name="advicedog.jpg?max-keys=50&acl",
+        )
+        result = query.get_canonicalized_resource()
+        self.assertEquals(result, "/images/advicedog.jpg?acl")
+
+    def test_get_canonicalized_resource_with_subresources(self):
+        """
+        If there are multiple subresources, they are included in
+        lexicographical order.
+        """
+        query = client.Query(
+            action="POST", bucket="images",
+            object_name="advicedog.jpg?website&acl",
+        )
+        result = query.get_canonicalized_resource()
+        self.assertEquals(result, "/images/advicedog.jpg?acl&website")
 
     def test_sign(self):
         query = client.Query(action="PUT", creds=self.creds)

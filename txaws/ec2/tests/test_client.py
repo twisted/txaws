@@ -1630,18 +1630,15 @@ class EC2ErrorWrapperTestCase(TXAWSTestCase):
         TXAWSTestCase.setUp(self)
 
     def make_failure(self, status=None, type=None, message="", response=""):
-        if type == TwistedWebError:
-            error = type(status)
+        if not response:
+            response = payload.sample_ec2_error_message
+        if type is TwistedWebError:
+            error = type(status, message, response)
         elif message:
             error = type(message)
         else:
             error = type()
-        failure = Failure(error)
-        if not response:
-            response = payload.sample_ec2_error_message
-        failure.value.response = response
-        failure.value.status = status
-        return failure
+        return Failure(error)
 
     def test_302_error(self):
         failure = self.make_failure(302, Exception, "found")
@@ -1672,14 +1669,15 @@ class EC2ErrorWrapperTestCase(TXAWSTestCase):
         The error wrapper should handle cases where an endpoint returns a
         non-EC2 404.
         """
-        some_html = "<html><body>404</body></html>"
-        failure = self.make_failure(404, TwistedWebError, "not found",
-                                   some_html)
+        status = "404"
+        some_html = "<html><body>{}</body></html>".format(status)
+        failure = self.make_failure(status, TwistedWebError, "not found",
+                                    some_html)
         error = self.assertRaises(
             TwistedWebError, client.ec2_error_wrapper, failure)
         self.assertTrue(isinstance(error, TwistedWebError))
-        self.assertEquals(error.status, 404)
-        self.assertEquals(str(error), "404 Not Found")
+        self.assertEquals(error.status, status)
+        self.assertEquals(str(error), "{} Not Found".format(status))
 
     def test_500_error(self):
         failure = self.make_failure(
@@ -1826,7 +1824,7 @@ class QueryTestCase(TXAWSTestCase):
 
     def test_submit_400(self):
         """A 4xx response status from EC2 should raise a txAWS EC2Error."""
-        status = 400
+        status = "400"
         self.addCleanup(setattr, client.Query, "get_page",
                         client.Query.get_page)
         fake_page_getter = FakePageGetter(
@@ -1856,7 +1854,7 @@ class QueryTestCase(TXAWSTestCase):
         A 4xx response status from a non-EC2 compatible service should raise a
         Twisted web error.
         """
-        status = 400
+        status = "400"
         self.addCleanup(setattr, client.Query, "get_page",
                         client.Query.get_page)
         fake_page_getter = FakePageGetter(
@@ -1881,7 +1879,7 @@ class QueryTestCase(TXAWSTestCase):
         A 5xx response status from EC2 should raise the original Twisted
         exception.
         """
-        status = 500
+        status = "500"
         self.addCleanup(setattr, client.Query, "get_page",
                         client.Query.get_page)
         fake_page_getter = FakePageGetter(
