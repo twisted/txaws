@@ -202,6 +202,24 @@ class S3ClientTestCase(TXAWSTestCase):
         d = s3.get_bucket("mybucket")
         return d.addCallback(check_results)
 
+    def test_get_bucket_pagination(self):
+        """
+        L{S3Client.get_bucket} accepts C{marker} and C{max_keys} arguments
+        to control pagination of results.
+        """
+        class StubQuery(client.Query):
+            def submit(query, url_context):
+                self.assertEqual(
+                    "http:///mybucket/?marker=abcdef&max-keys=42",
+                    url_context.get_url(),
+                )
+                return succeed(payload.sample_get_bucket_result)
+
+        creds = AWSCredentials("foo", "bar")
+        s3 = client.S3Client(creds, query_factory=StubQuery)
+        d = s3.get_bucket("mybucket", marker="abcdef", max_keys=42)
+        return d
+
     def test_get_bucket_location(self):
         """
         L{S3Client.get_bucket_location} creates a L{Query} to get a bucket's
