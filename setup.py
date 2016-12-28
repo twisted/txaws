@@ -11,7 +11,7 @@ try:
     import setuptools
     from setuptools import find_packages
     extra_setup_args['install_requires'] = [
-        'python-dateutil', 'twisted[tls]', 'venusian', 'lxml'
+        'attrs', 'python-dateutil', 'twisted[tls]', 'venusian', 'lxml'
     ]
 except ImportError:
     def find_packages():
@@ -61,4 +61,3 @@ setup(
     },
     **extra_setup_args
     )
-

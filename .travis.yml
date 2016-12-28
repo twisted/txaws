@@ -22,10 +22,13 @@ addons:
     packages:
     - "libssl-dev"
     - "libssl1.0.0"
+    - "unzip"
 
 install:
   - "pip install --upgrade pip setuptools wheel"
   - "pip install .[dev]"
 
 script:
-  - "trial txaws"
+  - "wget 'https://docs.aws.amazon.com/general/latest/gr/samples/aws4_testsuite.zip'"
+  - "unzip aws4_testsuite.zip"
+  - "AWS4_TEST_SUITE_PATH=$PWD/aws4_testsuite trial txaws"
