@@ -1155,7 +1155,7 @@ class QueryTestCase(TXAWSTestCase):
             object_name="/images/thing.jpg")
         headers = query.get_headers()
         self.assertEquals(headers.get("Content-Type"), "image/jpeg")
-        self.assertEquals(headers.get("Content-Length"), 0)
+        self.assertEquals(headers.get("Content-Length"), '0')
         self.assertEquals(
             headers.get("Content-MD5"), "1B2M2Y8AsgTpgAmY7PhCfg==")
         self.assertTrue(len(headers.get("Date")) > 25)
@@ -1169,7 +1169,7 @@ class QueryTestCase(TXAWSTestCase):
             object_name="/images/thing.jpg", data="BINARY IMAGE DATA")
         headers = query.get_headers()
         self.assertEquals(headers.get("Content-Type"), "image/jpeg")
-        self.assertEquals(headers.get("Content-Length"), 17)
+        self.assertEquals(headers.get("Content-Length"), '17')
         self.assertTrue(len(headers.get("Date")) > 25)
         self.assertTrue(
             headers.get("Authorization").startswith("AWS fookeyid:"))
@@ -1300,7 +1300,7 @@ class QueryTestCase(TXAWSTestCase):
         self.assertNotEqual(headers.pop("Date"), "")
         self.assertEqual(headers, {"Authorization": "AWS fookeyid:TESTINGSIG=",
                                    "Content-Type": "text/plain",
-                                   "Content-Length": len(DATA),
+                                   "Content-Length": "%d" % (len(DATA),),
                                    "Content-MD5": DIGEST,
                                    "x-amz-meta-foo": "bar",
                                    "x-amz-acl": "public-read"})
@@ -1322,7 +1322,7 @@ class QueryTestCase(TXAWSTestCase):
         self.assertEqual(
             headers, {
             "Authorization": "AWS fookeyid:TESTINGSIG=",
-            "Content-Length": 0,
+            "Content-Length": "0",
             "Content-MD5": DIGEST})
         self.assertEqual(query.data, "")
 
