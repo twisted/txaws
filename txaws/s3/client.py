@@ -15,6 +15,7 @@ functionality in this wrapper.
 import datetime
 import mimetypes
 
+import hashlib
 
 from urllib import urlencode
 from dateutil.parser import parse as parseTime
@@ -29,7 +30,7 @@ from txaws.s3.model import (
 from txaws import _auth_v4
 from txaws.s3.exception import S3Error
 from txaws.service import AWSServiceEndpoint, REGION_US_EAST_1, S3_ENDPOINT
-from txaws.util import XML, calculate_sha256
+from txaws.util import XML
 
 
 def s3_error_wrapper(error):
@@ -604,7 +605,8 @@ class Query(BaseQuery):
             content_length = str(len(self.data))
         headers = {"Content-Length": content_length}
         if self.body_producer is None:
-            headers["x-amz-content-sha256"] = calculate_sha256(self.data)
+            headers["x-amz-content-sha256"] = hashlib.sha256(
+                self.data).hexdigest()
         for key, value in self.metadata.iteritems():
             headers["x-amz-meta-" + key] = value
         for key, value in self.amz_headers.iteritems():
