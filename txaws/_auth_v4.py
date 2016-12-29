@@ -9,13 +9,44 @@ import urlparse
 import urllib
 
 
-# The following three functions are taken straight from
+# The following four functions are taken straight from
 # http://docs.aws.amazon.com/general/latest/gr/sigv4-signed-request-examples.html
 def sign(key, msg):
+    """
+    Produce a SHA-256 HMAC for a message.
+
+    @param key: The secret key to use.
+    @type key: L{str}
+
+    @param msg: The message to sign.
+    @type msg: L{str}
+
+    @return: The binary (B{not} the hex) digest of the HMAC signature.
+    """
     return hmac.new(key, msg, hashlib.sha256).digest()
 
 
 def getSignatureKey(key, dateStamp, regionName, serviceName):
+    """
+    Generate the signing key for AWS V4 requests.
+
+    @param key: The secret key to use.
+    @type key: L{str}
+
+    @param dateStamp: The UTC date and time, serialized as an AWS date
+        stamp.
+    @type dateStamp: L{str}
+
+    @param regionName: The name of the region.
+    @type regionName: L{str}
+
+    @param serviceName: The name of the service to which the request
+        will be sent.
+    @type serviceName: L{str}
+
+    @return: The signature.
+    @rtype: L{str}
+    """
     kDate = sign(('AWS4' + key), dateStamp)
     kRegion = sign(kDate, regionName)
     kService = sign(kRegion, serviceName)
@@ -24,10 +55,31 @@ def getSignatureKey(key, dateStamp, regionName, serviceName):
 
 
 def makeAMZDate(instant):
+    """
+    Serialize a L{datetime.datetime} according to the "amz date" format.
+
+    @param instant: A naive UTC L{datetime.datetime} (as returned from
+        L{datetime.datetime.utcnow})
+    @type instant: L{dateimte.datetime}
+
+    @return: The formatted date and time.
+    @rtype: L{str}
+    """
     return instant.strftime('%Y%m%dT%H%M%SZ')
 
 
 def makeDateStamp(instant):
+    """
+    Serialize a L{datetime.datetime} according to the AWS "date stamp"
+    format.
+
+    @param instant: A naive UTC L{datetime.datetime} (as returned from
+        L{datetime.datetime.utcnow})
+    @type instant: L{dateimte.datetime}
+
+    @return: The formatted date and time.
+    @rtype: L{str}
+    """
     return instant.strftime('%Y%m%d')
 
 
@@ -107,7 +159,30 @@ def _make_signed_headers(headers, headers_to_sign):
 @attr.s
 class _CanonicalRequest(object):
     """
-    A canonicalized request.
+    A canonicalized request.  See
+    U{http://docs.aws.amazon.com/general/latest/gr/sigv4-create-canonical-request.html}
+
+    @ivar method: The HTTP method.
+    @type method: L{str}
+
+    @ivar canonical_uri: The 'canonical URI'.
+        B{N.B.  This should not the full URI!} It should instead be just
+        the path and query string.  See L{_make_canonical_uri}.
+    @type canonical_uri: L{str}
+
+    @ivar canonical_query_string: The 'canonical query string'.  See
+        L{_make_canonical_query_string}.
+
+    @type canonical_headers: The 'canonical headers'.  See
+        L{_make_canonical_headers}.
+    @ivar canonical_headers: L{str}
+
+    @ivar signed_headers: The 'signed headers'.  See
+        L{_make_signed_headers}
+    @type signed_headers: L{str}
+
+    @ivar payload_hash: The SHA256 of the request's body.
+    @type payload_hash: L{str}
     """
     method = attr.ib()
     canonical_uri = attr.ib()
@@ -160,10 +235,21 @@ class _CanonicalRequest(object):
     def serialize(self):
         """
         Serialize this canonical request to a string.
+
+        @return: The line-delimited serialization of this canonical
+            request.
+        @rtype: L{str}
         """
         return '\n'.join(attr.astuple(self))
 
     def hash(self):
+        """
+        Calculate the SHA256 hash of this canonical request.
+
+        @return: The SHA256 hash of this canonical request's
+            serialization.
+        @rtype: L{str}
+        """
         return hashlib.sha256(self.serialize()).hexdigest()
 
 
@@ -171,6 +257,17 @@ class _CanonicalRequest(object):
 class _CredentialScope(object):
     """
     The scope of the AWS credentials.
+
+    @ivar date_stamp: The UTC date and time, in 'date stamp' format.
+        See L{makeDateStamp}.
+    @type date_stamp: L{str}
+
+    @ivar region: The service region.
+    @type region: L{str}
+
+    @ivar service: The name of the service to which the request will
+        be made.
+    @type: L{str}
     """
 
     date_stamp = attr.ib()
@@ -180,6 +277,9 @@ class _CredentialScope(object):
     def serialize(self):
         """
         Serialize this credential scope to a string.
+
+        @return: The slash-delimited credential scope serialization.
+        @rtype: L{str}
         """
         return "/".join(attr.astuple(self) + ('aws4_request',))
 
@@ -188,6 +288,15 @@ class _CredentialScope(object):
 class _Credential(object):
     """
     An AWS credential.
+
+    @ivar access_key: The AWS access key.  See
+        L{txaws.credentials.AWSCredentials}
+    @type access_key: L{str}
+
+    @ivar credential_scope: The credential's scope.  See
+        L{_CredentialScope}
+    @type access_key: L{str}
+
     """
     access_key = attr.ib()
     credential_scope = attr.ib()
@@ -195,12 +304,31 @@ class _Credential(object):
     def serialize(self):
         """
         Serialize this credential bundle to a string.
+
+        @return: The serialized credential.
+        @rtype: L{str}
         """
         return "/".join([self.access_key, self.credential_scope.serialize()])
 
 
 @attr.s
 class _SignableAWS4HMAC256Token(object):
+    """
+    A signable AWS4 HMAC 256 token.  The AWS documentation calls the
+    serialization of this the "string to sign".
+
+    @ivar amz_date: The UTC date and time in 'date stamp' format.  See
+        L{makeDateStamp}.
+    @type amz_date: L{str}
+
+    @ivar credential_scope: The scope of this oepration's credentials.
+    @type credential_scope: L{_CredentialScope}
+
+    @ivar canonical_request: The canonical request that comprises this
+        operation.
+    @type canonical_request: L{_CanonicalRequest}
+    """
+
     ALGORITHM = "AWS4-HMAC-SHA256"
 
     amz_date = attr.ib()
@@ -210,6 +338,10 @@ class _SignableAWS4HMAC256Token(object):
     def serialize(self):
         """
         Serialize this token to a string.
+
+        @return: The serialization of this token.  This is known in
+            the AWS documentation as "the string to sign."
+        @rtype: L{str}
         """
         return "\n".join([
             self.ALGORITHM,
@@ -221,6 +353,13 @@ class _SignableAWS4HMAC256Token(object):
     def signature(self, signing_key):
         """
         Return the signature of this token.
+
+        @param signing_key: The signing key.  Not just your secret
+            key!  See L{getSignatureKey}
+        @type: L{str}
+
+        @return: the HMAC-256 signature.
+        @rtype: L{str}
         """
         return hmac.new(
             signing_key,

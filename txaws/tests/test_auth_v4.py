@@ -79,7 +79,7 @@ def _create_credential_fixture(scope):
 
 class AWS4FunctionTest(unittest.SynchronousTestCase):
     """
-    Tests for support functions for AWS4 signing.
+    Tests for AWS4 signing support functions.
     """
 
     def test_sign(self):
@@ -169,7 +169,7 @@ class MakeSignedHeadersTests(unittest.TestCase):
     Tests for L{_make_signed_headers}.
     """
 
-    def test_only_names_include(self):
+    def test_only_names_included(self):
         """
         Only the headers' names are included.
         """
@@ -302,7 +302,6 @@ class MakeCanonicalQueryStringTests(unittest.SynchronousTestCase):
         )
 
 
-
 class CanonicalRequestTests(unittest.SynchronousTestCase):
     """
     Tests for L{_CanonicalRequest}.
@@ -395,7 +394,7 @@ class CredentialScopeTests(unittest.SynchronousTestCase):
         """
         A credential scope is serialized as a slash (C{/}) delimited
         sequence that ends with the special value C{aws4_request} and
-        consist of:
+        consists of:
 
             1. the date
 
@@ -625,9 +624,9 @@ class AWS4TestSuite(unittest.SynchronousTestCase):
 
     def _test_canonical_request(self, path):
         """
-        Extract AWS request and canonical request fixtures from path,
-        and compare a L{_CanonicalRequest} instance constructed from
-        the request to the canonical request.
+        Extract AWS request and canonical request fixtures from
+        C{path}, and compare a L{_CanonicalRequest} instance
+        constructed from the request to the canonical request.
 
         @return: The constructed canonical request
         @rtype: L{_CanonicalRequest}
@@ -654,7 +653,7 @@ class AWS4TestSuite(unittest.SynchronousTestCase):
 
     def _test_string_to_sign(self, path, canonical_request):
         """
-        Extract an AWS string-to-sign fixture from path and compare it
+        Extract an AWS string-to-sign fixture from C{path} and compare it
         to a L{_SignableAWS4HMAC256Token} constructed from the
         provided canonical request.
         """
@@ -672,8 +671,8 @@ class AWS4TestSuite(unittest.SynchronousTestCase):
 
     def _test_authorization(self, path, canonical_request):
         """
-        Extract an AWS authorization fixture from path and compare it
-        to the value returned from L{_make_authorization_header},
+        Extract an AWS authorization fixture from C{path} and compare
+        it to the value returned from L{_make_authorization_header},
         constructed from the provided canonical request.
         """
 
