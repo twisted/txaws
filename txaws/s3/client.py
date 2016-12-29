@@ -12,9 +12,8 @@ API stability: unstable.
 Various API-incompatible changes are planned in order to expose missing
 functionality in this wrapper.
 """
+import datetime
 import mimetypes
-
-from twisted.web.http import datetimeToString
 
 from dateutil.parser import parse as parseTime
 
@@ -25,9 +24,10 @@ from txaws.s3.model import (
     LifecycleConfigurationRule, NotificationConfiguration, RequestPayment,
     VersioningConfiguration, WebsiteConfiguration, MultipartInitiationResponse,
     MultipartCompletionResponse)
+from txaws import _auth_v4
 from txaws.s3.exception import S3Error
-from txaws.service import AWSServiceEndpoint, S3_ENDPOINT
-from txaws.util import XML, calculate_md5
+from txaws.service import AWSServiceEndpoint, REGION_US_EAST_1, S3_ENDPOINT
+from txaws.util import XML, calculate_sha256
 
 
 def s3_error_wrapper(error):
@@ -548,10 +548,12 @@ class Query(BaseQuery):
         self.content_type = content_type
         self.metadata = metadata
         self.amz_headers = amz_headers
-        self.date = datetimeToString()
         if not self.endpoint or not self.endpoint.host:
             self.endpoint = AWSServiceEndpoint(S3_ENDPOINT)
         self.endpoint.set_method(self.action)
+
+    def _utcnow(self):
+        return datetime.datetime.utcnow()
 
     def set_content_type(self):
         """
@@ -569,65 +571,53 @@ class Query(BaseQuery):
         Build the list of headers needed in order to perform S3 operations.
         """
         if self.body_producer:
-            content_length = self.body_producer.length
+            content_length = str(self.body_producer.length)
         else:
-            content_length = len(self.data)
-        headers = {"Content-Length": content_length,
-                   "Date": self.date}
+            content_length = str(len(self.data))
+        headers = {"Content-Length": content_length}
         if self.body_producer is None:
-            headers["Content-MD5"] = calculate_md5(self.data)
+            headers["x-amz-content-sha256"] = calculate_sha256(self.data)
         for key, value in self.metadata.iteritems():
             headers["x-amz-meta-" + key] = value
         for key, value in self.amz_headers.iteritems():
             headers["x-amz-" + key] = value
+
+        instant = self._utcnow()
+        headers['x-amz-date'] = _auth_v4.makeAMZDate(instant)
+
         # Before we check if the content type is set, let's see if we can set
         # it by guessing the the mimetype.
         self.set_content_type()
         if self.content_type is not None:
             headers["Content-Type"] = self.content_type
         if self.creds is not None:
-            signature = self.sign(headers)
-            headers["Authorization"] = "AWS %s:%s" % (
-                self.creds.access_key, signature)
+            headers["Authorization"] = self.sign(
+                headers,
+                self.data,
+                URLContext(self.endpoint, self.bucket, self.object_name),
+                instant)
+
         return headers
 
-    def get_canonicalized_amz_headers(self, headers):
-        """
-        Get the headers defined by Amazon S3.
-        """
-        headers = [
-            (name.lower(), value) for name, value in headers.iteritems()
-            if name.lower().startswith("x-amz-")]
-        headers.sort()
-        # XXX missing spec implementation:
-        # 1) txAWS doesn't currently combine headers with the same name
-        # 2) txAWS doesn't currently unfold long headers
-        return "".join("%s:%s\n" % (name, value) for name, value in headers)
-
-    def get_canonicalized_resource(self):
-        """
-        Get an S3 resource path.
-        """
-        path = "/"
-        if self.bucket is not None:
-            path += self.bucket
-        if self.bucket is not None and self.object_name:
-            if not self.object_name.startswith("/"):
-                path += "/"
-            path += self.object_name
-        elif self.bucket is not None and not path.endswith("/"):
-            path += "/"
-        return path
-
-    def sign(self, headers):
+    def sign(self, headers, data, url_context, instant,
+             region=REGION_US_EAST_1, method="GET"):
         """Sign this query using its built in credentials."""
-        text = (self.action + "\n" +
-                headers.get("Content-MD5", "") + "\n" +
-                headers.get("Content-Type", "") + "\n" +
-                headers.get("Date", "") + "\n" +
-                self.get_canonicalized_amz_headers(headers) +
-                self.get_canonicalized_resource())
-        return self.creds.sign(text, hash_type="sha1")
+        headers["host"] = url_context.get_host()
+
+        request = _auth_v4._CanonicalRequest.from_payload_and_headers(
+            method=method,
+            url=url_context.get_path(),
+            headers=headers,
+            headers_to_sign=('host', 'x-amz-date'),
+            payload=data
+        )
+
+        return _auth_v4._make_authorization_header(
+            region=region,
+            service="s3",
+            canonical_request=request,
+            credentials=self.creds,
+            instant=instant)
 
     def submit(self, url_context=None):
         """Submit this query.
@@ -641,4 +631,5 @@ class Query(BaseQuery):
             url_context.get_url(), method=self.action, postdata=self.data,
             headers=self.get_headers(), body_producer=self.body_producer,
             receiver_factory=self.receiver_factory)
+
         return d.addErrback(s3_error_wrapper)
