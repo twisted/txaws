@@ -103,7 +103,7 @@ class _AWSRequest(object):
         return cls(method, path, headers, body)
 
 
-class _AWS4TestSuiteMixin(object):
+class _AWS4TestSuiteTestCaseMixin(object):
     """
     Run AWS's V4 signature test suite.  This is a base class for
     auto-generated tests.
@@ -223,8 +223,9 @@ _RENAME_FILE = re.compile('[/-]')
 
 def _build_test_method(test_suite_path, fixture_path):
     """
-    Construct a test method, to be added to a L{_AWS4TestSuiteMixin}
-    subclass, that runs a test against the given fixture path.
+    Construct a test method, to be added to a
+    L{_AWS4TestSuiteTestCaseMixin} subclass, that runs a test against
+    the given fixture path.
 
     The test method's name will be its path, with slashes (C{/}) and
     dashes (C{-}) replaced with underscores (C{_})
@@ -290,8 +291,8 @@ def test_suite():
     suite = unittest.TestSuite()
     suite.name = "test_aws4_testsuite"
 
-    test_class = type("AWS4TestSuite",
-                      (_AWS4TestSuiteMixin,
+    test_class = type("AWS4TestSuiteTestCase",
+                      (_AWS4TestSuiteTestCaseMixin,
                        unittest.SynchronousTestCase),
                       methods)
     for method_name in sorted(methods):

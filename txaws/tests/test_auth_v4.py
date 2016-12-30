@@ -73,7 +73,7 @@ def _create_credential_fixture(scope):
                        credential_scope=scope)
 
 
-class AWS4FunctionTest(unittest.SynchronousTestCase):
+class AWS4FunctionTestCase(unittest.SynchronousTestCase):
     """
     Tests for AWS4 signing support functions.
     """
@@ -115,7 +115,7 @@ class AWS4FunctionTest(unittest.SynchronousTestCase):
         self.assertEqual(makeDateStamp(instant), "20161111")
 
 
-class MakeCanonicalHeadersTests(unittest.SynchronousTestCase):
+class MakeCanonicalHeadersTestCase(unittest.SynchronousTestCase):
     """
     Tests for L{_make_canonical_headers}.
     """
@@ -204,7 +204,7 @@ class MakeCanonicalHeadersTests(unittest.SynchronousTestCase):
         self.assertEqual(canonical, "a:b c d\n")
 
 
-class MakeSignedHeadersTests(unittest.TestCase):
+class MakeSignedHeadersTestCase(unittest.TestCase):
     """
     Tests for L{_make_signed_headers}.
     """
@@ -252,7 +252,7 @@ class MakeSignedHeadersTests(unittest.TestCase):
         self.assertEqual(signed_headers, 'other-signed-header;signed-header')
 
 
-class MakeCanonicalURITests(unittest.SynchronousTestCase):
+class MakeCanonicalURITestCase(unittest.SynchronousTestCase):
     """
     Tests for L{_make_canonical_uri}.
     """
@@ -306,7 +306,7 @@ class MakeCanonicalURITests(unittest.SynchronousTestCase):
                          "https://www.amazon.com/%E2")
 
 
-class MakeCanonicalQueryStringTests(unittest.SynchronousTestCase):
+class MakeCanonicalQueryStringTestCase(unittest.SynchronousTestCase):
     """
     Tests for L{_make_canonical_query_string}.
     """
@@ -350,7 +350,7 @@ class MakeCanonicalQueryStringTests(unittest.SynchronousTestCase):
         )
 
 
-class CanonicalRequestTests(unittest.SynchronousTestCase):
+class CanonicalRequestTestCase(unittest.SynchronousTestCase):
     """
     Tests for L{_CanonicalRequest}.
     """
@@ -431,7 +431,7 @@ class CanonicalRequestTests(unittest.SynchronousTestCase):
                          "b852d5a935e5")
 
 
-class CredentialScopeTests(unittest.SynchronousTestCase):
+class CredentialScopeTestCase(unittest.SynchronousTestCase):
     """
     Tests for L{_CredentialScope}.
     """
@@ -456,7 +456,7 @@ class CredentialScopeTests(unittest.SynchronousTestCase):
                          "date stamp/region/service/aws4_request")
 
 
-class _CredentialTests(unittest.SynchronousTestCase):
+class CredentialTestCase(unittest.SynchronousTestCase):
     """
     Tests for L{_Credential}.
     """
@@ -476,7 +476,7 @@ class _CredentialTests(unittest.SynchronousTestCase):
         self.assertEqual(credential.serialize(), "key/" + scope.serialize())
 
 
-class SignableAWS4HMAC256TokenTests(unittest.SynchronousTestCase):
+class SignableAWS4HMAC256TokenTestCase(unittest.SynchronousTestCase):
     """
     Tests for L{_SignableAWS4HMAC256Token}.
     """
@@ -537,7 +537,7 @@ class SignableAWS4HMAC256TokenTests(unittest.SynchronousTestCase):
                          'd17dffcd874f')
 
 
-class MakeAuthorizationHeaderTests(unittest.TestCase):
+class MakeAuthorizationHeaderTestCase(unittest.TestCase):
     """
     Tests for L{_make_authorization_header}.
     """
