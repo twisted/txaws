@@ -1,4 +1,5 @@
 import datetime
+from hashlib import sha256
 import warnings
 
 from twisted.internet.defer import succeed
@@ -1167,7 +1168,8 @@ class QueryTestCase(TXAWSTestCase):
         self.assertEquals(headers.get("Content-Type"), "image/jpeg")
         self.assertEquals(
             headers.get("x-amz-content-sha256"),
-            "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855")
+            sha256(b"").hexdigest(),
+        )
         self.assertEqual(headers.get("x-amz-date"), "20150830T123600Z")
         self.assertTrue(
             headers.get("Authorization").startswith("AWS4-HMAC-SHA256"))
@@ -1205,9 +1207,8 @@ class QueryTestCase(TXAWSTestCase):
         """
         Test that a request addressing an object is created correctly.
         """
-        DATA = "objectData"
-        DIGEST = ("d39d79c7b8b254dd2ea96341b0063ca6bbda07064c99ddd5ee00900ff40"
-                  "84fe1")
+        DATA = b"objectData"
+        DIGEST = sha256(DATA).hexdigest()
 
         request = client.Query(
             action="PUT", bucket="somebucket", object_name="object/name/here",
@@ -1219,11 +1220,12 @@ class QueryTestCase(TXAWSTestCase):
         self.assertEqual(request.action, "PUT")
         headers = request.get_headers(self.utc_instant)
         self.assertNotEqual(headers.pop("x-amz-date"), "")
-        self.assertEqual(headers, {"Authorization": "Authorization header",
-                                   "Content-Type": "text/plain",
-                                   "x-amz-content-sha256": DIGEST,
-                                   "x-amz-meta-foo": "bar",
-                                   "x-amz-acl": "public-read"})
+        self.assertEqual(headers,
+                         {"Authorization": "Authorization header",
+                          "Content-Type": "text/plain",
+                          "x-amz-content-sha256": DIGEST,
+                          "x-amz-meta-foo": "bar",
+                          "x-amz-acl": "public-read"})
         self.assertEqual(request.data, "objectData")
 
     def test_bucket_query(self):
