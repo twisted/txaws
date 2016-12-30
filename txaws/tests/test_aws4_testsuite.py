@@ -48,7 +48,7 @@ _SKIPS = {
 }
 
 
-@attr.s
+@attr.s(frozen=True)
 class _AWSRequest(object):
     """
     An AWS request fixture.
@@ -296,7 +296,6 @@ def test_suite():
                       methods)
     for method_name in sorted(methods):
         test = test_class(method_name)
-
         suite.addTest(test)
 
     if not methods:

@@ -168,7 +168,7 @@ def _make_signed_headers(headers, headers_to_sign):
                      if header in headers)
 
 
-@attr.s
+@attr.s(frozen=True)
 class _CanonicalRequest(object):
     """
     A canonicalized request.  See
@@ -265,7 +265,7 @@ class _CanonicalRequest(object):
         return hashlib.sha256(self.serialize()).hexdigest()
 
 
-@attr.s
+@attr.s(frozen=True)
 class _CredentialScope(object):
     """
     The scope of the AWS credentials.
@@ -296,7 +296,7 @@ class _CredentialScope(object):
         return "/".join(attr.astuple(self) + ('aws4_request',))
 
 
-@attr.s
+@attr.s(frozen=True)
 class _Credential(object):
     """
     An AWS credential.
@@ -323,7 +323,7 @@ class _Credential(object):
         return "/".join([self.access_key, self.credential_scope.serialize()])
 
 
-@attr.s
+@attr.s(frozen=True)
 class _SignableAWS4HMAC256Token(object):
     """
     A signable AWS4 HMAC 256 token.  The AWS documentation calls the
