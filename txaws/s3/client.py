@@ -639,11 +639,12 @@ class Query(BaseQuery):
                 headers,
                 self.data,
                 URLContext(self.endpoint, self.bucket, self.object_name),
-                instant)
+                instant,
+                method=self.action)
         return headers
 
-    def sign(self, headers, data, url_context, instant,
-             region=REGION_US_EAST_1, method="GET"):
+    def sign(self, headers, data, url_context, instant, method,
+             region=REGION_US_EAST_1):
         """Sign this query using its built in credentials."""
         headers["host"] = url_context.get_host()
 

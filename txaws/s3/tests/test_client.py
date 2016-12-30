@@ -1127,6 +1127,9 @@ class QueryTestCase(TXAWSTestCase):
     endpoint = AWSServiceEndpoint("https://choopy.s3.amazonaws.com/")
     utc_instant = datetime.datetime(2015, 8, 30, 12, 36)
 
+    def fake_sign(self, headers, data, url_context, instant, method):
+        return "Authorization header"
+
     def test_default_creation(self):
         query = client.Query(action="PUT")
         self.assertEquals(query.bucket, None)
@@ -1177,7 +1180,7 @@ class QueryTestCase(TXAWSTestCase):
 
     def test_get_headers_with_data(self):
         query = client.Query(
-            action="GET", creds=self.creds, bucket="mystuff",
+            action="PUT", creds=self.creds, bucket="mystuff",
             object_name="/images/thing.jpg", data="BINARY IMAGE DATA")
 
         headers = query.get_headers(self.utc_instant)
@@ -1188,20 +1191,21 @@ class QueryTestCase(TXAWSTestCase):
         self.assertTrue(len(headers.get("Authorization")) > 40)
 
     def test_sign(self):
-        query = client.Query(action="PUT", creds=self.creds)
+        query = client.Query(action="PUT", creds=self.creds, data="data")
         signed = query.sign(headers={"x-amz-date": "20150830T123600Z"},
                             data="some data",
                             url_context=client.URLContext(query.endpoint,
                                                           query.bucket,
                                                           query.object_name),
-                            instant=self.utc_instant)
+                            instant=self.utc_instant,
+                            method=query.action)
         self.assertEquals(
             signed,
             'AWS4-HMAC-SHA256 '
             'Credential=fookeyid/20150830/us-east-1/s3/aws4_request, '
             'SignedHeaders=host;x-amz-date, '
-            'Signature=45d427535b9d2614ef478f66d3310f3ededf7368da9137de7145063'
-            '4a3372201')
+            'Signature=99e8224887926c76e8e3053cf10f26249798fe2274d717b7d28e6ef'
+            '3311d1735')
 
     def test_object_query(self):
         """
@@ -1215,8 +1219,7 @@ class QueryTestCase(TXAWSTestCase):
             data=DATA, content_type="text/plain", metadata={"foo": "bar"},
             amz_headers={"acl": "public-read"}, creds=self.creds,
             endpoint=self.endpoint)
-        request.sign = (lambda headers, data, url_context, instant:
-                        "Authorization header")
+        request.sign = self.fake_sign
         self.assertEqual(request.action, "PUT")
         headers = request.get_headers(self.utc_instant)
         self.assertNotEqual(headers.pop("x-amz-date"), "")
@@ -1238,8 +1241,7 @@ class QueryTestCase(TXAWSTestCase):
         query = client.Query(
             action="GET", bucket="somebucket", creds=self.creds,
             endpoint=self.endpoint)
-        query.sign = (lambda headers, data, url_context, instant:
-                      "Authorization header")
+        query.sign = self.fake_sign
         self.assertEqual(query.action, "GET")
         headers = query.get_headers(self.utc_instant)
         self.assertNotEqual(headers.pop("x-amz-date"), "")
@@ -1277,8 +1279,7 @@ class QueryTestCase(TXAWSTestCase):
     def test_authentication(self):
         query = client.Query(
             action="GET", creds=self.creds, endpoint=self.endpoint)
-        query.sign = (lambda headers, data, url_context, instant:
-                      "Authorization header")
+        query.sign = self.fake_sign
 
         headers = query.get_headers(self.utc_instant)
         self.assertEqual(
