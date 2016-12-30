@@ -1,4 +1,5 @@
 import datetime
+import warnings
 
 from twisted.internet.defer import succeed
 
@@ -1123,9 +1124,7 @@ class QueryTestCase(TXAWSTestCase):
 
     creds = AWSCredentials(access_key="fookeyid", secret_key="barsecretkey")
     endpoint = AWSServiceEndpoint("https://choopy.s3.amazonaws.com/")
-
-    def fake_utc_now(self):
-        return datetime.datetime(2015, 8, 30, 12, 36)
+    utc_instant = datetime.datetime(2015, 8, 30, 12, 36)
 
     def test_default_creation(self):
         query = client.Query(action="PUT")
@@ -1164,9 +1163,7 @@ class QueryTestCase(TXAWSTestCase):
             action="GET", creds=self.creds, bucket="mystuff",
             object_name="/images/thing.jpg")
 
-        query._utcnow = self.fake_utc_now
-
-        headers = query.get_headers()
+        headers = query.get_headers(self.utc_instant)
         self.assertEquals(headers.get("Content-Type"), "image/jpeg")
         self.assertEquals(headers.get("Content-Length"), str(0))
         self.assertEquals(
@@ -1182,9 +1179,7 @@ class QueryTestCase(TXAWSTestCase):
             action="GET", creds=self.creds, bucket="mystuff",
             object_name="/images/thing.jpg", data="BINARY IMAGE DATA")
 
-        query._utcnow = self.fake_utc_now
-
-        headers = query.get_headers()
+        headers = query.get_headers(self.utc_instant)
         self.assertEquals(headers.get("Content-Type"), "image/jpeg")
         self.assertEquals(headers.get("Content-Length"), str(17))
         self.assertEqual(headers.get("x-amz-date"), "20150830T123600Z")
@@ -1199,7 +1194,7 @@ class QueryTestCase(TXAWSTestCase):
                             url_context=client.URLContext(query.endpoint,
                                                           query.bucket,
                                                           query.object_name),
-                            instant=self.fake_utc_now())
+                            instant=self.utc_instant)
         self.assertEquals(
             signed,
             'AWS4-HMAC-SHA256 '
@@ -1224,7 +1219,7 @@ class QueryTestCase(TXAWSTestCase):
         request.sign = (lambda headers, data, url_context, instant:
                         "Authorization header")
         self.assertEqual(request.action, "PUT")
-        headers = request.get_headers()
+        headers = request.get_headers(self.utc_instant)
         self.assertNotEqual(headers.pop("x-amz-date"), "")
         self.assertEqual(headers, {"Authorization": "Authorization header",
                                    "Content-Type": "text/plain",
@@ -1247,7 +1242,7 @@ class QueryTestCase(TXAWSTestCase):
         query.sign = (lambda headers, data, url_context, instant:
                       "Authorization header")
         self.assertEqual(query.action, "GET")
-        headers = query.get_headers()
+        headers = query.get_headers(self.utc_instant)
         self.assertNotEqual(headers.pop("x-amz-date"), "")
         self.assertEqual(
             headers, {
@@ -1286,12 +1281,35 @@ class QueryTestCase(TXAWSTestCase):
             action="GET", creds=self.creds, endpoint=self.endpoint)
         query.sign = (lambda headers, data, url_context, instant:
                       "Authorization header")
-        query.date = "Wed, 28 Mar 2007 01:29:59 +0000"
 
-        headers = query.get_headers()
+        headers = query.get_headers(self.utc_instant)
         self.assertEqual(
             headers["Authorization"],
             "Authorization header")
+
+    def test_date_attribute_deprecated(self):
+        query = client.Query(
+            action="GET", creds=self.creds, endpoint=self.endpoint)
+
+        with warnings.catch_warnings(record=True) as caught_warnings:
+            self.assertGreater(len(query.date), 20)
+
+        self.assertEqual(len(caught_warnings), 1)
+        (warning,) = caught_warnings
+        self.assertTrue(issubclass(warning.category, DeprecationWarning))
+        self.assertEqual(
+            str(warning.message),
+            "txaws.s3.client.Query.date is a deprecated attribute")
+
+    def test_date_attribute_settable(self):
+        query = client.Query(
+            action="GET", creds=self.creds, endpoint=self.endpoint)
+
+        query.date = "XYZ"
+
+        with warnings.catch_warnings(record=True):
+            self.assertEqual(query.date, "XYZ")
+
 
 QueryTestCase.skip = s3clientSkip
 

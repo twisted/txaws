@@ -14,6 +14,9 @@ functionality in this wrapper.
 """
 import datetime
 import mimetypes
+import warnings
+
+from twisted.web.http import datetimeToString
 
 import hashlib
 
@@ -577,12 +580,30 @@ class Query(BaseQuery):
         self.content_type = content_type
         self.metadata = metadata
         self.amz_headers = amz_headers
+        self._date = datetimeToString()
         if not self.endpoint or not self.endpoint.host:
             self.endpoint = AWSServiceEndpoint(S3_ENDPOINT)
         self.endpoint.set_method(self.action)
 
-    def _utcnow(self):
-        return datetime.datetime.utcnow()
+    @property
+    def date(self):
+        """
+        Return the date and emit a deprecation warning.
+        """
+        warnings.warn("txaws.s3.client.Query.date is a deprecated attribute",
+                      DeprecationWarning,
+                      stacklevel=2)
+        return self._date
+
+    @date.setter
+    def date(self, value):
+        """
+        Set the date.
+
+        @param value: The new date for this L{Query}.
+        @type value: L{str}
+        """
+        self._date = value
 
     def set_content_type(self):
         """
@@ -595,7 +616,7 @@ class Query(BaseQuery):
             self.content_type, encoding = mimetypes.guess_type(
                 self.object_name, strict=False)
 
-    def get_headers(self):
+    def get_headers(self, instant):
         """
         Build the list of headers needed in order to perform S3 operations.
         """
@@ -612,7 +633,6 @@ class Query(BaseQuery):
         for key, value in self.amz_headers.iteritems():
             headers["x-amz-" + key] = value
 
-        instant = self._utcnow()
         headers['x-amz-date'] = _auth_v4.makeAMZDate(instant)
 
         # Before we check if the content type is set, let's see if we can set
@@ -649,7 +669,7 @@ class Query(BaseQuery):
             credentials=self.creds,
             instant=instant)
 
-    def submit(self, url_context=None):
+    def submit(self, url_context=None, utcnow=datetime.datetime.utcnow):
         """Submit this query.
 
         @return: A deferred from get_page
@@ -658,8 +678,11 @@ class Query(BaseQuery):
             url_context = URLContext(
                 self.endpoint, self.bucket, self.object_name)
         d = self.get_page(
-            url_context.get_url(), method=self.action, postdata=self.data,
-            headers=self.get_headers(), body_producer=self.body_producer,
+            url_context.get_url(),
+            method=self.action,
+            postdata=self.data,
+            headers=self.get_headers(utcnow()),
+            body_producer=self.body_producer,
             receiver_factory=self.receiver_factory)
 
         return d.addErrback(s3_error_wrapper)
