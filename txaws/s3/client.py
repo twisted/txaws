@@ -620,11 +620,7 @@ class Query(BaseQuery):
         """
         Build the list of headers needed in order to perform S3 operations.
         """
-        if self.body_producer:
-            content_length = str(self.body_producer.length)
-        else:
-            content_length = str(len(self.data))
-        headers = {"Content-Length": content_length}
+        headers = {'x-amz-date': _auth_v4.makeAMZDate(instant)}
         if self.body_producer is None:
             headers["x-amz-content-sha256"] = hashlib.sha256(
                 self.data).hexdigest()
@@ -632,8 +628,6 @@ class Query(BaseQuery):
             headers["x-amz-meta-" + key] = value
         for key, value in self.amz_headers.iteritems():
             headers["x-amz-" + key] = value
-
-        headers['x-amz-date'] = _auth_v4.makeAMZDate(instant)
 
         # Before we check if the content type is set, let's see if we can set
         # it by guessing the the mimetype.
@@ -646,7 +640,6 @@ class Query(BaseQuery):
                 self.data,
                 URLContext(self.endpoint, self.bucket, self.object_name),
                 instant)
-
         return headers
 
     def sign(self, headers, data, url_context, instant,

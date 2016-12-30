@@ -1165,7 +1165,6 @@ class QueryTestCase(TXAWSTestCase):
 
         headers = query.get_headers(self.utc_instant)
         self.assertEquals(headers.get("Content-Type"), "image/jpeg")
-        self.assertEquals(headers.get("Content-Length"), str(0))
         self.assertEquals(
             headers.get("x-amz-content-sha256"),
             "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855")
@@ -1181,7 +1180,6 @@ class QueryTestCase(TXAWSTestCase):
 
         headers = query.get_headers(self.utc_instant)
         self.assertEquals(headers.get("Content-Type"), "image/jpeg")
-        self.assertEquals(headers.get("Content-Length"), str(17))
         self.assertEqual(headers.get("x-amz-date"), "20150830T123600Z")
         self.assertTrue(
             headers.get("Authorization").startswith("AWS4-HMAC-SHA256"))
@@ -1223,7 +1221,6 @@ class QueryTestCase(TXAWSTestCase):
         self.assertNotEqual(headers.pop("x-amz-date"), "")
         self.assertEqual(headers, {"Authorization": "Authorization header",
                                    "Content-Type": "text/plain",
-                                   "Content-Length": str(len(DATA)),
                                    "x-amz-content-sha256": DIGEST,
                                    "x-amz-meta-foo": "bar",
                                    "x-amz-acl": "public-read"})
@@ -1247,7 +1244,6 @@ class QueryTestCase(TXAWSTestCase):
         self.assertEqual(
             headers, {
             "Authorization": "Authorization header",
-            "Content-Length": str(0),
             "x-amz-content-sha256": DIGEST})
         self.assertEqual(query.data, "")
 
