@@ -1,10 +1,11 @@
-"""AWS authorization, version 4"""
+# Licenced under the txaws licence available at /LICENSE in the txaws source.
+"""
+AWS authorization, version 4
+"""
 import attr
 
 import hashlib
-
 import hmac
-
 import urlparse
 import urllib
 
@@ -16,10 +17,10 @@ def sign(key, msg):
     Produce a SHA-256 HMAC for a message.
 
     @param key: The secret key to use.
-    @type key: L{str}
+    @type key: L{bytes}
 
     @param msg: The message to sign.
-    @type msg: L{str}
+    @type msg: L{bytes}
 
     @return: The binary (B{not} the hex) digest of the HMAC signature.
     """
@@ -31,26 +32,26 @@ def getSignatureKey(key, dateStamp, regionName, serviceName):
     Generate the signing key for AWS V4 requests.
 
     @param key: The secret key to use.
-    @type key: L{str}
+    @type key: L{bytes}
 
     @param dateStamp: The UTC date and time, serialized as an AWS date
         stamp.
-    @type dateStamp: L{str}
+    @type dateStamp: L{bytes}
 
     @param regionName: The name of the region.
-    @type regionName: L{str}
+    @type regionName: L{bytes}
 
     @param serviceName: The name of the service to which the request
         will be sent.
-    @type serviceName: L{str}
+    @type serviceName: L{bytes}
 
     @return: The signature.
-    @rtype: L{str}
+    @rtype: L{bytes}
     """
-    kDate = sign(('AWS4' + key), dateStamp)
+    kDate = sign((b'AWS4' + key), dateStamp)
     kRegion = sign(kDate, regionName)
     kService = sign(kRegion, serviceName)
-    kSigning = sign(kService, 'aws4_request')
+    kSigning = sign(kService, b'aws4_request')
     return kSigning
 
 
@@ -94,7 +95,9 @@ def _make_canonical_uri(parsed):
     @return: The canonical URI.
     @rtype: L{str}
     """
-    canonical_parsed = parsed._replace(params='', query='', fragment='')
+    path = urllib.quote(parsed.path)
+    canonical_parsed = parsed._replace(path=path,
+                                       params='', query='', fragment='')
     return urlparse.urlunparse(canonical_parsed)
 
 
@@ -125,17 +128,26 @@ def _make_canonical_headers(headers, headers_to_sign):
 
     @param headers_to_sign: A sequence of header names that should be
         signed.
-    @type headers_to_sign: L{str}
+    @type headers_to_sign: A sequence of L{bytes}
 
     @return: The canonicalized headers.
-    @rtype: L{str}
+    @rtype: L{bytes}
     """
-    pairs = [(name.lower(), str(headers[name]).strip())
-             for name in headers_to_sign
-             if name in headers]
-    sorted_pairs = sorted('{}:{}'.format(name, value)
+    pairs = []
+    for name in headers_to_sign:
+        if name not in headers:
+            continue
+        values = headers[name]
+        if not isinstance(values, (list, tuple)):
+            values = [values]
+        comma_values = b','.join(' '.join(line.strip().split())
+                                 for value in values
+                                 for line in value.splitlines())
+        pairs.append((name.lower(), comma_values))
+
+    sorted_pairs = sorted(b'%s:%s' % (name, value)
                           for name, value in sorted(pairs))
-    return '\n'.join(sorted_pairs) + '\n'
+    return b'\n'.join(sorted_pairs) + b'\n'
 
 
 def _make_signed_headers(headers, headers_to_sign):
@@ -147,13 +159,13 @@ def _make_signed_headers(headers, headers_to_sign):
 
     @param headers_to_sign: A sequence of header names that should be
         signed.
-    @type headers_to_sign: L{str}
+    @type headers_to_sign: L{bytes}
 
     @return: The semicolon-delimited list of headers.
-    @rtype: L{str}
+    @rtype: L{bytes}
     """
-    return ";".join(header.lower() for header in sorted(headers_to_sign)
-                    if header in headers)
+    return b";".join(header.lower() for header in sorted(headers_to_sign)
+                     if header in headers)
 
 
 @attr.s
@@ -163,7 +175,7 @@ class _CanonicalRequest(object):
     U{http://docs.aws.amazon.com/general/latest/gr/sigv4-create-canonical-request.html}
 
     @ivar method: The HTTP method.
-    @type method: L{str}
+    @type method: L{bytes}
 
     @ivar canonical_uri: The 'canonical URI'.
         B{N.B.  This should not the full URI!} It should instead be just
@@ -175,14 +187,14 @@ class _CanonicalRequest(object):
 
     @type canonical_headers: The 'canonical headers'.  See
         L{_make_canonical_headers}.
-    @ivar canonical_headers: L{str}
+    @ivar canonical_headers: L{bytes}
 
     @ivar signed_headers: The 'signed headers'.  See
         L{_make_signed_headers}
-    @type signed_headers: L{str}
+    @type signed_headers: L{bytes}
 
     @ivar payload_hash: The SHA256 of the request's body.
-    @type payload_hash: L{str}
+    @type payload_hash: L{bytes}
     """
     method = attr.ib()
     canonical_uri = attr.ib()
@@ -203,7 +215,7 @@ class _CanonicalRequest(object):
         payload.
 
         @param method: The HTTP method.
-        @type method: L{str}
+        @type method: L{bytes}
 
         @param url: The request's URL
         @type url: L{str}
@@ -213,10 +225,10 @@ class _CanonicalRequest(object):
 
         @param headers_to_sign: A sequence of header names that should
             be signed.
-        @type headers_to_sign: L{str}
+        @type headers_to_sign: L{bytes}
 
         @param payload: The request's payload.
-        @type payload: L{str}
+        @type payload: L{bytes}
 
         @return: A canonical request
         @rtype: L{_CanonicalRequest}
@@ -395,7 +407,7 @@ def _make_authorization_header(region,
         L{datetime.datetime.utcnow})
 
     @return: A value suitable for use in an C{Authorization} header
-    @rtype: L{str}
+    @rtype: L{bytes}
     """
     date_stamp = makeDateStamp(instant)
     amz_date = makeAMZDate(instant)
@@ -425,9 +437,9 @@ def _make_authorization_header(region,
     )
 
     return (
-        "{} ".format(_SignableAWS4HMAC256Token.ALGORITHM) +
-        ", ".join([
-            "Credential={}".format(v4credential.serialize()),
-            "SignedHeaders={}".format(canonical_request.signed_headers),
-            "Signature={}".format(signature),
+        b"%s " % (_SignableAWS4HMAC256Token.ALGORITHM,) +
+        b", ".join([
+            b"Credential=%s" % (v4credential.serialize(),),
+            b"SignedHeaders=%s" % (canonical_request.signed_headers,),
+            b"Signature=%s" % (signature,),
         ]))

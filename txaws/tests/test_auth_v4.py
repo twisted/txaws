@@ -1,17 +1,13 @@
-import attr
+# Licenced under the txaws licence available at /LICENSE in the txaws source.
+"""
+Unit tests for AWS authorization, version 4
+"""
 
 import datetime
-
 import hashlib
-
 import hmac
 
-import os
-
-import textwrap
-
 from twisted.trial import unittest
-from twisted.python import filepath
 
 from txaws._auth_v4 import (
     _CanonicalRequest,
@@ -47,8 +43,8 @@ def _create_canonical_request_fixture():
                              canonical_uri="/",
                              canonical_query_string="qs",
                              canonical_headers="headers",
-                             signed_headers="signed headers",
-                             payload_hash="payload hash")
+                             signed_headers=b"signed headers",
+                             payload_hash=b"payload hash")
 
 
 def _create_credential_scope_fixture():
@@ -139,29 +135,73 @@ class MakeCanonicalHeadersTests(unittest.SynchronousTestCase):
         Only headers that should be signed are included.
         """
         canonical = _make_canonical_headers(
-            headers={"header": "value",
-                     "signed-header": "signed-value",
-                     "other-signed-header": "other-signed-value"},
-            headers_to_sign=("signed-header", "other-signed-header"))
-        self.assertEqual(canonical, textwrap.dedent("""\
-        other-signed-header:other-signed-value
-        signed-header:signed-value
-        """))
+            headers={b"header": b"value",
+                     b"signed-header": b"signed-value",
+                     b"other-signed-header": b"other-signed-value"},
+            headers_to_sign=(b"signed-header", b"other-signed-header"))
+        self.assertEqual(canonical,
+                         (b"other-signed-header:other-signed-value\n"
+                          b"signed-header:signed-value\n"))
 
     def test_headers_sorted(self):
         """
         The canonical headers are sorted.
         """
         canonical = _make_canonical_headers(
-            headers={"b": "2",
-                     "a": "1",
-                     "c": "3"},
-            headers_to_sign=('a', 'b', 'c'))
-        self.assertEqual(canonical, textwrap.dedent("""\
-        a:1
-        b:2
-        c:3
-        """))
+            headers={b"b": b"2",
+                     b"a": b"1",
+                     b"c": b"3"},
+            headers_to_sign=(b'a', b'b', b'c'))
+        self.assertEqual(canonical, (b"a:1\n"
+                                     b"b:2\n"
+                                     b"c:3\n"))
+
+    def _test_headers_multivalued(self, headers):
+        """
+        Internal support method for testing headers.
+
+        @param headers: A dictionary with a single key, C{b'a'}, and
+            the values C{b'b'} and C{b'c} in either a list or a tuple,
+            or separated by newlines.
+        @type headers: L{dict}
+        """
+        canonical = _make_canonical_headers(
+            headers=headers,
+            headers_to_sign=(b"a",),
+        )
+        self.assertEqual(canonical, b"a:b,c\n")
+
+    def test_multivalued_list(self):
+        """
+        A Header with multiple values in a list has those values
+        joined by a comma.
+        """
+        self._test_headers_multivalued({b'a': [b'b', b'c']})
+
+    def test_multivalued_tuple(self):
+        """
+        A Header with multiple values in a tuple has those values
+        joined by a comma.
+        """
+        self._test_headers_multivalued({b'a': (b'b', b'c')})
+
+    def test_multiline(self):
+        """
+        A header whose value spans multiple lines has those lines
+        joined by commas.
+        """
+        self._test_headers_multivalued({b'a': (b'b\nc')})
+
+    def test_value_trimmed(self):
+        """
+        A header with interior spaces has those normalized to single
+        spaces.
+        """
+        canonical = _make_canonical_headers(
+            headers={b"a": b"b  c  d"},
+            headers_to_sign=(b"a",),
+        )
+        self.assertEqual(canonical, "a:b c d\n")
 
 
 class MakeSignedHeadersTests(unittest.TestCase):
@@ -257,6 +297,14 @@ class MakeCanonicalURITests(unittest.SynchronousTestCase):
         self.assertEqual(_make_canonical_uri(parsed),
                          "https://www.amazon.com//a/b")
 
+    def test_path_url_encoded(self):
+        """
+        A path is URL encoded when necessary.
+        """
+        parsed = urlparse.urlparse('https://www.amazon.com/\xe2')
+        self.assertEqual(_make_canonical_uri(parsed),
+                         "https://www.amazon.com/%E2")
+
 
 class MakeCanonicalQueryStringTests(unittest.SynchronousTestCase):
     """
@@ -330,13 +378,13 @@ class CanonicalRequestTests(unittest.SynchronousTestCase):
         See
         U{http://docs.aws.amazon.com/general/latest/gr/sigv4-create-canonical-request.html}
         """
-        self.assertEqual(self.request.serialize(), textwrap.dedent("""\
-        POST
-        /
-        qs
-        headers
-        signed headers
-        payload hash"""))
+        self.assertEqual(self.request.serialize(),
+                         (b"POST\n"
+                          b"/\n"
+                          b"qs\n"
+                          b"headers\n"
+                          b"signed headers\n"
+                          b"payload hash"))
 
     def test_hash(self):
         """
@@ -363,10 +411,10 @@ class CanonicalRequestTests(unittest.SynchronousTestCase):
         canonical_request = _CanonicalRequest.from_payload_and_headers(
             method="POST",
             url=url,
-            headers={"header1": "value1",
-                     "header2": "value2"},
-            headers_to_sign=("header1", "header2"),
-            payload="payload"
+            headers={b"header1": b"value1",
+                     b"header2": b"value2"},
+            headers_to_sign=(b"header1", b"header2"),
+            payload=b"payload"
         )
 
         self.assertEqual(canonical_request.method, "POST")
@@ -375,10 +423,8 @@ class CanonicalRequestTests(unittest.SynchronousTestCase):
         self.assertEqual(canonical_request.canonical_query_string,
                          "a=0&b=1&b=2")
         self.assertEqual(canonical_request.canonical_headers,
-                         textwrap.dedent("""\
-                         header1:value1
-                         header2:value2
-                         """))
+                         (b"header1:value1\n"
+                          b"header2:value2\n"))
         self.assertEqual(canonical_request.signed_headers, "header1;header2")
         self.assertEqual(canonical_request.payload_hash,
                          "239f59ed55e737c77147cf55ad0c1b030b6d7ee748a7426952f9"
@@ -461,13 +507,15 @@ class SignableAWS4HMAC256TokenTests(unittest.SynchronousTestCase):
         U{http://docs.aws.amazon.com/general/latest/gr/sigv4-create-string-to-sign.html}
         """
         serialized = self.token.serialize()
-        self.assertEqual(serialized, textwrap.dedent("""\
-        AWS4-HMAC-SHA256
-        {date}
-        {scope}
-        {requestHash}""".format(date=self.amz_date,
-                                scope=self.scope.serialize(),
-                                requestHash=self.request.hash())))
+        self.assertEqual(serialized,
+                         (b"AWS4-HMAC-SHA256\n"
+                          b"%(date)s\n"
+                          b"%(scope)s\n"
+                          b"%(request_hash)s" % {
+                              b"date": self.amz_date,
+                              b"scope": self.scope.serialize(),
+                              b"request_hash": self.request.hash(),
+                          }))
 
     def test_signature(self):
         """
@@ -536,188 +584,3 @@ class MakeAuthorizationHeaderTests(unittest.TestCase):
         )
 
         self.assertEqual(header_value, expected)
-
-
-@attr.s
-class _AWSRequest(object):
-    """
-    An AWS request fixture.
-    """
-    method = attr.ib()
-    path = attr.ib()
-    headers = attr.ib()
-    body = attr.ib()
-
-    @classmethod
-    def fromstring(cls, string):
-        """
-        Parse an AWS request from a string (it's not a real HTTP
-        request so it gets its own parser.
-        """
-        lines = iter(string.splitlines())
-        status = next(lines)
-        method, path, version = status.split()
-
-        headers = {}
-        for line in lines:
-            if not line:
-                break
-            name, _, value = line.partition(':')
-            headers[name] = value
-
-        body = ''.join(lines)
-        return cls(method, path, headers, body)
-
-
-class AWS4TestSuite(unittest.SynchronousTestCase):
-    """
-    Run AWS's V4 signature test suite against L{txaws._auth_v4}.
-
-    See
-    U{http://docs.aws.amazon.com/general/latest/gr/signature-v4-test-suite.html}
-    """
-
-    def setUp(self):
-        self.region = 'us-east-1'
-        self.service = 'service'
-        self.instant = datetime.datetime(2015, 8, 30, 12, 36, 0)
-
-        self.credential_scope = _CredentialScope(makeDateStamp(self.instant),
-                                                 self.region,
-                                                 self.service)
-
-        self.access_key = 'AKIDEXAMPLE'
-        self.secret_key = 'wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY'
-        self.credentials = AWSCredentials(self.access_key, self.secret_key)
-
-        aws4_testsuite_path = os.environ.get("AWS4_TEST_SUITE_PATH")
-        if not aws4_testsuite_path:
-            raise unittest.SkipTest(
-                "AWS4_TEST_SUITE_PATH environment variable not set")
-
-        self.path = filepath.FilePath(aws4_testsuite_path).child(
-            'aws4_testsuite')
-
-        if not self.path.isdir():
-            raise unittest.SkipTest(
-                "Missing AWS test suite directory: {}".format(self.path.path))
-
-    def _globOne(self, path, glob):
-        """
-        Glob exactly one match under a given path.
-
-        @param path: The path under which to apply the glob.
-        @type path: L{filepath.FilePath}
-
-        @param glob: The glob to apply.
-        @type glob: L{str}
-
-        @return: The matched path.
-        @rtype: L{filepath.FilePath}
-        """
-        paths = path.globChildren(glob)
-        self.assertEqual(
-            len(paths), 1,
-            "{} did not match exactly one file in {}.".format(glob,
-                                                              path))
-        return paths[0]
-
-    def _test_canonical_request(self, path):
-        """
-        Extract AWS request and canonical request fixtures from
-        C{path}, and compare a L{_CanonicalRequest} instance
-        constructed from the request to the canonical request.
-
-        @return: The constructed canonical request
-        @rtype: L{_CanonicalRequest}
-        """
-        request_path = self._globOne(path, '*.req')
-        canonical_request_path = self._globOne(path, '*.creq')
-
-        with request_path.open() as f:
-            request = _AWSRequest.fromstring(f.read())
-
-        with canonical_request_path.open() as f:
-            serialized_canonical_request = f.read()
-
-        canonical_request = _CanonicalRequest.from_payload_and_headers(
-            method=request.method,
-            url=request.path,
-            headers=request.headers,
-            headers_to_sign=request.headers.keys(),
-            payload=request.body)
-
-        self.assertEqual(canonical_request.serialize(),
-                         serialized_canonical_request)
-        return canonical_request
-
-    def _test_string_to_sign(self, path, canonical_request):
-        """
-        Extract an AWS string-to-sign fixture from C{path} and compare it
-        to a L{_SignableAWS4HMAC256Token} constructed from the
-        provided canonical request.
-        """
-        string_to_sign_path = self._globOne(path, "*.sts")
-
-        with string_to_sign_path.open() as f:
-            string_to_sign = f.read()
-
-        token = _SignableAWS4HMAC256Token(
-            makeAMZDate(self.instant),
-            credential_scope=self.credential_scope,
-            canonical_request=canonical_request)
-
-        self.assertEqual(token.serialize(), string_to_sign)
-
-    def _test_authorization(self, path, canonical_request):
-        """
-        Extract an AWS authorization fixture from C{path} and compare
-        it to the value returned from L{_make_authorization_header},
-        constructed from the provided canonical request.
-        """
-
-        authorization_path = self._globOne(path, '*.authz')
-
-        with authorization_path.open() as f:
-            expected_authorization = f.read()
-
-        signed = _make_authorization_header(self.region,
-                                            self.service,
-                                            canonical_request,
-                                            self.credentials,
-                                            self.instant)
-
-        self.assertEqual(signed, expected_authorization)
-
-    def _test_case(self, path):
-        canonical_request = self._test_canonical_request(path)
-        self._test_string_to_sign(path, canonical_request)
-        self._test_authorization(path, canonical_request)
-
-    def test_get_vanilla(self):
-        self._test_case(self.path.child("get-vanilla"))
-
-    def test_post_vanilla(self):
-        self._test_case(self.path.child("post-vanilla"))
-
-    def test_post_x_www_form_urlencoded(self):
-        self._test_case(self.path.child("post-x-www-form-urlencoded"))
-
-    def test_post_x_www_form_urlencoded_parameters(self):
-        self._test_case(
-            self.path.child("post-x-www-form-urlencoded-parameters"))
-
-    def test_get_vanilla_empty_query_key(self):
-        self._test_case(self.path.child("get-vanilla-empty-query-key"))
-
-    def test_get_vanilla_query(self):
-        self._test_case(self.path.child("get-vanilla-query"))
-
-    def test_post_vanilla_query(self):
-        self._test_case(self.path.child("post-vanilla-query"))
-
-    def test_get_vanilla_query_order_key_case(self):
-        self._test_case(self.path.child("get-vanilla-query-order-key-case"))
-
-    def test_get_vanilla_utf8_query(self):
-        self._test_case(self.path.child("get-vanilla-utf8-query"))
