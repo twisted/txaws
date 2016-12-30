@@ -1,13 +1,13 @@
 # Licenced under the txaws licence available at /LICENSE in the txaws source.
 """
-AWS authorization, version 4
+AWS authorization, version 4.
 """
-import attr
-
 import hashlib
 import hmac
-import urlparse
 import urllib
+import urlparse
+
+import attr
 
 
 # The following four functions are taken straight from

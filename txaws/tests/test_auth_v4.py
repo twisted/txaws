@@ -1,11 +1,12 @@
 # Licenced under the txaws licence available at /LICENSE in the txaws source.
 """
-Unit tests for AWS authorization, version 4
+Unit tests for AWS authorization, version 4.
 """
 
 import datetime
 import hashlib
 import hmac
+import urlparse
 
 from twisted.trial import unittest
 
@@ -28,8 +29,6 @@ from txaws._auth_v4 import (
 from txaws.credentials import AWSCredentials
 
 from txaws.service import REGION_US_EAST_1
-
-import urlparse
 
 
 def _create_canonical_request_fixture():
