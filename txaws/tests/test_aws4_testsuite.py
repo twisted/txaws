@@ -27,7 +27,7 @@ from txaws._auth_v4 import (
 from txaws.credentials import AWSCredentials
 
 
-_UNRESERVED_SKIP = "urllib.quote quotes unreserved characters"
+_UNRESERVED_SKIP = "urllib.quote quotes unreserved characters."
 _NOT_YET_SUPPORTED_SKIP = "Not yet supported."
 
 _SKIPS = {
