@@ -389,10 +389,10 @@ def _make_authorization_header(region,
     Construct an AWS version 4 authorization value for use in an
     C{Authorization} header.
 
-    @param region: The AWS region name (e.g., C{us-east-1}).
+    @param region: The AWS region name (e.g., C{'us-east-1'}).
     @type region: L{str}
 
-    @param service: The AWS service's name (e.g., C{s3}).
+    @param service: The AWS service's name (e.g., C{'s3'}).
     @type service: L{str}
 
     @param canonical_request: The canonical form of the request.
