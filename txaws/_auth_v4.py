@@ -61,10 +61,10 @@ def makeAMZDate(instant):
 
     @param instant: A naive UTC L{datetime.datetime} (as returned from
         L{datetime.datetime.utcnow})
-    @type instant: L{dateimte.datetime}
+    @type instant: L{datetime.datetime}
 
     @return: The formatted date and time.
-    @rtype: L{str}
+    @rtype: L{str} (native string).
     """
     return instant.strftime('%Y%m%dT%H%M%SZ')
 
@@ -76,10 +76,10 @@ def makeDateStamp(instant):
 
     @param instant: A naive UTC L{datetime.datetime} (as returned from
         L{datetime.datetime.utcnow})
-    @type instant: L{dateimte.datetime}
+    @type instant: L{datetime.datetime}
 
     @return: The formatted date and time.
-    @rtype: L{str}
+    @rtype: L{str} (native string).
     """
     return instant.strftime('%Y%m%d')
 
