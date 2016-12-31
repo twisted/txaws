@@ -1,0 +1,11 @@
+#!/bin/sh
+
+zones=$(aws route53 list-hosted-zones | jq --raw-output '.HostedZones[].Id')
+
+for zone in ${zones}; do
+    rrsets=$(aws route53 list-resource-record-sets --hosted-zone-id "${zone}")
+    delete=$(echo ${rrsets} | \
+		    jq '{"Changes": [{"Action": "DELETE", "ResourceRecordSet": .ResourceRecordSets[]}]}')
+    echo $delete
+    # aws route53 change-resource-record-sets --hosted-zone-id "${zone}" --change-batch
+done

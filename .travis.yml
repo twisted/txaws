@@ -20,6 +20,8 @@ cache:
 addons:
   apt:
     packages:
+    - "awscli"
+    - "jq"
     - "libssl-dev"
     - "libssl1.0.0"
 
@@ -29,3 +31,6 @@ install:
 
 script:
   - "trial txaws"
+
+after_script:
+  - "test-tools/cleanup-aws"
