@@ -7,11 +7,14 @@ __all__ = [
     "MemoryS3",
 ]
 
+from datetime import datetime
 from weakref import WeakKeyDictionary
+
+from dateutil.tz import tzutc
 
 from twisted.internet.defer import succeed, fail
 
-from txaws.s3.model import Bucket, BucketListing
+from txaws.s3.model import Bucket, BucketListing, BucketItem
 from txaws.s3.exception import S3Error
 
 def _rate_limited(f):
@@ -49,6 +52,7 @@ class S3ClientState(object):
 
     def __init__(self):
         self.buckets = {}
+        self.objects = {}
 
     def set_rate_limit_exceeded(self):
         self.rate_limit_exceeded = True
@@ -104,3 +108,22 @@ class _MemoryS3Client(object):
         except KeyError:
             return fail(S3Error("<nosuchbucket/>", 400))
         return pieces["listing"]
+
+    @_rate_limited
+    def put_object(self, bucket, object_name, data=None):
+        contents = self._state.buckets[bucket]["listing"].contents
+        if contents is None:
+            contents = []
+            self._state.buckets[bucket]["listing"].contents = contents
+        contents.append(BucketItem(
+            key=object_name,
+            modification_date=datetime.fromtimestamp(int(self._state.time()), tz=tzutc()),
+            etag='"{}"'.format('a' * 32).encode('ascii'),
+            size=str(len(data or "")),
+            storage_class="STANDARD",
+        ))
+        self._state.objects[bucket, object_name] = data
+
+    @_rate_limited
+    def get_object(self, bucket, object_name):
+        return self._state.objects[bucket, object_name]
