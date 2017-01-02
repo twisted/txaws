@@ -127,3 +127,12 @@ class _MemoryS3Client(object):
     @_rate_limited
     def get_object(self, bucket, object_name):
         return self._state.objects[bucket, object_name]
+
+    @_rate_limited
+    def delete_object(self, bucket, object_name):
+        del self._state.objects[bucket, object_name]
+        contents = self._state.buckets[bucket]["listing"].contents
+        for item in contents:
+            if item.key == object_name:
+                contents.remove(item)
+                break

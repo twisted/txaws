@@ -87,4 +87,17 @@ def s3_integration_tests(get_client):
             data = yield client.get_object(bucket_name, object_name)
             self.assertEqual(object_data, data)
 
+            yield client.delete_object(bucket_name, object_name)
+
+            objects = yield client.get_bucket(bucket_name)
+            created = list(
+                obj for obj in objects.contents
+                if obj.key == object_name
+            )
+            self.assertEqual(
+                [], created,
+                "Expected to not find deleted objects in listing {}".format(objects),
+            )
+
+
     return S3IntegrationTests
