@@ -42,7 +42,7 @@ class MemoryS3(object):
 
 class S3ClientState(object):
     """
-    ``_S3ClientState`` instances hold the ``_MemoryS3Client`` instance
+    ``S3ClientState`` instances hold the ``_MemoryS3Client`` instance
     state that is specific to testing and does not exist on
     ``txaws.s3.S3Client`` instances.
     """
