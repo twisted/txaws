@@ -170,7 +170,6 @@ class CertsFilesTestCase(TXAWSTestCase):
         self.two_certs_dir = tempfile.mkdtemp()
         self.cert2 = self._write_pem(cert2, self.two_certs_dir, "cert2.pem")
         self.cert3 = self._write_pem(cert3, self.two_certs_dir, "cert3.pem")
-        self.environment_copy = os.environ.copy()
 
     def tearDown(self):
         super(CertsFilesTestCase, self).tearDown()
@@ -180,8 +179,6 @@ class CertsFilesTestCase(TXAWSTestCase):
         os.removedirs(self.no_certs_dir)
         os.removedirs(self.one_cert_dir)
         os.removedirs(self.two_certs_dir)
-        os.environ.clear()
-        os.environ.update(self.environment_copy)
 
     def _write_pem(self, cert, dir, filename):
         data = dump_certificate(FILETYPE_PEM, cert[1])
