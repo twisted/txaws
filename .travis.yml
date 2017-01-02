@@ -24,8 +24,11 @@ addons:
     - "libssl1.0.0"
 
 install:
-  - "pip install --upgrade pip setuptools wheel"
+  - "pip install --upgrade pip setuptools wheel coverage codecov"
   - "pip install .[dev]"
 
 script:
-  - "trial txaws"
+  - "coverage run --rcfile=${PWD}/.coveragerc $(type -p trial) txaws"
+
+after_success:
+  - "codecov"
