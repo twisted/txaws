@@ -32,11 +32,14 @@ env:
     - secure: "LjKE0uLHqohbgSRHTmKBrl9REgXIxHEuIoM43FgdE1cPCncs+1+HBxptmjppP3q6zJ5O3rOMkef+PYa3SfiWODuvxt7n8P9ZZqEt8c7BxQKBMropqw/87P4McFAC0RNjPImQozWG30qH+v3Uq1o1psURUxZPin8pX/U7lJsT40k="
 
 install:
-  - "pip install --upgrade pip setuptools wheel"
+  - "pip install --upgrade pip setuptools wheel coverage codecov"
   - "pip install .[dev]"
 
 script:
-  - "trial txaws"
+  - "coverage run --rcfile=${PWD}/.coveragerc $(type -p trial) txaws"
+
+after_success:
+  - "codecov"
 
 after_script:
   - "test-tools/cleanup-aws"

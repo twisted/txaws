@@ -1,5 +1,7 @@
 [![Build Status](https://travis-ci.org/twisted/txaws.svg)](https://travis-ci.org/twisted/txaws)
 
+[![Coverage](https://codecov.io/github/twisted/txaws/coverage.svg)](https://codecov.io/github/twisted/txaws)
+
 Dependencies
 ------------
 
