@@ -1,3 +1,7 @@
+import datetime
+from hashlib import sha256
+import warnings
+
 from twisted.internet.defer import succeed
 
 from txaws.credentials import AWSCredentials
@@ -8,7 +12,7 @@ except ImportError:
             "on which it depends, isn't present)")
 from txaws.s3.acls import AccessControlPolicy
 from txaws.s3.model import (RequestPayment, MultipartInitiationResponse,
-    MultipartCompletionResponse)
+                            MultipartCompletionResponse)
 from txaws.testing.producers import StringBodyProducer
 from txaws.testing.s3_tests import s3_integration_tests
 from txaws.service import AWSServiceEndpoint, AWSServiceRegion
@@ -1116,6 +1120,10 @@ class QueryTestCase(TXAWSTestCase):
 
     creds = AWSCredentials(access_key="fookeyid", secret_key="barsecretkey")
     endpoint = AWSServiceEndpoint("https://choopy.s3.amazonaws.com/")
+    utc_instant = datetime.datetime(2015, 8, 30, 12, 36)
+
+    def fake_sign(self, headers, data, url_context, instant, method):
+        return "Authorization header"
 
     def test_default_creation(self):
         query = client.Query(action="PUT")
@@ -1153,177 +1161,89 @@ class QueryTestCase(TXAWSTestCase):
         query = client.Query(
             action="GET", creds=self.creds, bucket="mystuff",
             object_name="/images/thing.jpg")
-        headers = query.get_headers()
+
+        headers = query.get_headers(self.utc_instant)
         self.assertEquals(headers.get("Content-Type"), "image/jpeg")
-        self.assertEquals(headers.get("Content-Length"), '0')
         self.assertEquals(
-            headers.get("Content-MD5"), "1B2M2Y8AsgTpgAmY7PhCfg==")
-        self.assertTrue(len(headers.get("Date")) > 25)
+            headers.get("x-amz-content-sha256"),
+            sha256(b"").hexdigest(),
+        )
+        self.assertEqual(headers.get("x-amz-date"), "20150830T123600Z")
         self.assertTrue(
-            headers.get("Authorization").startswith("AWS fookeyid:"))
+            headers.get("Authorization").startswith("AWS4-HMAC-SHA256"))
         self.assertTrue(len(headers.get("Authorization")) > 40)
 
     def test_get_headers_with_data(self):
         query = client.Query(
-            action="GET", creds=self.creds, bucket="mystuff",
+            action="PUT", creds=self.creds, bucket="mystuff",
             object_name="/images/thing.jpg", data="BINARY IMAGE DATA")
-        headers = query.get_headers()
+
+        headers = query.get_headers(self.utc_instant)
         self.assertEquals(headers.get("Content-Type"), "image/jpeg")
-        self.assertEquals(headers.get("Content-Length"), '17')
-        self.assertTrue(len(headers.get("Date")) > 25)
+        self.assertEqual(headers.get("x-amz-date"), "20150830T123600Z")
         self.assertTrue(
-            headers.get("Authorization").startswith("AWS fookeyid:"))
+            headers.get("Authorization").startswith("AWS4-HMAC-SHA256"))
         self.assertTrue(len(headers.get("Authorization")) > 40)
 
-    def test_get_canonicalized_amz_headers(self):
-        query = client.Query(
-            action="SomeThing", metadata={"a": 1, "b": 2, "c": 3})
-        headers = query.get_headers()
-        self.assertEquals(
-            sorted(headers.keys()),
-            ["Content-Length", "Content-MD5", "Date", "x-amz-meta-a",
-             "x-amz-meta-b", "x-amz-meta-c"])
-        amz_headers = query.get_canonicalized_amz_headers(headers)
-        self.assertEquals(
-            amz_headers,
-            "x-amz-meta-a:1\nx-amz-meta-b:2\nx-amz-meta-c:3\n")
-
-    def test_get_canonicalized_resource(self):
-        query = client.Query(action="PUT", bucket="images")
-        result = query.get_canonicalized_resource()
-        self.assertEquals(result, "/images/")
-
-    def test_get_canonicalized_resource_with_object_name(self):
-        query = client.Query(
-            action="PUT", bucket="images", object_name="advicedog.jpg")
-        result = query.get_canonicalized_resource()
-        self.assertEquals(result, "/images/advicedog.jpg")
-
-    def test_get_canonicalized_resource_with_slashed_object_name(self):
-        query = client.Query(
-            action="PUT", bucket="images", object_name="/advicedog.jpg")
-        result = query.get_canonicalized_resource()
-        self.assertEquals(result, "/images/advicedog.jpg")
-
-    def test_get_canonicalized_resource_with_subresource(self):
-        """
-        If a _subresource_ of the object is addressed via a query argument
-        at the end of the object name, the _subresource_ is included
-        in the canonical resource.
-        """
-        query = client.Query(
-            action="GET", bucket="images", object_name="advicedog.jpg?acl",
-        )
-        result = query.get_canonicalized_resource()
-        self.assertEquals(result, "/images/advicedog.jpg?acl")
-
-    def test_get_canonicalized_resource_with_subresource_with_value(self):
-        """
-        If a subresource of the object is addressed via a query argument
-        with a value at the end of the object name, the subresource
-        (including value) is included in the canonical resource.
-        """
-        query = client.Query(
-            action="GET", bucket="images", object_name="advicedog.jpg?versionId=7",
-        )
-        result = query.get_canonicalized_resource()
-        self.assertEquals(result, "/images/advicedog.jpg?versionId=7")
-
-    def test_get_canonicalized_resource_with_other_query_args(self):
-        """
-        If there are query arguments on the object name which are not
-        subresources, they are not included in the canonical resource.
-        """
-        query = client.Query(
-            action="GET", bucket="images",
-            object_name="advicedog.jpg?max-keys=50&marker=puppy",
-        )
-        result = query.get_canonicalized_resource()
-        self.assertEquals(result, "/images/advicedog.jpg")
-
-    def test_get_canonicalized_resource_with_subresource_and_query_args(self):
-        """
-        If there is a subresource and other query arguments, only the
-        subresource is included in the canonical resource.
-        """
-        query = client.Query(
-            action="GET", bucket="images",
-            object_name="advicedog.jpg?acl&max-keys=50",
-        )
-        result = query.get_canonicalized_resource()
-        self.assertEquals(result, "/images/advicedog.jpg?acl")
-
-    def test_get_canonicalized_resource_with_query_args_and_subresource(self):
-        """
-        If there are query arguments and a subresource, only the
-        subresource is included in the canonical resource.
-        """
-        query = client.Query(
-            action="POST", bucket="images",
-            object_name="advicedog.jpg?max-keys=50&acl",
-        )
-        result = query.get_canonicalized_resource()
-        self.assertEquals(result, "/images/advicedog.jpg?acl")
-
-    def test_get_canonicalized_resource_with_subresources(self):
-        """
-        If there are multiple subresources, they are included in
-        lexicographical order.
-        """
-        query = client.Query(
-            action="POST", bucket="images",
-            object_name="advicedog.jpg?website&acl",
-        )
-        result = query.get_canonicalized_resource()
-        self.assertEquals(result, "/images/advicedog.jpg?acl&website")
-
     def test_sign(self):
-        query = client.Query(action="PUT", creds=self.creds)
-        signed = query.sign({})
-        self.assertEquals(signed, "H6UJCNHizzXZCGPl7wM6nL6tQdo=")
+        query = client.Query(action="PUT", creds=self.creds, data="data")
+        signed = query.sign(headers={"x-amz-date": "20150830T123600Z"},
+                            data="some data",
+                            url_context=client.URLContext(query.endpoint,
+                                                          query.bucket,
+                                                          query.object_name),
+                            instant=self.utc_instant,
+                            method=query.action)
+        self.assertEquals(
+            signed,
+            'AWS4-HMAC-SHA256 '
+            'Credential=fookeyid/20150830/us-east-1/s3/aws4_request, '
+            'SignedHeaders=host;x-amz-date, '
+            'Signature=99e8224887926c76e8e3053cf10f26249798fe2274d717b7d28e6ef'
+            '3311d1735')
 
     def test_object_query(self):
         """
         Test that a request addressing an object is created correctly.
         """
-        DATA = "objectData"
-        DIGEST = "zhdB6gwvocWv/ourYUWMxA=="
+        DATA = b"objectData"
+        DIGEST = sha256(DATA).hexdigest()
 
         request = client.Query(
             action="PUT", bucket="somebucket", object_name="object/name/here",
             data=DATA, content_type="text/plain", metadata={"foo": "bar"},
             amz_headers={"acl": "public-read"}, creds=self.creds,
             endpoint=self.endpoint)
-        request.sign = lambda headers: "TESTINGSIG="
+        request.sign = self.fake_sign
         self.assertEqual(request.action, "PUT")
-        headers = request.get_headers()
-        self.assertNotEqual(headers.pop("Date"), "")
-        self.assertEqual(headers, {"Authorization": "AWS fookeyid:TESTINGSIG=",
-                                   "Content-Type": "text/plain",
-                                   "Content-Length": "%d" % (len(DATA),),
-                                   "Content-MD5": DIGEST,
-                                   "x-amz-meta-foo": "bar",
-                                   "x-amz-acl": "public-read"})
+        headers = request.get_headers(self.utc_instant)
+        self.assertNotEqual(headers.pop("x-amz-date"), "")
+        self.assertEqual(headers,
+                         {"Authorization": "Authorization header",
+                          "Content-Type": "text/plain",
+                          "x-amz-content-sha256": DIGEST,
+                          "x-amz-meta-foo": "bar",
+                          "x-amz-acl": "public-read"})
         self.assertEqual(request.data, "objectData")
 
     def test_bucket_query(self):
         """
         Test that a request addressing a bucket is created correctly.
         """
-        DIGEST = "1B2M2Y8AsgTpgAmY7PhCfg=="
+        DIGEST = ("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b785"
+                  "2b855")
 
         query = client.Query(
             action="GET", bucket="somebucket", creds=self.creds,
             endpoint=self.endpoint)
-        query.sign = lambda headers: "TESTINGSIG="
+        query.sign = self.fake_sign
         self.assertEqual(query.action, "GET")
-        headers = query.get_headers()
-        self.assertNotEqual(headers.pop("Date"), "")
+        headers = query.get_headers(self.utc_instant)
+        self.assertNotEqual(headers.pop("x-amz-date"), "")
         self.assertEqual(
             headers, {
-            "Authorization": "AWS fookeyid:TESTINGSIG=",
-            "Content-Length": "0",
-            "Content-MD5": DIGEST})
+            "Authorization": "Authorization header",
+            "x-amz-content-sha256": DIGEST})
         self.assertEqual(query.data, "")
 
     def test_submit(self):
@@ -1354,13 +1274,36 @@ class QueryTestCase(TXAWSTestCase):
     def test_authentication(self):
         query = client.Query(
             action="GET", creds=self.creds, endpoint=self.endpoint)
-        query.sign = lambda headers: "TESTINGSIG="
-        query.date = "Wed, 28 Mar 2007 01:29:59 +0000"
+        query.sign = self.fake_sign
 
-        headers = query.get_headers()
+        headers = query.get_headers(self.utc_instant)
         self.assertEqual(
             headers["Authorization"],
-            "AWS fookeyid:TESTINGSIG=")
+            "Authorization header")
+
+    def test_date_attribute_deprecated(self):
+        query = client.Query(
+            action="GET", creds=self.creds, endpoint=self.endpoint)
+
+        with warnings.catch_warnings(record=True) as caught_warnings:
+            self.assertGreater(len(query.date), 20)
+
+        self.assertEqual(len(caught_warnings), 1)
+        (warning,) = caught_warnings
+        self.assertTrue(issubclass(warning.category, DeprecationWarning))
+        self.assertEqual(
+            str(warning.message),
+            "txaws.s3.client.Query.date is a deprecated attribute")
+
+    def test_date_attribute_settable(self):
+        query = client.Query(
+            action="GET", creds=self.creds, endpoint=self.endpoint)
+
+        query.date = "XYZ"
+
+        with warnings.catch_warnings(record=True):
+            self.assertEqual(query.date, "XYZ")
+
 
 
 class MiscellaneousTestCase(TXAWSTestCase):
