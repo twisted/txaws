@@ -29,3 +29,6 @@ install:
 
 script:
   - "trial txaws"
+
+after_script:
+  - "test-tools/cleanup-aws"

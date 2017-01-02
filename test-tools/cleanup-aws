@@ -1,0 +1,73 @@
+#!/usr/bin/env python
+
+from __future__ import print_function
+
+from os import environ
+
+import boto3
+
+
+def main():
+    try:
+        environ["AWS_ACCESS_KEY_ID"] = environ["TXAWS_INTEGRATION_AWS_ACCESS_KEY_ID"]
+        environ["AWS_SECRET_ACCESS_KEY"] = environ["TXAWS_INTEGRATION_AWS_SECRET_ACCESS_KEY"]
+    except KeyError as e:
+        raise SystemExit("Could not clean up: {} missing from environment".format(e))
+
+    s3 = boto3.client("s3")
+    for bucket in all_buckets(s3):
+        delete_bucket(s3, bucket)
+
+
+def all_buckets(s3):
+    # Apparently pagination isn't required for buckets - perhaps
+    # because the default limit on number of buckets is so low.
+    return (
+        bucket[u"Name"]
+        for bucket
+        in s3.list_buckets()[u"Buckets"]
+    )
+
+
+def delete_bucket(s3, bucket):
+    delete_objects(s3, bucket)
+    s3.delete_bucket(Bucket=bucket)
+    print("Deleted {}".format(bucket))
+
+
+def delete_objects(s3, bucket):
+    keys = []
+    for obj in list_objects(s3, bucket):
+        keys.append(obj[u"Key"])
+        if len(keys) == 1000:
+            delete_some_objects(s3, bucket, keys)
+            keys = []
+    if keys:
+        delete_some_objects(s3, bucket, keys)
+
+
+def list_objects(s3, bucket):
+    paginator = s3.get_paginator("list_objects")
+    result = list(paginator.paginate(Bucket=bucket))
+    return (
+        content
+        for page in result
+        for content in page.get(u"Contents", [])
+    )
+
+
+def delete_some_objects(s3, bucket, keys):
+    keys = list(keys)
+    s3.delete_objects(
+        Bucket=bucket,
+        Delete={
+            'Objects': list(
+                {u"Key": key}
+                for key in keys
+            ),
+        },
+    )
+    print("Deleted {}".format(keys))
+
+
+main()
