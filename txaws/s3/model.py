@@ -3,54 +3,61 @@
 # Copyright (C) 2011 Drew Smathers <drew.smathers@gmail.com>
 # Copyright (C) 2012 New Dream Network (DreamHost)
 # Licenced under the txaws licence available at /LICENSE in the txaws source.
+
+from datetime import datetime
+
+import attr
+from attr import validators
+
 from txaws.util import XML
 
 
+@attr.s
 class Bucket(object):
     """
     An Amazon S3 storage bucket.
     """
-    def __init__(self, name, creation_date):
-        self.name = name
-        self.creation_date = creation_date
+    name = attr.ib()
+    creation_date = attr.ib()
 
 
+@attr.s
 class ItemOwner(object):
     """
     The owner of a content item.
     """
-    def __init__(self, id, display_name):
-        self.id = id
-        self.display_name = display_name
+    id = attr.ib()
+    display_name = attr.ib()
 
 
+@attr.s
 class BucketItem(object):
     """
     The contents of an Amazon S3 bucket.
     """
-    def __init__(self, key, modification_date, etag, size, storage_class,
-                 owner=None):
-        self.key = key
-        self.modification_date = modification_date
-        self.etag = etag
-        self.size = size
-        self.storage_class = storage_class
-        self.owner = owner
+    key = attr.ib()
+    modification_date = attr.ib(validator=validators.instance_of(datetime))
+    etag = attr.ib()
+    size = attr.ib(validator=validators.instance_of(bytes))
+    storage_class = attr.ib()
+    owner = attr.ib(
+        validator=validators.optional(validators.instance_of(ItemOwner)),
+        default=None,
+    )
 
 
+@attr.s
 class BucketListing(object):
     """
     A mapping for the data in a bucket listing.
     """
-    def __init__(self, name, prefix, marker, max_keys, is_truncated,
-                 contents=None, common_prefixes=None):
-        self.name = name
-        self.prefix = prefix
-        self.marker = marker
-        self.max_keys = max_keys
-        self.is_truncated = is_truncated
-        self.contents = contents
-        self.common_prefixes = common_prefixes
+    name = attr.ib()
+    prefix = attr.ib()
+    marker = attr.ib()
+    max_keys = attr.ib()
+    is_truncated = attr.ib()
+    contents = attr.ib(default=None)
+    common_prefixes = attr.ib(default=None)
 
 
 class LifecycleConfiguration(object):
