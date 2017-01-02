@@ -25,9 +25,10 @@ addons:
 
 env:
   global:
-    # TXAWS_INTEGRATION_AWS_ACCESS_KEY_ID
+    # travis encrypt -r twisted/txaws TXAWS_INTEGRATION_AWS_ACCESS_KEY_ID=...
+    # Or: docker run --rm --name travisci caktux/travis-cli encrypt -r twisted/txaws ...
     - secure: "P4VU87FJM65jN7D36k6usBmkSAht8r2L2TzKMklkiihxFSNqv5lybpsIdAGlr/pQ3FltgUmsHsmbR6EfYJuqr3UsM/06LhmQc5aBj96DmKzonBfDe0q59UETvi5g7XRrIxM3DNvI6Jz29vtqvahddrMW65KxGUZ4/5hMdmdICno="
-    # TXAWS_INTEGRATION_AWS_SECRET_ACCESS_KEY
+    # travis encrypt -r twisted/txaws TXAWS_INTEGRATION_AWS_SECRET_ACCESS_KEY=...
     - secure: "LjKE0uLHqohbgSRHTmKBrl9REgXIxHEuIoM43FgdE1cPCncs+1+HBxptmjppP3q6zJ5O3rOMkef+PYa3SfiWODuvxt7n8P9ZZqEt8c7BxQKBMropqw/87P4McFAC0RNjPImQozWG30qH+v3Uq1o1psURUxZPin8pX/U7lJsT40k="
 
 install:
