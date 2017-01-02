@@ -28,7 +28,7 @@ install:
   - "pip install .[dev]"
 
 script:
-  - "coverage run --branch --source=txaws $(type -p trial) txaws"
+  - "coverage run --rcfile=${PWD}/.coveragerc -m twisted.trial txaws"
 
 after_success:
   - "codecov"
