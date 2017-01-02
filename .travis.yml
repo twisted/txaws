@@ -8,6 +8,13 @@ language: "python"
 # container-based environments are how you get fast test runs.
 sudo: false
 
+# Only build master; for "push" builds, this is when the branch pushed
+# to is master, for "pr" builds, this is when the merge base of the PR
+# is master.
+branches:
+  only:
+    - master
+
 cache:
   directories:
     # Cache the pip download cache across runs to avoid having to
