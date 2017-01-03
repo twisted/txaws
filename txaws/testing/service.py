@@ -1,7 +1,7 @@
 from txaws.credentials import AWSCredentials
 from txaws.service import AWSServiceEndpoint
 from txaws.testing.ec2 import FakeEC2Client
-
+from txaws.testing.s3 import MemoryS3
 
 class FakeAWSServiceRegion(object):
 
@@ -24,6 +24,7 @@ class FakeAWSServiceRegion(object):
         self.volumes = volumes
         self.snapshots = snapshots
         self.availability_zones = availability_zones
+        self.s3 = MemoryS3()
 
     def get_ec2_client(self, *args, **kwds):
 
@@ -36,3 +37,13 @@ class FakeAWSServiceRegion(object):
             security_groups=self.security_groups, snapshots=self.snapshots,
             availability_zones=self.availability_zones)
         return self.ec2_client
+
+    def get_s3_client(self, creds=None):
+        if creds is None:
+            creds = AWSCredentials(
+                access_key=self.access_key,
+                secret_key=self.secret_key,
+            )
+        endpoint = AWSServiceEndpoint(uri=self.uri)
+        self.s3_client, self.s3_state = self.s3.client(creds, endpoint)
+        return self.s3_client
