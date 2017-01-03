@@ -18,7 +18,7 @@ from txaws.testing.producers import StringBodyProducer
 from txaws.testing.s3_tests import s3_integration_tests
 from txaws.service import AWSServiceEndpoint, AWSServiceRegion, REGION_US_EAST_1
 from txaws.testing import payload
-from txaws.testing.base import TXAWSTestCase
+from txaws.testing.base import TXAWSTestCase, get_live_service
 from txaws.util import calculate_md5
 
 EMPTY_CONTENT_SHA256 = sha256(b"").hexdigest()
@@ -1290,41 +1290,11 @@ class MiscellaneousTestCase(TXAWSTestCase):
         self.assertRaises(ValueError, RequestPayment, "Bob")
 
 
+
 def get_live_client(case):
-    # Find credentials from the environment.
-    #
-    # To run this test, set TXAWS_INTEGRATION_AWS_ACCESS_KEY_ID
-    # and TXAWS_INTEGRATION_AWS_SECRET_ACCESS_KEY to some
-    # legitimate credentials.  It is probably a good idea to limit
-    # what these credentials are allowed to do:
-    #
-    #    - in case they leak out of the test suite somehow
-    #
-    #    - in case the implementation is broken and does something destructive
-    #
-    #    - in case malicious code is inserted somehow (eg, you run
-    #      tests on code submitted by another developer)
-    #
-    # As far as I can tell there's no way to isolate an API user
-    # from _some_ of the parent account's S3 buckets.  Therefore,
-    # isolation probably involves registering a new top-level AWS
-    # account and dedicating it to testing purposes.
-    try:
-        access_key = environ["TXAWS_INTEGRATION_AWS_ACCESS_KEY_ID"]
-        secret_key = environ["TXAWS_INTEGRATION_AWS_SECRET_ACCESS_KEY"]
-    except KeyError as e:
-        case.skipTest("Missing {} environment variable.".format(e))
-    else:
-        credentials = AWSCredentials(
-            access_key=access_key,
-            secret_key=secret_key,
-        )
-        aws = AWSServiceRegion(credentials)
-        s3 = aws.get_s3_client()
-        return s3
+    return get_live_service(case).get_s3_client()
 
 
-# XXX These leak resources onto AWS.
 class LiveS3TestCase(s3_integration_tests(get_live_client)):
     """
     Tests for the real S3 implementation against AWS itself.

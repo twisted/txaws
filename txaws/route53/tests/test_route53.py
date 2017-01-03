@@ -202,3 +202,14 @@ class ChangeResourceRecordSetsTestCase(TXAWSTestCase):
 <?xml version="1.0" encoding="UTF-8"?>
 <ChangeResourceRecordSetsRequest xmlns="https://route53.amazonaws.com/doc/2013-04-01/"><ChangeBatch><Changes><Change><Action>CREATE</Action><ResourceRecordSet><Name>example.invalid.</Name><Type>NS</Type><TTL>86400</TTL><ResourceRecords><ResourceRecord><Value>ns1.example.invalid.</Value></ResourceRecord><ResourceRecord><Value>ns2.example.invalid.</Value></ResourceRecord></ResourceRecords></ResourceRecordSet></Change></Changes></ChangeBatch></ChangeResourceRecordSetsRequest>"""
         self.assertEqual((expected,), change_resource.posted)
+
+
+
+def get_live_client(case):
+    return get_live_service(case).get_route53_client()
+
+
+class LiveRoute53TestCase(route53_integration_tests(get_live_client)):
+    """
+    Tests for the real Route53 implementation against AWS itself.
+    """

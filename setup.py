@@ -12,7 +12,7 @@ try:
     from setuptools import find_packages
     extra_setup_args['install_requires'] = [
         'attrs', 'python-dateutil', 'twisted[tls]', 'venusian', 'lxml',
-        'incremental',
+        'incremental', 'pyrsistent',
     ]
 except ImportError:
     def find_packages():

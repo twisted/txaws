@@ -1,7 +1,9 @@
 import os
+from weakref import WeakKeyDictionary
+
+import attr
 
 from twisted.trial.unittest import TestCase
-
 
 class TXAWSTestCase(TestCase):
     """Support for isolation of txaws tests."""
@@ -27,6 +29,35 @@ class TXAWSTestCase(TestCase):
         os.environ.update(self.orig_environ)
 
 
-class _ControllerState(object):
+
+class ControllerState(object):
     def __get__(self, oself, type):
         return oself._controller.get_state(oself)
+
+
+
+@attr.s
+class MemoryClient(object):
+    _state = ControllerState()
+
+    _controller = attr.ib()
+
+
+
+@attr.s(frozen=True)
+class MemoryService(object):
+    clientFactory = attr.ib()
+    stateFactory = attr.ib()
+
+    _state = attr.ib(
+        default=attr.Factory(WeakKeyDictionary),
+        init=False,
+        hash=False,
+    )
+
+    def get_state(self, client):
+        return self._state.setdefault(client, self.stateFactory())
+
+    def client(self, *a, **kw):
+        client = self.clientFactory(self, *a, **kw)
+        return client, self.get_state(client)
