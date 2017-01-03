@@ -2,7 +2,7 @@ from txaws.credentials import AWSCredentials
 from txaws.service import AWSServiceEndpoint
 from txaws.testing.ec2 import FakeEC2Client
 from txaws.testing.route53 import MemoryRoute53
-
+from txaws.testing.s3 import MemoryS3
 
 class FakeAWSServiceRegion(object):
 
@@ -26,12 +26,14 @@ class FakeAWSServiceRegion(object):
         self.snapshots = snapshots
         self.availability_zones = availability_zones
 
+        self.s3 = MemoryS3()
+        self.route53 = MemoryRoute53()
+
         self._creds = AWSCredentials(
             access_key=self.access_key,
             secret_key=self.secret_key,
         )
         self._endpoint = AWSServiceEndpoint(uri=self.uri)
-        self._route53_controller = MemoryRoute53()
 
     def get_ec2_client(self, *args, **kwds):
         self.ec2_client = self.ec2_client_factory(
@@ -42,6 +44,14 @@ class FakeAWSServiceRegion(object):
             availability_zones=self.availability_zones)
         return self.ec2_client
 
-    def get_route53_client(self, *args, **kwargs):
-        client, state = self._route53_controller.client(self, *args, **kwargs)
-        return client
+    def get_route53_client(self, creds=None):
+        if creds is None:
+            creds = self._creds
+        self.route53_client, self.route53_state = self.route53.client(self, creds)
+        return self.route53_client
+
+    def get_s3_client(self, creds=None):
+        if creds is None:
+            creds = self._creds
+        self.s3_client, self.s3_state = self.s3.client(creds, self._endpoint)
+        return self.s3_client

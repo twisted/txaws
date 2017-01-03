@@ -11,7 +11,7 @@ try:
     import setuptools
     from setuptools import find_packages
     extra_setup_args['install_requires'] = [
-        'python-dateutil', 'twisted[tls]', 'venusian', 'lxml'
+        'attrs', 'python-dateutil', 'twisted[tls]', 'venusian', 'lxml'
     ]
 except ImportError:
     def find_packages():
@@ -57,8 +57,7 @@ setup(
     include_package_data=True,
     zip_safe=False,
     extras_require={
-        "dev": ["zope.datetime"],
+        "dev": ["zope.datetime", "boto3"],
     },
     **extra_setup_args
     )
-

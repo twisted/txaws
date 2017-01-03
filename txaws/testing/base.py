@@ -13,14 +13,15 @@ class TXAWSTestCase(TestCase):
     def _stash_environ(self):
         self.orig_environ = dict(os.environ)
         self.addCleanup(self._restore_environ)
-        if "AWS_ACCESS_KEY_ID" in os.environ:
-            del os.environ["AWS_ACCESS_KEY_ID"]
-        if "AWS_SECRET_ACCESS_KEY" in os.environ:
-            del os.environ["AWS_SECRET_ACCESS_KEY"]
-        if "AWS_ENDPOINT" in os.environ:
-            del os.environ["AWS_ENDPOINT"]
+        to_delete = [
+            "AWS_ACCESS_KEY_ID",
+            "AWS_SECRET_ACCESS_KEY",
+            "AWS_ENDPOINT",
+        ]
+        for key in to_delete:
+            if key in os.environ:
+                del os.environ[key]
 
     def _restore_environ(self):
-        for key in set(os.environ) - set(self.orig_environ):
-            del os.environ[key]
+        os.environ.clear()
         os.environ.update(self.orig_environ)
