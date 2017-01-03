@@ -18,6 +18,7 @@ from twisted.internet.defer import succeed, fail
 
 from txaws.s3.model import Bucket, BucketListing, BucketItem
 from txaws.s3.exception import S3Error
+from txaws.testing.base import _ControllerState
 
 def _rate_limited(f):
     def g(self, *a, **kw):
@@ -64,11 +65,6 @@ class S3ClientState(object):
 
     def get_rate_limit_exceeded(self,):
         return self.rate_limit_exceeded
-
-
-class _ControllerState(object):
-    def __get__(self, oself, type):
-        return oself._controller.get_state(oself)
 
 
 class _MemoryS3Client(object):

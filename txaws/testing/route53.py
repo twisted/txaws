@@ -1,13 +1,24 @@
 import attr
 
+from txaws.testing.base import _ControllerState
+
 @attr.s
 class MemoryRoute53(object):
-    agent = attr.ib()
+    def client(self, *a, **kw):
+        return _MemoryRoute53Client(self, *a, **kw)
+
+
+class Route53ClientState(object):
+    _zones = attr.ib(default=pvector())
+
+
+@attr.s
+class _MemoryRoute53Client(object):
+    _state = _ControllerState()
+
+    _controller = attr.ib()
     creds = attr.ib()
     endpoint = attr.ib()
-    cooperator = attr.ib()
-
-    _zones = attr.ib(default=pvector())
 
     def list_hosted_zones(self):
         return 
