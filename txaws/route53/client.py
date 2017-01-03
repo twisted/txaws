@@ -426,17 +426,3 @@ def create_latency_based_rrset(name, type, latency):
 
 def delete_rrset(name, type, rrset):
     pass
-
-
-@attr.s
-class MemoryRoute53(object):
-    def create(
-    agent = attr.ib()
-    creds = attr.ib()
-    endpoint = attr.ib()
-    cooperator = attr.ib()
-
-    _zones = attr.ib(default=pvector())
-
-    def list_hosted_zones(self):
-        return 

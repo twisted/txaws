@@ -25,3 +25,8 @@ class TXAWSTestCase(TestCase):
     def _restore_environ(self):
         os.environ.clear()
         os.environ.update(self.orig_environ)
+
+
+class _ControllerState(object):
+    def __get__(self, oself, type):
+        return oself._controller.get_state(oself)

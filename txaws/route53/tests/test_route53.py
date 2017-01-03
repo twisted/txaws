@@ -1,18 +1,24 @@
 
 from twisted.web.static import Data
 from twisted.web.resource import IResource, Resource
+from twisted.internet.task import Cooperator
 
 from txaws.service import AWSServiceRegion
 from txaws.testing.base import TXAWSTestCase
+from txaws.testing.memoryagent import MemoryAgent
 
-from lae_util.memoryagent import MemoryAgent
-from lae_util.uncooperator import Uncooperator
-
-from lae_automation.route53 import (
+from txaws.route53.client import (
     NS, SOA, CNAME, Name, get_route53_client,
     create_rrset, delete_rrset, upsert_rrset,
 )
 
+def uncooperator(started=True):
+    return Cooperator(
+        # Don't stop consuming the iterator.
+        terminationPredicateFactory=lambda: lambda: False,
+        scheduler=lambda what: (what(), object())[1],
+        started=started,
+    )
 
 class POSTableData(Data):
     posted = ()
@@ -110,7 +116,7 @@ class ListHostedZonesTestCase(TXAWSTestCase):
             },
         }))
         aws = AWSServiceRegion(access_key="abc", secret_key="def")
-        client = get_route53_client(agent, aws, Uncooperator())
+        client = get_route53_client(agent, aws, uncooperator())
         zones = self.successResultOf(client.list_hosted_zones())
         expected = [sample_list_hosted_zones_result.details]
         self.assertEquals(expected, zones)
@@ -135,7 +141,7 @@ class ListResourceRecordSetsTestCase(TXAWSTestCase):
             }
         }))
         aws = AWSServiceRegion(access_key="abc", secret_key="def")
-        client = get_route53_client(agent, aws, Uncooperator())
+        client = get_route53_client(agent, aws, uncooperator())
         rrsets = self.successResultOf(client.list_resource_record_sets(
             zone_id=zone_id,
         ))
@@ -170,7 +176,7 @@ class ChangeResourceRecordSetsTestCase(TXAWSTestCase):
             },
         }))
         aws = AWSServiceRegion(access_key="abc", secret_key="def")
-        client = get_route53_client(agent, aws, Uncooperator())
+        client = get_route53_client(agent, aws, uncooperator())
         self.successResultOf(client.change_resource_record_sets(
             zone_id=zone_id,
             changes=[
