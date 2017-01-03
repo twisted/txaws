@@ -1,8 +1,13 @@
+from itertools import count
+
 import attr
 
-from pyrsistent import pvector
+from pyrsistent import discard, pvector
+
+from twisted.internet.defer import succeed
 
 from txaws.testing.base import MemoryClient, MemoryService
+from txaws.route53.model import HostedZone
 
 class MemoryRoute53(MemoryService):
     def __init__(self):
@@ -14,8 +19,16 @@ class MemoryRoute53(MemoryService):
 
 @attr.s
 class Route53ClientState(object):
-    _zones = attr.ib(default=pvector())
+    _id = attr.ib(default=attr.Factory(count), init=False)
 
+    zones = attr.ib(default=pvector())
+
+    def next_id(self):
+        return u"/hostedzone/{:014d}".format(next(self._id))
+
+
+def _value_transform(pv, pred, transform):
+    return pv.transform([lambda i: pred(pv[i])], transform)
 
 @attr.s
 class _MemoryRoute53Client(MemoryClient):
@@ -23,7 +36,16 @@ class _MemoryRoute53Client(MemoryClient):
     endpoint = attr.ib()
     
     def create_hosted_zone(self, name):
-        pass
+        self._state.zones = self._state.zones.append(HostedZone(name=name, id=self._state.next_id()))
+        return succeed(None)
     
     def list_hosted_zones(self):
-        return 
+        return succeed(self._state.zones)
+
+    def delete_hosted_zone(self, id):
+        self._state.zones = _value_transform(
+            self._state.zones,
+            lambda z: z.id == id,
+            discard,
+        )
+        return succeed(None)

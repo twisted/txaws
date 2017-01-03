@@ -4,9 +4,12 @@ from twisted.web.resource import IResource, Resource
 from twisted.internet.task import Cooperator
 
 from txaws.service import AWSServiceRegion
+from txaws.testing.integration import get_live_service
 from txaws.testing.base import TXAWSTestCase
 from txaws.testing.memoryagent import MemoryAgent
+from txaws.testing.route53_tests import route53_integration_tests
 
+from txaws.route53.model import HostedZone
 from txaws.route53.client import (
     NS, SOA, CNAME, Name, get_route53_client,
     create_rrset, delete_rrset, upsert_rrset,
@@ -92,13 +95,13 @@ class sample_change_resource_record_sets_result(object):
 class sample_list_hosted_zones_result(object):
     details = dict(
         name=u"example.invalid.",
-        identifier=u"/hostedzone/ABCDEF123456",
+        identifier=u"ABCDEF123456",
         reference=u"3CCF1549-806D-F91A-906F-A3727E910C87",
-        count=6,
+        rrset_count=6,
     )
     xml = u"""\
 <?xml version="1.0"?>
-<ListHostedZonesResponse xmlns="https://route53.amazonaws.com/doc/2013-04-01/"><HostedZones><HostedZone><Id>{identifier}</Id><Name>{name}</Name><CallerReference>{reference}</CallerReference><Config><PrivateZone>false</PrivateZone></Config><ResourceRecordSetCount>{count}</ResourceRecordSetCount></HostedZone></HostedZones><IsTruncated>false</IsTruncated><MaxItems>100</MaxItems></ListHostedZonesResponse>
+<ListHostedZonesResponse xmlns="https://route53.amazonaws.com/doc/2013-04-01/"><HostedZones><HostedZone><Id>/hostedzone/{identifier}</Id><Name>{name}</Name><CallerReference>{reference}</CallerReference><Config><PrivateZone>false</PrivateZone></Config><ResourceRecordSetCount>{rrset_count}</ResourceRecordSetCount></HostedZone></HostedZones><IsTruncated>false</IsTruncated><MaxItems>100</MaxItems></ListHostedZonesResponse>
 """.format(**details).encode("utf-8")
     
 
@@ -118,7 +121,7 @@ class ListHostedZonesTestCase(TXAWSTestCase):
         aws = AWSServiceRegion(access_key="abc", secret_key="def")
         client = get_route53_client(agent, aws, uncooperator())
         zones = self.successResultOf(client.list_hosted_zones())
-        expected = [sample_list_hosted_zones_result.details]
+        expected = [HostedZone(**sample_list_hosted_zones_result.details)]
         self.assertEquals(expected, zones)
 
 

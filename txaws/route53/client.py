@@ -15,7 +15,7 @@ from attr import validators
 from botocore.auth import SigV4Auth
 from botocore.credentials import Credentials
 
-from twisted.web.http import OK
+from twisted.web.http import OK, CREATED
 from twisted.web.http_headers import Headers
 from twisted.web.client import FileBodyProducer, readBody
 from twisted.python.failure import Failure
@@ -25,6 +25,8 @@ from twisted.internet.defer import maybeDeferred
 from txaws.client.base import BaseClient, BaseQuery
 from txaws.service import AWSServiceEndpoint
 from txaws.util import XML
+
+from txaws.route53.model import HostedZone
 
 _REGISTRATION_ENDPOINT = "https://route53domains.us-east-1.amazonaws.com/"
 _OTHER_ENDPOINT = "https://route53.amazonaws.com/"
@@ -120,7 +122,7 @@ class _Route53Client(object):
     endpoint = attr.ib()
     cooperator = attr.ib()
 
-    def create_hosted_zone(self, name):
+    def create_hosted_zone(self, caller_reference, name):
         """
         http://docs.aws.amazon.com/Route53/latest/APIReference/API_CreateHostedZone.html
         """
@@ -130,7 +132,10 @@ class _Route53Client(object):
             endpoint=self.endpoint,
             args=(),
             cooperator=self.cooperator,
+            caller_reference=caller_reference,
+            name=name,
         )
+        return query.submit(self.agent)
     
     def list_hosted_zones(self):
         """
@@ -182,6 +187,20 @@ class _Route53Client(object):
             endpoint=self.endpoint,
             zone_id=zone_id,
             args=args,
+            cooperator=self.cooperator,
+        )
+        return query.submit(self.agent)
+
+    def delete_hosted_zone(self, zone_id):
+        """
+        http://docs.aws.amazon.com/Route53/latest/APIReference/API_DeleteHostedZone.html
+        """
+        query = _DeleteHostedZone(
+            action="DELETE",
+            creds=self.creds,
+            endpoint=self.endpoint,
+            zone_id=zone_id,
+            args=(),
             cooperator=self.cooperator,
         )
         return query.submit(self.agent)
@@ -308,11 +327,11 @@ class _ListHostedZones(_Query):
         result = []
         hosted_zones = document.iterfind("./HostedZones/HostedZone")
         for zone in hosted_zones:
-            result.append(dict(
-                name=zone.find("Name").text,
-                identifier=zone.find("Id").text,
-                count=int(zone.find("ResourceRecordSetCount").text),
-                reference=zone.find("CallerReference").text,
+            result.append(HostedZone(
+                name=et_is_dumb(zone.find("Name").text),
+                identifier=et_is_dumb(zone.find("Id").text).replace(u"/hostedzone/", u""),
+                rrset_count=int(zone.find("ResourceRecordSetCount").text),
+                reference=et_is_dumb(zone.find("CallerReference").text),
             ))
         return result
 
@@ -350,17 +369,59 @@ class _TagFactory(object):
 
 tags = _TagFactory()
 
-@attr.s(frozen=True)
-class _ChangeRRSets(_RRSets):
-    changes = attr.ib()
-
-    method = b"POST"
-
+class _XMLBodyMixin(object):
     def body(self):
         xml = b"""<?xml version="1.0" encoding="UTF-8"?>\n"""
         d = flattenString(None, self._xml_request_body())
         d.addCallback(lambda body: xml + body)
         return d
+
+
+@attr.s(frozen=True)
+class _DeleteHostedZone(_Query):
+    zone_id = attr.ib()
+
+    method = b"DELETE"
+
+    def path(self):
+        return u"2013-04-01/hostedzone/{zone_id}".format(
+            zone_id=self.zone_id
+        ).encode("ascii")
+
+    def _extract_result(self, document):
+        return None
+
+
+@attr.s(frozen=True)
+class _CreateHostedZone(_XMLBodyMixin, _Query):
+    ok_status = (CREATED,)
+
+    method = b"POST"
+
+    caller_reference = attr.ib()
+    name = attr.ib()
+    
+    def path(self):
+        return b"2013-04-01/hostedzone"
+
+    def _xml_request_body(self):
+        ns = "https://route53.amazonaws.com/doc/2013-04-01/"
+        return tags.CreateHostedZoneRequest(xmlns=ns)(
+            tags.CallerReference(self.caller_reference),
+            tags.Name(self.name),
+        )
+
+    def _extract_result(self, document):
+        # XXX Could extract some stuff
+        # http://docs.aws.amazon.com/Route53/latest/APIReference/API_CreateHostedZone.html#API_CreateHostedZone_ResponseSyntax
+        return None
+
+
+@attr.s(frozen=True)
+class _ChangeRRSets(_XMLBodyMixin, _RRSets):
+    changes = attr.ib()
+
+    method = b"POST"
 
     def _xml_request_body(self):
         ns = "https://route53.amazonaws.com/doc/2013-04-01/"

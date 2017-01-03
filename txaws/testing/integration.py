@@ -1,3 +1,5 @@
+from os import environ
+
 from txaws.credentials import AWSCredentials
 from txaws.service import AWSServiceRegion
 from txaws.testing.service import FakeAWSServiceRegion
