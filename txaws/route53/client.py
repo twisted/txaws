@@ -432,9 +432,10 @@ class _ChangeRRSets(_XMLBodyMixin, _RRSets):
         ns = "https://route53.amazonaws.com/doc/2013-04-01/"
         return tags.ChangeResourceRecordSetsRequest(xmlns=ns)(
             tags.ChangeBatch(
-                tags.Changes(
-                    self.changes,
-                )
+                tags.Changes(list(
+                    change.to_element()
+                    for change in self.changes
+                ))
             )
         )
 
@@ -459,42 +460,46 @@ class _ListRRSets(_RRSets):
         return result
 
 
-def _rrset(name, type, rrset):
-    return tags.ResourceRecordSet(
-        tags.Name(
-            str(name),
-        ),
-        tags.Type(
-            type,
-        ),
-        tags.TTL(
-            unicode(60 * 60 * 24),
-        ),
-        tags.ResourceRecords(list(
-            tags.ResourceRecord(tags.Value(rr.to_string()))
-            for rr
-            in rrset
-        ))
-    )
+@attr.s(frozen=True)
+class _ChangeRRSet(object):
+    action = attr.ib()
+    name = attr.ib()
+    type = attr.ib()
+    rrset = attr.ib()
+
+    def to_element(self):
+        return tags.Change(
+            tags.Action(
+                self.action,
+            ),
+            tags.ResourceRecordSet(
+                tags.Name(
+                    unicode(self.name),
+                ),
+                tags.Type(
+                    unicode(self.type),
+                ),
+                tags.TTL(
+                    unicode(60 * 60 * 24),
+                ),
+                tags.ResourceRecords(list(
+                    tags.ResourceRecord(tags.Value(rr.to_string()))
+                    for rr
+                    in self.rrset
+                ))
+            ),
+        )
+
+def create_rrset(name, type, rrset):
+    return _ChangeRRSet(u"CREATE", name, type, rrset)
+
 
 def upsert_rrset(name, type, rrset):
     pass
 
-def create_rrset(name, type, rrset):
-    return tags.Change(
-        tags.Action(
-            u"CREATE"
-        ),
-        _rrset(name, type, rrset),
-    )
 
 def delete_rrset(name, type, rrset):
-    return tags.Change(
-        tags.Action(
-            u"DELETE"
-        ),
-        _rrset(name, type, rrset),
-    )
+    return _ChangeRRSet(u"DELETE", name, type, rrset)
 
 
 def create_alias_rrset(name, type, alias):

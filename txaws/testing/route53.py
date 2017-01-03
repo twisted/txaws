@@ -35,17 +35,30 @@ class _MemoryRoute53Client(MemoryClient):
     creds = attr.ib()
     endpoint = attr.ib()
     
-    def create_hosted_zone(self, name):
-        self._state.zones = self._state.zones.append(HostedZone(name=name, id=self._state.next_id()))
-        return succeed(None)
+    def create_hosted_zone(self, reference, name):
+        self._state.zones = self._state.zones.append(HostedZone(
+            name=name,
+            reference=reference,
+            identifier=self._state.next_id(),
+            # Hosted zones start with SOA and NS rrsets.
+            rrset_count=2,
+        ))
+        return succeed(self._state.zones[-1])
     
     def list_hosted_zones(self):
         return succeed(self._state.zones)
 
-    def delete_hosted_zone(self, id):
+    def delete_hosted_zone(self, zone_id):
         self._state.zones = _value_transform(
             self._state.zones,
-            lambda z: z.id == id,
+            lambda z: z.identifier == zone_id,
             discard,
         )
         return succeed(None)
+
+    def change_resource_record_sets(self, zone_id, changes):
+        pass
+
+    def list_resource_record_sets(self, zone_id):
+        pass
+    
