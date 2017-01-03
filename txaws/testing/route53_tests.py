@@ -72,7 +72,7 @@ def route53_integration_tests(get_client):
 
             yield client.change_resource_record_sets(zone.identifier, [
                 create_rrset(
-                    u"foo.{}".format(zone_name),
+                    Name(u"foo.{}".format(zone_name)),
                     u"CNAME",
                     [cname],
                 )
@@ -84,7 +84,7 @@ def route53_integration_tests(get_client):
             )
             yield client.change_resource_record_sets(zone.identifier, [
                 delete_rrset(
-                    u"foo.{}".format(zone_name),
+                    Name(u"foo.{}".format(zone_name)),
                     u"CNAME",
                     [cname],
                 ),
