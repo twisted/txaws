@@ -184,17 +184,17 @@ class ChangeResourceRecordSetsTestCase(TXAWSTestCase):
             zone_id=zone_id,
             changes=[
                 create_rrset(
-                    sample_change_resource_record_sets_result.name,
+                    Name(sample_change_resource_record_sets_result.name),
                     sample_change_resource_record_sets_result.create_type,
                     sample_change_resource_record_sets_result.create_rrset,
                 ),
                 # delete_rrset(
-                #     sample_change_resource_record_sets_result.name,
+                #     Name(sample_change_resource_record_sets_result.name),
                 #     sample_change_resource_record_sets_result.delete_type,
                 #     sample_change_resource_record_sets_result.delete_rrset,
                 # ),
                 # upsert_rrset(
-                #     sample_change_resource_record_sets_result.name,
+                #     Name(sample_change_resource_record_sets_result.name),
                 #     sample_change_resource_record_sets_result.upsert_type,
                 #     sample_change_resource_record_sets_result.upsert_rrset,
                 # ),

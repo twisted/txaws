@@ -463,7 +463,7 @@ class _ListRRSets(_RRSets):
 @attr.s(frozen=True)
 class _ChangeRRSet(object):
     action = attr.ib()
-    name = attr.ib()
+    name = attr.ib(validator=validators.instance_of(Name))
     type = attr.ib()
     rrset = attr.ib()
 

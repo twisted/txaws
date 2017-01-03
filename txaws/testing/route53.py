@@ -2,7 +2,7 @@ from itertools import count
 
 import attr
 
-from pyrsistent import discard, pvector
+from pyrsistent import discard, pvector, pmap, pset
 
 from twisted.internet.defer import succeed
 
@@ -22,6 +22,7 @@ class Route53ClientState(object):
     _id = attr.ib(default=attr.Factory(count), init=False)
 
     zones = attr.ib(default=pvector())
+    rrsets = attr.ib(default=pmap())
 
     def next_id(self):
         return u"/hostedzone/{:014d}".format(next(self._id))
@@ -57,8 +58,32 @@ class _MemoryRoute53Client(MemoryClient):
         return succeed(None)
 
     def change_resource_record_sets(self, zone_id, changes):
-        pass
+        rrsets = self._state.rrsets.get(zone_id, pmap())
+        for change in changes:
+            rrsets = _process_change(rrsets, change)
+        self._state.rrsets = self._state.rrsets.set(zone_id, rrsets)
 
     def list_resource_record_sets(self, zone_id):
-        pass
+        return {
+            name: pset(rrset)
+            for (name, type), rrset in self._state.rrsets[zone_id].items()
+        }
+
+
+def _process_change(rrsets, change):
+    key = (change.name, change.type)
+    existing = rrsets.get(key, pvector())
+    if change.action == u"CREATE":
+        return rrsets.set(key, existing + change.rrset)
+    elif change.action == u"DELETE":
+        deleted = rrsets.set(
+            key,
+            list(rr for rr in existing if rr not in change.rrset),
+        )
+        if not deleted[key]:
+            deleted = deleted.remove(key)
+        return deleted
+    else:
+        raise NotImplementedError(change.action)
+        
     
