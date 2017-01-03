@@ -120,6 +120,18 @@ class _Route53Client(object):
     endpoint = attr.ib()
     cooperator = attr.ib()
 
+    def create_hosted_zone(self, name):
+        """
+        http://docs.aws.amazon.com/Route53/latest/APIReference/API_CreateHostedZone.html
+        """
+        query = _CreateHostedZone(
+            action="POST",
+            creds=self.creds,
+            endpoint=self.endpoint,
+            args=(),
+            cooperator=self.cooperator,
+        )
+    
     def list_hosted_zones(self):
         """
         http://docs.aws.amazon.com/Route53/latest/APIReference/API_ListHostedZones.html

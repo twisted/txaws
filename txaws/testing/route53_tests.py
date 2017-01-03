@@ -4,41 +4,31 @@
 Integration tests for the Route53 client(s).
 """
 
+from uuid import uuid4
+
+from twisted.internet.defer import inlineCallbacks, gatherResults
+
 from twisted.trial.unittest import TestCase
 
 def route53_integration_tests(get_client):
     class Route53IntegrationTests(TestCase):
+        @inlineCallbacks
         def test_hosted_zones(self):
             """
+            Route53 hosted zones exist in a collection which can be
+            manipulated in the obvious ways using
+            ``create_hosted_zone``, ``list_hosted_zones``, and
+            ``delete_hosted_zone``.
             """
-            class HostedZonesDriver(object):
-                def __init__(self):
-                    self.client = get_client()
-                    self.name = u"{}.example.invalid.".format(randrange(maxint))
-                    self.caller_reference = unicode(uuid4())
+            zone_names = {
+                u"{}.example.invalid.".format(unicode(uuid4())),
+                u"{}.example.invalid.".format(unicode(uuid4())),
+            }
 
-                def create(self):
-                    return self.client.create_hosted_zone(
-                        name=name, caller_reference=caller_reference,
-                    )
+            client = get_client(self)
 
-                def check_create(self, ignored):
-                    d = self.client.list_hosted_zones()
-                    d.addCallback(
-                        lambda zones: any(z.name == self.name for z in zones)
-                    )
-                    return d
-                
-            d = HostedZonesDriver()
-            d.create()
-            d.addCallback(d.check_created)
-            d.addCallback(d.
-            d.addCallback(check(.create_hosted_zone(
-                
-            )
-
-        def test_list_hosted_zones(self):
-            """
-            ``list_hosted_zones`` returns a ``Deferred`` that fires with a
-            ``list`` of ``HostedZone`` instances.
-            """
+            yield gatherResults([
+                client.create_hosted_zone(name)
+                for name in zone_names
+            ])
+    return Route53IntegrationTests
