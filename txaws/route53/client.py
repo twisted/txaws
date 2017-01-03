@@ -327,12 +327,7 @@ class _ListHostedZones(_Query):
         result = []
         hosted_zones = document.iterfind("./HostedZones/HostedZone")
         for zone in hosted_zones:
-            result.append(HostedZone(
-                name=et_is_dumb(zone.find("Name").text),
-                identifier=et_is_dumb(zone.find("Id").text).replace(u"/hostedzone/", u""),
-                rrset_count=int(zone.find("ResourceRecordSetCount").text),
-                reference=et_is_dumb(zone.find("CallerReference").text),
-            ))
+            result.append(hostedzone_from_element(zone))
         return result
 
 
@@ -392,6 +387,15 @@ class _DeleteHostedZone(_Query):
         return None
 
 
+def hostedzone_from_element(zone):
+    return HostedZone(
+        name=et_is_dumb(zone.find("Name").text),
+        identifier=et_is_dumb(zone.find("Id").text).replace(u"/hostedzone/", u""),
+        rrset_count=int(zone.find("ResourceRecordSetCount").text),
+        reference=et_is_dumb(zone.find("CallerReference").text),
+    )
+
+
 @attr.s(frozen=True)
 class _CreateHostedZone(_XMLBodyMixin, _Query):
     ok_status = (CREATED,)
@@ -412,9 +416,10 @@ class _CreateHostedZone(_XMLBodyMixin, _Query):
         )
 
     def _extract_result(self, document):
-        # XXX Could extract some stuff
+        # XXX Could extract some additional stuff
         # http://docs.aws.amazon.com/Route53/latest/APIReference/API_CreateHostedZone.html#API_CreateHostedZone_ResponseSyntax
-        return None
+        zone = document.find("./HostedZone")
+        return hostedzone_from_element(zone)
 
 
 @attr.s(frozen=True)
@@ -454,30 +459,41 @@ class _ListRRSets(_RRSets):
         return result
 
 
+def _rrset(name, type, rrset):
+    return tags.ResourceRecordSet(
+        tags.Name(
+            str(name),
+        ),
+        tags.Type(
+            type,
+        ),
+        tags.TTL(
+            unicode(60 * 60 * 24),
+        ),
+        tags.ResourceRecords(list(
+            tags.ResourceRecord(tags.Value(rr.to_string()))
+            for rr
+            in rrset
+        ))
+    )
+
 def upsert_rrset(name, type, rrset):
     pass
 
 def create_rrset(name, type, rrset):
     return tags.Change(
         tags.Action(
-            "CREATE"
+            u"CREATE"
         ),
-        tags.ResourceRecordSet(
-            tags.Name(
-                str(name),
-            ),
-            tags.Type(
-                type,
-            ),
-            tags.TTL(
-                unicode(60 * 60 * 24),
-            ),
-            tags.ResourceRecords(list(
-                tags.ResourceRecord(tags.Value(rr.to_string()))
-                for rr
-                in rrset
-            ))
-        )
+        _rrset(name, type, rrset),
+    )
+
+def delete_rrset(name, type, rrset):
+    return tags.Change(
+        tags.Action(
+            u"DELETE"
+        ),
+        _rrset(name, type, rrset),
     )
 
 
@@ -497,5 +513,3 @@ def create_latency_based_rrset(name, type, latency):
     pass
 
 
-def delete_rrset(name, type, rrset):
-    pass
