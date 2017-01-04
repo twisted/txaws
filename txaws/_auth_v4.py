@@ -209,7 +209,8 @@ class _CanonicalRequest(object):
                                  url,
                                  headers,
                                  headers_to_sign,
-                                 payload):
+                                 payload_hash,
+    ):
         """
         Construct a L{_CanonicalRequest} from the provided headers and
         payload.
@@ -227,9 +228,6 @@ class _CanonicalRequest(object):
             be signed.
         @type headers_to_sign: L{bytes}
 
-        @param payload: The request's payload.
-        @type payload: L{bytes}
-
         @return: A canonical request
         @rtype: L{_CanonicalRequest}
         """
@@ -241,7 +239,7 @@ class _CanonicalRequest(object):
             canonical_headers=_make_canonical_headers(headers,
                                                       headers_to_sign),
             signed_headers=_make_signed_headers(headers, headers_to_sign),
-            payload_hash=hashlib.sha256(payload).hexdigest(),
+            payload_hash=payload_hash,
         )
 
     def serialize(self):

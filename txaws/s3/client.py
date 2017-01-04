@@ -12,18 +12,29 @@ API stability: unstable.
 Various API-incompatible changes are planned in order to expose missing
 functionality in this wrapper.
 """
+
+from io import BytesIO
 import datetime
 import mimetypes
 import warnings
+from operator import itemgetter, attrgetter
 
 from twisted.web.http import datetimeToString
+from twisted.web.http_headers import Headers
+from twisted.web.client import FileBodyProducer
+from twisted.internet import task
 
 import hashlib
+from hashlib import sha256
 
-from urllib import urlencode
+from urllib import urlencode, unquote
+from urlparse import parse_qsl
 from dateutil.parser import parse as parseTime
 
-from txaws.client.base import BaseClient, BaseQuery, error_wrapper
+from txaws.client.base import (
+    _URLContext, BaseClient, BaseQuery, error_wrapper,
+    RequestDetails, query,
+)
 from txaws.s3.acls import AccessControlPolicy
 from txaws.s3.model import (
     Bucket, BucketItem, BucketListing, ItemOwner, LifecycleConfiguration,
@@ -36,58 +47,88 @@ from txaws.service import AWSServiceEndpoint, REGION_US_EAST_1, S3_ENDPOINT
 from txaws.util import XML
 
 
+def _to_dict(headers):
+    return {k: vs[0] for (k, v) in headers.getAllRawHeaders()}
+
 def s3_error_wrapper(error):
     error_wrapper(error, S3Error)
-
-
-class URLContext(object):
-    """
-    The hosts and the paths that form an S3 endpoint change depending upon the
-    context in which they are called.  While S3 supports bucket names in the
-    host name, we use the convention of providing it in the path so that
-    using IP addresses and alternative implementations of S3 actually works
-    (e.g. Walrus).
-    """
-    def __init__(self, service_endpoint, bucket="", object_name=""):
-        self.endpoint = service_endpoint
-        self.bucket = bucket
-        self.object_name = object_name
-
-    def get_host(self):
-        return self.endpoint.get_host()
-
-    def get_path(self):
-        path = "/"
-        if self.bucket is not None:
-            path += self.bucket
-        if self.bucket is not None and self.object_name:
-            if not self.object_name.startswith("/"):
-                path += "/"
-            path += self.object_name
-        elif self.bucket is not None and not path.endswith("/"):
-            path += "/"
-        return path
-
-    def get_url(self):
-        if self.endpoint.port is not None:
-            return "%s://%s:%d%s" % (
-                self.endpoint.scheme, self.get_host(), self.endpoint.port,
-                self.get_path())
-        else:
-            return "%s://%s%s" % (
-                self.endpoint.scheme, self.get_host(), self.get_path())
 
 
 class S3Client(BaseClient):
     """A client for S3."""
 
     def __init__(self, creds=None, endpoint=None, query_factory=None,
-                 receiver_factory=None):
+                 receiver_factory=None, agent=None, utcnow=None,
+                 cooperator=None):
         if query_factory is None:
-            query_factory = Query
+            query_factory = query
+        self.agent = agent
+        self.utcnow = utcnow
+        if cooperator is None:
+            cooperator = task
+        self._cooperator = cooperator
         super(S3Client, self).__init__(creds, endpoint, query_factory,
                                        receiver_factory=receiver_factory)
 
+    def _submit(self, query):
+        return query.submit(self.agent, self.receiver_factory, self.utcnow)
+
+
+    def _query_factory(self, details, **kw):
+        return self.query_factory(credentials=self.creds, details=details, **kw)
+
+    
+    def _details(self, **kw):
+        body = kw.pop("body", None)
+        body_producer = kw.pop("body_producer", None)
+        amz_headers = kw.pop("amz_headers", {})
+
+        # It makes no sense to specify both.  That makes it ambiguous
+        # what data should make up the request body.
+        if body is not None and body_producer is not None:
+            raise ValueError("body and body_producer are mutually exclusive")
+
+        # If the body was specified as a string, we can compute a hash
+        # of it and sign the hash along with the rest.  That protects
+        # against replay attacks with different content.
+        #
+        # If the body was specified as a producer, we can't really do
+        # this. :( The producer may generate large amounts of data
+        # which we can't hold in memory and it may not be replayable.
+        # AWS requires the signature in the header so there's no way
+        # to both hash/sign and avoid buffering everything in memory.
+        #
+        # The saving grace is that we'll only issue requests over TLS
+        # after verifying the AWS certificate and requests with a date
+        # (included in the signature) more than 15 minutes in the past
+        # are rejected. :/
+        if body is not None:
+            amz_headers[b"content-sha256"] = sha256(body).hexdigest()
+            body_producer = FileBodyProducer(BytesIO(body), cooperator=self._cooperator)
+        elif body_producer is None:
+            # Just as important is to include the empty content hash
+            # for all no-body requests.
+            amz_headers[b"content-sha256"] = sha256(b"").hexdigest()
+
+        return RequestDetails(
+            region=REGION_US_EAST_1,
+            service=b"s3",
+            body_producer=body_producer,
+            amz_headers=amz_headers,
+            **kw
+        )
+
+
+    def _url_context(self, *a, **kw):
+        return s3_url_context(self.endpoint, *a, **kw)
+
+
+    def _headers(self, content_type):
+        if content_type is None:
+            return Headers()
+        return Headers({u"content-type": [content_type]})
+
+    
     def list_buckets(self):
         """
         List all buckets.
@@ -95,11 +136,15 @@ class S3Client(BaseClient):
         Returns a list of all the buckets owned by the authenticated sender of
         the request.
         """
-        query = self.query_factory(
-            action="GET", creds=self.creds, endpoint=self.endpoint,
-            receiver_factory=self.receiver_factory)
-        d = query.submit()
-        return d.addCallback(self._parse_list_buckets)
+        details = self._details(
+            method=b"GET",
+            url_context=self._url_context(),
+        )
+        query = self.query_factory(credentials=self.creds, details=details)
+        d = self._submit(query)
+        d.addCallback(itemgetter(1))
+        d.addCallback(self._parse_list_buckets)
+        return d
 
     def _parse_list_buckets(self, xml_bytes):
         """
@@ -119,10 +164,12 @@ class S3Client(BaseClient):
         """
         Create a new bucket.
         """
-        query = self.query_factory(
-            action="PUT", creds=self.creds, endpoint=self.endpoint,
-            bucket=bucket)
-        return query.submit()
+        details = self._details(
+            method=b"PUT",
+            url_context=self._url_context(bucket=bucket),
+        )
+        query = self.query_factory(credentials=self.creds, details=details)
+        return self._submit(query)
 
     def delete_bucket(self, bucket):
         """
@@ -130,10 +177,12 @@ class S3Client(BaseClient):
 
         The bucket must be empty before it can be deleted.
         """
-        query = self.query_factory(
-            action="DELETE", creds=self.creds, endpoint=self.endpoint,
-            bucket=bucket)
-        return query.submit()
+        details = self._details(
+            method=b"DELETE",
+            url_context=self._url_context(bucket=bucket),
+        )
+        query = self.query_factory(credentials=self.creds, details=details)
+        return self._submit(query)
 
     def get_bucket(self, bucket, marker=None, max_keys=None):
         """
@@ -154,9 +203,6 @@ class S3Client(BaseClient):
 
         @see: U{http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketGET.html}
         """
-        query = self.query_factory(
-            action="GET", creds=self.creds, endpoint=self.endpoint,
-            bucket=bucket, receiver_factory=self.receiver_factory)
         args = []
         if marker is not None:
             args.append(("marker", marker))
@@ -166,8 +212,12 @@ class S3Client(BaseClient):
             object_name = "?" + urlencode(args)
         else:
             object_name = None
-        url_context = URLContext(self.endpoint, bucket, object_name)
-        d = query.submit(url_context)
+        details = self._details(
+            method=b"GET",
+            url_context=self._url_context(bucket=bucket, object_name=object_name),
+        )
+        d = self._submit(self._query_factory(details))
+        d.addCallback(itemgetter(1))
         d.addCallback(self._parse_get_bucket)
         return d
 
@@ -208,12 +258,14 @@ class S3Client(BaseClient):
         @param bucket: The name of the bucket.
         @return: A C{Deferred} that will fire with the bucket's region.
         """
-        query = self.query_factory(action="GET", creds=self.creds,
-                                   endpoint=self.endpoint, bucket=bucket,
-                                   object_name="?location",
-                                   receiver_factory=self.receiver_factory)
-        d = query.submit()
-        return d.addCallback(self._parse_bucket_location)
+        details = self._details(
+            method=b"GET",
+            url_context=self._url_context(bucket=bucket, object_name="?location"),
+        )
+        d = self._submit(self._query_factory(details))
+        d.addCallback(itemgetter(1))
+        d.addCallback(self._parse_bucket_location)
+        return d
 
     def _parse_bucket_location(self, xml_bytes):
         """Parse a C{LocationConstraint} XML document."""
@@ -228,11 +280,14 @@ class S3Client(BaseClient):
         @return: A C{Deferred} that will fire with the bucket's lifecycle
         configuration.
         """
-        query = self.query_factory(
-            action='GET', creds=self.creds, endpoint=self.endpoint,
-            bucket=bucket, object_name='?lifecycle',
-            receiver_factory=self.receiver_factory)
-        return query.submit().addCallback(self._parse_lifecycle_config)
+        details = self._details(
+            method=b"GET",
+            url_context=self._url_context(bucket=bucket, object_name="?lifecycle"),
+        )
+        d = self._submit(self._query_factory(details))
+        d.addCallback(itemgetter(1))
+        d.addCallback(self._parse_lifecycle_config)
+        return d
 
     def _parse_lifecycle_config(self, xml_bytes):
         """Parse a C{LifecycleConfiguration} XML document."""
@@ -257,11 +312,14 @@ class S3Client(BaseClient):
         @return: A C{Deferred} that will fire with the bucket's website
         configuration.
         """
-        query = self.query_factory(
-            action='GET', creds=self.creds, endpoint=self.endpoint,
-            bucket=bucket, object_name='?website',
-            receiver_factory=self.receiver_factory)
-        return query.submit().addCallback(self._parse_website_config)
+        details = self._details(
+            method=b"GET",
+            url_context=self._url_context(bucket=bucket, object_name='?website'),
+        )
+        d = self._submit(self._query_factory(details))
+        d.addCallback(itemgetter(1))
+        d.addCallback(self._parse_website_config)
+        return d
 
     def _parse_website_config(self, xml_bytes):
         """Parse a C{WebsiteConfiguration} XML document."""
@@ -279,11 +337,14 @@ class S3Client(BaseClient):
         @return: A C{Deferred} that will request the bucket's notification
         configuration.
         """
-        query = self.query_factory(
-            action='GET', creds=self.creds, endpoint=self.endpoint,
-            bucket=bucket, object_name='?notification',
-            receiver_factory=self.receiver_factory)
-        return query.submit().addCallback(self._parse_notification_config)
+        details = self._details(
+            method=b"GET",
+            url_context=self._url_context(bucket=bucket, object_name="?notification"),
+        )
+        d = self._submit(self._query_factory(details))
+        d.addCallback(itemgetter(1))
+        d.addCallback(self._parse_notification_config)
+        return d
 
     def _parse_notification_config(self, xml_bytes):
         """Parse a C{NotificationConfiguration} XML document."""
@@ -300,11 +361,14 @@ class S3Client(BaseClient):
         @param bucket: The name of the bucket.  @return: A C{Deferred} that
         will request the bucket's versioning configuration.
         """
-        query = self.query_factory(
-            action='GET', creds=self.creds, endpoint=self.endpoint,
-            bucket=bucket, object_name='?versioning',
-            receiver_factory=self.receiver_factory)
-        return query.submit().addCallback(self._parse_versioning_config)
+        details = self._details(
+            method=b"GET",
+            url_context=self._url_context(bucket=bucket, object_name="?versioning"),
+        )
+        d = self._submit(self._query_factory(details))
+        d.addCallback(itemgetter(1))
+        d.addCallback(self._parse_versioning_config)
+        return d
 
     def _parse_versioning_config(self, xml_bytes):
         """Parse a C{VersioningConfiguration} XML document."""
@@ -318,22 +382,28 @@ class S3Client(BaseClient):
         """
         Get the access control policy for a bucket.
         """
-        query = self.query_factory(
-            action='GET', creds=self.creds, endpoint=self.endpoint,
-            bucket=bucket, object_name='?acl',
-            receiver_factory=self.receiver_factory)
-        return query.submit().addCallback(self._parse_acl)
+        details = self._details(
+            method=b"GET",
+            url_context=self._url_context(bucket=bucket, object_name="?acl"),
+        )
+        d = self._submit(self._query_factory(details))
+        d.addCallback(itemgetter(1))
+        d.addCallback(self._parse_acl)
+        return d
 
     def put_bucket_acl(self, bucket, access_control_policy):
         """
         Set access control policy on a bucket.
         """
         data = access_control_policy.to_xml()
-        query = self.query_factory(
-            action='PUT', creds=self.creds, endpoint=self.endpoint,
-            bucket=bucket, object_name='?acl', data=data,
-            receiver_factory=self.receiver_factory)
-        return query.submit().addCallback(self._parse_acl)
+        details = self._details(
+            method=b"PUT",
+            url_context=self._url_context(bucket=bucket, object_name=b"?acl"),
+        )
+        d = self._submit(self._query_factory(details))
+        d.addCallback(itemgetter(1))
+        d.addCallback(self._parse_acl)
+        return d
 
     def _parse_acl(self, xml_bytes):
         """
@@ -357,13 +427,18 @@ class S3Client(BaseClient):
         @param amz_headers: A C{dict} used to build C{x-amz-*} headers.
         @return: A C{Deferred} that will fire with the result of request.
         """
-        query = self.query_factory(
-            action="PUT", creds=self.creds, endpoint=self.endpoint,
-            bucket=bucket, object_name=object_name, data=data,
-            content_type=content_type, metadata=metadata,
-            amz_headers=amz_headers, body_producer=body_producer,
-            receiver_factory=self.receiver_factory)
-        return query.submit()
+        details = self._details(
+            method=b"PUT",
+            url_context=self._url_context(bucket=bucket, object_name=object_name),
+            headers=self._headers(content_type),
+            metadata=metadata,
+            amz_headers=amz_headers,
+            body=data,
+            body_producer=body_producer,
+        )
+        d = self._submit(self._query_factory(details))
+        d.addCallback(itemgetter(1))
+        return d
 
     def copy_object(self, source_bucket, source_object_name, dest_bucket=None,
                     dest_object_name=None, metadata={}, amz_headers={}):
@@ -385,32 +460,42 @@ class S3Client(BaseClient):
         dest_object_name = dest_object_name or source_object_name
         amz_headers["copy-source"] = "/%s/%s" % (source_bucket,
                                                  source_object_name)
-        query = self.query_factory(
-            action="PUT", creds=self.creds, endpoint=self.endpoint,
-            bucket=dest_bucket, object_name=dest_object_name,
-            metadata=metadata, amz_headers=amz_headers,
-            receiver_factory=self.receiver_factory)
-        return query.submit()
+        details = self._details(
+            method=b"PUT",
+            url_context=self._url_context(
+                bucket=dest_bucket, object_name=dest_object_name,
+            ),
+            metadata=metadata,
+            amz_headers=amz_headers,
+        )
+        d = self._submit(self._query_factory(details))
+        return d
 
     def get_object(self, bucket, object_name):
         """
         Get an object from a bucket.
         """
-        query = self.query_factory(
-            action="GET", creds=self.creds, endpoint=self.endpoint,
-            bucket=bucket, object_name=object_name,
-            receiver_factory=self.receiver_factory)
-        return query.submit()
+        details = self._details(
+            method=b"GET",
+            url_context=self._url_context(bucket=bucket, object_name=object_name),
+        )
+        d = self._submit(self._query_factory(details))
+        d.addCallback(itemgetter(1))
+        return d
 
     def head_object(self, bucket, object_name):
         """
         Retrieve object metadata only.
         """
-        query = self.query_factory(
-            action="HEAD", creds=self.creds, endpoint=self.endpoint,
-            bucket=bucket, object_name=object_name)
-        d = query.submit()
-        return d.addCallback(query.get_response_headers)
+        details = self._details(
+            method=b"HEAD",
+            url_context=self._url_context(bucket=bucket, object_name=object_name),
+        )
+        d = self._submit(self._query_factory(details))
+        d.addCallback(itemgetter(0))
+        d.addCallback(attrgetter("responseHeaders"))
+        d.addCallback(_to_dict)
+        return d
 
     def delete_object(self, bucket, object_name):
         """
@@ -418,31 +503,43 @@ class S3Client(BaseClient):
 
         Once deleted, there is no method to restore or undelete an object.
         """
-        query = self.query_factory(
-            action="DELETE", creds=self.creds, endpoint=self.endpoint,
-            bucket=bucket, object_name=object_name)
-        return query.submit()
+        details = self._details(
+            method=b"DELETE",
+            url_context=self._url_context(bucket=bucket, object_name=object_name),
+        )
+        d = self._submit(self._query_factory(details))
+        return d
 
     def put_object_acl(self, bucket, object_name, access_control_policy):
         """
         Set access control policy on an object.
         """
         data = access_control_policy.to_xml()
-        query = self.query_factory(
-            action='PUT', creds=self.creds, endpoint=self.endpoint,
-            bucket=bucket, object_name='%s?acl' % object_name, data=data,
-            receiver_factory=self.receiver_factory)
-        return query.submit().addCallback(self._parse_acl)
+        details = self._details(
+            method=b"PUT",
+            url_context=self._url_context(
+                bucket=bucket, object_name='%s?acl' % (object_name,),
+            ),
+            body=data,
+        )
+        query = self.query_factory(credentials=self.creds, details=details)
+        d = self._submit(query)
+        d.addCallback(itemgetter(1))
+        d.addCallback(self._parse_acl)
+        return d
 
     def get_object_acl(self, bucket, object_name):
         """
         Get the access control policy for an object.
         """
-        query = self.query_factory(
-            action='GET', creds=self.creds, endpoint=self.endpoint,
-            bucket=bucket, object_name='%s?acl' % object_name,
-            receiver_factory=self.receiver_factory)
-        return query.submit().addCallback(self._parse_acl)
+        details = self._details(
+            method=b"GET",
+            url_context=self._url_context(bucket=bucket, object_name='%s?acl' % (object_name,)),
+        )
+        d = self._submit(self._query_factory(details))
+        d.addCallback(itemgetter(1))
+        d.addCallback(self._parse_acl)
+        return d
 
     def put_request_payment(self, bucket, payer):
         """
@@ -453,11 +550,13 @@ class S3Client(BaseClient):
         @return: A C{Deferred} that will fire with the result of the request.
         """
         data = RequestPayment(payer).to_xml()
-        query = self.query_factory(
-            action="PUT", creds=self.creds, endpoint=self.endpoint,
-            bucket=bucket, object_name="?requestPayment", data=data,
-            receiver_factory=self.receiver_factory)
-        return query.submit()
+        details = self._details(
+            method=b"PUT",
+            url_context=self._url_context(bucket=bucket, object_name="?requestPayment"),
+            body=data,
+        )
+        d = self._submit(self._query_factory(details))
+        return d
 
     def get_request_payment(self, bucket):
         """
@@ -466,13 +565,15 @@ class S3Client(BaseClient):
         @param bucket: The name of the bucket.
         @return: A C{Deferred} that will fire with the name of the payer.
         """
-        query = self.query_factory(
-            action="GET", creds=self.creds, endpoint=self.endpoint,
-            bucket=bucket, object_name="?requestPayment",
-            receiver_factory=self.receiver_factory)
-        return query.submit().addCallback(self._parse_get_request_payment)
+        details = self._details(
+            method=b"GET",
+            url_context=self._url_context(bucket=bucket, object_name="?requestPayment"),
+        )
+        d = self._submit(self._query_factory(details))
+        d.addCallback(self._parse_get_request_payment)
+        return d
 
-    def _parse_get_request_payment(self, xml_bytes):
+    def _parse_get_request_payment(self, (response, xml_bytes)):
         """
         Parse a C{RequestPaymentConfiguration} XML document and extract the
         payer.
@@ -492,13 +593,17 @@ class S3Client(BaseClient):
         @return: C{str} upload_id
         """
         objectname_plus = '%s?uploads' % object_name
-        query = self.query_factory(
-            action="POST", creds=self.creds, endpoint=self.endpoint,
-            bucket=bucket, object_name=objectname_plus, data='',
-            content_type=content_type, amz_headers=amz_headers,
-            metadata=metadata)
-        d = query.submit()
-        return d.addCallback(MultipartInitiationResponse.from_xml)
+        details = self._details(
+            method=b"POST",
+            url_context=self._url_context(bucket=bucket, object_name=objectname_plus),
+            headers=self._headers(content_type),
+            metadata=metadata,
+            amz_headers=amz_headers,
+        )
+        d = self._submit(self._query_factory(details))
+        d.addCallback(itemgetter(1))
+        d.addCallback(MultipartInitiationResponse.from_xml)
+        return d
 
     def upload_part(self, bucket, object_name, upload_id, part_number,
                     data=None, content_type=None, metadata={},
@@ -519,13 +624,16 @@ class S3Client(BaseClient):
         """
         parms = 'partNumber=%s&uploadId=%s' % (str(part_number), upload_id)
         objectname_plus = '%s?%s' % (object_name, parms)
-        query = self.query_factory(
-            action="PUT", creds=self.creds, endpoint=self.endpoint,
-            bucket=bucket, object_name=objectname_plus, data=data,
-            content_type=content_type, metadata=metadata,
-            body_producer=body_producer, receiver_factory=self.receiver_factory)
-        d = query.submit()
-        return d.addCallback(query.get_response_headers)
+        details = self._details(
+            method=b"PUT",
+            url_context=self._url_context(bucket=bucket, object_name=objectname_plus),
+            headers=self._headers(content_type),
+            metadata=metadata,
+            body=data,
+        )
+        d = self._submit(self._query_factory(details))
+        d.addCallback(lambda (response, data): _to_dict(response.responseHeaders))
+        return d
 
     def complete_multipart_upload(self, bucket, object_name, upload_id,
                                   parts_list, content_type=None, metadata={}):
@@ -545,13 +653,18 @@ class S3Client(BaseClient):
         """
         data = self._build_complete_multipart_upload_xml(parts_list)
         objectname_plus = '%s?uploadId=%s' % (object_name, upload_id)
-        query = self.query_factory(
-            action="POST", creds=self.creds, endpoint=self.endpoint,
-            bucket=bucket, object_name=objectname_plus, data=data,
-            content_type=content_type, metadata=metadata)
-        d = query.submit()
+        details = self._details(
+            method=b"POST",
+            url_context=self._url_context(bucket=bucket, object_name=objectname_plus),
+            headers=self._headers(content_type),
+            metadata=metadata,
+            body=data,
+        )
+        d = self._submit(self._query_factory(details))
         # TODO - handle error responses
-        return d.addCallback(MultipartCompletionResponse.from_xml)
+        d.addCallback(itemgetter(1))
+        d.addCallback(MultipartCompletionResponse.from_xml)
+        return d
 
     def _build_complete_multipart_upload_xml(self, parts_list):
         xml = []
@@ -638,7 +751,7 @@ class Query(BaseQuery):
             headers["Authorization"] = self.sign(
                 headers,
                 self.data,
-                URLContext(self.endpoint, self.bucket, self.object_name),
+                s3_url_context(self.endpoint, self.bucket, self.object_name),
                 instant,
                 method=self.action)
         return headers
@@ -646,11 +759,11 @@ class Query(BaseQuery):
     def sign(self, headers, data, url_context, instant, method,
              region=REGION_US_EAST_1):
         """Sign this query using its built in credentials."""
-        headers["host"] = url_context.get_host()
+        headers["host"] = url_context.get_encoded_host()
 
         request = _auth_v4._CanonicalRequest.from_payload_and_headers(
             method=method,
-            url=url_context.get_path(),
+            url=url_context.get_encoded_path(),
             headers=headers,
             headers_to_sign=('host', 'x-amz-date'),
             payload=data
@@ -669,10 +782,10 @@ class Query(BaseQuery):
         @return: A deferred from get_page
         """
         if not url_context:
-            url_context = URLContext(
+            url_context = s3_url_context(
                 self.endpoint, self.bucket, self.object_name)
         d = self.get_page(
-            url_context.get_url(),
+            url_context.get_encoded_url(),
             method=self.action,
             postdata=self.data,
             headers=self.get_headers(utcnow()),
@@ -680,3 +793,68 @@ class Query(BaseQuery):
             receiver_factory=self.receiver_factory)
 
         return d.addErrback(s3_error_wrapper)
+
+def s3_url_context(service_endpoint, bucket=None, object_name=None):
+    def u(s):
+        return unquote(s).decode("utf-8")
+
+    def p(s):
+        results = []
+        args = s.split(b"&")
+        for a in args:
+            pieces = a.split(b"=")
+            if len(pieces) == 1:
+                results.append((u(pieces[0]),))
+            elif len(pieces) == 2:
+                results.append(tuple(map(u, pieces)))
+            else:
+                raise Exception("oh no")
+        return results
+                
+    query = None
+    path = []
+    if bucket is None:
+        path.append(u"")
+    else:
+        path.append(bucket)
+        if object_name is None:
+            path.append(u"")
+        else:
+            if b"?" in object_name:
+                object_name, query = object_name.split(b"?", 1)
+                query = p(query)
+            object_name_components = object_name.split(b"/")
+            if object_name_components[0] == b"":
+                object_name_components.pop(0)
+            if object_name_components:
+                path.extend(object_name_components)
+            else:
+                path.append(u"")
+    return _S3URLContext(
+        scheme=service_endpoint.scheme.decode("utf-8"),
+        host=service_endpoint.get_host().decode("utf-8"),
+        port=service_endpoint.port,
+        path=path,
+        query=query,
+    )
+
+
+# Backwards compatibility layer.  For deprecation.
+class _S3URLContext(_URLContext):
+    def get_host(self):
+        return self.get_encoded_host()
+
+    def get_path(self):
+        return self.get_encoded_path()
+
+    def get_url(self):
+        return self.get_encoded_url()
+
+
+# Backwards compatibility layer.  For deprecation.
+def URLContext(service_endpoint, bucket=None, object_name=None):
+    args = (service_endpoint,)
+    for s in (bucket, object_name):
+        if s is not None:
+            args += (s.decode("utf-8"),)
+    return s3_url_context(*args)

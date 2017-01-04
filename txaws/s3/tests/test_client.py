@@ -3,24 +3,27 @@ from hashlib import sha256
 import warnings
 from os import environ
 
+from attr import assoc
+
+from twisted.web.http_headers import Headers
 from twisted.internet.defer import succeed
 
 from txaws.credentials import AWSCredentials
-try:
-    from txaws.s3 import client
-except ImportError:
-    skip = ("S3Client couldn't be imported (perhaps because dateutil, "
-            "on which it depends, isn't present)")
+from txaws.client.base import RequestDetails
+from txaws.s3 import client
 from txaws.s3.acls import AccessControlPolicy
 from txaws.s3.model import (RequestPayment, MultipartInitiationResponse,
                             MultipartCompletionResponse)
 from txaws.testing.producers import StringBodyProducer
 from txaws.testing.s3_tests import s3_integration_tests
-from txaws.service import AWSServiceEndpoint, AWSServiceRegion
+from txaws.service import AWSServiceEndpoint, AWSServiceRegion, REGION_US_EAST_1
 from txaws.testing import payload
 from txaws.testing.base import TXAWSTestCase
 from txaws.util import calculate_md5
 
+empty_content_sha256 = {
+    "x-amz-content-sha256": sha256(b"").hexdigest(),
+}
 
 class URLContextTestCase(TXAWSTestCase):
 
@@ -28,37 +31,52 @@ class URLContextTestCase(TXAWSTestCase):
 
     def test_get_host_with_no_bucket(self):
         url_context = client.URLContext(self.endpoint)
-        self.assertEquals(url_context.get_host(), "s3.amazonaws.com")
+        self.assertEquals(url_context.get_host(), b"s3.amazonaws.com")
 
     def test_get_host_with_bucket(self):
         url_context = client.URLContext(self.endpoint, "mystuff")
-        self.assertEquals(url_context.get_host(), "s3.amazonaws.com")
+        self.assertEquals(url_context.get_host(), b"s3.amazonaws.com")
 
     def test_get_path_with_no_bucket(self):
         url_context = client.URLContext(self.endpoint)
-        self.assertEquals(url_context.get_path(), "/")
+        self.assertEquals(url_context.get_path(), b"/")
 
     def test_get_path_with_bucket(self):
         url_context = client.URLContext(self.endpoint, bucket="mystuff")
-        self.assertEquals(url_context.get_path(), "/mystuff/")
+        self.assertEquals(url_context.get_path(), b"/mystuff/")
 
     def test_get_path_with_bucket_and_object(self):
         url_context = client.URLContext(
             self.endpoint, bucket="mystuff", object_name="/images/thing.jpg")
-        self.assertEquals(url_context.get_host(), "s3.amazonaws.com")
-        self.assertEquals(url_context.get_path(), "/mystuff/images/thing.jpg")
+        self.assertEquals(url_context.get_host(), b"s3.amazonaws.com")
+        self.assertEquals(url_context.get_path(), b"/mystuff/images/thing.jpg")
 
     def test_get_path_with_bucket_and_object_without_slash(self):
         url_context = client.URLContext(
             self.endpoint, bucket="mystuff", object_name="images/thing.jpg")
-        self.assertEquals(url_context.get_host(), "s3.amazonaws.com")
-        self.assertEquals(url_context.get_path(), "/mystuff/images/thing.jpg")
+        self.assertEquals(url_context.get_host(), b"s3.amazonaws.com")
+        self.assertEquals(url_context.get_path(), b"/mystuff/images/thing.jpg")
+
+    def test_get_url_with_bucket_and_object_with_resource(self):
+        url_context = client.URLContext(
+            self.endpoint, bucket="mystuff", object_name="thing.jpg?acls")
+        self.assertEquals(
+            url_context.get_url(),
+            b"https://s3.amazonaws.com/mystuff/thing.jpg?acls",
+        )
+
+    def test_get_url_with_bucket_and_query(self):
+        url_context = client.URLContext(
+            self.endpoint, bucket="mystuff", object_name="?max-keys=3")
+        self.assertEquals(
+            url_context.get_url(),
+            b"https://s3.amazonaws.com/mystuff/?max-keys=3",
+        )
 
     def test_get_url_with_custom_endpoint(self):
         endpoint = AWSServiceEndpoint("http://localhost/")
         url_context = client.URLContext(endpoint)
-        self.assertEquals(url_context.endpoint.get_uri(), "http://localhost/")
-        self.assertEquals(url_context.get_url(), "http://localhost/")
+        self.assertEquals(url_context.get_url(), b"http://localhost/")
 
     def test_get_uri_with_endpoint_bucket_and_object(self):
         endpoint = AWSServiceEndpoint("http://localhost/")
@@ -66,18 +84,18 @@ class URLContextTestCase(TXAWSTestCase):
             endpoint, bucket="mydocs", object_name="notes.txt")
         self.assertEquals(
             url_context.get_url(),
-            "http://localhost/mydocs/notes.txt")
+            b"http://localhost/mydocs/notes.txt")
 
     def test_custom_port_endpoint(self):
-        test_uri = 'http://0.0.0.0:12345/'
+        test_uri = b'http://0.0.0.0:12345/'
         endpoint = AWSServiceEndpoint(uri=test_uri)
         self.assertEquals(endpoint.port, 12345)
         self.assertEquals(endpoint.scheme, 'http')
         context = client.URLContext(service_endpoint=endpoint,
                 bucket="foo",
                 object_name="bar")
-        self.assertEquals(context.get_host(), '0.0.0.0')
-        self.assertEquals(context.get_url(), test_uri + 'foo/bar')
+        self.assertEquals(context.get_host(), b'0.0.0.0')
+        self.assertEquals(context.get_url(), test_uri + b'foo/bar')
 
     def test_custom_port_endpoint_https(self):
         test_uri = 'https://0.0.0.0:12345/'
@@ -87,37 +105,47 @@ class URLContextTestCase(TXAWSTestCase):
         context = client.URLContext(service_endpoint=endpoint,
                 bucket="foo",
                 object_name="bar")
-        self.assertEquals(context.get_host(), '0.0.0.0')
-        self.assertEquals(context.get_url(), test_uri + 'foo/bar')
+        self.assertEquals(context.get_host(), b'0.0.0.0')
+        self.assertEquals(context.get_url(), test_uri + b'foo/bar')
 
+
+def mock_query_factory(response_body):
+    class Response(object):
+        responseHeaders = Headers()
+
+    class MockQuery(object):
+        def __init__(self, credentials, details):
+            self.__class__.credentials = credentials
+            self.__class__.details = details
+
+        def submit(self, agent, receiver_factory, utcnow):
+            return succeed((Response(), response_body))
+    return MockQuery
 
 
 class S3ClientTestCase(TXAWSTestCase):
 
     def setUp(self):
         TXAWSTestCase.setUp(self)
-        self.creds = AWSCredentials(
-            access_key="accessKey", secret_key="secretKey")
         self.endpoint = AWSServiceEndpoint()
 
     def test_list_buckets(self):
+        query_factory = mock_query_factory(payload.sample_list_buckets_result)
 
-        class StubQuery(client.Query):
-
-            def __init__(query, action, creds, endpoint,
-                body_producer=None, receiver_factory=None):
-                super(StubQuery, query).__init__(
-                    action=action, creds=creds)
-                self.assertEquals(action, "GET")
-                self.assertEqual(creds.access_key, "foo")
-                self.assertEqual(creds.secret_key, "bar")
-                self.assertEqual(query.bucket, None)
-                self.assertEqual(query.object_name, None)
-                self.assertEqual(query.data, "")
-                self.assertEqual(query.metadata, {})
-
-            def submit(query):
-                return succeed(payload.sample_list_buckets_result)
+        def check_query_args(passthrough):
+            self.assertEqual(query_factory.credentials.access_key, "foo")
+            self.assertEqual(query_factory.credentials.secret_key, "bar")
+            self.assertEqual(
+                RequestDetails(
+                    service=b"s3",
+                    region=REGION_US_EAST_1,
+                    method=b"GET",
+                    url_context=client.s3_url_context(self.endpoint),
+                    amz_headers=empty_content_sha256,
+                ),
+                query_factory.details,
+            )
+            return passthrough
 
         def check_list_buckets(results):
             bucket1, bucket2 = results
@@ -131,51 +159,53 @@ class S3ClientTestCase(TXAWSTestCase):
                 (2006, 2, 3, 16, 41, 58, 4, 34, 0))
 
         creds = AWSCredentials("foo", "bar")
-        s3 = client.S3Client(creds, query_factory=StubQuery)
+        s3 = client.S3Client(creds, query_factory=query_factory)
         d = s3.list_buckets()
-        return d.addCallback(check_list_buckets)
+        d.addCallback(check_query_args)
+        d.addCallback(check_list_buckets)
+        return d
 
     def test_create_bucket(self):
+        query_factory = mock_query_factory(None)
+        def check_query_args(passthrough):
+            self.assertEqual(query_factory.credentials.access_key, "foo")
+            self.assertEqual(query_factory.credentials.secret_key, "bar")
+            self.assertEqual(
+                RequestDetails(
+                    service=b"s3",
+                    region=REGION_US_EAST_1,
+                    method=b"PUT",
+                    url_context=client.s3_url_context(self.endpoint, "mybucket"),
+                    amz_headers=empty_content_sha256,
+                ),
+                query_factory.details,
+            )
 
-        class StubQuery(client.Query):
-
-            def __init__(query, action, creds, endpoint, bucket=None,
-                body_producer=None, receiver_factory=None):
-                super(StubQuery, query).__init__(
-                    action=action, creds=creds, bucket=bucket)
-                self.assertEquals(action, "PUT")
-                self.assertEqual(creds.access_key, "foo")
-                self.assertEqual(creds.secret_key, "bar")
-                self.assertEqual(query.bucket, "mybucket")
-                self.assertEqual(query.object_name, None)
-                self.assertEqual(query.data, "")
-                self.assertEqual(query.metadata, {})
-
-            def submit(query, url_context=None):
-                return succeed(None)
+            return passthrough
 
         creds = AWSCredentials("foo", "bar")
-        s3 = client.S3Client(creds, query_factory=StubQuery)
-        return s3.create_bucket("mybucket")
+        s3 = client.S3Client(creds, query_factory=query_factory)
+        d = s3.create_bucket("mybucket")
+        d.addCallback(check_query_args)
+        return d
 
     def test_get_bucket(self):
+        query_factory = mock_query_factory(payload.sample_get_bucket_result)
 
-        class StubQuery(client.Query):
-
-            def __init__(query, action, creds, endpoint, bucket=None,
-                body_producer=None, receiver_factory=None):
-                super(StubQuery, query).__init__(
-                    action=action, creds=creds, bucket=bucket)
-                self.assertEquals(action, "GET")
-                self.assertEqual(creds.access_key, "foo")
-                self.assertEqual(creds.secret_key, "bar")
-                self.assertEqual(query.bucket, "mybucket")
-                self.assertEqual(query.object_name, None)
-                self.assertEqual(query.data, "")
-                self.assertEqual(query.metadata, {})
-
-            def submit(query, url_context=None):
-                return succeed(payload.sample_get_bucket_result)
+        def check_query_args(passthrough):
+            self.assertEqual(query_factory.credentials.access_key, "foo")
+            self.assertEqual(query_factory.credentials.secret_key, "bar")
+            self.assertEqual(
+                RequestDetails(
+                    service=b"s3",
+                    region=REGION_US_EAST_1,
+                    method=b"GET",
+                    url_context=client.s3_url_context(self.endpoint, "mybucket"),
+                    amz_headers=empty_content_sha256,
+                ),
+                query_factory.details,
+            )
+            return passthrough
 
         def check_results(listing):
             self.assertEquals(listing.name, "mybucket")
@@ -200,26 +230,29 @@ class S3ClientTestCase(TXAWSTestCase):
             self.assertEquals(owner.display_name, "webfile")
 
         creds = AWSCredentials("foo", "bar")
-        s3 = client.S3Client(creds, query_factory=StubQuery)
+        s3 = client.S3Client(creds, query_factory=query_factory)
         d = s3.get_bucket("mybucket")
-        return d.addCallback(check_results)
+        d.addCallback(check_query_args)
+        d.addCallback(check_results)
+        return d
 
     def test_get_bucket_pagination(self):
         """
         L{S3Client.get_bucket} accepts C{marker} and C{max_keys} arguments
         to control pagination of results.
         """
-        class StubQuery(client.Query):
-            def submit(query, url_context):
-                self.assertEqual(
-                    "http:///mybucket/?marker=abcdef&max-keys=42",
-                    url_context.get_url(),
-                )
-                return succeed(payload.sample_get_bucket_result)
+        query_factory = mock_query_factory(payload.sample_get_bucket_result)
+        def check_query_args(passthrough):
+            self.assertEqual(
+                b"http:///mybucket/?marker=abcdef&max-keys=42",
+                query_factory.details.url_context.get_encoded_url(),
+            )
+            return passthrough
 
         creds = AWSCredentials("foo", "bar")
-        s3 = client.S3Client(creds, query_factory=StubQuery)
+        s3 = client.S3Client(creds, query_factory=query_factory)
         d = s3.get_bucket("mybucket", marker="abcdef", max_keys=42)
+        d.addCallback(check_query_args)
         return d
 
     def test_get_bucket_location(self):
@@ -229,34 +262,31 @@ class S3ClientTestCase(TXAWSTestCase):
         and returns a C{Deferred} that requests the bucket's location
         constraint.
         """
-
-        class StubQuery(client.Query):
-
-            def __init__(query, action, creds, endpoint, bucket=None,
-                         object_name=None, body_producer=None,
-                         receiver_factory=None):
-                super(StubQuery, query).__init__(action=action, creds=creds,
-                                                 bucket=bucket,
-                                                 object_name=object_name)
-                self.assertEquals(action, "GET")
-                self.assertEqual(creds.access_key, "foo")
-                self.assertEqual(creds.secret_key, "bar")
-                self.assertEqual(query.bucket, "mybucket")
-                self.assertEqual(query.object_name, "?location")
-                self.assertEqual(query.data, "")
-                self.assertEqual(query.metadata, {})
-                self.assertEqual(query.amz_headers, {})
-
-            def submit(query, url_context=None):
-                return succeed(payload.sample_get_bucket_location_result)
+        query_factory = mock_query_factory(payload.sample_get_bucket_location_result)
+        def check_query_args(passthrough):
+            self.assertEqual(query_factory.credentials.access_key, "foo")
+            self.assertEqual(query_factory.credentials.secret_key, "bar")
+            self.assertEqual(
+                RequestDetails(
+                    service=b"s3",
+                    region=REGION_US_EAST_1,
+                    method=b"GET",
+                    url_context=client.s3_url_context(self.endpoint, "mybucket", "?location"),
+                    amz_headers=empty_content_sha256,
+                ),
+                query_factory.details,
+            )
+            return passthrough
 
         def check_results(location_constraint):
             self.assertEquals(location_constraint, "EU")
 
         creds = AWSCredentials("foo", "bar")
-        s3 = client.S3Client(creds, query_factory=StubQuery)
+        s3 = client.S3Client(creds, query_factory=query_factory)
         d = s3.get_bucket_location("mybucket")
-        return d.addCallback(check_results)
+        d.addCallback(check_query_args)
+        d.addCallback(check_results)
+        return d
 
     def test_get_bucket_lifecycle_multiple_rules(self):
         """
@@ -265,27 +295,21 @@ class S3ClientTestCase(TXAWSTestCase):
         document and returns a C{Deferred} that requests the bucket's lifecycle
         configuration with multiple rules.
         """
-
-        class StubQuery(client.Query):
-
-            def __init__(query, action, creds, endpoint, bucket=None,
-                         object_name=None, body_producer=None,
-                         receiver_factory=None):
-                super(StubQuery, query).__init__(action=action, creds=creds,
-                                                 bucket=bucket,
-                                                 object_name=object_name)
-                self.assertEquals(action, "GET")
-                self.assertEqual(creds.access_key, "foo")
-                self.assertEqual(creds.secret_key, "bar")
-                self.assertEqual(query.bucket, "mybucket")
-                self.assertEqual(query.object_name, "?lifecycle")
-                self.assertEqual(query.data, "")
-                self.assertEqual(query.metadata, {})
-                self.assertEqual(query.amz_headers, {})
-
-            def submit(query, url_context=None):
-                return succeed(payload.
-                    sample_s3_get_bucket_lifecycle_multiple_rules_result)
+        query_factory = mock_query_factory(payload.sample_s3_get_bucket_lifecycle_multiple_rules_result)
+        def check_query_args(passthrough):
+            self.assertEqual(query_factory.credentials.access_key, "foo")
+            self.assertEqual(query_factory.credentials.secret_key, "bar")
+            self.assertEqual(
+                RequestDetails(
+                    service=b"s3",
+                    region=REGION_US_EAST_1,
+                    method=b"GET",
+                    url_context=client.s3_url_context(self.endpoint, "mybucket", "?lifecycle"),
+                    amz_headers=empty_content_sha256,
+                ),
+                query_factory.details,
+            )
+            return passthrough
 
         def check_results(lifecycle_config):
             self.assertTrue(len(lifecycle_config.rules) == 2)
@@ -296,9 +320,11 @@ class S3ClientTestCase(TXAWSTestCase):
             self.assertEquals(rule.expiration, 37)
 
         creds = AWSCredentials("foo", "bar")
-        s3 = client.S3Client(creds, query_factory=StubQuery)
+        s3 = client.S3Client(creds, query_factory=query_factory)
         d = s3.get_bucket_lifecycle("mybucket")
-        return d.addCallback(check_results)
+        d.addCallback(check_query_args)
+        d.addCallback(check_results)
+        return d
 
     def test_get_bucket_lifecycle(self):
         """
@@ -307,26 +333,21 @@ class S3ClientTestCase(TXAWSTestCase):
         document and returns a C{Deferred} that requests the bucket's lifecycle
         configuration.
         """
-
-        class StubQuery(client.Query):
-
-            def __init__(query, action, creds, endpoint, bucket=None,
-                         object_name=None, body_producer=None,
-                         receiver_factory=None):
-                super(StubQuery, query).__init__(action=action, creds=creds,
-                                                 bucket=bucket,
-                                                 object_name=object_name)
-                self.assertEquals(action, "GET")
-                self.assertEqual(creds.access_key, "foo")
-                self.assertEqual(creds.secret_key, "bar")
-                self.assertEqual(query.bucket, "mybucket")
-                self.assertEqual(query.object_name, "?lifecycle")
-                self.assertEqual(query.data, "")
-                self.assertEqual(query.metadata, {})
-                self.assertEqual(query.amz_headers, {})
-
-            def submit(query, url_context=None):
-                return succeed(payload.sample_s3_get_bucket_lifecycle_result)
+        query_factory = mock_query_factory(payload.sample_s3_get_bucket_lifecycle_result)
+        def check_query_args(passthrough):
+            self.assertEqual(query_factory.credentials.access_key, "foo")
+            self.assertEqual(query_factory.credentials.secret_key, "bar")
+            self.assertEqual(
+                RequestDetails(
+                    service=b"s3",
+                    region=REGION_US_EAST_1,
+                    method=b"GET",
+                    url_context=client.s3_url_context(self.endpoint, "mybucket", "?lifecycle"),
+                    amz_headers=empty_content_sha256,
+                ),
+                query_factory.details,
+            )
+            return passthrough
 
         def check_results(lifecycle_config):
             rule = lifecycle_config.rules[0]
@@ -336,9 +357,11 @@ class S3ClientTestCase(TXAWSTestCase):
             self.assertEquals(rule.expiration, 30)
 
         creds = AWSCredentials("foo", "bar")
-        s3 = client.S3Client(creds, query_factory=StubQuery)
+        s3 = client.S3Client(creds, query_factory=query_factory)
         d = s3.get_bucket_lifecycle("mybucket")
-        return d.addCallback(check_results)
+        d.addCallback(check_query_args)
+        d.addCallback(check_results)
+        return d
 
     def test_get_bucket_website_config(self):
         """
@@ -347,36 +370,32 @@ class S3ClientTestCase(TXAWSTestCase):
         C{WebsiteConfiguration} XML document and returns a C{Deferred} that
         requests the bucket's website configuration.
         """
-
-        class StubQuery(client.Query):
-
-            def __init__(query, action, creds, endpoint, bucket=None,
-                         object_name=None, body_producer=None,
-                         receiver_factory=None):
-                super(StubQuery, query).__init__(action=action, creds=creds,
-                                                 bucket=bucket,
-                                                 object_name=object_name)
-                self.assertEquals(action, "GET")
-                self.assertEqual(creds.access_key, "foo")
-                self.assertEqual(creds.secret_key, "bar")
-                self.assertEqual(query.bucket, "mybucket")
-                self.assertEqual(query.object_name, "?website")
-                self.assertEqual(query.data, "")
-                self.assertEqual(query.metadata, {})
-                self.assertEqual(query.amz_headers, {})
-
-            def submit(query, url_context=None):
-                return succeed(payload.
-                    sample_s3_get_bucket_website_no_error_result)
+        query_factory = mock_query_factory(payload.sample_s3_get_bucket_website_no_error_result)
+        def check_query_args(passthrough):
+            self.assertEqual(query_factory.credentials.access_key, "foo")
+            self.assertEqual(query_factory.credentials.secret_key, "bar")
+            self.assertEqual(
+                RequestDetails(
+                    service=b"s3",
+                    region=REGION_US_EAST_1,
+                    method=b"GET",
+                    url_context=client.s3_url_context(self.endpoint, "mybucket", "?website"),
+                    amz_headers=empty_content_sha256,
+                ),
+                query_factory.details,
+            )
+            return passthrough
 
         def check_results(website_config):
             self.assertEquals(website_config.index_suffix, "index.html")
             self.assertEquals(website_config.error_key, None)
 
         creds = AWSCredentials("foo", "bar")
-        s3 = client.S3Client(creds, query_factory=StubQuery)
+        s3 = client.S3Client(creds, query_factory=query_factory)
         d = s3.get_bucket_website_config("mybucket")
-        return d.addCallback(check_results)
+        d.addCallback(check_query_args)
+        d.addCallback(check_results)
+        return d
 
     def test_get_bucket_website_config_with_error_doc(self):
         """
@@ -385,35 +404,32 @@ class S3ClientTestCase(TXAWSTestCase):
         C{WebsiteConfiguration} XML document and returns a C{Deferred} that
         requests the bucket's website configuration with the error document.
         """
-
-        class StubQuery(client.Query):
-
-            def __init__(query, action, creds, endpoint, bucket=None,
-                         object_name=None, body_producer=None,
-                         receiver_factory=None):
-                super(StubQuery, query).__init__(action=action, creds=creds,
-                                                 bucket=bucket,
-                                                 object_name=object_name)
-                self.assertEquals(action, "GET")
-                self.assertEqual(creds.access_key, "foo")
-                self.assertEqual(creds.secret_key, "bar")
-                self.assertEqual(query.bucket, "mybucket")
-                self.assertEqual(query.object_name, "?website")
-                self.assertEqual(query.data, "")
-                self.assertEqual(query.metadata, {})
-                self.assertEqual(query.amz_headers, {})
-
-            def submit(query, url_context=None):
-                return succeed(payload.sample_s3_get_bucket_website_result)
+        query_factory = mock_query_factory(payload.sample_s3_get_bucket_website_result)
+        def check_query_args(passthrough):
+            self.assertEqual(query_factory.credentials.access_key, "foo")
+            self.assertEqual(query_factory.credentials.secret_key, "bar")
+            self.assertEqual(
+                RequestDetails(
+                    service=b"s3",
+                    region=REGION_US_EAST_1,
+                    method=b"GET",
+                    url_context=client.s3_url_context(self.endpoint, "mybucket", "?website"),
+                    amz_headers=empty_content_sha256,
+                ),
+                query_factory.details,
+            )
+            return passthrough
 
         def check_results(website_config):
             self.assertEquals(website_config.index_suffix, "index.html")
             self.assertEquals(website_config.error_key, "404.html")
 
         creds = AWSCredentials("foo", "bar")
-        s3 = client.S3Client(creds, query_factory=StubQuery)
+        s3 = client.S3Client(creds, query_factory=query_factory)
         d = s3.get_bucket_website_config("mybucket")
-        return d.addCallback(check_results)
+        d.addCallback(check_query_args)
+        d.addCallback(check_results)
+        return d
 
     def test_get_bucket_notification_config(self):
         """
@@ -422,36 +438,32 @@ class S3ClientTestCase(TXAWSTestCase):
         C{NotificationConfiguration} XML document and returns a C{Deferred}
         that requests the bucket's notification configuration.
         """
-
-        class StubQuery(client.Query):
-
-            def __init__(query, action, creds, endpoint, bucket=None,
-                         object_name=None, body_producer=None,
-                         receiver_factory=None):
-                super(StubQuery, query).__init__(action=action, creds=creds,
-                                                 bucket=bucket,
-                                                 object_name=object_name)
-                self.assertEquals(action, "GET")
-                self.assertEqual(creds.access_key, "foo")
-                self.assertEqual(creds.secret_key, "bar")
-                self.assertEqual(query.bucket, "mybucket")
-                self.assertEqual(query.object_name, "?notification")
-                self.assertEqual(query.data, "")
-                self.assertEqual(query.metadata, {})
-                self.assertEqual(query.amz_headers, {})
-
-            def submit(query, url_context=None):
-                return succeed(payload.
-                               sample_s3_get_bucket_notification_result)
+        query_factory = mock_query_factory(payload.sample_s3_get_bucket_notification_result)
+        def check_query_args(passthrough):
+            self.assertEqual(query_factory.credentials.access_key, "foo")
+            self.assertEqual(query_factory.credentials.secret_key, "bar")
+            self.assertEqual(
+                RequestDetails(
+                    service=b"s3",
+                    region=REGION_US_EAST_1,
+                    method=b"GET",
+                    url_context=client.s3_url_context(self.endpoint, "mybucket", "?notification"),
+                    amz_headers=empty_content_sha256,
+                ),
+                query_factory.details,
+            )
+            return passthrough
 
         def check_results(notification_config):
             self.assertEquals(notification_config.topic, None)
             self.assertEquals(notification_config.event, None)
 
         creds = AWSCredentials("foo", "bar")
-        s3 = client.S3Client(creds, query_factory=StubQuery)
+        s3 = client.S3Client(creds, query_factory=query_factory)
         d = s3.get_bucket_notification_config("mybucket")
-        return d.addCallback(check_results)
+        d.addCallback(check_query_args)
+        d.addCallback(check_results)
+        return d
 
     def test_get_bucket_notification_config_with_topic(self):
         """
@@ -460,28 +472,22 @@ class S3ClientTestCase(TXAWSTestCase):
         C{NotificationConfiguration} XML document and returns a C{Deferred}
         that requests the bucket's notification configuration with a topic.
         """
-
-        class StubQuery(client.Query):
-
-            def __init__(query, action, creds, endpoint, bucket=None,
-                         object_name=None, body_producer=None,
-                         receiver_factory=None):
-                super(StubQuery, query).__init__(action=action, creds=creds,
-                                                 bucket=bucket,
-                                                 object_name=object_name)
-                self.assertEquals(action, "GET")
-                self.assertEqual(creds.access_key, "foo")
-                self.assertEqual(creds.secret_key, "bar")
-                self.assertEqual(query.bucket, "mybucket")
-                self.assertEqual(query.object_name, "?notification")
-                self.assertEqual(query.data, "")
-                self.assertEqual(query.metadata, {})
-                self.assertEqual(query.amz_headers, {})
-
-            def submit(query, url_context=None):
-                return succeed(
-                    payload.
-                        sample_s3_get_bucket_notification_with_topic_result)
+        query_factory = mock_query_factory(payload.sample_s3_get_bucket_notification_with_topic_result)
+        def check_query_args(passthrough):
+            self.assertEqual(query_factory.credentials.access_key, "foo")
+            self.assertEqual(query_factory.credentials.secret_key, "bar")
+            self.assertEqual(
+                RequestDetails(
+                    service=b"s3",
+                    region=REGION_US_EAST_1,
+                    method=b"GET",
+                    url_context=client.s3_url_context(self.endpoint, "mybucket", "?notification"),
+                    amz_headers=empty_content_sha256,
+                ),
+                query_factory.details,
+            )
+            return passthrough
+                        
 
         def check_results(notification_config):
             self.assertEquals(notification_config.topic,
@@ -490,9 +496,11 @@ class S3ClientTestCase(TXAWSTestCase):
                               "s3:ReducedRedundancyLostObject")
 
         creds = AWSCredentials("foo", "bar")
-        s3 = client.S3Client(creds, query_factory=StubQuery)
+        s3 = client.S3Client(creds, query_factory=query_factory)
         d = s3.get_bucket_notification_config("mybucket")
-        return d.addCallback(check_results)
+        d.addCallback(check_query_args)
+        d.addCallback(check_results)
+        return d
 
     def test_get_bucket_versioning_config(self):
         """
@@ -501,34 +509,31 @@ class S3ClientTestCase(TXAWSTestCase):
         C{VersioningConfiguration} XML document and returns a C{Deferred} that
         requests the bucket's versioning configuration.
         """
-
-        class StubQuery(client.Query):
-
-            def __init__(query, action, creds, endpoint, bucket=None,
-                         object_name=None, body_producer=None,
-                         receiver_factory=None):
-                super(StubQuery, query).__init__(action=action, creds=creds,
-                                                 bucket=bucket,
-                                                 object_name=object_name)
-                self.assertEquals(action, "GET")
-                self.assertEqual(creds.access_key, "foo")
-                self.assertEqual(creds.secret_key, "bar")
-                self.assertEqual(query.bucket, "mybucket")
-                self.assertEqual(query.object_name, "?versioning")
-                self.assertEqual(query.data, "")
-                self.assertEqual(query.metadata, {})
-                self.assertEqual(query.amz_headers, {})
-
-            def submit(query, url_context=None):
-                return succeed(payload.sample_s3_get_bucket_versioning_result)
+        query_factory = mock_query_factory(payload.sample_s3_get_bucket_versioning_result)
+        def check_query_args(passthrough):
+            self.assertEqual(query_factory.credentials.access_key, "foo")
+            self.assertEqual(query_factory.credentials.secret_key, "bar")
+            self.assertEqual(
+                RequestDetails(
+                    service=b"s3",
+                    region=REGION_US_EAST_1,
+                    method=b"GET",
+                    url_context=client.s3_url_context(self.endpoint, "mybucket", "?versioning"),
+                    amz_headers=empty_content_sha256,
+                ),
+                query_factory.details,
+            )
+            return passthrough
 
         def check_results(versioning_config):
             self.assertEquals(versioning_config.status, None)
 
         creds = AWSCredentials("foo", "bar")
-        s3 = client.S3Client(creds, query_factory=StubQuery)
+        s3 = client.S3Client(creds, query_factory=query_factory)
         d = s3.get_bucket_versioning_config("mybucket")
-        return d.addCallback(check_results)
+        d.addCallback(check_query_args)
+        d.addCallback(check_results)
+        return d
 
     def test_get_bucket_versioning_config_enabled(self):
         """
@@ -538,35 +543,31 @@ class S3ClientTestCase(TXAWSTestCase):
         requests the bucket's versioning configuration that has a enabled
         C{Status}.
         """
-
-        class StubQuery(client.Query):
-
-            def __init__(query, action, creds, endpoint, bucket=None,
-                         object_name=None, body_producer=None,
-                         receiver_factory=None):
-                super(StubQuery, query).__init__(action=action, creds=creds,
-                                                 bucket=bucket,
-                                                 object_name=object_name)
-                self.assertEquals(action, "GET")
-                self.assertEqual(creds.access_key, "foo")
-                self.assertEqual(creds.secret_key, "bar")
-                self.assertEqual(query.bucket, "mybucket")
-                self.assertEqual(query.object_name, "?versioning")
-                self.assertEqual(query.data, "")
-                self.assertEqual(query.metadata, {})
-                self.assertEqual(query.amz_headers, {})
-
-            def submit(query, url_context=None):
-                return succeed(payload.
-                               sample_s3_get_bucket_versioning_enabled_result)
+        query_factory = mock_query_factory(payload.sample_s3_get_bucket_versioning_enabled_result)
+        def check_query_args(passthrough):
+            self.assertEqual(query_factory.credentials.access_key, "foo")
+            self.assertEqual(query_factory.credentials.secret_key, "bar")
+            self.assertEqual(
+                RequestDetails(
+                    service=b"s3",
+                    region=REGION_US_EAST_1,
+                    method=b"GET",
+                    url_context=client.s3_url_context(self.endpoint, "mybucket", "?versioning"),
+                    amz_headers=empty_content_sha256,
+                ),
+                query_factory.details,
+            )
+            return passthrough
 
         def check_results(versioning_config):
             self.assertEquals(versioning_config.status, 'Enabled')
 
         creds = AWSCredentials("foo", "bar")
-        s3 = client.S3Client(creds, query_factory=StubQuery)
+        s3 = client.S3Client(creds, query_factory=query_factory)
         d = s3.get_bucket_versioning_config("mybucket")
-        return d.addCallback(check_results)
+        d.addCallback(check_query_args)
+        d.addCallback(check_results)
+        return d
 
     def test_get_bucket_versioning_config_mfa_disabled(self):
         """
@@ -576,120 +577,110 @@ class S3ClientTestCase(TXAWSTestCase):
         requests the bucket's versioning configuration that has a disabled
         C{MfaDelete}.
         """
-
-        class StubQuery(client.Query):
-
-            def __init__(query, action, creds, endpoint, bucket=None,
-                         object_name=None, body_producer=None,
-                         receiver_factory=None):
-                super(StubQuery, query).__init__(action=action, creds=creds,
-                                                 bucket=bucket,
-                                                 object_name=object_name)
-                self.assertEquals(action, "GET")
-                self.assertEqual(creds.access_key, "foo")
-                self.assertEqual(creds.secret_key, "bar")
-                self.assertEqual(query.bucket, "mybucket")
-                self.assertEqual(query.object_name, "?versioning")
-                self.assertEqual(query.data, "")
-                self.assertEqual(query.metadata, {})
-                self.assertEqual(query.amz_headers, {})
-
-            def submit(query, url_context=None):
-                return succeed(
-                    payload.
-                        sample_s3_get_bucket_versioning_mfa_disabled_result)
+        query_factory = mock_query_factory(payload.sample_s3_get_bucket_versioning_mfa_disabled_result)
+        def check_query_args(passthrough):
+            self.assertEqual(query_factory.credentials.access_key, "foo")
+            self.assertEqual(query_factory.credentials.secret_key, "bar")
+            self.assertEqual(
+                RequestDetails(
+                    service=b"s3",
+                    region=REGION_US_EAST_1,
+                    method=b"GET",
+                    url_context=client.s3_url_context(self.endpoint, "mybucket", "?versioning"),
+                    amz_headers=empty_content_sha256,
+                ),
+                query_factory.details,
+            )
+            return passthrough
 
         def check_results(versioning_config):
             self.assertEquals(versioning_config.mfa_delete, 'Disabled')
 
         creds = AWSCredentials("foo", "bar")
-        s3 = client.S3Client(creds, query_factory=StubQuery)
+        s3 = client.S3Client(creds, query_factory=query_factory)
         d = s3.get_bucket_versioning_config("mybucket")
-        return d.addCallback(check_results)
+        d.addCallback(check_query_args)
+        d.addCallback(check_results)
+        return d
 
     def test_delete_bucket(self):
-
-        class StubQuery(client.Query):
-
-            def __init__(query, action, creds, endpoint, bucket=None,
-                body_producer=None, receiver_factory=None):
-                super(StubQuery, query).__init__(
-                    action=action, creds=creds, bucket=bucket)
-                self.assertEquals(action, "DELETE")
-                self.assertEqual(creds.access_key, "foo")
-                self.assertEqual(creds.secret_key, "bar")
-                self.assertEqual(query.bucket, "mybucket")
-                self.assertEqual(query.object_name, None)
-                self.assertEqual(query.data, "")
-                self.assertEqual(query.metadata, {})
-
-            def submit(query, url_context=None):
-                return succeed(None)
+        query_factory = mock_query_factory(None)
+        def check_query_args(passthrough):
+            self.assertEqual(query_factory.credentials.access_key, "foo")
+            self.assertEqual(query_factory.credentials.secret_key, "bar")
+            self.assertEqual(
+                RequestDetails(
+                    service=b"s3",
+                    region=REGION_US_EAST_1,
+                    method=b"DELETE",
+                    url_context=client.s3_url_context(self.endpoint, "mybucket"),
+                    amz_headers=empty_content_sha256,
+                ),
+                query_factory.details,
+            )
+            return passthrough
 
         creds = AWSCredentials("foo", "bar")
-        s3 = client.S3Client(creds, query_factory=StubQuery)
-        return s3.delete_bucket("mybucket")
+        s3 = client.S3Client(creds, query_factory=query_factory)
+        d = s3.delete_bucket("mybucket")
+        d.addCallback(check_query_args)
+        return d
 
     def test_put_bucket_acl(self):
-
-        class StubQuery(client.Query):
-
-            def __init__(query, action, creds, endpoint, bucket=None,
-                         object_name=None, data="", body_producer=None,
-                         receiver_factory=None):
-                super(StubQuery, query).__init__(action=action, creds=creds,
-                                                 bucket=bucket,
-                                                 object_name=object_name,
-                    data=data)
-                self.assertEquals(action, "PUT")
-                self.assertEqual(creds.access_key, "foo")
-                self.assertEqual(creds.secret_key, "bar")
-                self.assertEqual(query.bucket, "mybucket")
-                self.assertEqual(query.object_name, "?acl")
-                self.assertEqual(query.data,
-                                 payload.sample_access_control_policy_result)
-                self.assertEqual(query.metadata, {})
-
-            def submit(query, url_context=None):
-                return succeed(payload.sample_access_control_policy_result)
+        query_factory = mock_query_factory(payload.sample_access_control_policy_result)
+        def check_query_args(passthrough):
+            self.assertEqual(query_factory.credentials.access_key, "foo")
+            self.assertEqual(query_factory.credentials.secret_key, "bar")
+            self.assertEqual(
+                RequestDetails(
+                    service=b"s3",
+                    region=REGION_US_EAST_1,
+                    method=b"PUT",
+                    url_context=client.s3_url_context(self.endpoint, "mybucket", "?acl"),
+                    amz_headers=empty_content_sha256,
+                ),
+                query_factory.details,
+            )
+            return passthrough
 
         def check_result(result):
-            self.assert_(isinstance(result, AccessControlPolicy))
+            self.assertIsInstance(result, AccessControlPolicy)
 
         creds = AWSCredentials("foo", "bar")
-        s3 = client.S3Client(creds, query_factory=StubQuery)
+        s3 = client.S3Client(creds, query_factory=query_factory)
         policy = AccessControlPolicy.from_xml(
             payload.sample_access_control_policy_result)
-        return s3.put_bucket_acl("mybucket", policy).addCallback(check_result)
+        d = s3.put_bucket_acl("mybucket", policy)
+        d.addCallback(check_query_args)
+        d.addCallback(check_result)
+        return d
 
     def test_get_bucket_acl(self):
-
-        class StubQuery(client.Query):
-
-            def __init__(query, action, creds, endpoint, bucket=None,
-                         object_name=None, data="", receiver_factory=None,
-                         body_producer=None):
-                super(StubQuery, query).__init__(action=action, creds=creds,
-                                                 bucket=bucket,
-                                                 object_name=object_name,
-                                                 data=data)
-                self.assertEquals(action, "GET")
-                self.assertEqual(creds.access_key, "foo")
-                self.assertEqual(creds.secret_key, "bar")
-                self.assertEqual(query.bucket, "mybucket")
-                self.assertEqual(query.object_name, "?acl")
-                self.assertEqual(query.data, "")
-                self.assertEqual(query.metadata, {})
-
-            def submit(query, url_context=None):
-                return succeed(payload.sample_access_control_policy_result)
+        query_factory = mock_query_factory(payload.sample_access_control_policy_result)
+        def check_query_args(passthrough):
+            self.assertEqual(query_factory.credentials.access_key, "foo")
+            self.assertEqual(query_factory.credentials.secret_key, "bar")
+            self.assertEqual(
+                RequestDetails(
+                    service=b"s3",
+                    region=REGION_US_EAST_1,
+                    method=b"GET",
+                    url_context=client.s3_url_context(self.endpoint, "mybucket", "?acl"),
+                    amz_headers=empty_content_sha256,
+                ),
+                query_factory.details,
+            )
+            return passthrough
 
         def check_result(result):
             self.assert_(isinstance(result, AccessControlPolicy))
 
         creds = AWSCredentials("foo", "bar")
-        s3 = client.S3Client(creds, query_factory=StubQuery)
-        return s3.get_bucket_acl("mybucket").addCallback(check_result)
+        s3 = client.S3Client(creds, query_factory=query_factory)
+        d = s3.get_bucket_acl("mybucket")
+        d.addCallback(check_query_args)
+        d.addCallback(check_result)
+        return d
 
     def test_put_request_payment(self):
         """
@@ -698,34 +689,31 @@ class S3ClientTestCase(TXAWSTestCase):
         and sent to the endpoint and a C{Deferred} is returned that fires with
         the results of the request.
         """
-
-        class StubQuery(client.Query):
-
-            def __init__(query, action, creds, endpoint, bucket=None,
-                object_name=None, data=None, content_type=None,
-                metadata=None, body_producer=None, receiver_factory=None):
-                super(StubQuery, query).__init__(
-                    action=action, creds=creds, bucket=bucket,
-                    object_name=object_name, data=data,
-                    content_type=content_type, metadata=metadata)
-                self.assertEqual(action, "PUT")
-                self.assertEqual(creds.access_key, "foo")
-                self.assertEqual(creds.secret_key, "bar")
-                self.assertEqual(query.bucket, "mybucket")
-                self.assertEqual(query.object_name, "?requestPayment")
-                xml = ("<RequestPaymentConfiguration "
-                         'xmlns="http://s3.amazonaws.com/doc/2006-03-01/">\n'
-                       "  <Payer>Requester</Payer>\n"
-                       "</RequestPaymentConfiguration>")
-                self.assertEqual(query.data, xml)
-                self.assertEqual(query.metadata, None)
-
-            def submit(query):
-                return succeed(None)
+        query_factory = mock_query_factory(None)
+        def check_query_args(passthrough):
+            self.assertEqual(query_factory.credentials.access_key, "foo")
+            self.assertEqual(query_factory.credentials.secret_key, "bar")
+            xml = ("<RequestPaymentConfiguration "
+                   'xmlns="http://s3.amazonaws.com/doc/2006-03-01/">\n'
+                   "  <Payer>Requester</Payer>\n"
+                   "</RequestPaymentConfiguration>")
+            self.assertEqual(
+                RequestDetails(
+                    service=b"s3",
+                    region=REGION_US_EAST_1,
+                    method=b"PUT",
+                    url_context=client.s3_url_context(self.endpoint, "mybucket", "?requestPayment"),
+                    amz_headers={"x-amz-content-sha256": sha256(xml).hexdigest()},
+                ),
+                assoc(query_factory.details, body_producer=None),
+            )
+            return passthrough
 
         creds = AWSCredentials("foo", "bar")
-        s3 = client.S3Client(creds, query_factory=StubQuery)
-        return s3.put_request_payment("mybucket", "Requester")
+        s3 = client.S3Client(creds, query_factory=query_factory)
+        d = s3.put_request_payment("mybucket", "Requester")
+        d.addCallback(check_query_args)
+        return d
 
     def test_get_request_payment(self):
         """
@@ -734,302 +722,282 @@ class S3ClientTestCase(TXAWSTestCase):
         XML document and returns a C{Deferred} that fires with the payer's
         name.
         """
-
-        class StubQuery(client.Query):
-
-            def __init__(query, action, creds, endpoint, bucket=None,
-                object_name=None, data=None, content_type=None,
-                metadata=None, body_producer=None, receiver_factory=None):
-                super(StubQuery, query).__init__(
-                    action=action, creds=creds, bucket=bucket,
-                    object_name=object_name, data=data,
-                    content_type=content_type, metadata=metadata)
-                self.assertEqual(action, "GET")
-                self.assertEqual(creds.access_key, "foo")
-                self.assertEqual(creds.secret_key, "bar")
-                self.assertEqual(query.bucket, "mybucket")
-                self.assertEqual(query.object_name, "?requestPayment")
-                self.assertEqual(query.metadata, None)
-
-            def submit(query):
-                return succeed(payload.sample_request_payment)
+        query_factory = mock_query_factory(payload.sample_request_payment)
+        def check_query_args(passthrough):
+            self.assertEqual(query_factory.credentials.access_key, "foo")
+            self.assertEqual(query_factory.credentials.secret_key, "bar")
+            self.assertEqual(
+                RequestDetails(
+                    service=b"s3",
+                    region=REGION_US_EAST_1,
+                    method=b"GET",
+                    url_context=client.s3_url_context(self.endpoint, "mybucket", "?requestPayment"),
+                    amz_headers=empty_content_sha256,
+                ),
+                query_factory.details,
+            )
+            return passthrough
 
         def check_request_payment(result):
             self.assertEquals(result, "Requester")
 
         creds = AWSCredentials("foo", "bar")
-        s3 = client.S3Client(creds, query_factory=StubQuery)
-        deferred = s3.get_request_payment("mybucket")
-        return deferred.addCallback(check_request_payment)
+        s3 = client.S3Client(creds, query_factory=query_factory)
+        d = s3.get_request_payment("mybucket")
+        d.addCallback(check_query_args)
+        d.addCallback(check_request_payment)
+        return d
 
     def test_put_object(self):
-
-        class StubQuery(client.Query):
-
-            def __init__(query, action, creds, endpoint, bucket=None,
-                object_name=None, data=None, content_type=None,
-                metadata=None, amz_headers=None, body_producer=None,
-                receiver_factory=None):
-                super(StubQuery, query).__init__(
-                    action=action, creds=creds, bucket=bucket,
-                    object_name=object_name, data=data,
-                    content_type=content_type, metadata=metadata,
-                    amz_headers=amz_headers)
-                self.assertEqual(action, "PUT")
-                self.assertEqual(creds.access_key, "foo")
-                self.assertEqual(creds.secret_key, "bar")
-                self.assertEqual(query.bucket, "mybucket")
-                self.assertEqual(query.object_name, "objectname")
-                self.assertEqual(query.data, "some data")
-                self.assertEqual(query.content_type, "text/plain")
-                self.assertEqual(query.metadata, {"key": "some meta data"})
-                self.assertEqual(query.amz_headers, {"acl": "public-read"})
-
-            def submit(query):
-                return succeed(None)
+        query_factory = mock_query_factory(None)
+        def check_query_args(passthrough):
+            self.assertEqual(query_factory.credentials.access_key, "foo")
+            self.assertEqual(query_factory.credentials.secret_key, "bar")
+            self.assertEqual(
+                RequestDetails(
+                    service=b"s3",
+                    region=REGION_US_EAST_1,
+                    method=b"PUT",
+                    url_context=client.s3_url_context(self.endpoint, "mybucket", "objectname"),
+                    headers=Headers({u"content-type": [u"text/plain"]}),
+                    metadata={"key": "some meta data"},
+                    amz_headers={
+                        "acl": "public-read",
+                        "x-amz-content-sha256": sha256(b"some data").hexdigest(),
+                    },
+                ),
+                assoc(query_factory.details, body_producer=None),
+            )
+            return passthrough
 
         creds = AWSCredentials("foo", "bar")
-        s3 = client.S3Client(creds, query_factory=StubQuery)
-        return s3.put_object("mybucket", "objectname", "some data",
-                             content_type="text/plain",
-                             metadata={"key": "some meta data"},
-                             amz_headers={"acl": "public-read"})
+        s3 = client.S3Client(creds, query_factory=query_factory)
+        d = s3.put_object(
+            "mybucket", "objectname", "some data",
+            content_type="text/plain",
+            metadata={"key": "some meta data"},
+            amz_headers={"acl": "public-read"},
+        )
+        d.addCallback(check_query_args)
+        return d
 
     def test_put_object_with_custom_body_producer(self):
-
-        class StubQuery(client.Query):
-
-            def __init__(query, action, creds, endpoint, bucket=None,
-                object_name=None, data=None, content_type=None,
-                metadata=None, amz_headers=None, body_producer=None,
-                receiver_factory=None):
-                super(StubQuery, query).__init__(
-                    action=action, creds=creds, bucket=bucket,
-                    object_name=object_name, data=data,
-                    content_type=content_type, metadata=metadata,
-                    amz_headers=amz_headers, body_producer=body_producer)
-                self.assertEqual(action, "PUT")
-                self.assertEqual(creds.access_key, "foo")
-                self.assertEqual(creds.secret_key, "bar")
-                self.assertEqual(query.bucket, "mybucket")
-                self.assertEqual(query.object_name, "objectname")
-                self.assertEqual(query.content_type, "text/plain")
-                self.assertEqual(query.metadata, {"key": "some meta data"})
-                self.assertEqual(query.amz_headers, {"acl": "public-read"})
-                self.assertIdentical(body_producer, string_producer)
-
-            def submit(query):
-                return succeed(None)
-
+        query_factory = mock_query_factory(None)
+        def check_query_args(passthrough):
+            self.assertEqual(query_factory.credentials.access_key, "foo")
+            self.assertEqual(query_factory.credentials.secret_key, "bar")
+            self.assertEqual(
+                RequestDetails(
+                    service=b"s3",
+                    region=REGION_US_EAST_1,
+                    method=b"PUT",
+                    url_context=client.s3_url_context(self.endpoint, "mybucket", "objectname"),
+                    headers=Headers({u"content-type": [u"text/plain"]}),
+                    metadata={"key": "some meta data"},
+                    amz_headers={
+                        "acl": "public-read",
+                    },
+                    body_producer=string_producer,
+                ),
+                query_factory.details,
+            )
 
         string_producer = StringBodyProducer("some data")
         creds = AWSCredentials("foo", "bar")
-        s3 = client.S3Client(creds, query_factory=StubQuery)
-        return s3.put_object("mybucket", "objectname",
-                             content_type="text/plain",
-                             metadata={"key": "some meta data"},
-                             amz_headers={"acl": "public-read"},
-                             body_producer=string_producer)
+        s3 = client.S3Client(creds, query_factory=query_factory)
+        d = s3.put_object(
+            "mybucket", "objectname",
+            content_type="text/plain",
+            metadata={"key": "some meta data"},
+            amz_headers={"acl": "public-read"},
+            body_producer=string_producer,
+        )
+        d.addCallback(check_query_args)
+        return d    
 
     def test_copy_object(self):
         """
         L{S3Client.copy_object} creates a L{Query} to copy an object from one
         bucket to another.
         """
-
-        class StubQuery(client.Query):
-
-            def __init__(query, action, creds, endpoint, bucket=None,
-                object_name=None, data=None, content_type=None,
-                metadata=None, amz_headers=None, body_producer=None,
-                receiver_factory=None):
-                super(StubQuery, query).__init__(
-                    action=action, creds=creds, bucket=bucket,
-                    object_name=object_name, data=data,
-                    content_type=content_type, metadata=metadata,
-                    amz_headers=amz_headers)
-                self.assertEqual(action, "PUT")
-                self.assertEqual(creds.access_key, "foo")
-                self.assertEqual(creds.secret_key, "bar")
-                self.assertEqual(query.bucket, "newbucket")
-                self.assertEqual(query.object_name, "newobjectname")
-                self.assertEqual(query.data, None)
-                self.assertEqual(query.content_type, None)
-                self.assertEqual(query.metadata, {"key": "some meta data"})
-                self.assertEqual(query.amz_headers,
-                                 {"copy-source": "/mybucket/objectname"})
-
-            def submit(query):
-                return succeed(None)
+        query_factory = mock_query_factory(None)
+        def check_query_args(passthrough):
+            self.assertEqual(query_factory.credentials.access_key, "foo")
+            self.assertEqual(query_factory.credentials.secret_key, "bar")
+            self.assertEqual(
+                RequestDetails(
+                    service=b"s3",
+                    region=REGION_US_EAST_1,
+                    method=b"PUT",
+                    url_context=client.s3_url_context(self.endpoint, "newbucket", "newobjectname"),
+                    metadata={"key": "some meta data"},
+                    amz_headers={
+                        "copy-source": "/mybucket/objectname",
+                        "x-amz-content-sha256": sha256(b"").hexdigest(),
+                    },
+                ),
+                query_factory.details,
+            )
+            return passthrough
 
         creds = AWSCredentials("foo", "bar")
-        s3 = client.S3Client(creds, query_factory=StubQuery)
-        return s3.copy_object("mybucket", "objectname", "newbucket",
-                              "newobjectname",
-                              metadata={"key": "some meta data"})
+        s3 = client.S3Client(creds, query_factory=query_factory)
+        d = s3.copy_object(
+            "mybucket", "objectname", "newbucket",
+            "newobjectname",
+            metadata={"key": "some meta data"},
+        )
+        d.addCallback(check_query_args)
+        return d
 
     def test_get_object(self):
-
-        class StubQuery(client.Query):
-
-            def __init__(query, action, creds, endpoint, bucket=None,
-                object_name=None, data=None, content_type=None,
-                metadata=None, amz_headers=None, body_producer=None,
-                receiver_factory=None):
-                super(StubQuery, query).__init__(
-                    action=action, creds=creds, bucket=bucket,
-                    object_name=object_name, data=data,
-                    content_type=content_type, metadata=metadata)
-                self.assertEqual(action, "GET")
-                self.assertEqual(creds.access_key, "foo")
-                self.assertEqual(creds.secret_key, "bar")
-                self.assertEqual(query.bucket, "mybucket")
-                self.assertEqual(query.object_name, "objectname")
-
-            def submit(query):
-                return succeed(None)
+        query_factory = mock_query_factory(None)
+        def check_query_args(passthrough):
+            self.assertEqual(query_factory.credentials.access_key, "foo")
+            self.assertEqual(query_factory.credentials.secret_key, "bar")
+            self.assertEqual(
+                RequestDetails(
+                    service=b"s3",
+                    region=REGION_US_EAST_1,
+                    method=b"GET",
+                    url_context=client.s3_url_context(self.endpoint, "mybucket", "objectname"),
+                    amz_headers=empty_content_sha256,
+                ),
+                query_factory.details,
+            )
+            return passthrough
 
         creds = AWSCredentials("foo", "bar")
-        s3 = client.S3Client(creds, query_factory=StubQuery)
-        return s3.get_object("mybucket", "objectname")
+        s3 = client.S3Client(creds, query_factory=query_factory)
+        d = s3.get_object("mybucket", "objectname")
+        d.addCallback(check_query_args)
+        return d
 
     def test_head_object(self):
-
-        class StubQuery(client.Query):
-
-            def __init__(query, action, creds, endpoint, bucket=None,
-                object_name=None, data=None, content_type=None,
-                metadata=None, body_producer=None, receiver_factory=None):
-                super(StubQuery, query).__init__(
-                    action=action, creds=creds, bucket=bucket,
-                    object_name=object_name, data=data,
-                    content_type=content_type, metadata=metadata)
-                self.assertEqual(action, "HEAD")
-                self.assertEqual(creds.access_key, "foo")
-                self.assertEqual(creds.secret_key, "bar")
-                self.assertEqual(query.bucket, "mybucket")
-                self.assertEqual(query.object_name, "objectname")
-
-            def submit(query):
-                return succeed(None)
+        query_factory = mock_query_factory(None)
+        def check_query_args(passthrough):
+            self.assertEqual(query_factory.credentials.access_key, "foo")
+            self.assertEqual(query_factory.credentials.secret_key, "bar")
+            self.assertEqual(
+                RequestDetails(
+                    service=b"s3",
+                    region=REGION_US_EAST_1,
+                    method=b"HEAD",
+                    url_context=client.s3_url_context(self.endpoint, "mybucket", "objectname"),
+                    amz_headers=empty_content_sha256,
+                ),
+                query_factory.details,
+            )
+            return passthrough
 
         creds = AWSCredentials("foo", "bar")
-        s3 = client.S3Client(creds, query_factory=StubQuery)
-        return s3.head_object("mybucket", "objectname")
+        s3 = client.S3Client(creds, query_factory=query_factory)
+        d = s3.head_object("mybucket", "objectname")
+        d.addCallback(check_query_args)
+        return d
 
     def test_delete_object(self):
-
-        class StubQuery(client.Query):
-
-            def __init__(query, action, creds, endpoint, bucket=None,
-                object_name=None, data=None, content_type=None,
-                metadata=None, body_producer=None, receiver_factory=None):
-                super(StubQuery, query).__init__(
-                    action=action, creds=creds, bucket=bucket,
-                    object_name=object_name, data=data,
-                    content_type=content_type, metadata=metadata)
-                self.assertEqual(action, "DELETE")
-                self.assertEqual(creds.access_key, "foo")
-                self.assertEqual(creds.secret_key, "bar")
-                self.assertEqual(query.bucket, "mybucket")
-                self.assertEqual(query.object_name, "objectname")
-
-            def submit(query):
-                return succeed(None)
+        query_factory = mock_query_factory(None)
+        def check_query_args(passthrough):
+            self.assertEqual(query_factory.credentials.access_key, "foo")
+            self.assertEqual(query_factory.credentials.secret_key, "bar")
+            self.assertEqual(
+                RequestDetails(
+                    service=b"s3",
+                    region=REGION_US_EAST_1,
+                    method=b"DELETE",
+                    url_context=client.s3_url_context(self.endpoint, "mybucket", "objectname"),
+                    amz_headers=empty_content_sha256,
+                ),
+                query_factory.details,
+            )
+            return passthrough
 
         creds = AWSCredentials("foo", "bar")
-        s3 = client.S3Client(creds, query_factory=StubQuery)
-        return s3.delete_object("mybucket", "objectname")
+        s3 = client.S3Client(creds, query_factory=query_factory)
+        d = s3.delete_object("mybucket", "objectname")
+        d.addCallback(check_query_args)
+        return d
 
     def test_put_object_acl(self):
-
-        class StubQuery(client.Query):
-
-            def __init__(query, action, creds, endpoint, bucket=None,
-                         object_name=None, data="", body_producer=None,
-                         receiver_factory=None):
-                super(StubQuery, query).__init__(action=action, creds=creds,
-                                                 bucket=bucket,
-                                                 object_name=object_name,
-                                                 data=data)
-                self.assertEquals(action, "PUT")
-                self.assertEqual(creds.access_key, "foo")
-                self.assertEqual(creds.secret_key, "bar")
-                self.assertEqual(query.bucket, "mybucket")
-                self.assertEqual(query.object_name, "myobject?acl")
-                self.assertEqual(query.data,
-                                 payload.sample_access_control_policy_result)
-                self.assertEqual(query.metadata, {})
-                self.assertEqual(query.metadata, {})
-
-            def submit(query, url_context=None):
-                return succeed(payload.sample_access_control_policy_result)
+        query_factory = mock_query_factory(payload.sample_access_control_policy_result)
+        def check_query_args(passthrough):
+            self.assertEqual(query_factory.credentials.access_key, "foo")
+            self.assertEqual(query_factory.credentials.secret_key, "bar")
+            self.assertEqual(
+                RequestDetails(
+                    service=b"s3",
+                    region=REGION_US_EAST_1,
+                    method=b"PUT",
+                    url_context=client.s3_url_context(self.endpoint, "mybucket", "myobject?acl"),
+                    amz_headers={
+                        "x-amz-content-sha256": sha256(payload.sample_access_control_policy_result).hexdigest(),
+                    },
+                ),
+                assoc(query_factory.details, body_producer=None),
+            )
+            return passthrough
 
         def check_result(result):
-            self.assert_(isinstance(result, AccessControlPolicy))
+            self.assertIsInstance(result, AccessControlPolicy)
 
         creds = AWSCredentials("foo", "bar")
-        s3 = client.S3Client(creds, query_factory=StubQuery)
+        s3 = client.S3Client(creds, query_factory=query_factory)
         policy = AccessControlPolicy.from_xml(
             payload.sample_access_control_policy_result)
-        deferred = s3.put_object_acl("mybucket", "myobject", policy)
-        return deferred.addCallback(check_result)
+        d = s3.put_object_acl("mybucket", "myobject", policy)
+        d.addCallback(check_query_args)
+        d.addCallback(check_result)
+        return d
 
     def test_get_object_acl(self):
-
-        class StubQuery(client.Query):
-
-            def __init__(query, action, creds, endpoint, bucket=None,
-                         object_name=None, data="", body_producer=None,
-                         receiver_factory=None):
-                super(StubQuery, query).__init__(action=action, creds=creds,
-                                                 bucket=bucket,
-                                                 object_name=object_name,
-                                                 data=data)
-                self.assertEquals(action, "GET")
-                self.assertEqual(creds.access_key, "foo")
-                self.assertEqual(creds.secret_key, "bar")
-                self.assertEqual(query.bucket, "mybucket")
-                self.assertEqual(query.object_name, "myobject?acl")
-                self.assertEqual(query.data, "")
-                self.assertEqual(query.metadata, {})
-
-            def submit(query, url_context=None):
-                return succeed(payload.sample_access_control_policy_result)
+        query_factory = mock_query_factory(payload.sample_access_control_policy_result)
+        def check_query_args(passthrough):
+            self.assertEqual(query_factory.credentials.access_key, "foo")
+            self.assertEqual(query_factory.credentials.secret_key, "bar")
+            self.assertEqual(
+                RequestDetails(
+                    service=b"s3",
+                    region=REGION_US_EAST_1,
+                    method=b"GET",
+                    url_context=client.s3_url_context(self.endpoint, "mybucket", "myobject?acl"),
+                    amz_headers=empty_content_sha256,
+                ),
+                query_factory.details,
+            )
+            return passthrough
 
         def check_result(result):
-            self.assert_(isinstance(result, AccessControlPolicy))
+            self.assertIsInstance(result, AccessControlPolicy)
 
         creds = AWSCredentials("foo", "bar")
-        s3 = client.S3Client(creds, query_factory=StubQuery)
-        deferred = s3.get_object_acl("mybucket", "myobject")
-        return deferred.addCallback(check_result)
+        s3 = client.S3Client(creds, query_factory=query_factory)
+        d = s3.get_object_acl("mybucket", "myobject")
+        d.addCallback(check_query_args)
+        d.addCallback(check_result)
+        return d
 
     def test_init_multipart_upload(self):
-
-        class StubQuery(client.Query):
-
-            def __init__(query, action, creds, endpoint, bucket=None,
-                         object_name=None, data="", body_producer=None,
-                         content_type=None, receiver_factory=None, metadata={},
-                         amz_headers={}):
-                super(StubQuery, query).__init__(action=action, creds=creds,
-                                                 bucket=bucket,
-                                                 amz_headers=amz_headers,
-                                                 object_name=object_name,
-                                                 data=data)
-                self.assertEquals(action, "POST")
-                self.assertEqual(creds.access_key, "foo")
-                self.assertEqual(creds.secret_key, "bar")
-                self.assertEqual(query.bucket, "example-bucket")
-                self.assertEqual(query.object_name, "example-object?uploads")
-                self.assertEqual(query.data, "")
-                self.assertEqual(query.metadata, {})
-                self.assertEqual(query.amz_headers, {"acl": "public"})
-
-            def submit(query, url_context=None):
-                return succeed(payload.sample_s3_init_multipart_upload_result)
-
+        query_factory = mock_query_factory(payload.sample_s3_init_multipart_upload_result)
+        def check_query_args(passthrough):
+            self.assertEqual(query_factory.credentials.access_key, "foo")
+            self.assertEqual(query_factory.credentials.secret_key, "bar")
+            self.assertEqual(
+                RequestDetails(
+                    service=b"s3",
+                    region=REGION_US_EAST_1,
+                    method=b"POST",
+                    url_context=client.s3_url_context(
+                        self.endpoint, "example-bucket", "example-object?uploads",
+                    ),
+                    amz_headers={
+                        "acl": "public",
+                        "x-amz-content-sha256": sha256(b"").hexdigest(),
+                    },
+                ),
+                query_factory.details,
+            )
+            return passthrough
 
         def check_result(result):
             self.assert_(isinstance(result, MultipartInitiationResponse))
@@ -1038,66 +1006,68 @@ class S3ClientTestCase(TXAWSTestCase):
             self.assertEqual(result.upload_id, "deadbeef")
 
         creds = AWSCredentials("foo", "bar")
-        s3 = client.S3Client(creds, query_factory=StubQuery)
-        deferred = s3.init_multipart_upload("example-bucket", "example-object",
+        s3 = client.S3Client(creds, query_factory=query_factory)
+        d = s3.init_multipart_upload("example-bucket", "example-object",
             amz_headers={"acl": "public"})
-        return deferred.addCallback(check_result)
+        d.addCallback(check_query_args)
+        d.addCallback(check_result)
+        return d
 
     def test_upload_part(self):
-
-        class StubQuery(client.Query):
-
-            def __init__(query, action, creds, endpoint, bucket=None,
-                         object_name=None, data="", body_producer=None,
-                         content_type=None, receiver_factory=None, metadata={}):
-                super(StubQuery, query).__init__(action=action, creds=creds,
-                                                 bucket=bucket,
-                                                 object_name=object_name,
-                                                 data=data)
-                self.assertEquals(action, "PUT")
-                self.assertEqual(creds.access_key, "foo")
-                self.assertEqual(creds.secret_key, "bar")
-                self.assertEqual(query.bucket, "example-bucket")
-                self.assertEqual(query.object_name,
-                    "example-object?partNumber=3&uploadId=testid")
-                self.assertEqual(query.data, "some data")
-                self.assertEqual(query.metadata, {})
-
-            def submit(query, url_context=None):
-                return succeed(None)
+        query_factory = mock_query_factory(None)
+        def check_query_args(passthrough):
+            self.assertEqual(query_factory.credentials.access_key, "foo")
+            self.assertEqual(query_factory.credentials.secret_key, "bar")
+            self.assertEqual(
+                RequestDetails(
+                    service=b"s3",
+                    region=REGION_US_EAST_1,
+                    method=b"PUT",
+                    url_context=client.s3_url_context(
+                        self.endpoint, "example-bucket", "example-object?partNumber=3&uploadId=testid"
+                    ),
+                    amz_headers={
+                        "x-amz-content-sha256": sha256(b"some data").hexdigest(),
+                    },
+                ),
+                assoc(query_factory.details, body_producer=None),
+            )
+            return passthrough
 
         creds = AWSCredentials("foo", "bar")
-        s3 = client.S3Client(creds, query_factory=StubQuery)
-        return s3.upload_part("example-bucket", "example-object", "testid", 3,
-                              "some data")
+        s3 = client.S3Client(creds, query_factory=query_factory)
+        d = s3.upload_part(
+            "example-bucket", "example-object", "testid", 3, "some data",
+        )
+        d.addCallback(check_query_args)
+        return d
 
     def test_complete_multipart_upload(self):
-
-        class StubQuery(client.Query):
-
-            def __init__(query, action, creds, endpoint, bucket=None,
-                         object_name=None, data="", body_producer=None,
-                         content_type=None, receiver_factory=None, metadata={}):
-                super(StubQuery, query).__init__(action=action, creds=creds,
-                                                 bucket=bucket,
-                                                 object_name=object_name,
-                                                 data=data)
-                self.assertEquals(action, "POST")
-                self.assertEqual(creds.access_key, "foo")
-                self.assertEqual(creds.secret_key, "bar")
-                self.assertEqual(query.bucket, "example-bucket")
-                self.assertEqual(query.object_name,
-                    "example-object?uploadId=testid")
-                self.assertEqual(query.data, "<CompleteMultipartUpload>\n"
-                    "<Part>\n<PartNumber>1</PartNumber>\n<ETag>a</ETag>\n"
-                    "</Part>\n<Part>\n<PartNumber>2</PartNumber>\n"
-                    "<ETag>b</ETag>\n</Part>\n</CompleteMultipartUpload>")
-                self.assertEqual(query.metadata, {})
-
-            def submit(query, url_context=None):
-                return succeed(
-                    payload.sample_s3_complete_multipart_upload_result)
-
+        query_factory = mock_query_factory(payload.sample_s3_complete_multipart_upload_result)
+        def check_query_args(passthrough):
+            self.assertEqual(query_factory.credentials.access_key, "foo")
+            self.assertEqual(query_factory.credentials.secret_key, "bar")
+            xml = (
+                "<CompleteMultipartUpload>\n"
+                "<Part>\n<PartNumber>1</PartNumber>\n<ETag>a</ETag>\n"
+                "</Part>\n<Part>\n<PartNumber>2</PartNumber>\n"
+                "<ETag>b</ETag>\n</Part>\n</CompleteMultipartUpload>"
+            )
+            self.assertEqual(
+                RequestDetails(
+                    service=b"s3",
+                    region=REGION_US_EAST_1,
+                    method=b"POST",
+                    url_context=client.s3_url_context(
+                        self.endpoint, "example-bucket", "example-object?uploadId=testid"
+                    ),
+                    amz_headers={
+                        "x-amz-content-sha256": sha256(xml).hexdigest(),
+                    },
+                ),
+                assoc(query_factory.details, body_producer=None),
+            )
+            return passthrough
 
         def check_result(result):
             self.assert_(isinstance(result, MultipartCompletionResponse))
@@ -1109,11 +1079,15 @@ class S3ClientTestCase(TXAWSTestCase):
                 '"3858f62230ac3c915f300c664312c11f-9"')
 
         creds = AWSCredentials("foo", "bar")
-        s3 = client.S3Client(creds, query_factory=StubQuery)
-        deferred = s3.complete_multipart_upload("example-bucket",
-                                                "example-object",
-                                                "testid", [(1, "a"), (2, "b")])
-        return deferred.addCallback(check_result)
+        s3 = client.S3Client(creds, query_factory=query_factory)
+        d = s3.complete_multipart_upload(
+            "example-bucket",
+            "example-object",
+            "testid", [(1, "a"), (2, "b")]
+        )
+        d.addCallback(check_query_args)
+        d.addCallback(check_result)
+        return d
 
 
 

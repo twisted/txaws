@@ -43,7 +43,7 @@ def _create_canonical_request_fixture():
                              canonical_query_string="qs",
                              canonical_headers="headers",
                              signed_headers=b"signed headers",
-                             payload_hash=b"payload hash")
+                             )
 
 
 def _create_credential_scope_fixture():
@@ -413,7 +413,6 @@ class CanonicalRequestTestCase(unittest.SynchronousTestCase):
             headers={b"header1": b"value1",
                      b"header2": b"value2"},
             headers_to_sign=(b"header1", b"header2"),
-            payload=b"payload"
         )
 
         self.assertEqual(canonical_request.method, "POST")
@@ -425,9 +424,6 @@ class CanonicalRequestTestCase(unittest.SynchronousTestCase):
                          (b"header1:value1\n"
                           b"header2:value2\n"))
         self.assertEqual(canonical_request.signed_headers, "header1;header2")
-        self.assertEqual(canonical_request.payload_hash,
-                         "239f59ed55e737c77147cf55ad0c1b030b6d7ee748a7426952f9"
-                         "b852d5a935e5")
 
 
 class CredentialScopeTestCase(unittest.SynchronousTestCase):
