@@ -91,7 +91,7 @@ class S3Client(BaseClient):
         # It makes no sense to specify both.  That makes it ambiguous
         # what data should make up the request body.
         if body is not None and body_producer is not None:
-            raise ValueError("body and body_producer are mutually exclusive")
+            raise ValueError("data and body_producer are mutually exclusive")
 
         # If the body was specified as a string, we can compute a hash
         # of it and sign the hash along with the rest.  That protects

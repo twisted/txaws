@@ -101,6 +101,16 @@ def s3_integration_tests(get_client):
                 "Expected to not find deleted objects in listing {}".format(objects),
             )
 
+        def test_put_object_errors(self):
+            client = get_client(self)
+            self.assertRaises(
+                ValueError,
+                client.put_object,
+                "bucket", "object",
+                # These two are mutually exclusive.
+                data="asd", body_producer=FileBodyProducer(BytesIO(b"def")),
+            )
+            
         @inlineCallbacks
         def test_put_object(self):
             bucket_name = str(uuid4())
