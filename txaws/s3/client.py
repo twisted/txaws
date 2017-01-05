@@ -19,6 +19,9 @@ import mimetypes
 import warnings
 from operator import itemgetter, attrgetter
 
+from incremental import Version
+
+from twisted.python.deprecate import deprecatedModuleAttribute
 from twisted.web.http import datetimeToString
 from twisted.web.http_headers import Headers
 from twisted.web.client import FileBodyProducer
@@ -864,3 +867,18 @@ def URLContext(service_endpoint, bucket=None, object_name=None):
         if s is not None:
             args += (s.decode("utf-8"),)
     return s3_url_context(*args)
+
+
+deprecatedModuleAttribute(
+    Version("txAWS", 0, 3, 0),
+    "See txaws.s3.client.query",
+    __name__,
+    "Query",
+)
+
+deprecatedModuleAttribute(
+    Version("txAWS", 0, 3, 0),
+    "See txaws.s3.client.s3_url_context",
+    __name__,
+    "URLContext",
+)
