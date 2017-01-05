@@ -126,7 +126,9 @@ class BaseQueryTestCase(TXAWSTestCase):
         self.assertRaises(TypeError, BaseQuery, None)
 
     def test_get_page(self):
-        query = BaseQuery("an action", "creds", "http://endpoint")
+        query = BaseQuery(
+            "an action", "creds", AWSServiceEndpoint("http://endpoint"),
+        )
         d = query.get_page(self._get_url("file"))
         d.addCallback(self.assertEquals, "0123456789")
         return d
@@ -143,7 +145,9 @@ class BaseQueryTestCase(TXAWSTestCase):
             self.assertEquals(results.keys(), [])
             self.assertEquals(results.values(), [])
 
-        query = BaseQuery("an action", "creds", "http://endpoint")
+        query = BaseQuery(
+            "an action", "creds", AWSServiceEndpoint("http://endpoint"),
+        )
         d = query.get_page(self._get_url("file"))
         d.addCallback(query.get_request_headers)
         return d.addCallback(check_results)
@@ -168,13 +172,17 @@ class BaseQueryTestCase(TXAWSTestCase):
                 "Last-Modified", "Server"])
             self.assertEquals(len(results.values()), 5)
 
-        query = BaseQuery("an action", "creds", "http://endpoint")
+        query = BaseQuery(
+            "an action", "creds", AWSServiceEndpoint("http://endpoint"),
+        )
         d = query.get_page(self._get_url("file"))
         d.addCallback(query.get_response_headers)
         return d.addCallback(check_results)
 
     def test_errors(self):
-        query = BaseQuery("an action", "creds", "http://endpoint")
+        query = BaseQuery(
+            "an action", "creds", AWSServiceEndpoint("http://endpoint"),
+        )
         d = query.get_page(self._get_url("not_there"))
         self.assertFailure(d, TwistedWebError)
         return d
@@ -185,8 +193,10 @@ class BaseQueryTestCase(TXAWSTestCase):
             self.assertEqual(producer.written, 'test data')
 
         producer = StringBodyProducer('test data')
-        query = BaseQuery("an action", "creds", "http://endpoint",
-            body_producer=producer)
+        query = BaseQuery(
+            "an action", "creds", AWSServiceEndpoint("http://endpoint"),
+            body_producer=producer,
+        )
         d = query.get_page(self._get_url("thing_to_put"), method='PUT')
         return d.addCallback(check_producer_was_used)
 
@@ -202,8 +212,11 @@ class BaseQueryTestCase(TXAWSTestCase):
         def check_used(ignore):
             self.assert_(TestReceiverProtocol.used)
 
-        query = BaseQuery("an action", "creds", "http://endpoint",
-            receiver_factory=TestReceiverProtocol)
+        query = BaseQuery(
+            "an action", "creds",
+            AWSServiceEndpoint("http://endpoint"),
+            receiver_factory=TestReceiverProtocol,
+        )
         d = query.get_page(self._get_url("file"))
         d.addCallback(self.assertEquals, "0123456789")
         d.addCallback(check_used)
