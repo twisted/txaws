@@ -406,9 +406,14 @@ class _SignableAWS4HMAC256Token(object):
         @return: the HMAC-256 signature.
         @rtype: L{str}
         """
+        serialized = self.serialize()
+        _log.info(
+            u"Signing request {serialized!r}",
+            serialized=serialized,
+        )
         return hmac.new(
             signing_key,
-            self.serialize(),
+            serialized,
             hashlib.sha256,
         ).hexdigest()
 
