@@ -280,6 +280,10 @@ class RequestDetails(object):
     )
     metadata = attr.ib(default=pmap())
     amz_headers = attr.ib(default=pmap())
+    content_sha256 = attr.ib(
+        default=None,
+        validator=validators.optional(validators.instance_of(bytes)),
+    )
 
 
 def query(**kw):
@@ -330,7 +334,7 @@ class _Query(object):
     def _get_headers(
             self, instant,
             method, url_context, app_headers, body,
-            metadata, amz_headers,
+            metadata, amz_headers, content_sha256,
     ):
         """
         Build the list of headers needed in order to perform AWS operations.
@@ -342,6 +346,9 @@ class _Query(object):
             headers["x-amz-meta-" + key] = value
         for key, value in amz_headers.iteritems():
             headers["x-amz-" + key] = value
+        if content_sha256 is None:
+            content_sha256 = b"UNSIGNED-PAYLOAD"
+        headers["x-amz-content-sha256"] = content_sha256
 
         # Before we check if the content type is set, let's see if we can set
         # it by guessing the the mimetype.
@@ -370,6 +377,7 @@ class _Query(object):
             instant,
             method, url_context, headers, body_producer,
             self._details.metadata, self._details.amz_headers,
+            self._details.content_sha256,
         )
         for k, v in extra_headers.iteritems():
             headers.setRawHeaders(k, [v])
