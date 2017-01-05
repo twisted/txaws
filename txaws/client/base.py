@@ -439,7 +439,7 @@ class _Query(object):
         return (response, data)
 
 
-def _get_agent(scheme, host, reactor):
+def _get_agent(scheme, host, reactor, contextFactory=None):
     if scheme == b"https":
         proxy_endpoint = os.environ.get("https_proxy")
         if proxy_endpoint:
@@ -447,7 +447,8 @@ def _get_agent(scheme, host, reactor):
             endpoint = TCP4ClientEndpoint(reactor, proxy_url.hostname, proxy_url.port)
             return ProxyAgent(endpoint)
         else:
-            contextFactory = WebVerifyingContextFactory(host)
+            if contextFactory is None:
+                contextFactory = WebVerifyingContextFactory(host)
             return Agent(reactor, contextFactory)
     else:
         proxy_endpoint = os.environ.get("http_proxy")
@@ -519,7 +520,11 @@ class BaseQuery(object):
         self.request_headers = self._headers(kwds.get('headers', {}))
         if (self.body_producer is None) and (data is not None):
             self.body_producer = FileBodyProducer(StringIO(data))
-        agent = _get_agent(scheme, host, self.reactor)
+        if self.endpoint.ssl_hostname_verification:
+            contextFactory = None
+        else:
+            contextFactory = WebClientContextFactory()
+        agent = _get_agent(scheme, host, self.reactor, contextFactory)
         if scheme == "https":
             self.client.url = url
         d = agent.request(method, url, self.request_headers, self.body_producer)
