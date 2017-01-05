@@ -115,6 +115,7 @@ def s3_integration_tests(get_client):
                 data="asd", body_producer=FileBodyProducer(BytesIO(b"def")),
             )
 
+
         @inlineCallbacks
         def test_put_object_body_producer(self):
             """
