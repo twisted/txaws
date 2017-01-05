@@ -71,7 +71,9 @@ class S3Client(BaseClient):
                                        receiver_factory=receiver_factory)
 
     def _submit(self, query):
-        return query.submit(self.agent, self.receiver_factory, self.utcnow)
+        d = query.submit(self.agent, self.receiver_factory, self.utcnow)
+        d.addErrback(s3_error_wrapper)
+        return d
 
 
     def _query_factory(self, details, **kw):

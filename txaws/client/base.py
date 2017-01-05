@@ -426,7 +426,7 @@ class _Query(object):
 
     def _check_response(self, data, response):
         if response.code >= 400:
-            return failure.Failure(TwistedWebError(response.code, message=data))
+            return failure.Failure(TwistedWebError(response.code, response=data))
         return (response, data)
 
 
