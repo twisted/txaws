@@ -285,7 +285,13 @@ class _CanonicalRequest(object):
             request.
         @rtype: L{str}
         """
-        return '\n'.join(attr.astuple(self))
+        if self.payload_hash is None:
+            fields = attr.astuple(
+                attr.assoc(self, payload_hash=b"UNSIGNED-PAYLOAD")
+            )
+        else:
+            fields = attr.astuple(self)
+        return '\n'.join(fields)
 
     def hash(self):
         """

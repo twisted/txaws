@@ -307,19 +307,19 @@ class _Query(object):
     _details = attr.ib()
     _reactor = attr.ib(default=attr.Factory(lambda: namedAny("twisted.internet.reactor")))
 
-    def _sign(self, instant, credentials, service, region, method, url_context, headers):
+    def _sign(self, instant, credentials, service, region, method, url_context, headers, content_sha256):
         """
         Sign this query using its built in credentials.
         """
         if not headers.hasHeader(u"host"):
             raise ValueError("Cannot sign headers without Host")
 
-        request = _auth_v4._CanonicalRequest.from_payload_and_headers(
+        request = _auth_v4._CanonicalRequest.from_headers(
             method=method,
             url=url_context.get_encoded_path(),
             headers={k.lower(): vs for (k, vs) in headers.getAllRawHeaders()},
             headers_to_sign=(b"host", b"x-amz-date"),
-            payload_hash=headers.getRawHeaders("x-amz-content-sha256")[0],
+            payload_hash=content_sha256,
         )
 
         return _auth_v4._make_authorization_header(
@@ -406,6 +406,7 @@ class _Query(object):
                 method,
                 url_context,
                 headers,
+                self._details.content_sha256,
             )])
 
         url = url_context.get_encoded_url()
