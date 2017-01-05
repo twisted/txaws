@@ -313,9 +313,7 @@ class _Query(object):
         request = _auth_v4._CanonicalRequest.from_payload_and_headers(
             method=method,
             url=url_context.get_encoded_path(),
-            # XXX If there are multiple values for a header, this
-            # loses some of them.  That might be a problem.
-            headers={k.lower(): vs[0] for (k, vs) in headers.getAllRawHeaders()},
+            headers={k.lower(): vs for (k, vs) in headers.getAllRawHeaders()},
             headers_to_sign=(b"host", b"x-amz-date"),
             payload_hash=headers.getRawHeaders("x-amz-content-sha256")[0],
         )
@@ -428,7 +426,7 @@ class _Query(object):
 
     def _check_response(self, data, response):
         if response.code >= 400:
-            return failure.Failure(TwistedWebError(response.code, response=data))
+            return failure.Failure(TwistedWebError(response.code, message=data))
         return (response, data)
 
 
