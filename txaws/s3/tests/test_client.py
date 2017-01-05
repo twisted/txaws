@@ -701,7 +701,7 @@ class S3ClientTestCase(TXAWSTestCase):
                     region=REGION_US_EAST_1,
                     method=b"PUT",
                     url_context=client.s3_url_context(self.endpoint, "mybucket", "?requestPayment"),
-                    content_sha256=sha256(xml),
+                    content_sha256=sha256(xml).hexdigest(),
                 ),
                 assoc(query_factory.details, body_producer=None),
             )
