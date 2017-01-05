@@ -109,7 +109,9 @@ class S3Client(BaseClient):
             # Just as important is to include the empty content hash
             # for all no-body requests.
             amz_headers[b"content-sha256"] = sha256(b"").hexdigest()
-
+        else:
+            # Tell AWS we're not trying to sign the payload.
+            amz_headers[b"content-sha256"] = b"UNSIGNED-PAYLOAD"
         return RequestDetails(
             region=REGION_US_EAST_1,
             service=b"s3",
