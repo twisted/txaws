@@ -770,7 +770,7 @@ class Query(BaseQuery):
         """Sign this query using its built in credentials."""
         headers["host"] = url_context.get_encoded_host()
 
-        request = _auth_v4._CanonicalRequest.from_payload_and_headers(
+        request = _auth_v4._CanonicalRequest.from_headers_and_payload(
             method=method,
             url=url_context.get_encoded_path(),
             headers=headers,

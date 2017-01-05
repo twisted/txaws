@@ -43,7 +43,7 @@ def _create_canonical_request_fixture():
                              canonical_query_string="qs",
                              canonical_headers="headers",
                              signed_headers=b"signed headers",
-                             )
+                             payload_hash=b"payload hash")
 
 
 def _create_credential_scope_fixture():
@@ -401,18 +401,19 @@ class CanonicalRequestTestCase(unittest.SynchronousTestCase):
                          "273e3d9c0252e987180c1d05241ec5a7f8089b9c1652ccc09ccf"
                          "097d8cf33a4b")
 
-    def test_from_payload_and_headers(self):
+    def test_from_headers_and_payload(self):
         """
-        An instance is created from the given payload and headers.
+        An instance is created from the given headers and payload.
         """
         url = 'https://www.amazon.com/blah?b=2&b=1&a=0'
-
-        canonical_request = _CanonicalRequest.from_payload_and_headers(
+        payload = b"the payload bytes"
+        canonical_request = _CanonicalRequest.from_headers_and_payload(
             method="POST",
             url=url,
             headers={b"header1": b"value1",
                      b"header2": b"value2"},
             headers_to_sign=(b"header1", b"header2"),
+            payload=payload,
         )
 
         self.assertEqual(canonical_request.method, "POST")
@@ -424,7 +425,10 @@ class CanonicalRequestTestCase(unittest.SynchronousTestCase):
                          (b"header1:value1\n"
                           b"header2:value2\n"))
         self.assertEqual(canonical_request.signed_headers, "header1;header2")
-
+        self.assertEqual(
+            canonical_request.payload_hash,
+            hashlib.sha256(b"the payload bytes").hexdigest(),
+        )
 
 class CredentialScopeTestCase(unittest.SynchronousTestCase):
     """
@@ -541,7 +545,7 @@ class MakeAuthorizationHeaderTestCase(unittest.TestCase):
         self.region = REGION_US_EAST_1
         self.service = "dynamodb"
 
-        self.request = _CanonicalRequest.from_payload_and_headers(
+        self.request = _CanonicalRequest.from_headers_and_payload(
             method="POST",
             url="/",
             headers={

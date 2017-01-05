@@ -207,16 +207,15 @@ class _CanonicalRequest(object):
     payload_hash = attr.ib()
 
     @classmethod
-    def from_payload_and_headers(cls,
-                                 method,
-                                 url,
-                                 headers,
-                                 headers_to_sign,
-                                 payload_hash,
+    def from_headers(cls,
+                     method,
+                     url,
+                     headers,
+                     headers_to_sign,
+                     payload_hash,
     ):
         """
-        Construct a L{_CanonicalRequest} from the provided headers and
-        payload.
+        Construct a L{_CanonicalRequest} from the provided headers.
 
         @param method: The HTTP method.
         @type method: L{bytes}
@@ -231,8 +230,18 @@ class _CanonicalRequest(object):
             be signed.
         @type headers_to_sign: L{bytes}
 
+        @param payload_hash: The hex digest of the sha256 hash of the
+            request's body.  If the body is empty, the hex digest of
+            the sha256 hash of the empty string.  If the payload hash
+            should not be included, C{None}.
+
         @return: A canonical request
         @rtype: L{_CanonicalRequest}
+
+        @note: If C{payload_hash} is {None} then when the request is
+            submitted to AWS it must also include an
+            I{x-amz-content-sha256} header set to
+            C{b"UNSIGNED-PAYLOAD"}.
         """
         parsed = urlparse.urlparse(url)
         return cls(
@@ -245,6 +254,26 @@ class _CanonicalRequest(object):
             payload_hash=payload_hash,
         )
 
+    @classmethod
+    def from_headers_and_payload(cls,
+                                 method,
+                                 url,
+                                 headers,
+                                 headers_to_sign,
+                                 payload,
+    ):
+        """
+        Construct a L{_CanonicalRequest} from the provided headers and payload.
+      
+        @param payload: The request body.
+        @type payload: L{bytes}
+
+        @see: L{_CanonicalRequest.from_header}.
+        """
+        return cls.from_headers(
+            method, url, headers, headers_to_sign, hashlib.sha256(payload).hexdigest(),
+        )
+
     def serialize(self):
         """
         Serialize this canonical request to a string.
@@ -253,7 +282,13 @@ class _CanonicalRequest(object):
             request.
         @rtype: L{str}
         """
-        return '\n'.join(attr.astuple(self))
+        if self.payload_hash is None:
+            fields = attr.astuple(
+                attr.assoc(self, payload_hash=b"UNSIGNED-PAYLOAD")
+            )
+        else:
+            fields = attr.astuple(self)
+        return '\n'.join(fields)
 
     def hash(self):
         """
