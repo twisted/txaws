@@ -79,7 +79,7 @@ class S3Client(BaseClient):
     def _query_factory(self, details, **kw):
         return self.query_factory(credentials=self.creds, details=details, **kw)
 
-    
+
     def _details(self, **kw):
         body = kw.pop("body", None)
         body_producer = kw.pop("body_producer", None)
@@ -105,20 +105,22 @@ class S3Client(BaseClient):
         # (included in the signature) more than 15 minutes in the past
         # are rejected. :/
         if body is not None:
-            amz_headers[b"content-sha256"] = sha256(body).hexdigest()
+            content_sha256 = sha256(body).hexdigest()
             body_producer = FileBodyProducer(BytesIO(body), cooperator=self._cooperator)
         elif body_producer is None:
             # Just as important is to include the empty content hash
             # for all no-body requests.
-            amz_headers[b"content-sha256"] = sha256(b"").hexdigest()
+            content_sha256 = sha256(b"").hexdigest()
         else:
             # Tell AWS we're not trying to sign the payload.
-            amz_headers[b"content-sha256"] = b"UNSIGNED-PAYLOAD"
+            content_sha256 = None
+
         return RequestDetails(
             region=REGION_US_EAST_1,
             service=b"s3",
             body_producer=body_producer,
             amz_headers=amz_headers,
+            content_sha256=content_sha256,
             **kw
         )
 
@@ -132,7 +134,7 @@ class S3Client(BaseClient):
             return Headers()
         return Headers({u"content-type": [content_type]})
 
-    
+
     def list_buckets(self):
         """
         List all buckets.
@@ -831,7 +833,7 @@ def s3_url_context(service_endpoint, bucket=None, object_name=None):
             else:
                 raise Exception("oh no")
         return results
-                
+
     query = None
     path = []
     if bucket is None:

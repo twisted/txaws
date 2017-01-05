@@ -21,9 +21,7 @@ from txaws.testing import payload
 from txaws.testing.base import TXAWSTestCase
 from txaws.util import calculate_md5
 
-empty_content_sha256 = {
-    "x-amz-content-sha256": sha256(b"").hexdigest(),
-}
+EMPTY_CONTENT_SHA256 = sha256(b"").hexdigest()
 
 class URLContextTestCase(TXAWSTestCase):
 
@@ -141,7 +139,7 @@ class S3ClientTestCase(TXAWSTestCase):
                     region=REGION_US_EAST_1,
                     method=b"GET",
                     url_context=client.s3_url_context(self.endpoint),
-                    amz_headers=empty_content_sha256,
+                    content_sha256=EMPTY_CONTENT_SHA256,
                 ),
                 query_factory.details,
             )
@@ -176,7 +174,7 @@ class S3ClientTestCase(TXAWSTestCase):
                     region=REGION_US_EAST_1,
                     method=b"PUT",
                     url_context=client.s3_url_context(self.endpoint, "mybucket"),
-                    amz_headers=empty_content_sha256,
+                    content_sha256=EMPTY_CONTENT_SHA256,
                 ),
                 query_factory.details,
             )
@@ -201,7 +199,7 @@ class S3ClientTestCase(TXAWSTestCase):
                     region=REGION_US_EAST_1,
                     method=b"GET",
                     url_context=client.s3_url_context(self.endpoint, "mybucket"),
-                    amz_headers=empty_content_sha256,
+                    content_sha256=EMPTY_CONTENT_SHA256,
                 ),
                 query_factory.details,
             )
@@ -272,7 +270,7 @@ class S3ClientTestCase(TXAWSTestCase):
                     region=REGION_US_EAST_1,
                     method=b"GET",
                     url_context=client.s3_url_context(self.endpoint, "mybucket", "?location"),
-                    amz_headers=empty_content_sha256,
+                    content_sha256=EMPTY_CONTENT_SHA256,
                 ),
                 query_factory.details,
             )
@@ -305,7 +303,7 @@ class S3ClientTestCase(TXAWSTestCase):
                     region=REGION_US_EAST_1,
                     method=b"GET",
                     url_context=client.s3_url_context(self.endpoint, "mybucket", "?lifecycle"),
-                    amz_headers=empty_content_sha256,
+                    content_sha256=EMPTY_CONTENT_SHA256,
                 ),
                 query_factory.details,
             )
@@ -343,7 +341,7 @@ class S3ClientTestCase(TXAWSTestCase):
                     region=REGION_US_EAST_1,
                     method=b"GET",
                     url_context=client.s3_url_context(self.endpoint, "mybucket", "?lifecycle"),
-                    amz_headers=empty_content_sha256,
+                    content_sha256=EMPTY_CONTENT_SHA256,
                 ),
                 query_factory.details,
             )
@@ -380,7 +378,7 @@ class S3ClientTestCase(TXAWSTestCase):
                     region=REGION_US_EAST_1,
                     method=b"GET",
                     url_context=client.s3_url_context(self.endpoint, "mybucket", "?website"),
-                    amz_headers=empty_content_sha256,
+                    content_sha256=EMPTY_CONTENT_SHA256,
                 ),
                 query_factory.details,
             )
@@ -414,7 +412,7 @@ class S3ClientTestCase(TXAWSTestCase):
                     region=REGION_US_EAST_1,
                     method=b"GET",
                     url_context=client.s3_url_context(self.endpoint, "mybucket", "?website"),
-                    amz_headers=empty_content_sha256,
+                    content_sha256=EMPTY_CONTENT_SHA256,
                 ),
                 query_factory.details,
             )
@@ -448,7 +446,7 @@ class S3ClientTestCase(TXAWSTestCase):
                     region=REGION_US_EAST_1,
                     method=b"GET",
                     url_context=client.s3_url_context(self.endpoint, "mybucket", "?notification"),
-                    amz_headers=empty_content_sha256,
+                    content_sha256=EMPTY_CONTENT_SHA256,
                 ),
                 query_factory.details,
             )
@@ -482,7 +480,7 @@ class S3ClientTestCase(TXAWSTestCase):
                     region=REGION_US_EAST_1,
                     method=b"GET",
                     url_context=client.s3_url_context(self.endpoint, "mybucket", "?notification"),
-                    amz_headers=empty_content_sha256,
+                    content_sha256=EMPTY_CONTENT_SHA256,
                 ),
                 query_factory.details,
             )
@@ -519,7 +517,7 @@ class S3ClientTestCase(TXAWSTestCase):
                     region=REGION_US_EAST_1,
                     method=b"GET",
                     url_context=client.s3_url_context(self.endpoint, "mybucket", "?versioning"),
-                    amz_headers=empty_content_sha256,
+                    content_sha256=EMPTY_CONTENT_SHA256,
                 ),
                 query_factory.details,
             )
@@ -553,7 +551,7 @@ class S3ClientTestCase(TXAWSTestCase):
                     region=REGION_US_EAST_1,
                     method=b"GET",
                     url_context=client.s3_url_context(self.endpoint, "mybucket", "?versioning"),
-                    amz_headers=empty_content_sha256,
+                    content_sha256=EMPTY_CONTENT_SHA256,
                 ),
                 query_factory.details,
             )
@@ -587,7 +585,7 @@ class S3ClientTestCase(TXAWSTestCase):
                     region=REGION_US_EAST_1,
                     method=b"GET",
                     url_context=client.s3_url_context(self.endpoint, "mybucket", "?versioning"),
-                    amz_headers=empty_content_sha256,
+                    content_sha256=EMPTY_CONTENT_SHA256,
                 ),
                 query_factory.details,
             )
@@ -614,7 +612,7 @@ class S3ClientTestCase(TXAWSTestCase):
                     region=REGION_US_EAST_1,
                     method=b"DELETE",
                     url_context=client.s3_url_context(self.endpoint, "mybucket"),
-                    amz_headers=empty_content_sha256,
+                    content_sha256=EMPTY_CONTENT_SHA256,
                 ),
                 query_factory.details,
             )
@@ -637,7 +635,7 @@ class S3ClientTestCase(TXAWSTestCase):
                     region=REGION_US_EAST_1,
                     method=b"PUT",
                     url_context=client.s3_url_context(self.endpoint, "mybucket", "?acl"),
-                    amz_headers=empty_content_sha256,
+                    content_sha256=EMPTY_CONTENT_SHA256,
                 ),
                 query_factory.details,
             )
@@ -666,7 +664,7 @@ class S3ClientTestCase(TXAWSTestCase):
                     region=REGION_US_EAST_1,
                     method=b"GET",
                     url_context=client.s3_url_context(self.endpoint, "mybucket", "?acl"),
-                    amz_headers=empty_content_sha256,
+                    content_sha256=EMPTY_CONTENT_SHA256,
                 ),
                 query_factory.details,
             )
@@ -703,7 +701,7 @@ class S3ClientTestCase(TXAWSTestCase):
                     region=REGION_US_EAST_1,
                     method=b"PUT",
                     url_context=client.s3_url_context(self.endpoint, "mybucket", "?requestPayment"),
-                    amz_headers={"x-amz-content-sha256": sha256(xml).hexdigest()},
+                    content_sha256=sha256(xml),
                 ),
                 assoc(query_factory.details, body_producer=None),
             )
@@ -732,7 +730,7 @@ class S3ClientTestCase(TXAWSTestCase):
                     region=REGION_US_EAST_1,
                     method=b"GET",
                     url_context=client.s3_url_context(self.endpoint, "mybucket", "?requestPayment"),
-                    amz_headers=empty_content_sha256,
+                    content_sha256=EMPTY_CONTENT_SHA256,
                 ),
                 query_factory.details,
             )
@@ -763,8 +761,8 @@ class S3ClientTestCase(TXAWSTestCase):
                     metadata={"key": "some meta data"},
                     amz_headers={
                         "acl": "public-read",
-                        "x-amz-content-sha256": sha256(b"some data").hexdigest(),
                     },
+                    content_sha256=sha256(b"some data").hexdigest(),
                 ),
                 assoc(query_factory.details, body_producer=None),
             )
@@ -833,8 +831,8 @@ class S3ClientTestCase(TXAWSTestCase):
                     metadata={"key": "some meta data"},
                     amz_headers={
                         "copy-source": "/mybucket/objectname",
-                        "x-amz-content-sha256": sha256(b"").hexdigest(),
                     },
+                    content_sha256=EMPTY_CONTENT_SHA256,
                 ),
                 query_factory.details,
             )
@@ -861,7 +859,7 @@ class S3ClientTestCase(TXAWSTestCase):
                     region=REGION_US_EAST_1,
                     method=b"GET",
                     url_context=client.s3_url_context(self.endpoint, "mybucket", "objectname"),
-                    amz_headers=empty_content_sha256,
+                    content_sha256=EMPTY_CONTENT_SHA256,
                 ),
                 query_factory.details,
             )
@@ -884,7 +882,7 @@ class S3ClientTestCase(TXAWSTestCase):
                     region=REGION_US_EAST_1,
                     method=b"HEAD",
                     url_context=client.s3_url_context(self.endpoint, "mybucket", "objectname"),
-                    amz_headers=empty_content_sha256,
+                    content_sha256=EMPTY_CONTENT_SHA256,
                 ),
                 query_factory.details,
             )
@@ -907,7 +905,7 @@ class S3ClientTestCase(TXAWSTestCase):
                     region=REGION_US_EAST_1,
                     method=b"DELETE",
                     url_context=client.s3_url_context(self.endpoint, "mybucket", "objectname"),
-                    amz_headers=empty_content_sha256,
+                    content_sha256=EMPTY_CONTENT_SHA256,
                 ),
                 query_factory.details,
             )
@@ -930,9 +928,9 @@ class S3ClientTestCase(TXAWSTestCase):
                     region=REGION_US_EAST_1,
                     method=b"PUT",
                     url_context=client.s3_url_context(self.endpoint, "mybucket", "myobject?acl"),
-                    amz_headers={
-                        "x-amz-content-sha256": sha256(payload.sample_access_control_policy_result).hexdigest(),
-                    },
+                    content_sha256=sha256(
+                        payload.sample_access_control_policy_result
+                    ).hexdigest(),
                 ),
                 assoc(query_factory.details, body_producer=None),
             )
@@ -961,7 +959,7 @@ class S3ClientTestCase(TXAWSTestCase):
                     region=REGION_US_EAST_1,
                     method=b"GET",
                     url_context=client.s3_url_context(self.endpoint, "mybucket", "myobject?acl"),
-                    amz_headers=empty_content_sha256,
+                    content_sha256=EMPTY_CONTENT_SHA256,
                 ),
                 query_factory.details,
             )
@@ -992,8 +990,8 @@ class S3ClientTestCase(TXAWSTestCase):
                     ),
                     amz_headers={
                         "acl": "public",
-                        "x-amz-content-sha256": sha256(b"").hexdigest(),
                     },
+                    content_sha256=EMPTY_CONTENT_SHA256,
                 ),
                 query_factory.details,
             )
@@ -1026,9 +1024,7 @@ class S3ClientTestCase(TXAWSTestCase):
                     url_context=client.s3_url_context(
                         self.endpoint, "example-bucket", "example-object?partNumber=3&uploadId=testid"
                     ),
-                    amz_headers={
-                        "x-amz-content-sha256": sha256(b"some data").hexdigest(),
-                    },
+                    content_sha256=sha256(b"some data").hexdigest(),
                 ),
                 assoc(query_factory.details, body_producer=None),
             )
@@ -1061,9 +1057,7 @@ class S3ClientTestCase(TXAWSTestCase):
                     url_context=client.s3_url_context(
                         self.endpoint, "example-bucket", "example-object?uploadId=testid"
                     ),
-                    amz_headers={
-                        "x-amz-content-sha256": sha256(xml).hexdigest(),
-                    },
+                    content_sha256=sha256(xml).hexdigest(),
                 ),
                 assoc(query_factory.details, body_producer=None),
             )
