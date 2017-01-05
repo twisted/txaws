@@ -361,7 +361,7 @@ class _Query(object):
 
         method = self._details.method
         url_context = self._details.url_context
-        headers = self._details.headers
+        headers = self._details.headers.copy()
         body_producer = self._details.body_producer
 
         if agent is None:
@@ -383,6 +383,15 @@ class _Query(object):
             headers.setRawHeaders(u"host", [url_context.get_encoded_host()])
 
         if self._credentials is not None:
+            _log.info(
+                u"Computing authorization from "
+                u"{service} {region} {method} {url} {headers}",
+                service=self._details.service,
+                region=self._details.region,
+                method=method,
+                url=url_context.get_encoded_url(),
+                headers=headers,
+            )
             headers.setRawHeaders(u"authorization", [self._sign(
                 instant,
                 self._credentials,

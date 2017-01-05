@@ -9,6 +9,9 @@ import urlparse
 
 import attr
 
+from twisted.logger import Logger
+
+_log = Logger()
 
 # The following four functions are taken straight from
 # http://docs.aws.amazon.com/general/latest/gr/sigv4-signed-request-examples.html
@@ -371,9 +374,14 @@ class _SignableAWS4HMAC256Token(object):
         @return: the HMAC-256 signature.
         @rtype: L{str}
         """
+        serialized = self.serialize()
+        _log.info(
+            u"Signing request {serialized!r}",
+            serialized=serialized,
+        )
         return hmac.new(
             signing_key,
-            self.serialize(),
+            serialized,
             hashlib.sha256,
         ).hexdigest()
 
