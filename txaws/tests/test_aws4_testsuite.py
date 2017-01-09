@@ -165,7 +165,7 @@ class _AWS4TestSuiteTestCaseMixin(object):
         with canonical_request_path.open() as f:
             serialized_canonical_request = f.read()
 
-        canonical_request = _CanonicalRequest.from_headers_and_payload(
+        canonical_request = _CanonicalRequest.from_payload_and_headers(
             method=request.method,
             url=request.path,
             headers=request.headers,

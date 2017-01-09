@@ -453,13 +453,13 @@ class CanonicalRequestTestCase(unittest.SynchronousTestCase):
         self.assertEqual(canonical_request.signed_headers, "header1;header2")
         self.assertEqual(canonical_request.payload_hash, b"UNSIGNED-PAYLOAD")
 
-    def test_from_headers_and_payload(self):
+    def test_from_payload_and_headers(self):
         """
         An instance is created from the given headers and payload.
         """
         url = 'https://www.amazon.com/blah?b=2&b=1&a=0'
         payload = b"the payload bytes"
-        canonical_request = _CanonicalRequest.from_headers_and_payload(
+        canonical_request = _CanonicalRequest.from_payload_and_headers(
             method="POST",
             url=url,
             headers={b"header1": b"value1",
@@ -597,7 +597,7 @@ class MakeAuthorizationHeaderTestCase(unittest.TestCase):
         self.region = REGION_US_EAST_1
         self.service = "dynamodb"
 
-        self.request = _CanonicalRequest.from_headers_and_payload(
+        self.request = _CanonicalRequest.from_payload_and_headers(
             method="POST",
             url="/",
             headers={

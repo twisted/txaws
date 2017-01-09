@@ -285,13 +285,7 @@ class _CanonicalRequest(object):
             request.
         @rtype: L{str}
         """
-        if self.payload_hash is None:
-            fields = attr.astuple(
-                attr.assoc(self, payload_hash=b"UNSIGNED-PAYLOAD")
-            )
-        else:
-            fields = attr.astuple(self)
-        return '\n'.join(fields)
+        return '\n'.join(attr.astuple(self))
 
     def hash(self):
         """
@@ -412,14 +406,9 @@ class _SignableAWS4HMAC256Token(object):
         @return: the HMAC-256 signature.
         @rtype: L{str}
         """
-        serialized = self.serialize()
-        _log.info(
-            u"Signing request {serialized!r}",
-            serialized=serialized,
-        )
         return hmac.new(
             signing_key,
-            serialized,
+            self.serialize(),
             hashlib.sha256,
         ).hexdigest()
 
