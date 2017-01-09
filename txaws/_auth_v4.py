@@ -9,7 +9,6 @@ import urlparse
 
 import attr
 
-
 # The following four functions are taken straight from
 # http://docs.aws.amazon.com/general/latest/gr/sigv4-signed-request-examples.html
 def sign(key, msg):
@@ -221,10 +220,19 @@ class _CanonicalRequest(object):
             be signed.
         @type headers_to_sign: L{bytes}
 
-        @param payload_hash: The hex digest of the sha256 of the
-            request's payload.  Or C{None} for a request with an
-            unsigned body.
+        @param payload_hash: The hex digest of the sha256 hash of the
+            request's body.  If the body is empty, the hex digest of
+            the sha256 hash of the empty string.  If the payload hash
+            should not be included, C{None}.
         @type payload: L{bytes} or L{NoneType}
+
+        @return: A canonical request
+        @rtype: L{_CanonicalRequest}
+
+        @note: If C{payload_hash} is {None} then when the request is
+            submitted to AWS it must also include an
+            I{x-amz-content-sha256} header set to
+            C{b"UNSIGNED-PAYLOAD"}.
         """
         parsed = urlparse.urlparse(url)
         if payload_hash is None:
@@ -242,7 +250,6 @@ class _CanonicalRequest(object):
             signed_headers=_make_signed_headers(headers, headers_to_sign),
             payload_hash=payload_hash,
         )
-
 
     @classmethod
     def from_payload_and_headers(cls,
