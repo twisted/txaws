@@ -401,6 +401,31 @@ class CanonicalRequestTestCase(unittest.SynchronousTestCase):
                          "273e3d9c0252e987180c1d05241ec5a7f8089b9c1652ccc09ccf"
                          "097d8cf33a4b")
 
+    def test_from_headers(self):
+        """
+        An instance is created from the given payload hash and headers.
+        """
+        url = 'https://www.amazon.com/blah?b=2&b=1&a=0'
+
+        canonical_request = _CanonicalRequest.from_headers(
+            method="POST",
+            url=url,
+            headers={b"header1": b"value1",
+                     b"header2": b"value2"},
+            headers_to_sign=(b"header1", b"header2"),
+            payload_hash=b"abcdef"
+        )
+        self.assertEqual(canonical_request.method, "POST")
+        self.assertEqual(canonical_request.canonical_uri,
+                         "https://www.amazon.com/blah")
+        self.assertEqual(canonical_request.canonical_query_string,
+                         "a=0&b=1&b=2")
+        self.assertEqual(canonical_request.canonical_headers,
+                         (b"header1:value1\n"
+                          b"header2:value2\n"))
+        self.assertEqual(canonical_request.signed_headers, "header1;header2")
+        self.assertEqual(canonical_request.payload_hash, b"abcdef")
+
     def test_from_payload_and_headers(self):
         """
         An instance is created from the given payload and headers.

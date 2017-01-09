@@ -204,15 +204,9 @@ class _CanonicalRequest(object):
     payload_hash = attr.ib()
 
     @classmethod
-    def from_payload_and_headers(cls,
-                                 method,
-                                 url,
-                                 headers,
-                                 headers_to_sign,
-                                 payload):
+    def from_headers(cls, method, url, headers, headers_to_sign, payload_hash):
         """
-        Construct a L{_CanonicalRequest} from the provided headers and
-        payload.
+        Construct a L{_CanonicalRequest} from the provided headers.
 
         @param method: The HTTP method.
         @type method: L{bytes}
@@ -227,11 +221,9 @@ class _CanonicalRequest(object):
             be signed.
         @type headers_to_sign: L{bytes}
 
-        @param payload: The request's payload.
+        @param payload_hash: The hex digest of the sha256 of the
+            request's payload.
         @type payload: L{bytes}
-
-        @return: A canonical request
-        @rtype: L{_CanonicalRequest}
         """
         parsed = urlparse.urlparse(url)
         return cls(
@@ -241,8 +233,35 @@ class _CanonicalRequest(object):
             canonical_headers=_make_canonical_headers(headers,
                                                       headers_to_sign),
             signed_headers=_make_signed_headers(headers, headers_to_sign),
+            payload_hash=payload_hash,
+        )
+
+
+    @classmethod
+    def from_payload_and_headers(cls,
+                                 method,
+                                 url,
+                                 headers,
+                                 headers_to_sign,
+                                 payload):
+        """
+        Construct a L{_CanonicalRequest} from the provided headers and
+        payload.
+
+        @see: L{from_headers}
+
+        @param payload: The request's payload.
+        @type payload: L{bytes}
+
+        @return: A canonical request
+        @rtype: L{_CanonicalRequest}
+        """
+        return cls.from_headers(
+            method=method, url=url, headers=headers,
+            headers_to_sign=headers_to_sign,
             payload_hash=hashlib.sha256(payload).hexdigest(),
         )
+
 
     def serialize(self):
         """
