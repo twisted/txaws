@@ -54,6 +54,12 @@ class FakeAWSServiceRegion(object):
         self.s3_client, self.s3_state = self.s3.client(creds, endpoint)
         return self.s3_client
 
-    def get_route53_client(self, *args, **kwargs):
-        client, state = self._route53_controller.client(self, *args, **kwargs)
+    def get_route53_client(self, creds=None):
+        if creds is None:
+            creds = AWSCredentials(
+                access_key=self.access_key,
+                secret_key=self.secret_key,
+            )
+        endpoint = AWSServiceEndpoint(uri=self.uri)
+        client, state = self._route53_controller.client(creds, endpoint)
         return client
