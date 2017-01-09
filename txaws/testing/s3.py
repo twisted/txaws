@@ -10,6 +10,8 @@ __all__ = [
 from datetime import datetime
 from weakref import WeakKeyDictionary
 
+import attr
+
 from dateutil.tz import tzutc
 
 from twisted.internet.defer import succeed, fail
@@ -110,7 +112,15 @@ class _MemoryS3Client(object):
         return pieces["listing"]
 
     @_rate_limited
-    def put_object(self, bucket, object_name, data=None):
+    def put_object(
+            self, bucket, object_name,
+            data=None, content_type=None,
+            metadata={}, amz_headers={},
+            body_producer=None,
+    ):
+        if data is not None and body_producer is not None:
+            raise ValueError("data and body_producer are mutually exclusive")
+
         contents = self._state.buckets[bucket]["listing"].contents
         if contents is None:
             contents = []
@@ -122,7 +132,27 @@ class _MemoryS3Client(object):
             size=str(len(data or "")),
             storage_class="STANDARD",
         ))
-        self._state.objects[bucket, object_name] = data
+        if data is not None:
+            self._store_object(bucket, object_name, data)
+            return succeed(None)
+
+        if body_producer is not None:
+            data = []
+            memory_consumer = _MemoryConsumer(buffer=data)
+            finished = body_producer.startProducing(memory_consumer)
+            finished.addCallback(
+                lambda ignored: self._store_object(
+                    bucket, object_name, b"".join(data),
+                )
+            )
+            return finished
+
+        return succeed(None)
+
+
+    def _store_object(self, bucket, obj, data):
+        self._state.objects[bucket, obj] = data
+
 
     @_rate_limited
     def get_object(self, bucket, object_name):
@@ -136,3 +166,13 @@ class _MemoryS3Client(object):
             if item.key == object_name:
                 contents.remove(item)
                 break
+
+
+@attr.s
+class _MemoryConsumer(object):
+    _buffer = attr.ib(default=attr.Factory(list), repr=False)
+
+    # Somehow we get away with a very incomplete IConsumer implementation.
+
+    def write(self, data):
+        self._buffer.append(data)

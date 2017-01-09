@@ -1361,3 +1361,5 @@ class LiveS3TestCase(s3_integration_tests(get_live_client)):
     """
     Tests for the real S3 implementation against AWS itself.
     """
+    def test_put_object_body_producer(self):
+        self.skipTest("not yet implemented")

@@ -573,6 +573,11 @@ class Query(BaseQuery):
                  content_type=None, metadata={}, amz_headers={},
                  body_producer=None, *args, **kwargs):
         super(Query, self).__init__(*args, **kwargs)
+
+        # data might be None or "", alas.
+        if data and body_producer is not None:
+            raise ValueError("data and body_producer are mutually exclusive.")
+
         self.bucket = bucket
         self.object_name = object_name
         self.data = data
