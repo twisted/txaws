@@ -42,7 +42,7 @@ class AWSServiceEndpoint(object):
         will be done when connecting to the endpoint.
     """
 
-    def __init__(self, uri="", method="GET", ssl_hostname_verification=False):
+    def __init__(self, uri="", method="GET", ssl_hostname_verification=True):
         self.host = ""
         self.port = None
         self.path = "/"
