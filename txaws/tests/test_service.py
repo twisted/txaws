@@ -21,6 +21,18 @@ class AWSServiceEndpointTestCase(TXAWSTestCase):
     def setUp(self):
         self.endpoint = AWSServiceEndpoint(uri="http://my.service/da_endpoint")
 
+    def test_warning_when_verification_disabled(self):
+        """
+        L{AWSServiceEndpoint} emits a warning when told not to perform
+        certificate verification.
+        """
+        self.assertWarns(
+            UserWarning,
+            "Operating with certificate verification disabled!",
+            __file__,
+            lambda: AWSServiceEndpoint(ssl_hostname_verification=False),
+        )
+
     def test_simple_creation(self):
         endpoint = AWSServiceEndpoint()
         self.assertEquals(endpoint.scheme, "http")
