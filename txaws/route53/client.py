@@ -8,39 +8,52 @@ __all__ = [
 from io import BytesIO
 from urllib import urlencode
 from functools import partial
+from hashlib import sha256
+from operator import itemgetter
 
 import attr
 from attr import validators
-
-from botocore.auth import SigV4Auth
-from botocore.credentials import Credentials
 
 from twisted.web.http import OK, CREATED
 from twisted.web.http_headers import Headers
 from twisted.web.client import FileBodyProducer, readBody
 from twisted.python.failure import Failure
 from twisted.web.template import Tag, flattenString
-from twisted.internet.defer import maybeDeferred
+from twisted.internet.defer import maybeDeferred, succeed
 
-from txaws.client.base import BaseClient, BaseQuery
-from txaws.service import AWSServiceEndpoint
+from txaws.exception import AWSError
+from txaws.client.base import BaseClient, BaseQuery, RequestDetails, url_context, query, error_wrapper
+from txaws.service import REGION_US_EAST_1, AWSServiceEndpoint
 from txaws.util import XML
 
 from txaws.route53.model import HostedZone
 
+# Route53 is has two endpoints both in us-east-1.
+# http://docs.aws.amazon.com/general/latest/gr/rande.html#r53_region
 _REGISTRATION_ENDPOINT = "https://route53domains.us-east-1.amazonaws.com/"
 _OTHER_ENDPOINT = "https://route53.amazonaws.com/"
 
-def get_route53_client(agent, aws, cooperator=None):
+_NS = "https://route53.amazonaws.com/doc/2013-04-01/"
+
+class Route53Error(AWSError):
+    pass
+
+
+def route53_error_wrapper(error):
+    error_wrapper(error, Route53Error)
+
+
+def get_route53_client(agent, region, cooperator=None):
     """
     Get a non-registration Route53 client.
     """
     if cooperator is None:
         from twisted.internet import task as cooperator
-    return aws.get_client(
+    return region.get_client(
         _Route53Client,
         agent=agent,
-        creds=aws.creds,
+        creds=region.creds,
+        region=REGION_US_EAST_1,
         endpoint=AWSServiceEndpoint(_OTHER_ENDPOINT),
         cooperator=cooperator,
     )
@@ -72,7 +85,7 @@ class CNAME(object):
     @classmethod
     def from_element(cls, e):
         return cls(Name(et_is_dumb(e.find("Value").text)))
-        
+
     def to_string(self):
         return unicode(self.canonical_name)
 
@@ -115,57 +128,109 @@ RECORD_TYPES = {
     u"CNAME": CNAME,
 }
 
+
 @attr.s(frozen=True)
 class _Route53Client(object):
     agent = attr.ib()
     creds = attr.ib()
+    region = attr.ib()
     endpoint = attr.ib()
     cooperator = attr.ib()
+
+    def _details(self, op):
+        content_sha256 = sha256(op.body).hexdigest()
+        body_producer = FileBodyProducer(
+            BytesIO(op.body), cooperator=self.cooperator,
+        )
+        return RequestDetails(
+            region=self.region,
+            service=op.service,
+            method=op.method,
+            url_context=url_context(
+                scheme=self.endpoint.scheme.decode("ascii"),
+                host=self.endpoint.host.decode("ascii"),
+                port=self.endpoint.port,
+                path=op.path,
+                query=op.query,
+            ),
+            body_producer=body_producer,
+            content_sha256=content_sha256,
+        )
+
+    def _submit(self, details, ok_status):
+        q = query(credentials=self.creds, details=details, ok_status=ok_status)
+        d = q.submit(self.agent)
+        d.addErrback(route53_error_wrapper)
+        d.addCallback(itemgetter(1))
+        d.addCallback(XML)
+        return d
+
+    def _op(self, op):
+        details = self._details(op)
+        d = self._submit(details=details, ok_status=op.ok_status)
+        d.addCallback(op.extract_result)
+        return d
 
     def create_hosted_zone(self, caller_reference, name):
         """
         http://docs.aws.amazon.com/Route53/latest/APIReference/API_CreateHostedZone.html
         """
-        query = _CreateHostedZone(
-            action="POST",
-            creds=self.creds,
-            endpoint=self.endpoint,
-            args=(),
-            cooperator=self.cooperator,
-            caller_reference=caller_reference,
-            name=name,
+        d = _route53_op(
+            method=b"POST",
+            path=[u"2013-04-01", u"hostedzone"],
+            body=tags.CreateHostedZoneRequest(xmlns=_NS)(
+                tags.CallerReference(caller_reference),
+                tags.Name(name),
+                ),
+            ok_status=(CREATED,),
+            extract_result=self._handle_create_hosted_zone_response,
         )
-        return query.submit(self.agent)
-    
+        d.addCallback(self._op)
+        return d
+
+    def _handle_create_hosted_zone_response(self, document):
+        # XXX Could extract some additional stuff
+        # http://docs.aws.amazon.com/Route53/latest/APIReference/API_CreateHostedZone.html#API_CreateHostedZone_ResponseSyntax
+        zone = document.find("./HostedZone")
+        return hostedzone_from_element(zone)
+
     def list_hosted_zones(self):
         """
         http://docs.aws.amazon.com/Route53/latest/APIReference/API_ListHostedZones.html
         """
-        query = _ListHostedZones(
-            action="GET",
-            creds=self.creds,
-            endpoint=self.endpoint,
-            args=(),
-            cooperator=self.cooperator,
+        d = _route53_op(
+            method=b"GET",
+            path=[u"2013-04-01", u"hostedzone"],
+            extract_result=self._handle_list_hosted_zones_response,
         )
-        return query.submit(self.agent)
+        d.addCallback(self._op)
+        return d
 
+    def _handle_list_hosted_zones_response(self, document):
+        result = []
+        hosted_zones = document.iterfind("./HostedZones/HostedZone")
+        for zone in hosted_zones:
+            result.append(hostedzone_from_element(zone))
+        return result
 
     def change_resource_record_sets(self, zone_id, changes):
         """
         http://docs.aws.amazon.com/Route53/latest/APIReference/API_ChangeResourceRecordSets.html
         """
-        query = _ChangeRRSets(
-            action="POST",
-            creds=self.creds,
-            endpoint=self.endpoint,
-            zone_id=zone_id,
-            changes=changes,
-            args=(),
-            cooperator=self.cooperator,
+        d = _route53_op(
+            method=b"POST",
+            path=[u"2013-04-01", u"hostedzone", unicode(zone_id), u"rrset"],
+            body=tags.ChangeResourceRecordSetsRequest(xmlns=_NS)(
+                tags.ChangeBatch(
+                    tags.Changes(list(
+                        change.to_element()
+                        for change in changes
+                    ))
+                )
+            ),
         )
-        return query.submit(self.agent)
-
+        d.addCallback(self._op)
+        return d
 
     def list_resource_record_sets(self, zone_id, identifier=None, maxitems=None, name=None, type=None):
         """
@@ -181,45 +246,58 @@ class _Route53Client(object):
         if type:
             args.append(("type", type))
 
-        query = _ListRRSets(
-            action="GET",
-            creds=self.creds,
-            endpoint=self.endpoint,
-            zone_id=zone_id,
-            args=args,
-            cooperator=self.cooperator,
+        d = _route53_op(
+            method=b"GET",
+            path=[u"2013-04-01", u"hostedzone", unicode(zone_id), u"rrset"],
+            query=args,
+            extract_result=self._handle_list_resource_record_sets_response
         )
-        return query.submit(self.agent)
+        d.addCallback(self._op)
+        return d
+
+    def _handle_list_resource_record_sets_response(self, document):
+        result = {}
+        rrsets = document.iterfind("./ResourceRecordSets/ResourceRecordSet")
+        for rrset in rrsets:
+            name = Name(et_is_dumb(rrset.find("Name").text))
+            type = rrset.find("Type").text
+            records = rrset.iterfind("./ResourceRecords/ResourceRecord")
+            result.setdefault(name, set()).update({
+                RECORD_TYPES[type].from_element(element)
+                for element
+                in records
+            })
+        return result
+
 
     def delete_hosted_zone(self, zone_id):
         """
         http://docs.aws.amazon.com/Route53/latest/APIReference/API_DeleteHostedZone.html
         """
-        query = _DeleteHostedZone(
-            action="DELETE",
-            creds=self.creds,
-            endpoint=self.endpoint,
-            zone_id=zone_id,
-            args=(),
-            cooperator=self.cooperator,
+        d = _route53_op(
+            method=b"DELETE",
+            path=[u"2013-04-01", u"hostedzone", unicode(zone_id)],
         )
-        return query.submit(self.agent)
+        d.addCallback(self._op)
+        return d
 
+def _route53_op(body=None, **kw):
+    op = _Op(service=b"route53", **kw)
+    if body is None:
+        return succeed(op)
+    d = to_xml(body)
+    d.addCallback(lambda body: attr.assoc(op, body=body))
+    return d
 
-def require_status(status_codes):
-    def check_status_code(response):
-        if response.code not in status_codes:
-            return readBody(response).addCallback(
-                lambda body: Failure(
-                    Exception(
-                        "Unexpected status code: {} (expected {})\nBody: {}".format(
-                            response.code, status_codes, body,
-                        )
-                    )
-                )
-            )
-        return response
-    return check_status_code
+@attr.s
+class _Op(object):
+    service = attr.ib()
+    method = attr.ib()
+    path = attr.ib()
+    query = attr.ib(default=None)
+    body = attr.ib(default=b"")
+    ok_status = attr.ib(default=(OK,))
+    extract_result = attr.ib(default=lambda document: None)
 
 
 def annotate_request_uri(uri):
@@ -235,111 +313,6 @@ def annotate_request_uri(uri):
         reason.type = Exception
         return reason
     return annotate
-
-
-class _HeadersShim(object):
-    def __init__(self, request_shim):
-        self._request_shim = request_shim
-
-    def __iter__(self):
-        return iter(k for k in self._request_shim._headers.getAllRawHeaders())
-
-    def __setitem__(self, key, value):
-        self._request_shim._headers.setRawHeaders(key, [value])
-
-    def items(self):
-        return list(
-            (k, v[0])
-            for (k, v)
-            in self._request_shim._headers.getAllRawHeaders()
-        )
-
-class _BotoAuthRequestShim(object):
-    def __init__(self, method, url, headers, body):
-        self.method = method
-        self.url = url
-        self.params = {}
-        self.body = body
-        self._headers = headers
-        self.context = {}
-        self.headers = _HeadersShim(self)
-
-
-
-@attr.s(frozen=True)
-class _Query(object):
-    ok_status = (OK,)
-
-    method = b"GET"
-
-    action = attr.ib()
-    creds = attr.ib()
-    endpoint = attr.ib()
-    args = attr.ib()
-
-    cooperator = attr.ib()
-
-    def path(self):
-        raise NotImplementedError()
-
-    def body(self):
-        return None
-
-    def submit(self, agent):
-        base_uri = self.endpoint.get_uri()
-        uri = base_uri + self.path() + b"?" + urlencode(self.args)
-        d = maybeDeferred(self.body)
-        d.addCallback(partial(self._request, agent, self.method, uri, Headers()))
-        d.addCallback(require_status(self.ok_status))
-        d.addCallback(self.parse)
-        d.addErrback(annotate_request_uri(uri))
-        return d
-
-    def _request(self, agent, method, uri, headers, body):
-        auth = SigV4Auth(
-            Credentials(self.creds.access_key, self.creds.secret_key, None),
-            "route53",
-            "us-east-1",
-        )
-        auth.add_auth(_BotoAuthRequestShim(method, uri, headers, body))
-        if body is None:
-            bodyProducer = None
-        else:
-            bodyProducer = FileBodyProducer(
-                BytesIO(body),
-                cooperator=self.cooperator,
-            )
-        return agent.request(method, uri, headers, bodyProducer)
-
-    def parse(self, response):
-        d = readBody(response)
-        d.addCallback(XML)
-        d.addCallback(self._extract_result)
-        return d
-
-
-class _ListHostedZones(_Query):
-    def path(self):
-        return b"2013-04-01/hostedzone"
-
-
-    def _extract_result(self, document):
-        result = []
-        hosted_zones = document.iterfind("./HostedZones/HostedZone")
-        for zone in hosted_zones:
-            result.append(hostedzone_from_element(zone))
-        return result
-
-
-@attr.s(frozen=True)
-class _RRSets(_Query):
-    zone_id = attr.ib()
-
-    def path(self):
-        return u"2013-04-01/hostedzone/{zone_id}/rrset".format(
-            zone_id=self.zone_id
-        ).encode("ascii")
-
 
 
 from twisted.web.template import Tag
@@ -364,26 +337,24 @@ class _TagFactory(object):
 
 tags = _TagFactory()
 
-class _XMLBodyMixin(object):
-    def body(self):
-        xml = b"""<?xml version="1.0" encoding="UTF-8"?>\n"""
-        d = flattenString(None, self._xml_request_body())
-        d.addCallback(lambda body: xml + body)
-        return d
-
-
 @attr.s(frozen=True)
-class _DeleteHostedZone(_Query):
+class _DeleteHostedZone(object):
+    ok_status = (OK,)
     zone_id = attr.ib()
 
     method = b"DELETE"
+    service = b"route53"
 
     def path(self):
-        return u"2013-04-01/hostedzone/{zone_id}".format(
-            zone_id=self.zone_id
-        ).encode("ascii")
+        return [u"2013-04-01", u"hostedzone", unicode(self.zone_id)]
 
-    def _extract_result(self, document):
+    def query(self):
+        pass
+
+    def xml_request_body(self):
+        return None
+
+    def extract_result(self, document):
         return None
 
 
@@ -396,68 +367,13 @@ def hostedzone_from_element(zone):
     )
 
 
-@attr.s(frozen=True)
-class _CreateHostedZone(_XMLBodyMixin, _Query):
-    ok_status = (CREATED,)
-
-    method = b"POST"
-
-    caller_reference = attr.ib()
-    name = attr.ib()
-    
-    def path(self):
-        return b"2013-04-01/hostedzone"
-
-    def _xml_request_body(self):
-        ns = "https://route53.amazonaws.com/doc/2013-04-01/"
-        return tags.CreateHostedZoneRequest(xmlns=ns)(
-            tags.CallerReference(self.caller_reference),
-            tags.Name(self.name),
-        )
-
-    def _extract_result(self, document):
-        # XXX Could extract some additional stuff
-        # http://docs.aws.amazon.com/Route53/latest/APIReference/API_CreateHostedZone.html#API_CreateHostedZone_ResponseSyntax
-        zone = document.find("./HostedZone")
-        return hostedzone_from_element(zone)
-
-
-@attr.s(frozen=True)
-class _ChangeRRSets(_XMLBodyMixin, _RRSets):
-    changes = attr.ib()
-
-    method = b"POST"
-
-    def _xml_request_body(self):
-        ns = "https://route53.amazonaws.com/doc/2013-04-01/"
-        return tags.ChangeResourceRecordSetsRequest(xmlns=ns)(
-            tags.ChangeBatch(
-                tags.Changes(list(
-                    change.to_element()
-                    for change in self.changes
-                ))
-            )
-        )
-
-    def _extract_result(self, document):
-        # XXX Could parse the ChangeInfo and pass some details on
-        return None
-
-
-class _ListRRSets(_RRSets):
-    def _extract_result(self, document):
-        result = {}
-        rrsets = document.iterfind("./ResourceRecordSets/ResourceRecordSet")
-        for rrset in rrsets:
-            name = Name(et_is_dumb(rrset.find("Name").text))
-            type = rrset.find("Type").text
-            records = rrset.iterfind("./ResourceRecords/ResourceRecord")
-            result.setdefault(name, set()).update({
-                RECORD_TYPES[type].from_element(element)
-                for element
-                in records
-            })
-        return result
+def to_xml(body_element):
+    doctype = b"""<?xml version="1.0" encoding="UTF-8"?>\n"""
+    if body_element is None:
+        return succeed(b"")
+    d = flattenString(None, body_element)
+    d.addCallback(lambda flattened: doctype + flattened)
+    return d
 
 
 @attr.s(frozen=True)
@@ -516,5 +432,3 @@ def create_geolocation_rrset(name, type, geolocation):
 
 def create_latency_based_rrset(name, type, latency):
     pass
-
-

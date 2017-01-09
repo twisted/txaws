@@ -31,7 +31,7 @@ from twisted.web import http
 from twisted.web.iweb import UNKNOWN_LENGTH, IBodyProducer
 from twisted.web.client import Agent, ProxyAgent
 from twisted.web.client import ResponseDone
-from twisted.web.http import NO_CONTENT, PotentialDataLoss
+from twisted.web.http import OK, NO_CONTENT, PotentialDataLoss
 from twisted.web.http_headers import Headers
 from twisted.web.error import Error as TwistedWebError
 
@@ -295,8 +295,7 @@ def query(**kw):
 
     :param RequestDetails details: Stuff
 
-    :param Cooperator cooperator: A cooperator to use for large
-        uploads or ``None`` for the global cooperator (recommended).
+    :param int ok_status: Stuff
     """
     return _Query(**kw)
 
@@ -306,6 +305,7 @@ class _Query(object):
     _credentials = attr.ib()
     _details = attr.ib()
     _reactor = attr.ib(default=attr.Factory(lambda: namedAny("twisted.internet.reactor")))
+    _ok_status = attr.ib(default=OK)
 
     def _sign(self, instant, credentials, service, region, method, url_context, headers, content_sha256):
         """
@@ -434,7 +434,7 @@ class _Query(object):
         return d
 
     def _check_response(self, data, response):
-        if response.code >= 400:
+        if response.code not in self._ok_status:
             return failure.Failure(TwistedWebError(response.code, response=data))
         return (response, data)
 
