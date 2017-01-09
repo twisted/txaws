@@ -222,10 +222,17 @@ class _CanonicalRequest(object):
         @type headers_to_sign: L{bytes}
 
         @param payload_hash: The hex digest of the sha256 of the
-            request's payload.
-        @type payload: L{bytes}
+            request's payload.  Or C{None} for a request with an
+            unsigned body.
+        @type payload: L{bytes} or L{NoneType}
         """
         parsed = urlparse.urlparse(url)
+        if payload_hash is None:
+            # This magic string tells AWS to disregard the payload for
+            # purposes of signing.  The x-amz-content-sha256 header
+            # sent to AWS in the request must have the exact same
+            # value for this to work.
+            payload_hash = b"UNSIGNED-PAYLOAD"
         return cls(
             method=method,
             canonical_uri=_make_canonical_uri(parsed),
