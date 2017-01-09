@@ -627,8 +627,11 @@ class Query(BaseQuery):
         """
         headers = {'x-amz-date': _auth_v4.makeAMZDate(instant)}
         if self.body_producer is None:
-            headers["x-amz-content-sha256"] = hashlib.sha256(
-                self.data).hexdigest()
+            data = self.data
+            headers["x-amz-content-sha256"] = hashlib.sha256(self.data).hexdigest()
+        else:
+            data = None
+            headers["x-amz-content-sha256"] = b"UNSIGNED-PAYLOAD"
         for key, value in self.metadata.iteritems():
             headers["x-amz-meta-" + key] = value
         for key, value in self.amz_headers.iteritems():
@@ -642,7 +645,7 @@ class Query(BaseQuery):
         if self.creds is not None:
             headers["Authorization"] = self.sign(
                 headers,
-                self.data,
+                data,
                 URLContext(self.endpoint, self.bucket, self.object_name),
                 instant,
                 method=self.action)
@@ -653,13 +656,22 @@ class Query(BaseQuery):
         """Sign this query using its built in credentials."""
         headers["host"] = url_context.get_host()
 
-        request = _auth_v4._CanonicalRequest.from_payload_and_headers(
-            method=method,
-            url=url_context.get_path(),
-            headers=headers,
-            headers_to_sign=('host', 'x-amz-date'),
-            payload=data
-        )
+        if data is None:
+            request = _auth_v4._CanonicalRequest.from_headers(
+                method=method,
+                url=url_context.get_path(),
+                headers=headers,
+                headers_to_sign=('host', 'x-amz-date'),
+                payload_hash=None,
+            )
+        else:
+            request = _auth_v4._CanonicalRequest.from_payload_and_headers(
+                method=method,
+                url=url_context.get_path(),
+                headers=headers,
+                headers_to_sign=('host', 'x-amz-date'),
+                payload=data,
+            )
 
         return _auth_v4._make_authorization_header(
             region=region,
