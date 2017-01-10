@@ -21,7 +21,7 @@ from txaws.testing import payload
 from txaws.testing.base import TXAWSTestCase
 from txaws.util import calculate_md5
 
-EMPTY_CONTENT_SHA256 = sha256(b"").hexdigest()
+EMPTY_CONTENT_SHA256 = sha256(b"").hexdigest().decode("ascii")
 
 class URLContextTestCase(TXAWSTestCase):
 
@@ -701,7 +701,7 @@ class S3ClientTestCase(TXAWSTestCase):
                     region=REGION_US_EAST_1,
                     method=b"PUT",
                     url_context=client.s3_url_context(self.endpoint, "mybucket", "?requestPayment"),
-                    content_sha256=sha256(xml).hexdigest(),
+                    content_sha256=sha256(xml).hexdigest().decode("ascii"),
                 ),
                 assoc(query_factory.details, body_producer=None),
             )
@@ -762,7 +762,7 @@ class S3ClientTestCase(TXAWSTestCase):
                     amz_headers={
                         "acl": "public-read",
                     },
-                    content_sha256=sha256(b"some data").hexdigest(),
+                    content_sha256=sha256(b"some data").hexdigest().decode("ascii"),
                 ),
                 assoc(query_factory.details, body_producer=None),
             )
@@ -930,7 +930,7 @@ class S3ClientTestCase(TXAWSTestCase):
                     url_context=client.s3_url_context(self.endpoint, "mybucket", "myobject?acl"),
                     content_sha256=sha256(
                         payload.sample_access_control_policy_result
-                    ).hexdigest(),
+                    ).hexdigest().decode("ascii"),
                 ),
                 assoc(query_factory.details, body_producer=None),
             )
@@ -1024,7 +1024,7 @@ class S3ClientTestCase(TXAWSTestCase):
                     url_context=client.s3_url_context(
                         self.endpoint, "example-bucket", "example-object?partNumber=3&uploadId=testid"
                     ),
-                    content_sha256=sha256(b"some data").hexdigest(),
+                    content_sha256=sha256(b"some data").hexdigest().decode("ascii"),
                 ),
                 assoc(query_factory.details, body_producer=None),
             )
@@ -1057,7 +1057,7 @@ class S3ClientTestCase(TXAWSTestCase):
                     url_context=client.s3_url_context(
                         self.endpoint, "example-bucket", "example-object?uploadId=testid"
                     ),
-                    content_sha256=sha256(xml).hexdigest(),
+                    content_sha256=sha256(xml).hexdigest().decode("ascii"),
                 ),
                 assoc(query_factory.details, body_producer=None),
             )

@@ -17,7 +17,7 @@ from StringIO import StringIO
 import attr
 from attr import validators
 
-from pyrsistent import pmap
+from pyrsistent import PMap, freeze, pmap
 
 from twisted.python.reflect import namedAny
 from twisted.logger import Logger
@@ -177,7 +177,8 @@ class WebVerifyingContextFactory(VerifyingContextFactory):
 
 def url_context(**kw):
     """
-    Construct a new URL context.
+    Construct a new URL context, usable to determine the URI to which
+    a query should be issued.
 
     :param unicode scheme: The scheme portion of the URL, ie
         ``u"http"`` or ``u"https"``.
@@ -187,7 +188,7 @@ def url_context(**kw):
 
     :param int port: A non-default port for the URL or ``None`` for
         the scheme default.
-    
+
     :param list path: The path portion of the URL as a list of unicode
         path segments.
 
@@ -199,19 +200,86 @@ def url_context(**kw):
     return _URLContext(**kw)
 
 
+def _list_of(validator):
+    """
+    attrs validator which requires a value which is a list containing
+    elements which the given validator accepts.
+    """
+    return _ListOf(validator)
+
+
+@attr.s(frozen=True)
+class _ListOf(object):
+    """
+    attrs validator for a list of elements which satisfy another
+    validator.
+    """
+    validator = attr.ib()
+
+    def __call__(self, inst, a, value):
+        validators.instance_of(list)(inst, a, value)
+        for n, element in enumerate(value):
+            inner_identifier = u"{}[{}]".format(a.name, n)
+            # Create an Attribute with a name that refers to the
+            # validator we're using and the index we're validating.
+            # Otherwise the validation failure is pretty confusing.
+            inner_attr = attr.Attribute(
+                name=inner_identifier,
+                default=None,
+                validator=self.validator,
+                repr=False,
+                cmp=False,
+                hash=False,
+                init=False,
+            )
+            self.validator(inst, inner_attr, element)
+
+
+@attr.s(frozen=True)
+class _QueryArgument(object):
+    """
+    Representation of a single URL query argument, eg I{foo=bar}.
+    """
+    name = attr.ib(validator=validators.instance_of(unicode))
+    value = attr.ib(default=None, validator=validators.optional(validators.instance_of(unicode)))
+
+    def url_encode(self):
+        def q(t):
+            return quote(t.encode("utf-8"), safe=b"")
+
+        if self.value is None:
+            return q(self.name)
+        return q(self.name) + b"=" + q(self.value)
+
+
+def _maybe_tuples_to_queryarg(maybe_tuples):
+    """
+    Convert an iterator of tuples to a list of L{_QueryArgument}
+    instances.
+
+    If the iterator is C{None}, just return C{None}.
+    """
+    if maybe_tuples is None:
+        return None
+    return list(_QueryArgument(*v) for v in maybe_tuples)
+
+
 @attr.s(frozen=True)
 class _URLContext(object):
     """
     A description of the URL involved in an AWS request.
 
-    See parameter documentation for ``url_context`` for details about
-    attributes.
+    See parameter documentation for ``url_context`` (the public
+    constructor) for details about attributes.
     """
     scheme = attr.ib(validator=validators.instance_of(unicode))
     host = attr.ib(validator=validators.instance_of(unicode))
     port = attr.ib(validator=validators.optional(validators.instance_of(int)))
-    path = attr.ib(validator=validators.instance_of(list))
-    query = attr.ib(validator=validators.optional(validators.instance_of(list)))
+    path = attr.ib(validator=_list_of(validators.instance_of(unicode)))
+    query = attr.ib(
+        convert=_maybe_tuples_to_queryarg,
+        validator=validators.optional(_list_of(validators.instance_of(_QueryArgument))),
+    )
 
     def get_encoded_host(self):
         """
@@ -233,18 +301,11 @@ class _URLContext(object):
         """
         :return bytes: The encoded query component.
         """
-        def q(t):
-            return quote(t.encode("utf-8"), safe=b"")
 
         if self.query is None:
             return None
         parts = []
-        for arg in self.query:
-            if len(arg) == 1:
-                parts.append(q(arg[0]))
-            elif len(arg) == 2:
-                parts.append(q(arg[0]) + b"=" + q(arg[1]))
-        return b"&".join(parts)
+        return b"&".join(arg.url_encode() for arg in self.query)
 
 
     def get_encoded_url(self):
@@ -269,20 +330,70 @@ class _URLContext(object):
 
 @attr.s
 class RequestDetails(object):
-    region = attr.ib()
-    service = attr.ib()
-    method = attr.ib()
+    """
+    Describe an AWS request in sufficient detail to sign and submit
+    it.
+
+    @ivar bytes region: The name of the region the request will be
+        submitted to.
+
+    @ivar bytes service: The name of the AWS service the request uses.
+
+    @ivar bytes method: The HTTP method of the request.
+
+    @ivar url_context: The details of the request URL.  An object
+        returned by L{url_context}.
+
+    @ivar twisted.web.http_headers.Headers headers: Any
+        application-required HTTP headers for inclusion in the
+        request.  This excludes headers like I{Content-Length} and
+        I{Authorization}.
+
+    @ivar twisted.web.iweb.IBodyProvider body_producer: An object
+        which can produce the bytes which make up the request body.
+
+    @ivar pmap metadata: Arbitrary key/value metadata to associate
+        with the request.  See
+        U{http://docs.aws.amazon.com/AmazonS3/latest/dev/UsingMetadata.html}
+        (XXX: Is this S3-specific?)
+
+    @ivar pmap amz_headers: AWS semantic key/value metadata to
+        associate with the request.  For example, including the key
+        u"storage-class" will tell AWS S3 to provide some particular
+        alternate storage guarantees for an S3 object.
+
+    @ivar unicode content_sha256: The hex digested sha256 of the bytes
+        that C{body_producer} will produce.  If C{body_producer} will
+        produce C{b""}, this must be hashed and included here.  If the
+        hash cannot be computed, C{None} (which corresponds to a
+        request with an unsigned payload - ie, with a payload
+        unprotected from tampering by a signature).
+    """
+    region = attr.ib(validator=validators.instance_of(bytes))
+    service = attr.ib(validator=validators.instance_of(bytes))
+    method = attr.ib(validator=validators.instance_of(bytes))
     url_context = attr.ib()
-    headers = attr.ib(default=attr.Factory(Headers))
+    headers = attr.ib(
+        default=attr.Factory(Headers),
+        validator=validators.instance_of(Headers),
+    )
     body_producer = attr.ib(
         default=None,
-        validator=validators.optional(validators.provides(IBodyProducer))
+        validator=validators.optional(validators.provides(IBodyProducer)),
     )
-    metadata = attr.ib(default=pmap())
-    amz_headers = attr.ib(default=pmap())
+    metadata = attr.ib(
+        default=pmap(),
+        convert=freeze,
+        validator=validators.instance_of(PMap),
+    )
+    amz_headers = attr.ib(
+        default=pmap(),
+        convert=freeze,
+        validator=validators.instance_of(PMap),
+    )
     content_sha256 = attr.ib(
         default=None,
-        validator=validators.optional(validators.instance_of(bytes)),
+        validator=validators.optional(validators.instance_of(unicode)),
     )
 
 
@@ -458,7 +569,7 @@ def _get_agent(scheme, host, reactor, contextFactory=None):
             return ProxyAgent(endpoint)
         else:
             return Agent(reactor)
-    
+
 
 class FakeClient(object):
     """

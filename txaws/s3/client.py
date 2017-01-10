@@ -108,12 +108,12 @@ class S3Client(BaseClient):
         # (included in the signature) more than 15 minutes in the past
         # are rejected. :/
         if body is not None:
-            content_sha256 = sha256(body).hexdigest()
+            content_sha256 = sha256(body).hexdigest().decode("ascii")
             body_producer = FileBodyProducer(BytesIO(body), cooperator=self._cooperator)
         elif body_producer is None:
             # Just as important is to include the empty content hash
             # for all no-body requests.
-            content_sha256 = sha256(b"").hexdigest()
+            content_sha256 = sha256(b"").hexdigest().decode("ascii")
         else:
             # Tell AWS we're not trying to sign the payload.
             content_sha256 = None
@@ -823,13 +823,13 @@ class Query(BaseQuery):
 
 def s3_url_context(service_endpoint, bucket=None, object_name=None):
     def u(s):
-        return unquote(s).decode("utf-8")
+        return unquote(s)
 
     def p(s):
         results = []
-        args = s.split(b"&")
+        args = s.split(u"&")
         for a in args:
-            pieces = a.split(b"=")
+            pieces = a.split(u"=")
             if len(pieces) == 1:
                 results.append((u(pieces[0]),))
             elif len(pieces) == 2:
@@ -843,15 +843,19 @@ def s3_url_context(service_endpoint, bucket=None, object_name=None):
     if bucket is None:
         path.append(u"")
     else:
+        if isinstance(bucket, bytes):
+            bucket = bucket.decode("utf-8")
         path.append(bucket)
         if object_name is None:
             path.append(u"")
         else:
-            if b"?" in object_name:
-                object_name, query = object_name.split(b"?", 1)
+            if isinstance(object_name, unicode):
+                object_name = object_name.decode("utf-8")
+            if u"?" in object_name:
+                object_name, query = object_name.split(u"?", 1)
                 query = p(query)
-            object_name_components = object_name.split(b"/")
-            if object_name_components[0] == b"":
+            object_name_components = object_name.split(u"/")
+            if object_name_components[0] == u"":
                 object_name_components.pop(0)
             if object_name_components:
                 path.extend(object_name_components)
