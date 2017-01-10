@@ -485,7 +485,7 @@ class S3ClientTestCase(TXAWSTestCase):
                 query_factory.details,
             )
             return passthrough
-                        
+
 
         def check_results(notification_config):
             self.assertEquals(notification_config.topic,
@@ -811,7 +811,7 @@ class S3ClientTestCase(TXAWSTestCase):
             body_producer=string_producer,
         )
         d.addCallback(check_query_args)
-        return d    
+        return d
 
     def test_copy_object(self):
         """
