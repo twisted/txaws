@@ -277,6 +277,7 @@ class _URLContext(object):
     port = attr.ib(validator=validators.optional(validators.instance_of(int)))
     path = attr.ib(validator=_list_of(validators.instance_of(unicode)))
     query = attr.ib(
+        default=None,
         convert=_maybe_tuples_to_queryarg,
         validator=validators.optional(_list_of(validators.instance_of(_QueryArgument))),
     )
