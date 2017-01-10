@@ -318,9 +318,9 @@ class _URLContext(object):
         )
         query = self.get_encoded_query()
         if query is None:
-            params["query"] = b""
+            params[b"query"] = b""
         else:
-            params["query"] = b"?" + query
+            params[b"query"] = b"?" + query
         if self.port is None:
             return b"%(scheme)s://%(host)s%(path)s%(query)s" % params
         params["port"] = self.port
