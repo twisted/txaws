@@ -2,10 +2,8 @@ import os
 
 from StringIO import StringIO
 
-from zope.interface import implements
-
 from twisted.internet import reactor
-from twisted.internet.defer import succeed, Deferred
+from twisted.internet.defer import Deferred
 from twisted.internet.error import ConnectionRefusedError
 from twisted.protocols.policies import WrappingFactory
 from twisted.python import log
@@ -13,8 +11,6 @@ from twisted.python.filepath import FilePath
 from twisted.python.failure import Failure
 from twisted.test.test_sslverify import makeCertificate
 from twisted.web import server, static
-from twisted.web.iweb import IBodyProducer
-from twisted.web.client import HTTPClientFactory
 from twisted.web.client import ResponseDone
 from twisted.web.resource import Resource
 from twisted.web.error import Error as TwistedWebError
