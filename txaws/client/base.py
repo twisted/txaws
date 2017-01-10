@@ -31,6 +31,7 @@ from twisted.web import http
 from twisted.web.iweb import UNKNOWN_LENGTH, IBodyProducer
 from twisted.web.client import Agent, ProxyAgent
 from twisted.web.client import ResponseDone
+from twisted.web.client import FileBodyProducer
 from twisted.web.http import NO_CONTENT, PotentialDataLoss
 from twisted.web.http_headers import Headers
 from twisted.web.error import Error as TwistedWebError
@@ -527,6 +528,10 @@ class _Query(object):
             url=url,
             headers=headers,
         )
+        if body_producer is None:
+            # Work around for https://twistedmatrix.com/trac/ticket/8984
+            body_producer = FileBodyProducer(BytesIO(b""))
+
         d = agent.request(
             method,
             url,
