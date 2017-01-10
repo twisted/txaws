@@ -15,12 +15,39 @@ from twisted.web.client import ResponseDone
 from twisted.web.resource import Resource
 from twisted.web.error import Error as TwistedWebError
 
+from txaws.service import REGION_US_EAST_1
+from txaws.credentials import AWSCredentials
 from txaws.client import ssl
-from txaws.client.base import BaseClient, BaseQuery, error_wrapper
-from txaws.client.base import StreamingBodyReceiver
+from txaws.client.base import (
+    BaseClient, BaseQuery, error_wrapper, query,
+    StreamingBodyReceiver, _URLContext, url_context,
+    request_details,
+)
 from txaws.service import AWSServiceEndpoint
 from txaws.testing.base import TXAWSTestCase
 from txaws.testing.producers import StringBodyProducer
+
+
+class URLContextTests(TXAWSTestCase):
+    """
+    Tests for L{txaws.client.base.url_context}.
+    """
+    def test_construction(self):
+        """
+        L{url_context} constructs a L{_URLContext} with its parameters.
+        """
+        params = dict(
+            scheme=u"https",
+            host=u"example.invalid",
+            port=80,
+            path=[u"foo"],
+            query=[(u"bar", u"baz")],
+        )
+        self.assertEqual(
+            _URLContext(**params),
+            url_context(**params),
+        )
+
 
 class ErrorWrapperTestCase(TXAWSTestCase):
 
