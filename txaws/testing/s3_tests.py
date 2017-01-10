@@ -4,10 +4,12 @@
 Integration tests for the S3 client(s).
 """
 
+from io import BytesIO
 from uuid import uuid4
 
 from twisted.trial.unittest import TestCase
 from twisted.internet.defer import inlineCallbacks, gatherResults
+from twisted.web.client import FileBodyProducer
 
 def s3_integration_tests(get_client):
     class S3IntegrationTests(TestCase):
@@ -98,6 +100,60 @@ def s3_integration_tests(get_client):
                 [], created,
                 "Expected to not find deleted objects in listing {}".format(objects),
             )
+
+        def test_put_object_errors(self):
+            """
+            C{put_object} raises L{ValueError} if called with two conflicting
+            sources of object body data.
+            """
+            client = get_client(self)
+            self.assertRaises(
+                ValueError,
+                client.put_object,
+                "bucket", "object",
+                # These two are mutually exclusive.
+                data="asd", body_producer=FileBodyProducer(BytesIO(b"def")),
+            )
+
+        @inlineCallbacks
+        def test_put_object_empty(self):
+            """
+            C{put_object} creates an empty object if passed neither C{body}
+            nor C{body_producer}.
+            """
+            bucket_name = str(uuid4())
+            object_name = b"body_producer"
+
+            client = get_client(self)
+            yield client.create_bucket(bucket_name)
+            yield client.put_object(bucket_name, object_name)
+
+            retrieved = yield client.get_object(bucket_name, object_name)
+            self.assertEqual(b"", retrieved)
+
+
+        @inlineCallbacks
+        def test_put_object_body_producer(self):
+            """
+            C{put_object} accepts a C{body_producer} argument which is an
+            L{IBodyProducer} which is used to provide the object's
+            content.
+            """
+            bucket_name = str(uuid4())
+            object_name = b"body_producer"
+            object_data = b"some random bytes"
+
+            client = get_client(self)
+
+            yield client.create_bucket(bucket_name)
+            yield client.put_object(
+                bucket_name,
+                object_name,
+                body_producer=FileBodyProducer(BytesIO(object_data)),
+            )
+
+            retrieved = yield client.get_object(bucket_name, object_name)
+            self.assertEqual(object_data, retrieved)
 
 
     return S3IntegrationTests
