@@ -21,7 +21,6 @@ from txaws.client import ssl
 from txaws.client.base import (
     BaseClient, BaseQuery, error_wrapper, query,
     StreamingBodyReceiver, _URLContext, url_context,
-    request_details,
 )
 from txaws.service import AWSServiceEndpoint
 from txaws.testing.base import TXAWSTestCase
