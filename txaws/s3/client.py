@@ -628,7 +628,9 @@ class Query(BaseQuery):
         headers = {'x-amz-date': _auth_v4.makeAMZDate(instant)}
         if self.body_producer is None:
             data = self.data
-            headers["x-amz-content-sha256"] = hashlib.sha256(self.data).hexdigest()
+            if data is None:
+                data = b""
+            headers["x-amz-content-sha256"] = hashlib.sha256(data).hexdigest()
         else:
             data = None
             headers["x-amz-content-sha256"] = b"UNSIGNED-PAYLOAD"
@@ -691,9 +693,8 @@ class Query(BaseQuery):
         d = self.get_page(
             url_context.get_url(),
             method=self.action,
-            postdata=self.data,
+            postdata=self.data or b"",
             headers=self.get_headers(utcnow()),
-            body_producer=self.body_producer,
-            receiver_factory=self.receiver_factory)
+        )
 
         return d.addErrback(s3_error_wrapper)
