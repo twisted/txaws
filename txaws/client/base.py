@@ -415,6 +415,9 @@ def query(**kw):
 
 @attr.s(frozen=True)
 class _Query(object):
+    """
+    Representation of enough information to submit an AWS request.
+    """
     _credentials = attr.ib()
     _details = attr.ib()
     _reactor = attr.ib(default=attr.Factory(lambda: namedAny("twisted.internet.reactor")))
@@ -471,8 +474,24 @@ class _Query(object):
 
 
     def submit(self, agent=None, receiver_factory=None, utcnow=None):
-        if receiver_factory is None:
-            receiver_factory = StreamingBodyReceiver
+        """
+        Send this request to AWS.
+
+        @param IAgent agent: The agent to use to issue the request.
+
+        @param receiver_factory: Backwards compatibility only.  The
+            value is ignored.
+
+        @param utcnow: A function like L{datetime.datetime.utcnow} to
+            get the time as of the call.  This is used to provide a
+            stable timestamp for signing purposes.
+
+        @return: A L{twisted.internet.defer.Deferred} that fires with
+            the response body (L{bytes}) on success or with a
+            L{twisted.python.failure.Failure} on error.  Most
+            AWS-originated errors are represented as
+            L{twisted.web.error.Error} instances.
+        """
         if utcnow is None:
             utcnow = datetime.utcnow
 
@@ -538,11 +557,11 @@ class _Query(object):
             headers,
             body_producer,
         )
-        d.addCallback(self._handle_response, receiver_factory)
+        d.addCallback(self._handle_response)
         return d
 
-    def _handle_response(self, response, receiver_factory):
-        receiver = receiver_factory()
+    def _handle_response(self, response):
+        receiver = StreamingBodyReceiver()
         receiver.finished = d = Deferred()
         receiver.content_length = response.length
         response.deliverBody(receiver)
