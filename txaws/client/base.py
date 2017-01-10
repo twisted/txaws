@@ -2,7 +2,7 @@
 
 import os
 import urlparse
-from urllib import quote, urlencode
+from urllib import quote
 from datetime import datetime
 from io import BytesIO
 
@@ -21,7 +21,6 @@ from pyrsistent import PMap, freeze, pmap
 
 from twisted.python.reflect import namedAny
 from twisted.logger import Logger
-from twisted.internet import task
 from twisted.internet.endpoints import TCP4ClientEndpoint
 from twisted.internet.ssl import ClientContextFactory
 from twisted.internet.protocol import Protocol
@@ -305,7 +304,6 @@ class _URLContext(object):
 
         if self.query is None:
             return None
-        parts = []
         return b"&".join(arg.url_encode() for arg in self.query)
 
 
@@ -589,7 +587,7 @@ def _get_agent(scheme, host, reactor, contextFactory=None):
         proxy_endpoint = os.environ.get("http_proxy")
         if proxy_endpoint:
             proxy_url = urlparse.urlparse(proxy_endpoint)
-            endpoint = TCP4ClientEndpoint(self.reactor, proxy_url.hostname, proxy_url.port)
+            endpoint = TCP4ClientEndpoint(reactor, proxy_url.hostname, proxy_url.port)
             return ProxyAgent(endpoint)
         else:
             return Agent(reactor)
@@ -696,7 +694,7 @@ class BaseQuery(object):
         bytes.
         """
         self.client.status = response.code
-        self.response_headers = headers = response.headers
+        self.response_headers = response.headers
         # XXX This workaround (which needs to be improved at that) for possible
         # bug in Twisted with new client:
         # http://twistedmatrix.com/trac/ticket/5476
