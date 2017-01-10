@@ -635,9 +635,11 @@ class S3ClientTestCase(TXAWSTestCase):
                     region=REGION_US_EAST_1,
                     method=b"PUT",
                     url_context=client.s3_url_context(self.endpoint, "mybucket", "?acl"),
-                    content_sha256=EMPTY_CONTENT_SHA256,
+                    content_sha256=sha256(
+                        payload.sample_access_control_policy_result
+                    ).hexdigest().decode("ascii"),
                 ),
-                query_factory.details,
+                assoc(query_factory.details, body_producer=None),
             )
             return passthrough
 

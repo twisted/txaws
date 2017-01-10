@@ -31,7 +31,6 @@ import hashlib
 from hashlib import sha256
 
 from urllib import urlencode, unquote
-from urlparse import parse_qsl
 from dateutil.parser import parse as parseTime
 
 from txaws.client.base import (
@@ -51,7 +50,7 @@ from txaws.util import XML
 
 
 def _to_dict(headers):
-    return {k: vs[0] for (k, v) in headers.getAllRawHeaders()}
+    return {k: vs[0] for (k, vs) in headers.getAllRawHeaders()}
 
 def s3_error_wrapper(error):
     error_wrapper(error, S3Error)
@@ -408,6 +407,7 @@ class S3Client(BaseClient):
         details = self._details(
             method=b"PUT",
             url_context=self._url_context(bucket=bucket, object_name=b"?acl"),
+            body=data,
         )
         d = self._submit(self._query_factory(details))
         d.addCallback(itemgetter(1))
