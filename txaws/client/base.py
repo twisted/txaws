@@ -424,9 +424,6 @@ class _Query(object):
         """
         Sign this query using its built in credentials.
         """
-        if not headers.hasHeader(u"host"):
-            raise ValueError("Cannot sign headers without Host")
-
         request = _auth_v4._CanonicalRequest.from_headers(
             method=method,
             url=url_context.get_encoded_path(),
