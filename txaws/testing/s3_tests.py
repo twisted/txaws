@@ -117,6 +117,23 @@ def s3_integration_tests(get_client):
 
 
         @inlineCallbacks
+        def test_put_object_empty(self):
+            """
+            C{put_object} creates an empty object if passed neither C{body}
+            nor C{body_producer}.
+            """
+            bucket_name = str(uuid4())
+            object_name = b"body_producer"
+
+            client = get_client(self)
+            yield client.create_bucket(bucket_name)
+            yield client.put_object(bucket_name, object_name)
+
+            retrieved = yield client.get_object(bucket_name, object_name)
+            self.assertEqual(b"", retrieved)
+
+
+        @inlineCallbacks
         def test_put_object_body_producer(self):
             """
             C{put_object} accepts a C{body_producer} argument which is an

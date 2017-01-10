@@ -58,7 +58,7 @@ setup(
     include_package_data=True,
     zip_safe=False,
     extras_require={
-        "dev": ["zope.datetime"],
+        "dev": ["zope.datetime", "boto3"],
     },
     **extra_setup_args
     )
