@@ -10,8 +10,6 @@ import attr
 import datetime
 import re
 
-from hashlib import sha256
-
 from twisted.trial import unittest
 from twisted.python import filepath
 from twisted.internet.error import ConnectionDone
@@ -170,8 +168,7 @@ class _AWS4TestSuiteTestCaseMixin(object):
             url=request.path,
             headers=request.headers,
             headers_to_sign=request.headers.keys(),
-            payload=request.body,
-        )
+            payload=request.body)
 
         self.assertEqual(canonical_request.serialize(),
                          serialized_canonical_request)
