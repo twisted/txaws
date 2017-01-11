@@ -50,14 +50,14 @@ class MemoryService(object):
     stateFactory = attr.ib()
 
     _state = attr.ib(
-        default=attr.Factory(WeakKeyDictionary),
+        default=attr.Factory(dict),
         init=False,
         hash=False,
     )
 
-    def get_state(self, client):
-        return self._state.setdefault(client, self.stateFactory())
+    def get_state(self, creds):
+        return self._state.setdefault(creds, self.stateFactory())
 
-    def client(self, *a, **kw):
-        client = self.clientFactory(self, *a, **kw)
-        return client, self.get_state(client)
+    def client(self, creds, *a, **kw):
+        client = self.clientFactory(self, creds, *a, **kw)
+        return client, self.get_state(creds)
