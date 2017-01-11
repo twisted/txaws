@@ -32,7 +32,7 @@ class TXAWSTestCase(TestCase):
 
 class ControllerState(object):
     def __get__(self, oself, type):
-        return oself._controller.get_state(oself)
+        return oself._controller.get_state(oself.creds)
 
 
 
@@ -41,7 +41,7 @@ class MemoryClient(object):
     _state = ControllerState()
 
     _controller = attr.ib()
-
+    creds = attr.ib()
 
 
 @attr.s(frozen=True)

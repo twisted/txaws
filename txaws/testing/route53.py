@@ -33,7 +33,6 @@ def _value_transform(pv, pred, transform):
 
 @attr.s
 class _MemoryRoute53Client(MemoryClient):
-    creds = attr.ib()
     endpoint = attr.ib()
     
     def create_hosted_zone(self, caller_reference, name):
