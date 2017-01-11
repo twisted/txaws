@@ -61,12 +61,13 @@ class _MemoryRoute53Client(MemoryClient):
         for change in changes:
             rrsets = _process_change(rrsets, change)
         self._state.rrsets = self._state.rrsets.set(zone_id, rrsets)
+        return succeed(None)
 
     def list_resource_record_sets(self, zone_id):
-        return {
+        return succeed(pmap({
             name: pset(rrset)
             for (name, type), rrset in self._state.rrsets[zone_id].items()
-        }
+        }))
 
 
 def _process_change(rrsets, change):
