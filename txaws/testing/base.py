@@ -56,7 +56,8 @@ class MemoryService(object):
     )
 
     def get_state(self, creds):
-        return self._state.setdefault(creds, self.stateFactory())
+        key = (creds.access_key, creds.secret_key)
+        return self._state.setdefault(key, self.stateFactory())
 
     def client(self, creds, *a, **kw):
         client = self.clientFactory(self, creds, *a, **kw)
