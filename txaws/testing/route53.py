@@ -36,10 +36,10 @@ class _MemoryRoute53Client(MemoryClient):
     creds = attr.ib()
     endpoint = attr.ib()
     
-    def create_hosted_zone(self, reference, name):
+    def create_hosted_zone(self, caller_reference, name):
         self._state.zones = self._state.zones.append(HostedZone(
             name=name,
-            reference=reference,
+            reference=caller_reference,
             identifier=self._state.next_id(),
             # Hosted zones start with SOA and NS rrsets.
             rrset_count=2,
