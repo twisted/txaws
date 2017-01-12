@@ -1,6 +1,18 @@
+# Licenced under the txaws licence available at /LICENSE in the txaws source.
+
+"""
+Tests for L{txaws.client.base}.
+"""
+
 import os
 
 from StringIO import StringIO
+from datetime import datetime
+from hashlib import sha256
+
+from zope.interface import implementer
+
+import attr
 
 from twisted.internet import reactor
 from twisted.internet.defer import Deferred
@@ -11,15 +23,17 @@ from twisted.python.filepath import FilePath
 from twisted.python.failure import Failure
 from twisted.test.test_sslverify import makeCertificate
 from twisted.web import server, static
+from twisted.web.http_headers import Headers
 from twisted.web.client import ResponseDone
 from twisted.web.resource import Resource
 from twisted.web.error import Error as TwistedWebError
+from twisted.web.iweb import IAgent
 
 from txaws.service import REGION_US_EAST_1
 from txaws.credentials import AWSCredentials
-from txaws.client import ssl
+from txaws.client import base, ssl
 from txaws.client.base import (
-    BaseClient, BaseQuery, error_wrapper, query,
+    BaseClient, BaseQuery, error_wrapper,
     StreamingBodyReceiver, _URLContext, url_context,
 )
 from txaws.service import AWSServiceEndpoint
@@ -319,3 +333,87 @@ class StreamingBodyReceiverTestCase(TXAWSTestCase):
         user_fd = StringIO()
         receiver = StreamingBodyReceiver(user_fd)
         self.assertIdentical(receiver._fd, user_fd)
+
+
+
+@attr.s
+@implementer(IAgent)
+class StubAgent(object):
+    _requests = attr.ib(init=False, default=attr.Factory(list))
+
+    def request(self, method, url, headers, bodyProducer):
+        result = Deferred()
+        self._requests.append((method, url, headers, bodyProducer, result))
+        return result
+
+
+class QueryTestCase(TXAWSTestCase):
+    """
+    Tests for L{query}.
+    """
+    def setUp(self):
+        self.credentials = AWSCredentials(
+            "access key id", "secret access key",
+        )
+        self.url_context = base.url_context(
+            scheme=u"https",
+            host=u"example.invalid",
+            port=80,
+            path=[],
+        )
+        self.content_sha256 = sha256(b"").hexdigest().decode("ascii")
+        self.details = base.RequestDetails(
+            region=REGION_US_EAST_1,
+            service=b"iam",
+            method=b"GET",
+            url_context=self.url_context,
+            content_sha256=self.content_sha256,
+        )
+        self.agent = StubAgent()
+        self.now = datetime.utcfromtimestamp(1234567890)
+
+    def utcnow(self):
+        return self.now
+
+    def test_submit(self):
+        """
+        C{submit} uses the given L{IAgent} to issue a request as described
+        by the query's credentials and request details.
+        """
+        query = base.query(
+            credentials=self.credentials,
+            details=self.details,
+        )
+
+        self.assertNoResult(query.submit(self.agent, utcnow=self.utcnow))
+        [(method, url, headers, _, _)] = self.agent._requests
+
+        date = b"20090213T233130Z"
+        host = self.url_context.get_encoded_host()
+
+        authorization = query._sign(
+            self.now,
+            self.credentials,
+            self.details.service,
+            self.details.region,
+            self.details.method,
+            self.url_context,
+            Headers({
+                b"host": [host],
+                b"x-amz-date": [date],
+            }),
+            content_sha256=self.content_sha256,
+        )
+
+        self.assertEqual(self.details.method, method)
+        self.assertEqual(self.url_context.get_encoded_url(), url)
+        self.assertEqual(
+            Headers({
+                b"host": [host],
+                b"x-amz-date": [date],
+                b"x-amz-content-sha256": [self.content_sha256],
+                b"authorization": [authorization],
+            }), headers,
+        )
+        # It's hard to make an assertion about the bodyProducer or I
+        # would do that too.
