@@ -556,6 +556,9 @@ class _Query(object):
         return (response, data)
 
 
+# Something like this belongs in Twisted, perhaps.  At least, the
+# "give me an Agent and respect the OS conventions for proxy
+# configuration" logic.
 def _get_agent(scheme, host, reactor, contextFactory=None):
     if scheme == b"https":
         proxy_endpoint = os.environ.get("https_proxy")
