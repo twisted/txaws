@@ -175,31 +175,6 @@ class WebVerifyingContextFactory(VerifyingContextFactory):
         return VerifyingContextFactory.getContext(self)
 
 
-def url_context(**kw):
-    """
-    Construct a new URL context, usable to determine the URI to which
-    a query should be issued.
-
-    :param unicode scheme: The scheme portion of the URL, ie
-        ``u"http"`` or ``u"https"``.
-
-    :param unicode host: The host portion of the URL, ie
-        ``u"example.com"``.
-
-    :param int port: A non-default port for the URL or ``None`` for
-        the scheme default.
-
-    :param list path: The path portion of the URL as a list of unicode
-        path segments.
-
-    :param list query: The query arguments of the URL as a list of
-        tuples.  Each tuple is length one (a unicode string
-        representing a no-value argument) or two (two unicode strings
-        representing an argument name and value).
-    """
-    return _URLContext(**kw)
-
-
 def _list_of(validator):
     """
     attrs validator which requires a value which is a list containing
@@ -264,6 +239,31 @@ def _maybe_tuples_to_queryarg(maybe_tuples):
     return list(_QueryArgument(*v) for v in maybe_tuples)
 
 
+def url_context(**kw):
+    """
+    Construct a new URL context, usable to determine the URI to which
+    a query should be issued.
+
+    :param unicode scheme: The scheme portion of the URL, ie
+        ``u"http"`` or ``u"https"``.
+
+    :param unicode host: The host portion of the URL, ie
+        ``u"example.com"``.
+
+    :param int port: A non-default port for the URL or ``None`` for
+        the scheme default.
+
+    :param list path: The path portion of the URL as a list of unicode
+        path segments.
+
+    :param list query: The query arguments of the URL as a list of
+        tuples.  Each tuple is length one (a unicode string
+        representing a no-value argument) or two (two unicode strings
+        representing an argument name and value).
+    """
+    return _URLContext(**kw)
+
+
 @attr.s(frozen=True)
 class _URLContext(object):
     """
@@ -271,6 +271,9 @@ class _URLContext(object):
 
     See parameter documentation for ``url_context`` (the public
     constructor) for details about attributes.
+
+    ``url_context`` is the public constructor to hide the type and
+    prevent subclassing.
     """
     scheme = attr.ib(validator=validators.instance_of(unicode))
     host = attr.ib(validator=validators.instance_of(unicode))
@@ -327,6 +330,9 @@ class _URLContext(object):
         params["port"] = self.port
         return b"%(scheme)s://%(host)s:%(port)d%(path)s%(query)s" % params
 
+
+def request_details(**kw):
+    return RequestDetails(**kw)
 
 @attr.s
 class RequestDetails(object):
