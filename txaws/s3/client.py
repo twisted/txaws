@@ -833,6 +833,11 @@ def s3_url_context(service_endpoint, bucket=None, object_name=None):
     :param unicode object_name: If given, the name of an object or
         object subresource to reference.
     """
+
+    # Define our own query parser which can handle the consequences of
+    # `?acl` and such (subresources).  At its best, parse_qsl doesn't
+    # let us differentiate between these and empty values (such as
+    # `?acl=`).
     def p(s):
         results = []
         args = s.split(u"&")
