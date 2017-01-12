@@ -619,7 +619,6 @@ class BaseQuery(object):
         warnings.warn('The client attribute on BaseQuery is deprecated and'
                       ' will go away in future release.', stacklevel=3)
 
-
     def get_page(self, url, *args, **kwds):
         """
         Define our own get_page method so that we can easily override the
