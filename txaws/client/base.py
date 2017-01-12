@@ -193,16 +193,12 @@ class _QueryArgument(object):
         return q(self.name) + b"=" + q(self.value)
 
 
-def _maybe_tuples_to_queryarg(maybe_tuples):
+def _tuples_to_queryarg(tuples):
     """
     Convert an iterator of tuples to a list of L{_QueryArgument}
     instances.
-
-    If the iterator is C{None}, just return C{None}.
     """
-    if maybe_tuples is None:
-        return None
-    return list(_QueryArgument(*v) for v in maybe_tuples)
+    return list(_QueryArgument(*v) for v in tuples)
 
 
 def url_context(**kw):
@@ -249,9 +245,9 @@ class _URLContext(object):
     port = attr.ib(validator=validators.optional(validators.instance_of(int)))
     path = attr.ib(validator=_list_of(validators.instance_of(unicode)))
     query = attr.ib(
-        default=None,
-        convert=_maybe_tuples_to_queryarg,
-        validator=validators.optional(_list_of(validators.instance_of(_QueryArgument))),
+        default=attr.Factory(list),
+        convert=_tuples_to_queryarg,
+        validator=_list_of(validators.instance_of(_QueryArgument)),
     )
 
     def get_encoded_host(self):
@@ -275,8 +271,6 @@ class _URLContext(object):
         :return bytes: The encoded query component.
         """
 
-        if self.query is None:
-            return None
         return b"&".join(arg.url_encode() for arg in self.query)
 
 
@@ -288,11 +282,10 @@ class _URLContext(object):
             scheme=self.scheme.encode("ascii"),
             host=self.get_encoded_host(),
             path=self.get_encoded_path(),
+            query=b"",
         )
         query = self.get_encoded_query()
-        if query is None:
-            params[b"query"] = b""
-        else:
+        if query:
             params[b"query"] = b"?" + query
         if self.port is None:
             return b"%(scheme)s://%(host)s%(path)s%(query)s" % params

@@ -840,7 +840,7 @@ def s3_url_context(service_endpoint, bucket=None, object_name=None):
                 raise Exception("oh no")
         return results
 
-    query = None
+    query = []
     path = []
     if bucket is None:
         path.append(u"")
