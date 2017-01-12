@@ -2,6 +2,7 @@ import datetime
 from hashlib import sha256
 import warnings
 from os import environ
+from urllib import quote
 
 from attr import assoc
 
@@ -22,7 +23,7 @@ from txaws.testing.base import TXAWSTestCase
 from txaws.testing.integration import get_live_service
 from txaws.util import calculate_md5
 
-EMPTY_CONTENT_SHA256 = sha256(b"").hexdigest()
+EMPTY_CONTENT_SHA256 = sha256(b"").hexdigest().decode("ascii")
 
 class URLContextTestCase(TXAWSTestCase):
 
@@ -107,6 +108,42 @@ class URLContextTestCase(TXAWSTestCase):
         self.assertEquals(context.get_host(), b'0.0.0.0')
         self.assertEquals(context.get_url(), test_uri + b'foo/bar')
 
+class S3URLContextTestCase(TXAWSTestCase):
+    """
+    Tests for L{s3_url_context}.
+    """
+    def test_unicode_bucket(self):
+        """
+        If a unicode bucket is given, the resulting url is nevertheless
+        bytes.
+        """
+        test_uri = b"https://0.0.0.0:12345/"
+        endpoint = AWSServiceEndpoint(uri=test_uri)
+        bucket = u"\N{SNOWMAN}"
+        context = client.s3_url_context(endpoint, bucket)
+        url = context.get_url()
+        self.assertIsInstance(url, bytes)
+        self.assertEqual(
+            test_uri + quote(bucket.encode("utf-8"), safe=b"") + b"/",
+            url,
+        )
+
+    def test_unicode_object_name(self):
+        """
+        If a unicode bucket is given, the resulting url is nevertheless
+        bytes.
+        """
+        test_uri = b"https://0.0.0.0:12345/"
+        endpoint = AWSServiceEndpoint(uri=test_uri)
+        bucket = b"mybucket"
+        object_name = u"\N{SNOWMAN}"
+        context = client.s3_url_context(endpoint, bucket, object_name)
+        url = context.get_url()
+        self.assertIsInstance(url, bytes)
+        self.assertEqual(
+            test_uri + (bucket + b"/" + quote(object_name.encode("utf-8"), safe=b"")),
+            url,
+        )
 
 def mock_query_factory(response_body):
     class Response(object):
@@ -486,7 +523,7 @@ class S3ClientTestCase(TXAWSTestCase):
                 query_factory.details,
             )
             return passthrough
-                        
+
 
         def check_results(notification_config):
             self.assertEquals(notification_config.topic,
@@ -636,9 +673,11 @@ class S3ClientTestCase(TXAWSTestCase):
                     region=REGION_US_EAST_1,
                     method=b"PUT",
                     url_context=client.s3_url_context(self.endpoint, "mybucket", "?acl"),
-                    content_sha256=EMPTY_CONTENT_SHA256,
+                    content_sha256=sha256(
+                        payload.sample_access_control_policy_result
+                    ).hexdigest().decode("ascii"),
                 ),
-                query_factory.details,
+                assoc(query_factory.details, body_producer=None),
             )
             return passthrough
 
@@ -702,7 +741,7 @@ class S3ClientTestCase(TXAWSTestCase):
                     region=REGION_US_EAST_1,
                     method=b"PUT",
                     url_context=client.s3_url_context(self.endpoint, "mybucket", "?requestPayment"),
-                    content_sha256=sha256(xml).hexdigest(),
+                    content_sha256=sha256(xml).hexdigest().decode("ascii"),
                 ),
                 assoc(query_factory.details, body_producer=None),
             )
@@ -763,7 +802,7 @@ class S3ClientTestCase(TXAWSTestCase):
                     amz_headers={
                         "acl": "public-read",
                     },
-                    content_sha256=sha256(b"some data").hexdigest(),
+                    content_sha256=sha256(b"some data").hexdigest().decode("ascii"),
                 ),
                 assoc(query_factory.details, body_producer=None),
             )
@@ -812,7 +851,7 @@ class S3ClientTestCase(TXAWSTestCase):
             body_producer=string_producer,
         )
         d.addCallback(check_query_args)
-        return d    
+        return d
 
     def test_copy_object(self):
         """
@@ -931,7 +970,7 @@ class S3ClientTestCase(TXAWSTestCase):
                     url_context=client.s3_url_context(self.endpoint, "mybucket", "myobject?acl"),
                     content_sha256=sha256(
                         payload.sample_access_control_policy_result
-                    ).hexdigest(),
+                    ).hexdigest().decode("ascii"),
                 ),
                 assoc(query_factory.details, body_producer=None),
             )
@@ -1025,7 +1064,7 @@ class S3ClientTestCase(TXAWSTestCase):
                     url_context=client.s3_url_context(
                         self.endpoint, "example-bucket", "example-object?partNumber=3&uploadId=testid"
                     ),
-                    content_sha256=sha256(b"some data").hexdigest(),
+                    content_sha256=sha256(b"some data").hexdigest().decode("ascii"),
                 ),
                 assoc(query_factory.details, body_producer=None),
             )
@@ -1058,7 +1097,7 @@ class S3ClientTestCase(TXAWSTestCase):
                     url_context=client.s3_url_context(
                         self.endpoint, "example-bucket", "example-object?uploadId=testid"
                     ),
-                    content_sha256=sha256(xml).hexdigest(),
+                    content_sha256=sha256(xml).hexdigest().decode("ascii"),
                 ),
                 assoc(query_factory.details, body_producer=None),
             )

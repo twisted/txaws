@@ -135,6 +135,7 @@ class _MemoryS3Client(MemoryClient):
             )
             return finished
 
+        self._store_object(bucket, object_name, b"")
         return succeed(None)
 
 

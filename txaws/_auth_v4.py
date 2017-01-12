@@ -203,7 +203,9 @@ class _CanonicalRequest(object):
     payload_hash = attr.ib()
 
     @classmethod
-    def from_headers(cls, method, url, headers, headers_to_sign, payload_hash):
+    def from_request_components(
+            cls, method, url, headers, headers_to_sign, payload_hash,
+    ):
         """
         Construct a L{_CanonicalRequest} from the provided headers.
 
@@ -252,17 +254,14 @@ class _CanonicalRequest(object):
         )
 
     @classmethod
-    def from_payload_and_headers(cls,
-                                 method,
-                                 url,
-                                 headers,
-                                 headers_to_sign,
-                                 payload):
+    def from_request_components_and_payload(
+            cls, method, url, headers, headers_to_sign, payload,
+    ):
         """
         Construct a L{_CanonicalRequest} from the provided headers and
         payload.
 
-        @see: L{from_headers}
+        @see: L{from_request_components}
 
         @param payload: The request's payload.
         @type payload: L{bytes}
@@ -270,7 +269,7 @@ class _CanonicalRequest(object):
         @return: A canonical request
         @rtype: L{_CanonicalRequest}
         """
-        return cls.from_headers(
+        return cls.from_request_components(
             method=method, url=url, headers=headers,
             headers_to_sign=headers_to_sign,
             payload_hash=hashlib.sha256(payload).hexdigest(),

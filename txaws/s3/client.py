@@ -17,7 +17,7 @@ from io import BytesIO
 import datetime
 import mimetypes
 import warnings
-from operator import itemgetter, attrgetter
+from operator import itemgetter
 
 from incremental import Version
 
@@ -31,7 +31,6 @@ import hashlib
 from hashlib import sha256
 
 from urllib import urlencode, unquote
-from urlparse import parse_qsl
 from dateutil.parser import parse as parseTime
 
 from txaws.client.base import (
@@ -51,7 +50,7 @@ from txaws.util import XML
 
 
 def _to_dict(headers):
-    return {k: vs[0] for (k, v) in headers.getAllRawHeaders()}
+    return {k: vs[0] for (k, vs) in headers.getAllRawHeaders()}
 
 def s3_error_wrapper(error):
     error_wrapper(error, S3Error)
@@ -108,12 +107,12 @@ class S3Client(BaseClient):
         # (included in the signature) more than 15 minutes in the past
         # are rejected. :/
         if body is not None:
-            content_sha256 = sha256(body).hexdigest()
+            content_sha256 = sha256(body).hexdigest().decode("ascii")
             body_producer = FileBodyProducer(BytesIO(body), cooperator=self._cooperator)
         elif body_producer is None:
             # Just as important is to include the empty content hash
             # for all no-body requests.
-            content_sha256 = sha256(b"").hexdigest()
+            content_sha256 = sha256(b"").hexdigest().decode("ascii")
         else:
             # Tell AWS we're not trying to sign the payload.
             content_sha256 = None
@@ -149,13 +148,12 @@ class S3Client(BaseClient):
             method=b"GET",
             url_context=self._url_context(),
         )
-        query = self.query_factory(credentials=self.creds, details=details)
+        query = self._query_factory(details)
         d = self._submit(query)
-        d.addCallback(itemgetter(1))
         d.addCallback(self._parse_list_buckets)
         return d
 
-    def _parse_list_buckets(self, xml_bytes):
+    def _parse_list_buckets(self, (response, xml_bytes)):
         """
         Parse XML bucket list response.
         """
@@ -177,7 +175,7 @@ class S3Client(BaseClient):
             method=b"PUT",
             url_context=self._url_context(bucket=bucket),
         )
-        query = self.query_factory(credentials=self.creds, details=details)
+        query = self._query_factory(details)
         return self._submit(query)
 
     def delete_bucket(self, bucket):
@@ -190,7 +188,7 @@ class S3Client(BaseClient):
             method=b"DELETE",
             url_context=self._url_context(bucket=bucket),
         )
-        query = self.query_factory(credentials=self.creds, details=details)
+        query = self._query_factory(details)
         return self._submit(query)
 
     def get_bucket(self, bucket, marker=None, max_keys=None):
@@ -226,11 +224,10 @@ class S3Client(BaseClient):
             url_context=self._url_context(bucket=bucket, object_name=object_name),
         )
         d = self._submit(self._query_factory(details))
-        d.addCallback(itemgetter(1))
         d.addCallback(self._parse_get_bucket)
         return d
 
-    def _parse_get_bucket(self, xml_bytes):
+    def _parse_get_bucket(self, (response, xml_bytes)):
         root = XML(xml_bytes)
         name = root.findtext("Name")
         prefix = root.findtext("Prefix")
@@ -272,11 +269,10 @@ class S3Client(BaseClient):
             url_context=self._url_context(bucket=bucket, object_name="?location"),
         )
         d = self._submit(self._query_factory(details))
-        d.addCallback(itemgetter(1))
         d.addCallback(self._parse_bucket_location)
         return d
 
-    def _parse_bucket_location(self, xml_bytes):
+    def _parse_bucket_location(self, (response, xml_bytes)):
         """Parse a C{LocationConstraint} XML document."""
         root = XML(xml_bytes)
         return root.text or ""
@@ -294,11 +290,10 @@ class S3Client(BaseClient):
             url_context=self._url_context(bucket=bucket, object_name="?lifecycle"),
         )
         d = self._submit(self._query_factory(details))
-        d.addCallback(itemgetter(1))
         d.addCallback(self._parse_lifecycle_config)
         return d
 
-    def _parse_lifecycle_config(self, xml_bytes):
+    def _parse_lifecycle_config(self, (response, xml_bytes)):
         """Parse a C{LifecycleConfiguration} XML document."""
         root = XML(xml_bytes)
         rules = []
@@ -326,11 +321,10 @@ class S3Client(BaseClient):
             url_context=self._url_context(bucket=bucket, object_name='?website'),
         )
         d = self._submit(self._query_factory(details))
-        d.addCallback(itemgetter(1))
         d.addCallback(self._parse_website_config)
         return d
 
-    def _parse_website_config(self, xml_bytes):
+    def _parse_website_config(self, (response, xml_bytes)):
         """Parse a C{WebsiteConfiguration} XML document."""
         root = XML(xml_bytes)
         index_suffix = root.findtext("IndexDocument/Suffix")
@@ -351,11 +345,10 @@ class S3Client(BaseClient):
             url_context=self._url_context(bucket=bucket, object_name="?notification"),
         )
         d = self._submit(self._query_factory(details))
-        d.addCallback(itemgetter(1))
         d.addCallback(self._parse_notification_config)
         return d
 
-    def _parse_notification_config(self, xml_bytes):
+    def _parse_notification_config(self, (response, xml_bytes)):
         """Parse a C{NotificationConfiguration} XML document."""
         root = XML(xml_bytes)
         topic = root.findtext("TopicConfiguration/Topic")
@@ -375,11 +368,10 @@ class S3Client(BaseClient):
             url_context=self._url_context(bucket=bucket, object_name="?versioning"),
         )
         d = self._submit(self._query_factory(details))
-        d.addCallback(itemgetter(1))
         d.addCallback(self._parse_versioning_config)
         return d
 
-    def _parse_versioning_config(self, xml_bytes):
+    def _parse_versioning_config(self, (response, xml_bytes)):
         """Parse a C{VersioningConfiguration} XML document."""
         root = XML(xml_bytes)
         mfa_delete = root.findtext("MfaDelete")
@@ -396,7 +388,6 @@ class S3Client(BaseClient):
             url_context=self._url_context(bucket=bucket, object_name="?acl"),
         )
         d = self._submit(self._query_factory(details))
-        d.addCallback(itemgetter(1))
         d.addCallback(self._parse_acl)
         return d
 
@@ -408,13 +399,13 @@ class S3Client(BaseClient):
         details = self._details(
             method=b"PUT",
             url_context=self._url_context(bucket=bucket, object_name=b"?acl"),
+            body=data,
         )
         d = self._submit(self._query_factory(details))
-        d.addCallback(itemgetter(1))
         d.addCallback(self._parse_acl)
         return d
 
-    def _parse_acl(self, xml_bytes):
+    def _parse_acl(self, (response, xml_bytes)):
         """
         Parse an C{AccessControlPolicy} XML document and convert it into an
         L{AccessControlPolicy} instance.
@@ -501,9 +492,7 @@ class S3Client(BaseClient):
             url_context=self._url_context(bucket=bucket, object_name=object_name),
         )
         d = self._submit(self._query_factory(details))
-        d.addCallback(itemgetter(0))
-        d.addCallback(attrgetter("responseHeaders"))
-        d.addCallback(_to_dict)
+        d.addCallback(lambda (response, body): _to_dict(response.responseHeaders))
         return d
 
     def delete_object(self, bucket, object_name):
@@ -531,9 +520,8 @@ class S3Client(BaseClient):
             ),
             body=data,
         )
-        query = self.query_factory(credentials=self.creds, details=details)
+        query = self._query_factory(details)
         d = self._submit(query)
-        d.addCallback(itemgetter(1))
         d.addCallback(self._parse_acl)
         return d
 
@@ -546,7 +534,6 @@ class S3Client(BaseClient):
             url_context=self._url_context(bucket=bucket, object_name='%s?acl' % (object_name,)),
         )
         d = self._submit(self._query_factory(details))
-        d.addCallback(itemgetter(1))
         d.addCallback(self._parse_acl)
         return d
 
@@ -610,8 +597,9 @@ class S3Client(BaseClient):
             amz_headers=amz_headers,
         )
         d = self._submit(self._query_factory(details))
-        d.addCallback(itemgetter(1))
-        d.addCallback(MultipartInitiationResponse.from_xml)
+        d.addCallback(
+            lambda (response, body): MultipartInitiationResponse.from_xml(body)
+        )
         return d
 
     def upload_part(self, bucket, object_name, upload_id, part_number,
@@ -671,8 +659,9 @@ class S3Client(BaseClient):
         )
         d = self._submit(self._query_factory(details))
         # TODO - handle error responses
-        d.addCallback(itemgetter(1))
-        d.addCallback(MultipartCompletionResponse.from_xml)
+        d.addCallback(
+            lambda (response, body): MultipartCompletionResponse.from_xml(body)
+        )
         return d
 
     def _build_complete_multipart_upload_xml(self, parts_list):
@@ -750,7 +739,9 @@ class Query(BaseQuery):
         headers = {'x-amz-date': _auth_v4.makeAMZDate(instant)}
         if self.body_producer is None:
             data = self.data
-            headers["x-amz-content-sha256"] = hashlib.sha256(self.data).hexdigest()
+            if data is None:
+                data = b""
+            headers["x-amz-content-sha256"] = hashlib.sha256(data).hexdigest()
         else:
             data = None
             headers["x-amz-content-sha256"] = b"UNSIGNED-PAYLOAD"
@@ -779,7 +770,7 @@ class Query(BaseQuery):
         headers["host"] = url_context.get_encoded_host()
 
         if data is None:
-            request = _auth_v4._CanonicalRequest.from_headers(
+            request = _auth_v4._CanonicalRequest.from_request_components(
                 method=method,
                 url=url_context.get_encoded_path(),
                 headers=headers,
@@ -787,7 +778,7 @@ class Query(BaseQuery):
                 payload_hash=None,
             )
         else:
-            request = _auth_v4._CanonicalRequest.from_payload_and_headers(
+            request = _auth_v4._CanonicalRequest.from_request_components_and_payload(
                 method=method,
                 url=url_context.get_encoded_path(),
                 headers=headers,
@@ -813,44 +804,65 @@ class Query(BaseQuery):
         d = self.get_page(
             url_context.get_encoded_url(),
             method=self.action,
-            postdata=self.data,
+            postdata=self.data or b"",
             headers=self.get_headers(utcnow()),
-            body_producer=self.body_producer,
-            receiver_factory=self.receiver_factory)
+        )
 
         return d.addErrback(s3_error_wrapper)
 
-def s3_url_context(service_endpoint, bucket=None, object_name=None):
-    def u(s):
-        return unquote(s).decode("utf-8")
 
+def s3_url_context(service_endpoint, bucket=None, object_name=None):
+    """
+    Create a URL based on the given service endpoint and suitable for
+    the given bucket or object.
+
+    @param service_endpoint: The service endpoint on which to base the
+        resulting URL.
+    @type service_endpoint: L{AWSServiceEndpoint}
+
+    @param bucket: If given, the name of a bucket to reference.
+    @type bucket: L{unicode}
+
+    @param object_name: If given, the name of an object or object
+        subresource to reference.
+    @type object_name: L{unicode}
+    """
+
+    # Define our own query parser which can handle the consequences of
+    # `?acl` and such (subresources).  At its best, parse_qsl doesn't
+    # let us differentiate between these and empty values (such as
+    # `?acl=`).
     def p(s):
         results = []
-        args = s.split(b"&")
+        args = s.split(u"&")
         for a in args:
-            pieces = a.split(b"=")
+            pieces = a.split(u"=")
             if len(pieces) == 1:
-                results.append((u(pieces[0]),))
+                results.append((unquote(pieces[0]),))
             elif len(pieces) == 2:
-                results.append(tuple(map(u, pieces)))
+                results.append(tuple(map(unquote, pieces)))
             else:
                 raise Exception("oh no")
         return results
 
-    query = None
+    query = []
     path = []
     if bucket is None:
         path.append(u"")
     else:
+        if isinstance(bucket, bytes):
+            bucket = bucket.decode("utf-8")
         path.append(bucket)
         if object_name is None:
             path.append(u"")
         else:
-            if b"?" in object_name:
-                object_name, query = object_name.split(b"?", 1)
+            if isinstance(object_name, bytes):
+                object_name = object_name.decode("utf-8")
+            if u"?" in object_name:
+                object_name, query = object_name.split(u"?", 1)
                 query = p(query)
-            object_name_components = object_name.split(b"/")
-            if object_name_components[0] == b"":
+            object_name_components = object_name.split(u"/")
+            if object_name_components[0] == u"":
                 object_name_components.pop(0)
             if object_name_components:
                 path.extend(object_name_components)
@@ -865,8 +877,10 @@ def s3_url_context(service_endpoint, bucket=None, object_name=None):
     )
 
 
-# Backwards compatibility layer.  For deprecation.
 class _S3URLContext(_URLContext):
+    # Backwards compatibility layer.  For deprecation.  s3_url_context
+    # should just return an _URLContext and application code should
+    # interact with that interface.
     def get_host(self):
         return self.get_encoded_host()
 
