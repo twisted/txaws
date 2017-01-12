@@ -43,8 +43,6 @@ from txaws.client.ssl import VerifyingContextFactory
 from txaws.client._validators import list_of as _list_of
 from txaws import _auth_v4
 
-_log = Logger()
-
 def error_wrapper(error, errorClass):
     """
     We want to see all error messages from cloud services. Amazon's EC2 says
@@ -400,6 +398,8 @@ class _Query(object):
     """
     Representation of enough information to submit an AWS request.
     """
+    _log = Logger()
+
     _credentials = attr.ib()
     _details = attr.ib()
     _reactor = attr.ib(default=attr.Factory(lambda: namedAny("twisted.internet.reactor")))
@@ -499,7 +499,7 @@ class _Query(object):
             headers.setRawHeaders(u"host", [url_context.get_encoded_host()])
 
         if self._credentials is not None:
-            _log.info(
+            self._log.info(
                 u"Computing authorization from "
                 u"{service} {region} {method} {url} {headers}",
                 service=self._details.service,
@@ -520,7 +520,7 @@ class _Query(object):
             )])
 
         url = url_context.get_encoded_url()
-        _log.info(
+        self._log.info(
             u"Submitting query: {method} {url} {headers}",
             method=method,
             url=url,
