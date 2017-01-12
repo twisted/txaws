@@ -40,6 +40,7 @@ from txaws.credentials import AWSCredentials
 from txaws.exception import AWSResponseParseError
 from txaws.service import AWSServiceEndpoint
 from txaws.client.ssl import VerifyingContextFactory
+from txaws.client._validators import list_of as _list_of
 from txaws import _auth_v4
 
 _log = Logger()
@@ -173,41 +174,6 @@ class WebVerifyingContextFactory(VerifyingContextFactory):
 
     def getContext(self, hostname, port):
         return VerifyingContextFactory.getContext(self)
-
-
-def _list_of(validator):
-    """
-    attrs validator which requires a value which is a list containing
-    elements which the given validator accepts.
-    """
-    return _ListOf(validator)
-
-
-@attr.s(frozen=True)
-class _ListOf(object):
-    """
-    attrs validator for a list of elements which satisfy another
-    validator.
-    """
-    validator = attr.ib()
-
-    def __call__(self, inst, a, value):
-        validators.instance_of(list)(inst, a, value)
-        for n, element in enumerate(value):
-            inner_identifier = u"{}[{}]".format(a.name, n)
-            # Create an Attribute with a name that refers to the
-            # validator we're using and the index we're validating.
-            # Otherwise the validation failure is pretty confusing.
-            inner_attr = attr.Attribute(
-                name=inner_identifier,
-                default=None,
-                validator=self.validator,
-                repr=False,
-                cmp=False,
-                hash=False,
-                init=False,
-            )
-            self.validator(inst, inner_attr, element)
 
 
 @attr.s(frozen=True)
