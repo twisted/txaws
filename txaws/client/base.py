@@ -411,6 +411,9 @@ class _Query(object):
         request = _auth_v4._CanonicalRequest.from_request_components(
             method=method,
             url=url_context.get_encoded_path(),
+            # _CanonicalRequest should work harder to do case
+            # canonicalization so we don't have to do this
+            # lowercasing.
             headers={k.lower(): vs for (k, vs) in headers.getAllRawHeaders()},
             headers_to_sign=(b"host", b"x-amz-date"),
             payload_hash=content_sha256,
