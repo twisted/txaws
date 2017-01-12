@@ -163,12 +163,13 @@ class _AWS4TestSuiteTestCaseMixin(object):
         with canonical_request_path.open() as f:
             serialized_canonical_request = f.read()
 
-        canonical_request = _CanonicalRequest.from_payload_and_headers(
+        canonical_request = _CanonicalRequest.from_request_components_and_payload(
             method=request.method,
             url=request.path,
             headers=request.headers,
             headers_to_sign=request.headers.keys(),
-            payload=request.body)
+            payload=request.body,
+        )
 
         self.assertEqual(canonical_request.serialize(),
                          serialized_canonical_request)

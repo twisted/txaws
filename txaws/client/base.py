@@ -408,7 +408,7 @@ class _Query(object):
         """
         Sign this query using its built in credentials.
         """
-        request = _auth_v4._CanonicalRequest.from_headers(
+        request = _auth_v4._CanonicalRequest.from_request_components(
             method=method,
             url=url_context.get_encoded_path(),
             headers={k.lower(): vs for (k, vs) in headers.getAllRawHeaders()},

@@ -770,7 +770,7 @@ class Query(BaseQuery):
         headers["host"] = url_context.get_encoded_host()
 
         if data is None:
-            request = _auth_v4._CanonicalRequest.from_headers(
+            request = _auth_v4._CanonicalRequest.from_request_components(
                 method=method,
                 url=url_context.get_encoded_path(),
                 headers=headers,
@@ -778,7 +778,7 @@ class Query(BaseQuery):
                 payload_hash=None,
             )
         else:
-            request = _auth_v4._CanonicalRequest.from_payload_and_headers(
+            request = _auth_v4._CanonicalRequest.from_request_components_and_payload(
                 method=method,
                 url=url_context.get_encoded_path(),
                 headers=headers,
