@@ -206,22 +206,26 @@ def url_context(**kw):
     Construct a new URL context, usable to determine the URI to which
     a query should be issued.
 
-    :param unicode scheme: The scheme portion of the URL, ie
+    @param scheme: The scheme portion of the URL, eg
         ``u"http"`` or ``u"https"``.
+    @type scheme: L{unicode}
 
-    :param unicode host: The host portion of the URL, ie
-        ``u"example.com"``.
+    @param host: The host portion of the URL, eg ``u"example.com"``.
+    @type scheme: L{unicode}
 
-    :param int port: A non-default port for the URL or ``None`` for
-        the scheme default.
+    @param port: A non-default port for the URL or ``None`` for the
+        scheme default.
+    @type scheme: L{int} or L{NoneType}
 
-    :param list path: The path portion of the URL as a list of unicode
-        path segments.
+    @param path: The path portion of the URL as a list of unicode path
+        segments.
+    @type scheme: L{list} of L{unicode}
 
-    :param list query: The query arguments of the URL as a list of
-        tuples.  Each tuple is length one (a unicode string
-        representing a no-value argument) or two (two unicode strings
-        representing an argument name and value).
+    @param query: The query arguments of the URL as a list of tuples.
+        Each tuple is length one (a unicode string representing a
+        no-value argument) or two (two unicode strings representing an
+        argument name and value).
+    @type scheme: L{list} of L{tuple} of L{unicode}
     """
     # It would be nice if we could use twisted.python.url.URL instead.
     # However, the way "subresources" are represented using
@@ -237,7 +241,7 @@ class _URLContext(object):
     See parameter documentation for ``url_context`` (the public
     constructor) for details about attributes.
 
-    ``url_context`` is the public constructor to hide the type and
+    L{url_context} is the public constructor to hide the type and
     prevent subclassing.
     """
     scheme = attr.ib(validator=validators.instance_of(unicode))
@@ -252,14 +256,16 @@ class _URLContext(object):
 
     def get_encoded_host(self):
         """
-        :return bytes: The encoded host component.
+        @return: The encoded host component.
+        @rtype: L{bytes}
         """
         return self.host.encode("idna")
 
 
     def get_encoded_path(self):
         """
-        :return bytes: The encoded path component.
+        @return: The encoded path component.
+        @rtype: L{bytes}
         """
         return b"/" + b"/".join(
             quote(segment.encode("utf-8"), safe=b"") for segment in self.path
@@ -268,7 +274,8 @@ class _URLContext(object):
 
     def get_encoded_query(self):
         """
-        :return bytes: The encoded query component.
+        @return: The encoded query component.
+        @rtype: L{bytes}
         """
 
         return b"&".join(arg.url_encode() for arg in self.query)
@@ -276,7 +283,8 @@ class _URLContext(object):
 
     def get_encoded_url(self):
         """
-        :return bytes: The complete, encoded URL.
+        @return: The complete, encoded URL.
+        @rtype: L{bytes}
         """
         params = dict(
             scheme=self.scheme.encode("ascii"),
@@ -293,49 +301,53 @@ class _URLContext(object):
         return b"%(scheme)s://%(host)s:%(port)d%(path)s%(query)s" % params
 
 
-def request_details(**kw):
-    return RequestDetails(**kw)
-
 @attr.s
 class RequestDetails(object):
     """
     Describe an AWS request in sufficient detail to sign and submit
     it.
 
-    @ivar bytes region: The name of the region the request will be
-        submitted to.
+    @ivar region: The name of the region the request will be submitted
+        to.
+    @type region: L{bytes}
 
-    @ivar bytes service: The name of the AWS service the request uses.
+    @ivar service: The name of the AWS service the request uses.
+    @type service: L{bytes}
 
-    @ivar bytes method: The HTTP method of the request.
+    @ivar method: The HTTP method of the request.
+    @type method: L{bytes}
 
     @ivar url_context: The details of the request URL.  An object
         returned by L{url_context}.
 
-    @ivar twisted.web.http_headers.Headers headers: Any
-        application-required HTTP headers for inclusion in the
-        request.  This excludes headers like I{Content-Length} and
-        I{Authorization}.
+    @ivar headers: Any application-required HTTP headers for inclusion
+        in the request.  This excludes headers like I{Content-Length}
+        and I{Authorization}.
+    @type headers: L{twisted.web.http_headers.Headers}
 
-    @ivar twisted.web.iweb.IBodyProvider body_producer: An object
-        which can produce the bytes which make up the request body.
+    @ivar body_producer: An object which can produce the bytes which
+        make up the request body.
+    @type body_producer: L{twisted.web.iweb.IBodyProducer} provider
 
-    @ivar pmap metadata: Arbitrary key/value metadata to associate
-        with the request.  See
+    @ivar metadata: Arbitrary key/value metadata to associate with the
+        request.  See
         U{http://docs.aws.amazon.com/AmazonS3/latest/dev/UsingMetadata.html}
         (XXX: Is this S3-specific?)
+    @type metadata: L{pmap}
 
-    @ivar pmap amz_headers: AWS semantic key/value metadata to
-        associate with the request.  For example, including the key
+    @ivar amz_headers: AWS semantic key/value metadata to associate
+        with the request.  For example, including the key
         u"storage-class" will tell AWS S3 to provide some particular
         alternate storage guarantees for an S3 object.
+    @type amz_headers: L{pmap}
 
-    @ivar unicode content_sha256: The hex digested sha256 of the bytes
-        that C{body_producer} will produce.  If C{body_producer} will
+    @ivar content_sha256: The hex digested sha256 of the bytes that
+        C{body_producer} will produce.  If C{body_producer} will
         produce C{b""}, this must be hashed and included here.  If the
         hash cannot be computed, C{None} (which corresponds to a
         request with an unsigned payload - ie, with a payload
         unprotected from tampering by a signature).
+    @ivar content_sha256: L{unicode}
     """
     region = attr.ib(validator=validators.instance_of(bytes))
     service = attr.ib(validator=validators.instance_of(bytes))
@@ -369,13 +381,16 @@ def query(**kw):
     """
     Create a new AWS query model object.
 
-    :param AWSCredentials credentials: The credentials to use for the
-       query or ``None`` for an unauthenticated request.
+    @param credentials: The credentials to use for the query or
+       C{None} for an unauthenticated request.
+    @type credentials: L{AWSCredentials}
 
-    :param RequestDetails details: Stuff
+    @param details: The specifics of the query/request to construct.
+    @type details: L{RequestDetails}
 
-    :param Cooperator cooperator: A cooperator to use for large
-        uploads or ``None`` for the global cooperator (recommended).
+    @param cooperator: A cooperator to use for large uploads or
+        C{None} for the global cooperator (recommended).
+    @type cooperator: L{Cooperator}.
     """
     return _Query(**kw)
 

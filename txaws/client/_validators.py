@@ -22,7 +22,7 @@ class _ListOf(object):
     attrs validator for a list of elements which satisfy another
     validator.
 
-    ``list_of`` is the public constructor to hide the type and prevent
+    L{list_of} is the public constructor to hide the type and prevent
     subclassing.
     """
     validator = attr.ib()

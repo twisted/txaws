@@ -816,11 +816,16 @@ def s3_url_context(service_endpoint, bucket=None, object_name=None):
     Create a URL based on the given service endpoint and suitable for
     the given bucket or object.
 
-    :param AWSServiceEndpoint service_endpoint: The service endpoint
-        on which to base the resulting URL.
-    :param unicode bucket: If given, the name of a bucket to reference.
-    :param unicode object_name: If given, the name of an object or
-        object subresource to reference.
+    @param service_endpoint: The service endpoint on which to base the
+        resulting URL.
+    @type service_endpoint: L{AWSServiceEndpoint}
+
+    @param bucket: If given, the name of a bucket to reference.
+    @type bucket: L{unicode}
+
+    @param object_name: If given, the name of an object or object
+        subresource to reference.
+    @type object_name: L{unicode}
     """
 
     # Define our own query parser which can handle the consequences of
