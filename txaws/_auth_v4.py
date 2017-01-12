@@ -9,7 +9,6 @@ import urlparse
 
 import attr
 
-
 # The following four functions are taken straight from
 # http://docs.aws.amazon.com/general/latest/gr/sigv4-signed-request-examples.html
 def sign(key, msg):
@@ -204,15 +203,9 @@ class _CanonicalRequest(object):
     payload_hash = attr.ib()
 
     @classmethod
-    def from_payload_and_headers(cls,
-                                 method,
-                                 url,
-                                 headers,
-                                 headers_to_sign,
-                                 payload):
+    def from_headers(cls, method, url, headers, headers_to_sign, payload_hash):
         """
-        Construct a L{_CanonicalRequest} from the provided headers and
-        payload.
+        Construct a L{_CanonicalRequest} from the provided headers.
 
         @param method: The HTTP method.
         @type method: L{bytes}
@@ -227,13 +220,27 @@ class _CanonicalRequest(object):
             be signed.
         @type headers_to_sign: L{bytes}
 
-        @param payload: The request's payload.
-        @type payload: L{bytes}
+        @param payload_hash: The hex digest of the sha256 hash of the
+            request's body.  If the body is empty, the hex digest of
+            the sha256 hash of the empty string.  If the payload hash
+            should not be included, C{None}.
+        @type payload: L{bytes} or L{NoneType}
 
         @return: A canonical request
         @rtype: L{_CanonicalRequest}
+
+        @note: If C{payload_hash} is {None} then when the request is
+            submitted to AWS it must also include an
+            I{x-amz-content-sha256} header set to
+            C{b"UNSIGNED-PAYLOAD"}.
         """
         parsed = urlparse.urlparse(url)
+        if payload_hash is None:
+            # This magic string tells AWS to disregard the payload for
+            # purposes of signing.  The x-amz-content-sha256 header
+            # sent to AWS in the request must have the exact same
+            # value for this to work.
+            payload_hash = b"UNSIGNED-PAYLOAD"
         return cls(
             method=method,
             canonical_uri=_make_canonical_uri(parsed),
@@ -241,8 +248,34 @@ class _CanonicalRequest(object):
             canonical_headers=_make_canonical_headers(headers,
                                                       headers_to_sign),
             signed_headers=_make_signed_headers(headers, headers_to_sign),
+            payload_hash=payload_hash,
+        )
+
+    @classmethod
+    def from_payload_and_headers(cls,
+                                 method,
+                                 url,
+                                 headers,
+                                 headers_to_sign,
+                                 payload):
+        """
+        Construct a L{_CanonicalRequest} from the provided headers and
+        payload.
+
+        @see: L{from_headers}
+
+        @param payload: The request's payload.
+        @type payload: L{bytes}
+
+        @return: A canonical request
+        @rtype: L{_CanonicalRequest}
+        """
+        return cls.from_headers(
+            method=method, url=url, headers=headers,
+            headers_to_sign=headers_to_sign,
             payload_hash=hashlib.sha256(payload).hexdigest(),
         )
+
 
     def serialize(self):
         """

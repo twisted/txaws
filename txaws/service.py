@@ -2,6 +2,8 @@
 # Copyright (C) 2009 Robert Collins <robertc@robertcollins.net>
 # Licenced under the txaws licence available at /LICENSE in the txaws source.
 
+import warnings
+
 from txaws.credentials import AWSCredentials
 from txaws import regions
 from txaws.util import parse
@@ -42,12 +44,16 @@ class AWSServiceEndpoint(object):
         will be done when connecting to the endpoint.
     """
 
-    def __init__(self, uri="", method="GET", ssl_hostname_verification=False):
+    def __init__(self, uri="", method="GET", ssl_hostname_verification=True):
         self.host = ""
         self.port = None
         self.path = "/"
         self.method = method
         self.ssl_hostname_verification = ssl_hostname_verification
+        if not self.ssl_hostname_verification:
+            warnings.warn(
+                "Operating with certificate verification disabled!", stacklevel=2,
+            )
         self._parse_uri(uri)
         if not self.scheme:
             self.scheme = "http"
