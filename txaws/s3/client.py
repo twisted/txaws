@@ -17,7 +17,7 @@ from io import BytesIO
 import datetime
 import mimetypes
 import warnings
-from operator import itemgetter, attrgetter
+from operator import itemgetter
 
 from incremental import Version
 
@@ -150,11 +150,10 @@ class S3Client(BaseClient):
         )
         query = self._query_factory(details)
         d = self._submit(query)
-        d.addCallback(itemgetter(1))
         d.addCallback(self._parse_list_buckets)
         return d
 
-    def _parse_list_buckets(self, xml_bytes):
+    def _parse_list_buckets(self, (response, xml_bytes)):
         """
         Parse XML bucket list response.
         """
@@ -225,11 +224,10 @@ class S3Client(BaseClient):
             url_context=self._url_context(bucket=bucket, object_name=object_name),
         )
         d = self._submit(self._query_factory(details))
-        d.addCallback(itemgetter(1))
         d.addCallback(self._parse_get_bucket)
         return d
 
-    def _parse_get_bucket(self, xml_bytes):
+    def _parse_get_bucket(self, (response, xml_bytes)):
         root = XML(xml_bytes)
         name = root.findtext("Name")
         prefix = root.findtext("Prefix")
@@ -271,11 +269,10 @@ class S3Client(BaseClient):
             url_context=self._url_context(bucket=bucket, object_name="?location"),
         )
         d = self._submit(self._query_factory(details))
-        d.addCallback(itemgetter(1))
         d.addCallback(self._parse_bucket_location)
         return d
 
-    def _parse_bucket_location(self, xml_bytes):
+    def _parse_bucket_location(self, (response, xml_bytes)):
         """Parse a C{LocationConstraint} XML document."""
         root = XML(xml_bytes)
         return root.text or ""
@@ -293,11 +290,10 @@ class S3Client(BaseClient):
             url_context=self._url_context(bucket=bucket, object_name="?lifecycle"),
         )
         d = self._submit(self._query_factory(details))
-        d.addCallback(itemgetter(1))
         d.addCallback(self._parse_lifecycle_config)
         return d
 
-    def _parse_lifecycle_config(self, xml_bytes):
+    def _parse_lifecycle_config(self, (response, xml_bytes)):
         """Parse a C{LifecycleConfiguration} XML document."""
         root = XML(xml_bytes)
         rules = []
@@ -325,11 +321,10 @@ class S3Client(BaseClient):
             url_context=self._url_context(bucket=bucket, object_name='?website'),
         )
         d = self._submit(self._query_factory(details))
-        d.addCallback(itemgetter(1))
         d.addCallback(self._parse_website_config)
         return d
 
-    def _parse_website_config(self, xml_bytes):
+    def _parse_website_config(self, (response, xml_bytes)):
         """Parse a C{WebsiteConfiguration} XML document."""
         root = XML(xml_bytes)
         index_suffix = root.findtext("IndexDocument/Suffix")
@@ -350,11 +345,10 @@ class S3Client(BaseClient):
             url_context=self._url_context(bucket=bucket, object_name="?notification"),
         )
         d = self._submit(self._query_factory(details))
-        d.addCallback(itemgetter(1))
         d.addCallback(self._parse_notification_config)
         return d
 
-    def _parse_notification_config(self, xml_bytes):
+    def _parse_notification_config(self, (response, xml_bytes)):
         """Parse a C{NotificationConfiguration} XML document."""
         root = XML(xml_bytes)
         topic = root.findtext("TopicConfiguration/Topic")
@@ -374,11 +368,10 @@ class S3Client(BaseClient):
             url_context=self._url_context(bucket=bucket, object_name="?versioning"),
         )
         d = self._submit(self._query_factory(details))
-        d.addCallback(itemgetter(1))
         d.addCallback(self._parse_versioning_config)
         return d
 
-    def _parse_versioning_config(self, xml_bytes):
+    def _parse_versioning_config(self, (response, xml_bytes)):
         """Parse a C{VersioningConfiguration} XML document."""
         root = XML(xml_bytes)
         mfa_delete = root.findtext("MfaDelete")
@@ -395,7 +388,6 @@ class S3Client(BaseClient):
             url_context=self._url_context(bucket=bucket, object_name="?acl"),
         )
         d = self._submit(self._query_factory(details))
-        d.addCallback(itemgetter(1))
         d.addCallback(self._parse_acl)
         return d
 
@@ -410,11 +402,10 @@ class S3Client(BaseClient):
             body=data,
         )
         d = self._submit(self._query_factory(details))
-        d.addCallback(itemgetter(1))
         d.addCallback(self._parse_acl)
         return d
 
-    def _parse_acl(self, xml_bytes):
+    def _parse_acl(self, (response, xml_bytes)):
         """
         Parse an C{AccessControlPolicy} XML document and convert it into an
         L{AccessControlPolicy} instance.
@@ -501,9 +492,7 @@ class S3Client(BaseClient):
             url_context=self._url_context(bucket=bucket, object_name=object_name),
         )
         d = self._submit(self._query_factory(details))
-        d.addCallback(itemgetter(0))
-        d.addCallback(attrgetter("responseHeaders"))
-        d.addCallback(_to_dict)
+        d.addCallback(lambda (response, body): _to_dict(response.responseHeaders))
         return d
 
     def delete_object(self, bucket, object_name):
@@ -533,7 +522,6 @@ class S3Client(BaseClient):
         )
         query = self._query_factory(details)
         d = self._submit(query)
-        d.addCallback(itemgetter(1))
         d.addCallback(self._parse_acl)
         return d
 
@@ -546,7 +534,6 @@ class S3Client(BaseClient):
             url_context=self._url_context(bucket=bucket, object_name='%s?acl' % (object_name,)),
         )
         d = self._submit(self._query_factory(details))
-        d.addCallback(itemgetter(1))
         d.addCallback(self._parse_acl)
         return d
 
@@ -610,8 +597,9 @@ class S3Client(BaseClient):
             amz_headers=amz_headers,
         )
         d = self._submit(self._query_factory(details))
-        d.addCallback(itemgetter(1))
-        d.addCallback(MultipartInitiationResponse.from_xml)
+        d.addCallback(
+            lambda (response, body): MultipartInitiationResponse.from_xml(body)
+        )
         return d
 
     def upload_part(self, bucket, object_name, upload_id, part_number,
@@ -671,8 +659,9 @@ class S3Client(BaseClient):
         )
         d = self._submit(self._query_factory(details))
         # TODO - handle error responses
-        d.addCallback(itemgetter(1))
-        d.addCallback(MultipartCompletionResponse.from_xml)
+        d.addCallback(
+            lambda (response, body): MultipartCompletionResponse.from_xml(body)
+        )
         return d
 
     def _build_complete_multipart_upload_xml(self, parts_list):
