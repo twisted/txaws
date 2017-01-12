@@ -821,19 +821,27 @@ class Query(BaseQuery):
 
         return d.addErrback(s3_error_wrapper)
 
-def s3_url_context(service_endpoint, bucket=None, object_name=None):
-    def u(s):
-        return unquote(s)
 
+def s3_url_context(service_endpoint, bucket=None, object_name=None):
+    """
+    Create a URL based on the given service endpoint and suitable for
+    the given bucket or object.
+
+    :param AWSServiceEndpoint service_endpoint: The service endpoint
+        on which to base the resulting URL.
+    :param unicode bucket: If given, the name of a bucket to reference.
+    :param unicode object_name: If given, the name of an object or
+        object subresource to reference.
+    """
     def p(s):
         results = []
         args = s.split(u"&")
         for a in args:
             pieces = a.split(u"=")
             if len(pieces) == 1:
-                results.append((u(pieces[0]),))
+                results.append((unquote(pieces[0]),))
             elif len(pieces) == 2:
-                results.append(tuple(map(u, pieces)))
+                results.append(tuple(map(unquote, pieces)))
             else:
                 raise Exception("oh no")
         return results
