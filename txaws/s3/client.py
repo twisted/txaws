@@ -148,7 +148,7 @@ class S3Client(BaseClient):
             method=b"GET",
             url_context=self._url_context(),
         )
-        query = self.query_factory(credentials=self.creds, details=details)
+        query = self._query_factory(details)
         d = self._submit(query)
         d.addCallback(itemgetter(1))
         d.addCallback(self._parse_list_buckets)
@@ -176,7 +176,7 @@ class S3Client(BaseClient):
             method=b"PUT",
             url_context=self._url_context(bucket=bucket),
         )
-        query = self.query_factory(credentials=self.creds, details=details)
+        query = self._query_factory(details)
         return self._submit(query)
 
     def delete_bucket(self, bucket):
@@ -189,7 +189,7 @@ class S3Client(BaseClient):
             method=b"DELETE",
             url_context=self._url_context(bucket=bucket),
         )
-        query = self.query_factory(credentials=self.creds, details=details)
+        query = self._query_factory(details)
         return self._submit(query)
 
     def get_bucket(self, bucket, marker=None, max_keys=None):
@@ -531,7 +531,7 @@ class S3Client(BaseClient):
             ),
             body=data,
         )
-        query = self.query_factory(credentials=self.creds, details=details)
+        query = self._query_factory(details)
         d = self._submit(query)
         d.addCallback(itemgetter(1))
         d.addCallback(self._parse_acl)
