@@ -156,6 +156,7 @@ class AWSServiceRegion(object):
         self._clients[key] = instance
         return instance
 
+
     def get_ec2_client(self, creds=None):
         from txaws.ec2.client import EC2Client
 
@@ -171,3 +172,15 @@ class AWSServiceRegion(object):
             self.creds = creds
         return self.get_client(S3Client, creds=self.creds,
                                endpoint=self.s3_endpoint, query_factory=None)
+
+
+    _agent = None
+    def get_route53_client(self):
+        from txaws.route53.client import get_route53_client
+
+        if self._agent is None:
+            from twisted.web.client import Agent
+            from twisted.internet import reactor
+            self._agent = Agent(reactor)
+
+        return get_route53_client(self._agent, self)

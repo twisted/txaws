@@ -4,16 +4,12 @@
 Integration tests for ``txaws.testing.s3``.
 """
 
-from txaws.testing.service import FakeAWSServiceRegion
+from txaws.testing.integration import get_memory_service
 from txaws.testing.s3_tests import s3_integration_tests
 
 
 def get_memory_client(case):
-    service = FakeAWSServiceRegion(
-        access_key="fake access key",
-        secret_key="fake secret key",
-    )
-    return service.get_s3_client()
+    return get_memory_service(case).get_s3_client()
 
 
 
