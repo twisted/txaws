@@ -1,9 +1,17 @@
 txAWS
 =====
 
-|pypi|
-|travis|
-|coverage|
+.. image:: http://img.shields.io/pypi/v/txaws.svg
+   :target: https://pypi.python.org/pypi/txaws
+   :alt: PyPI Package
+
+.. image:: https://travis-ci.org/twisted/txaws.svg
+   :target: https://travis-ci.org/twisted/txaws
+   :alt: CI status
+
+.. image:: https://codecov.io/github/twisted/txaws/coverage.svg
+   :target: https://codecov.io/github/twisted/txaws
+   :alt: Coverage
 
 What is this?
 -------------
@@ -53,13 +61,3 @@ License
 
 txAWS is open source software, MIT License.
 See the LICENSE file for more details.
-
-
-.. |pypi| image:: http://img.shields.io/pypi/v/txaws.svg
-.. _pypi: https://pypi.python.org/pypi/txaws
-
-.. |coverage| image:: https://codecov.io/github/twisted/txaws/coverage.svg
-.. _coverage: https://codecov.io/github/twisted/txaws
-
-.. |travis| image:: https://travis-ci.org/twisted/txaws.svg
-.. _travis: https://travis-ci.org/twisted/txaws
