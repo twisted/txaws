@@ -227,6 +227,9 @@ def url_context(**kw):
         representing a no-value argument) or two (two unicode strings
         representing an argument name and value).
     """
+    # It would be nice if we could use twisted.python.url.URL instead.
+    # However, the way "subresources" are represented using
+    # single-value query arguments (eg ``?acl``) breaks URL.
     return _URLContext(**kw)
 
 
