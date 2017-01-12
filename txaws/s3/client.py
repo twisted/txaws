@@ -883,8 +883,10 @@ def s3_url_context(service_endpoint, bucket=None, object_name=None):
     )
 
 
-# Backwards compatibility layer.  For deprecation.
 class _S3URLContext(_URLContext):
+    # Backwards compatibility layer.  For deprecation.  s3_url_context
+    # should just return an _URLContext and application code should
+    # interact with that interface.
     def get_host(self):
         return self.get_encoded_host()
 
