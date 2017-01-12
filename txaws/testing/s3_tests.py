@@ -115,6 +115,7 @@ def s3_integration_tests(get_client):
                 data="asd", body_producer=FileBodyProducer(BytesIO(b"def")),
             )
 
+
         @inlineCallbacks
         def test_put_object_empty(self):
             """
@@ -122,7 +123,7 @@ def s3_integration_tests(get_client):
             nor C{body_producer}.
             """
             bucket_name = str(uuid4())
-            object_name = b"body_producer"
+            object_name = b"empty_object"
 
             client = get_client(self)
             yield client.create_bucket(bucket_name)

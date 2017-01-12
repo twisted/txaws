@@ -401,13 +401,13 @@ class CanonicalRequestTestCase(unittest.SynchronousTestCase):
                          "273e3d9c0252e987180c1d05241ec5a7f8089b9c1652ccc09ccf"
                          "097d8cf33a4b")
 
-    def test_from_headers(self):
+    def test_from_request_components(self):
         """
         An instance is created from the given payload hash and headers.
         """
         url = 'https://www.amazon.com/blah?b=2&b=1&a=0'
 
-        canonical_request = _CanonicalRequest.from_headers(
+        canonical_request = _CanonicalRequest.from_request_components(
             method="POST",
             url=url,
             headers={b"header1": b"value1",
@@ -427,14 +427,14 @@ class CanonicalRequestTestCase(unittest.SynchronousTestCase):
         self.assertEqual(canonical_request.payload_hash, b"abcdef")
 
 
-    def test_from_headers_unsigned_payload(self):
+    def test_from_request_components_unsigned_payload(self):
         """
         An instance is created with the magic "unsigned payload" string
         and the given headers.
         """
         url = 'https://www.amazon.com/blah?b=2&b=1&a=0'
 
-        canonical_request = _CanonicalRequest.from_headers(
+        canonical_request = _CanonicalRequest.from_request_components(
             method="POST",
             url=url,
             headers={b"header1": b"value1",
@@ -453,13 +453,13 @@ class CanonicalRequestTestCase(unittest.SynchronousTestCase):
         self.assertEqual(canonical_request.signed_headers, "header1;header2")
         self.assertEqual(canonical_request.payload_hash, b"UNSIGNED-PAYLOAD")
 
-    def test_from_payload_and_headers(self):
+    def test_from_request_components_and_payload(self):
         """
         An instance is created from the given payload and headers.
         """
         url = 'https://www.amazon.com/blah?b=2&b=1&a=0'
 
-        canonical_request = _CanonicalRequest.from_payload_and_headers(
+        canonical_request = _CanonicalRequest.from_request_components_and_payload(
             method="POST",
             url=url,
             headers={b"header1": b"value1",
@@ -597,7 +597,7 @@ class MakeAuthorizationHeaderTestCase(unittest.TestCase):
         self.region = REGION_US_EAST_1
         self.service = "dynamodb"
 
-        self.request = _CanonicalRequest.from_payload_and_headers(
+        self.request = _CanonicalRequest.from_request_components_and_payload(
             method="POST",
             url="/",
             headers={
