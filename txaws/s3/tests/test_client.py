@@ -2,6 +2,7 @@ import datetime
 from hashlib import sha256
 import warnings
 from os import environ
+from urllib import quote
 
 from attr import assoc
 
@@ -106,6 +107,42 @@ class URLContextTestCase(TXAWSTestCase):
         self.assertEquals(context.get_host(), b'0.0.0.0')
         self.assertEquals(context.get_url(), test_uri + b'foo/bar')
 
+class S3URLContextTestCase(TXAWSTestCase):
+    """
+    Tests for L{s3_url_context}.
+    """
+    def test_unicode_bucket(self):
+        """
+        If a unicode bucket is given, the resulting url is nevertheless
+        bytes.
+        """
+        test_uri = b"https://0.0.0.0:12345/"
+        endpoint = AWSServiceEndpoint(uri=test_uri)
+        bucket = u"\N{SNOWMAN}"
+        context = client.s3_url_context(endpoint, bucket)
+        url = context.get_url()
+        self.assertIsInstance(url, bytes)
+        self.assertEqual(
+            test_uri + quote(bucket.encode("utf-8"), safe=b"") + b"/",
+            url,
+        )
+
+    def test_unicode_object_name(self):
+        """
+        If a unicode bucket is given, the resulting url is nevertheless
+        bytes.
+        """
+        test_uri = b"https://0.0.0.0:12345/"
+        endpoint = AWSServiceEndpoint(uri=test_uri)
+        bucket = b"mybucket"
+        object_name = u"\N{SNOWMAN}"
+        context = client.s3_url_context(endpoint, bucket, object_name)
+        url = context.get_url()
+        self.assertIsInstance(url, bytes)
+        self.assertEqual(
+            test_uri + (bucket + b"/" + quote(object_name.encode("utf-8"), safe=b"")),
+            url,
+        )
 
 def mock_query_factory(response_body):
     class Response(object):

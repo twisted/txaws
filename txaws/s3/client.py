@@ -862,7 +862,7 @@ def s3_url_context(service_endpoint, bucket=None, object_name=None):
         if object_name is None:
             path.append(u"")
         else:
-            if isinstance(object_name, unicode):
+            if isinstance(object_name, bytes):
                 object_name = object_name.decode("utf-8")
             if u"?" in object_name:
                 object_name, query = object_name.split(u"?", 1)
