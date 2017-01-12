@@ -407,7 +407,7 @@ class _Query(object):
     _credentials = attr.ib()
     _details = attr.ib()
     _reactor = attr.ib(default=attr.Factory(lambda: namedAny("twisted.internet.reactor")))
-    _ok_status = attr.ib(default=OK)
+    _ok_status = attr.ib(default=(OK,), validator=validators.instance_of(tuple))
 
     def _sign(self, instant, credentials, service, region, method, url_context, headers, content_sha256):
         """

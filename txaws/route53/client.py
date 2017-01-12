@@ -59,9 +59,21 @@ def get_route53_client(agent, region, cooperator=None):
     )
 
 
+def _all(*vs):
+    def validator(*a, **kw):
+        for v in vs:
+            v(*a, **kw)
+    return validator
+
+
+def _not_empty(attr, inst, value):
+    if 0 == len(value):
+        raise ValueError("Value must have length greater than 0")
+
+
 @attr.s(frozen=True)
 class Name(object):
-    text = attr.ib(validator=validators.instance_of(unicode))
+    text = attr.ib(validator=_all(validators.instance_of(unicode), _not_empty))
 
     def __str__(self):
         return self.text.encode("idna")

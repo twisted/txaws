@@ -63,8 +63,7 @@ class S3ClientState(object):
 
 class _MemoryS3Client(MemoryClient):
     def __init__(self, controller, creds, endpoint):
-        super(_MemoryS3Client, self).__init__(controller=controller)
-        self.creds = creds
+        super(_MemoryS3Client, self).__init__(controller=controller, creds=creds)
         self.endpoint = endpoint
 
     @_rate_limited

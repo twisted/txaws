@@ -33,13 +33,12 @@ def _value_transform(pv, pred, transform):
 
 @attr.s
 class _MemoryRoute53Client(MemoryClient):
-    creds = attr.ib()
     endpoint = attr.ib()
     
-    def create_hosted_zone(self, reference, name):
+    def create_hosted_zone(self, caller_reference, name):
         self._state.zones = self._state.zones.append(HostedZone(
             name=name,
-            reference=reference,
+            reference=caller_reference,
             identifier=self._state.next_id(),
             # Hosted zones start with SOA and NS rrsets.
             rrset_count=2,
@@ -62,12 +61,13 @@ class _MemoryRoute53Client(MemoryClient):
         for change in changes:
             rrsets = _process_change(rrsets, change)
         self._state.rrsets = self._state.rrsets.set(zone_id, rrsets)
+        return succeed(None)
 
     def list_resource_record_sets(self, zone_id):
-        return {
+        return succeed(pmap({
             name: pset(rrset)
             for (name, type), rrset in self._state.rrsets[zone_id].items()
-        }
+        }))
 
 
 def _process_change(rrsets, change):

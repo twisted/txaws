@@ -32,7 +32,7 @@ class TXAWSTestCase(TestCase):
 
 class ControllerState(object):
     def __get__(self, oself, type):
-        return oself._controller.get_state(oself)
+        return oself._controller.get_state(oself.creds)
 
 
 
@@ -41,7 +41,7 @@ class MemoryClient(object):
     _state = ControllerState()
 
     _controller = attr.ib()
-
+    creds = attr.ib()
 
 
 @attr.s(frozen=True)
@@ -50,14 +50,15 @@ class MemoryService(object):
     stateFactory = attr.ib()
 
     _state = attr.ib(
-        default=attr.Factory(WeakKeyDictionary),
+        default=attr.Factory(dict),
         init=False,
         hash=False,
     )
 
-    def get_state(self, client):
-        return self._state.setdefault(client, self.stateFactory())
+    def get_state(self, creds):
+        key = (creds.access_key, creds.secret_key)
+        return self._state.setdefault(key, self.stateFactory())
 
-    def client(self, *a, **kw):
-        client = self.clientFactory(self, *a, **kw)
-        return client, self.get_state(client)
+    def client(self, creds, *a, **kw):
+        client = self.clientFactory(self, creds, *a, **kw)
+        return client, self.get_state(creds)
