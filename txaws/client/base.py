@@ -386,13 +386,12 @@ def query(**kw):
     @param details: The specifics of the query/request to construct.
     @type details: L{RequestDetails}
 
-<<<<<<< HEAD
-    :param int ok_status: Stuff
-=======
+    @param ok_status: Stuff
+    @type ok_status: L{tuple}
+
     @param cooperator: A cooperator to use for large uploads or
         C{None} for the global cooperator (recommended).
     @type cooperator: L{Cooperator}.
->>>>>>> origin/master
     """
     return _Query(**kw)
 
