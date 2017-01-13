@@ -190,6 +190,15 @@ class _Route53Client(object):
     def list_resource_record_sets(self, zone_id, identifier=None, maxitems=None, name=None, type=None):
         """
         http://docs.aws.amazon.com/Route53/latest/APIReference/API_ListResourceRecordSets.html
+
+        @type zone_id: L{unicode}
+        @type identifier: L{unicode}
+        @type maxitems: L{int}
+        @type name: L{Name}
+        @type type: L{unicode}
+
+        @return: A L{Deferred} that fires with a L{dict} mapping rrset
+            L{Name}s to L{set}s of resource records.
         """
         args = []
         if identifier:
@@ -197,7 +206,7 @@ class _Route53Client(object):
         if maxitems:
             args.append(("maxitems", str(maxitems)))
         if name:
-            args.append(("name", name))
+            args.append(("name", unicode(name)))
         if type:
             args.append(("type", type))
 
@@ -228,10 +237,14 @@ class _Route53Client(object):
     def delete_hosted_zone(self, zone_id):
         """
         http://docs.aws.amazon.com/Route53/latest/APIReference/API_DeleteHostedZone.html
+
+        @type zone_id: L{unicode}
+        @return: A L{Deferred} that fires when the hosted zone has
+            been deleted.
         """
         d = _route53_op(
             method=b"DELETE",
-            path=[u"2013-04-01", u"hostedzone", unicode(zone_id)],
+            path=[u"2013-04-01", u"hostedzone", zone_id],
         )
         d.addCallback(self._op)
         return d
@@ -255,6 +268,7 @@ class _Op(object):
     extract_result = attr.ib(default=lambda document: None)
 
 
+# XXX no longer used, eliot is better anyway
 def annotate_request_uri(uri):
     def annotate(reason):
         # Hard to make a copy of a Failure with only minor changes.
@@ -268,27 +282,6 @@ def annotate_request_uri(uri):
         reason.type = Exception
         return reason
     return annotate
-
-
-@attr.s(frozen=True)
-class _DeleteHostedZone(object):
-    ok_status = (OK,)
-    zone_id = attr.ib()
-
-    method = b"DELETE"
-    service = b"route53"
-
-    def path(self):
-        return [u"2013-04-01", u"hostedzone", unicode(self.zone_id)]
-
-    def query(self):
-        pass
-
-    def xml_request_body(self):
-        return None
-
-    def extract_result(self, document):
-        return None
 
 
 def hostedzone_from_element(zone):
@@ -343,12 +336,13 @@ def create_rrset(name, type, rrset):
     return _ChangeRRSet(u"CREATE", name, type, rrset)
 
 
-def upsert_rrset(name, type, rrset):
-    pass
-
-
 def delete_rrset(name, type, rrset):
     return _ChangeRRSet(u"DELETE", name, type, rrset)
+
+
+# XXX woops more work to do here
+def upsert_rrset(name, type, rrset):
+    pass
 
 
 def create_alias_rrset(name, type, alias):
