@@ -74,11 +74,11 @@ def _process_change(rrsets, change):
     key = (change.name, change.type)
     existing = rrsets.get(key, pvector())
     if change.action == u"CREATE":
-        return rrsets.set(key, existing + change.rrset)
+        return rrsets.set(key, existing + change.records)
     elif change.action == u"DELETE":
         deleted = rrsets.set(
             key,
-            list(rr for rr in existing if rr not in change.rrset),
+            list(rr for rr in existing if rr not in change.records),
         )
         if not deleted[key]:
             deleted = deleted.remove(key)
