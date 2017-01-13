@@ -1,13 +1,16 @@
+# Licenced under the txaws licence available at /LICENSE in the txaws source.
+
+"""
+Client wrapper for Amazon's Route53 (domain service).
+"""
+
 from __future__ import print_function, unicode_literals
 
 __all__ = [
-    "Name", "SOA", "NS",
     "get_route53_client",
 ]
 
 from io import BytesIO
-from urllib import urlencode
-from functools import partial
 from hashlib import sha256
 from operator import itemgetter
 
@@ -15,18 +18,16 @@ import attr
 from attr import validators
 
 from twisted.web.http import OK, CREATED
-from twisted.web.http_headers import Headers
-from twisted.web.client import FileBodyProducer, readBody
-from twisted.python.failure import Failure
-from twisted.web.template import Tag, flattenString
-from twisted.internet.defer import maybeDeferred, succeed
+from twisted.web.client import FileBodyProducer
+from twisted.internet.defer import succeed
 
 from txaws.exception import AWSError
-from txaws.client.base import BaseClient, BaseQuery, RequestDetails, url_context, query, error_wrapper
+from txaws.client.base import RequestDetails, url_context, query, error_wrapper
 from txaws.service import REGION_US_EAST_1, AWSServiceEndpoint
 from txaws.util import XML
 
-from txaws.route53.model import HostedZone
+from ._util import maybe_bytes_to_unicode, to_xml, tags
+from .model import HostedZone, Name, SOA, NS, CNAME
 
 # Route53 is has two endpoints both in us-east-1.
 # http://docs.aws.amazon.com/general/latest/gr/rande.html#r53_region
@@ -59,81 +60,6 @@ def get_route53_client(agent, region, cooperator=None):
     )
 
 
-def _all(*vs):
-    def validator(*a, **kw):
-        for v in vs:
-            v(*a, **kw)
-    return validator
-
-
-def _not_empty(attr, inst, value):
-    if 0 == len(value):
-        raise ValueError("Value must have length greater than 0")
-
-
-@attr.s(frozen=True)
-class Name(object):
-    text = attr.ib(validator=_all(validators.instance_of(unicode), _not_empty))
-
-    def __str__(self):
-        return self.text.encode("idna")
-
-
-@attr.s(frozen=True)
-class NS(object):
-    nameserver = attr.ib(validator=validators.instance_of(Name))
-
-    @classmethod
-    def from_element(cls, e):
-        return cls(Name(et_is_dumb(e.find("Value").text)))
-
-    def to_string(self):
-        return unicode(self.nameserver)
-
-@attr.s(frozen=True)
-class CNAME(object):
-    canonical_name = attr.ib(validator=validators.instance_of(Name))
-
-    @classmethod
-    def from_element(cls, e):
-        return cls(Name(et_is_dumb(e.find("Value").text)))
-
-    def to_string(self):
-        return unicode(self.canonical_name)
-
-def et_is_dumb(bytes_or_text):
-    if isinstance(bytes_or_text, bytes):
-        return bytes_or_text.decode("utf-8")
-    return bytes_or_text
-
-
-@attr.s(frozen=True)
-class SOA(object):
-    mname = attr.ib(validator=validators.instance_of(Name))
-    rname = attr.ib(validator=validators.instance_of(Name))
-    serial = attr.ib(validator=validators.instance_of(int))
-    refresh = attr.ib(validator=validators.instance_of(int))
-    retry = attr.ib(validator=validators.instance_of(int))
-    expire = attr.ib(validator=validators.instance_of(int))
-    minimum = attr.ib(validator=validators.instance_of(int))
-
-    @classmethod
-    def from_element(cls, e):
-        mname, rname, serial, refresh, retry, expire, minimum = et_is_dumb(e.find("Value").text).split()
-        return cls(
-            mname=Name(mname),
-            rname=Name(rname),
-            serial=int(serial),
-            refresh=int(refresh),
-            retry=int(retry),
-            expire=int(expire),
-            minimum=int(minimum),
-        )
-
-    def to_string(self):
-        return u"{mname} {rname} {serial} {refresh} {retry} {expire} {minimum}".format(vars(self))
-
-
 RECORD_TYPES = {
     u"SOA": SOA,
     u"NS": NS,
@@ -150,7 +76,7 @@ class _Route53Client(object):
     cooperator = attr.ib()
 
     def _details(self, op):
-        content_sha256 = sha256(op.body).hexdigest()
+        content_sha256 = sha256(op.body).hexdigest().decode("ascii")
         body_producer = FileBodyProducer(
             BytesIO(op.body), cooperator=self.cooperator,
         )
@@ -271,7 +197,7 @@ class _Route53Client(object):
         result = {}
         rrsets = document.iterfind("./ResourceRecordSets/ResourceRecordSet")
         for rrset in rrsets:
-            name = Name(et_is_dumb(rrset.find("Name").text))
+            name = Name(maybe_bytes_to_unicode(rrset.find("Name").text))
             type = rrset.find("Type").text
             records = rrset.iterfind("./ResourceRecords/ResourceRecord")
             result.setdefault(name, set()).update({
@@ -306,7 +232,7 @@ class _Op(object):
     service = attr.ib()
     method = attr.ib()
     path = attr.ib()
-    query = attr.ib(default=None)
+    query = attr.ib(default=attr.Factory(list))
     body = attr.ib(default=b"")
     ok_status = attr.ib(default=(OK,))
     extract_result = attr.ib(default=lambda document: None)
@@ -326,28 +252,6 @@ def annotate_request_uri(uri):
         return reason
     return annotate
 
-
-from twisted.web.template import Tag
-
-class _TagFactory(object):
-    """
-    A factory for L{Tag} objects; the implementation of the L{tags} object.
-
-    This allows for the syntactic convenience of C{from twisted.web.html import
-    tags; tags.a(href="linked-page.html")}, where 'a' can be basically any HTML
-    tag.
-
-    The class is not exposed publicly because you only ever need one of these,
-    and we already made it for you.
-
-    @see: L{tags}
-    """
-    def __getattr__(self, tagName):
-        # allow for E.del as E.del_
-        tagName = tagName.rstrip('_')
-        return Tag(tagName)
-
-tags = _TagFactory()
 
 @attr.s(frozen=True)
 class _DeleteHostedZone(object):
@@ -372,20 +276,11 @@ class _DeleteHostedZone(object):
 
 def hostedzone_from_element(zone):
     return HostedZone(
-        name=et_is_dumb(zone.find("Name").text),
-        identifier=et_is_dumb(zone.find("Id").text).replace(u"/hostedzone/", u""),
+        name=maybe_bytes_to_unicode(zone.find("Name").text),
+        identifier=maybe_bytes_to_unicode(zone.find("Id").text).replace(u"/hostedzone/", u""),
         rrset_count=int(zone.find("ResourceRecordSetCount").text),
-        reference=et_is_dumb(zone.find("CallerReference").text),
+        reference=maybe_bytes_to_unicode(zone.find("CallerReference").text),
     )
-
-
-def to_xml(body_element):
-    doctype = b"""<?xml version="1.0" encoding="UTF-8"?>\n"""
-    if body_element is None:
-        return succeed(b"")
-    d = flattenString(None, body_element)
-    d.addCallback(lambda flattened: doctype + flattened)
-    return d
 
 
 @attr.s(frozen=True)
