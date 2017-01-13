@@ -168,11 +168,11 @@ class ChangeResourceRecordSetsTestCase(TXAWSTestCase):
             sample_change_resource_record_sets_result.xml,
             b"text/xml",
         )
-        zone_id = b"ABCDEF1234"
+        zone_id = u"ABCDEF1234"
         agent = MemoryAgent(static_resource({
             b"2013-04-01": {
                 b"hostedzone": {
-                    zone_id: {
+                    zone_id.encode("ascii"): {
                         b"rrset": change_resource,
                     }
                 },

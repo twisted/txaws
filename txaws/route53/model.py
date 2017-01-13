@@ -9,11 +9,14 @@ __all__ = [
     "HostedZone",
 ]
 
+from zope.interface import implementer
 
 import attr
 from attr import validators
 
 from ._util import maybe_bytes_to_unicode
+from .interface import IResourceRecord
+
 
 def _all(*vs):
     def validator(*a, **kw):
@@ -27,6 +30,7 @@ def _not_empty(attr, inst, value):
         raise ValueError("Value must have length greater than 0")
 
 
+@implementer(IResourceRecord)
 @attr.s(frozen=True)
 class Name(object):
     text = attr.ib(validator=_all(validators.instance_of(unicode), _not_empty))
@@ -35,6 +39,7 @@ class Name(object):
         return self.text.encode("idna")
 
 
+@implementer(IResourceRecord)
 @attr.s(frozen=True)
 class NS(object):
     nameserver = attr.ib(validator=validators.instance_of(Name))
@@ -46,6 +51,7 @@ class NS(object):
     def to_string(self):
         return unicode(self.nameserver)
 
+@implementer(IResourceRecord)
 @attr.s(frozen=True)
 class CNAME(object):
     canonical_name = attr.ib(validator=validators.instance_of(Name))
@@ -57,6 +63,7 @@ class CNAME(object):
     def to_string(self):
         return unicode(self.canonical_name)
 
+@implementer(IResourceRecord)
 @attr.s(frozen=True)
 class SOA(object):
     mname = attr.ib(validator=validators.instance_of(Name))

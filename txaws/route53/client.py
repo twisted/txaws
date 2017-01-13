@@ -17,6 +17,8 @@ from operator import itemgetter
 import attr
 from attr import validators
 
+from zope.interface import implementer
+
 from twisted.web.http import OK, CREATED
 from twisted.web.client import FileBodyProducer
 from twisted.internet.defer import succeed
@@ -28,6 +30,7 @@ from txaws.util import XML
 
 from ._util import maybe_bytes_to_unicode, to_xml, tags
 from .model import HostedZone, Name, SOA, NS, CNAME
+from .interface import IRRSetChange
 
 # Route53 is has two endpoints both in us-east-1.
 # http://docs.aws.amazon.com/general/latest/gr/rande.html#r53_region
@@ -112,6 +115,13 @@ class _Route53Client(object):
     def create_hosted_zone(self, caller_reference, name):
         """
         http://docs.aws.amazon.com/Route53/latest/APIReference/API_CreateHostedZone.html
+
+        @type caller_reference: L{unicode}
+        @type name: L{unicode}
+
+        @return: A L{Deferred} that fires with a L{HostedZone}
+            describing the created zone or with a L{Failure} if there
+            is a problem.
         """
         d = _route53_op(
             method=b"POST",
@@ -135,6 +145,9 @@ class _Route53Client(object):
     def list_hosted_zones(self):
         """
         http://docs.aws.amazon.com/Route53/latest/APIReference/API_ListHostedZones.html
+
+        @return: A L{list} of L{HostedZone} instances describing all
+            existing hosted zones.
         """
         d = _route53_op(
             method=b"GET",
@@ -154,14 +167,18 @@ class _Route53Client(object):
     def change_resource_record_sets(self, zone_id, changes):
         """
         http://docs.aws.amazon.com/Route53/latest/APIReference/API_ChangeResourceRecordSets.html
+
+        @type zone_id: L{unicode}
+
+        @param changes: An iterable of L{IRRSetChange} providers.
         """
         d = _route53_op(
             method=b"POST",
-            path=[u"2013-04-01", u"hostedzone", unicode(zone_id), u"rrset"],
+            path=[u"2013-04-01", u"hostedzone", zone_id, u"rrset"],
             body=tags.ChangeResourceRecordSetsRequest(xmlns=_NS)(
                 tags.ChangeBatch(
                     tags.Changes(list(
-                        change.to_element()
+                        to_element(change)
                         for change in changes
                     ))
                 )
@@ -283,35 +300,44 @@ def hostedzone_from_element(zone):
     )
 
 
+def to_element(change):
+    """
+    @param change: An L{IRRSetChange} provider.
+
+    @return: The L{twisted.web.template} element which describes this
+        change.
+    """
+    return tags.Change(
+        tags.Action(
+            change.action,
+        ),
+        tags.ResourceRecordSet(
+            tags.Name(
+                unicode(change.name),
+            ),
+            tags.Type(
+                change.type,
+            ),
+            tags.TTL(
+                unicode(60 * 60 * 24),
+            ),
+            tags.ResourceRecords(list(
+                tags.ResourceRecord(tags.Value(rr.to_string()))
+                for rr
+                in change.records
+            ))
+        ),
+    )
+
+
+@implementer(IRRSetChange)
 @attr.s(frozen=True)
 class _ChangeRRSet(object):
     action = attr.ib()
     name = attr.ib(validator=validators.instance_of(Name))
     type = attr.ib()
-    rrset = attr.ib()
+    records = attr.ib()
 
-    def to_element(self):
-        return tags.Change(
-            tags.Action(
-                self.action,
-            ),
-            tags.ResourceRecordSet(
-                tags.Name(
-                    unicode(self.name),
-                ),
-                tags.Type(
-                    unicode(self.type),
-                ),
-                tags.TTL(
-                    unicode(60 * 60 * 24),
-                ),
-                tags.ResourceRecords(list(
-                    tags.ResourceRecord(tags.Value(rr.to_string()))
-                    for rr
-                    in self.rrset
-                ))
-            ),
-        )
 
 def create_rrset(name, type, rrset):
     return _ChangeRRSet(u"CREATE", name, type, rrset)
