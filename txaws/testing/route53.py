@@ -102,8 +102,8 @@ def _process_delete(existing, change):
     return discard
 
 
-def _process_upsert(rrsets, key, existing, change):
-    pass
+def _process_upsert(existing, change):
+    return change.records
 
         
     

@@ -7,13 +7,15 @@ Integration tests for the Route53 client(s).
 import attr
 from time import time
 from uuid import uuid4
+from ipaddress import IPv4Address
 
 from twisted.internet.defer import inlineCallbacks, gatherResults
 from twisted.web.http import BAD_REQUEST
 from twisted.trial.unittest import TestCase
 
+from txaws.route53.model import A, CNAME, Name
 from txaws.route53.client import (
-    Route53Error, CNAME, Name, create_rrset, delete_rrset,
+    Route53Error, create_rrset, upsert_rrset, delete_rrset,
 )
 
 def route53_integration_tests(get_client):
@@ -61,6 +63,11 @@ def route53_integration_tests(get_client):
                 ),
             )
 
+        def _cleanup(self, client, zone_identifier):
+            d = client.delete_hosted_zone(zone_identifier)
+            d.addErrback(lambda err: None)
+            return d
+
         @inlineCallbacks
         def test_resource_record_sets(self):
             zone_name = u"{}.example.invalid.".format(uuid4())
@@ -71,7 +78,7 @@ def route53_integration_tests(get_client):
             # At least try to clean up, to be as nice as possible.
             # This might fail and someone else might have to do the
             # cleanup - but it might not!
-            self.addCleanup(lambda: client.delete_hosted_zone(zone.identifier))
+            self.addCleanup(lambda: self._cleanup(client, zone.identifier))
 
             create = create_rrset(
                 Name(u"foo.{}".format(zone_name)),
@@ -84,24 +91,51 @@ def route53_integration_tests(get_client):
                 {cname},
                 rrsets[Name(u"foo.{}".format(zone_name))],
             )
+
+            # Unrecognized change type
+            # XXX This depends on _ChangeRRSet using attrs.
+            bogus = attr.assoc(create, action=u"BOGUS")
+            d = client.change_resource_record_sets(zone.identifier, [bogus])
+            error = yield self.assertFailure(d, Route53Error)
+            self.assertEqual(BAD_REQUEST, int(error.status))
+
+            created_a = A(IPv4Address(u"10.0.0.1"))
+            upsert_create = upsert_rrset(
+                Name(u"upsert.{}".format(zone_name)),
+                u"A",
+                [created_a],
+            )
+            updated_a = A(IPv4Address(u"10.0.0.2"))
+            upsert_update = upsert_rrset(
+                upsert_create.name,
+                upsert_create.type,
+                [updated_a],
+            )
+            yield client.change_resource_record_sets(zone.identifier, [upsert_create])
+            rrsets = yield client.list_resource_record_sets(zone.identifier)
+            self.assertEqual(rrsets[upsert_create.name], {created_a})
+
+            yield client.change_resource_record_sets(zone.identifier, [upsert_update])
+            rrsets = yield client.list_resource_record_sets(zone.identifier)
+            self.assertEqual(rrsets[upsert_create.name], {updated_a})
+
+            # Test deletion at the end so the zone is clean for the
+            # naive cleanup logic.
             yield client.change_resource_record_sets(zone.identifier, [
                 delete_rrset(
                     Name(u"foo.{}".format(zone_name)),
                     u"CNAME",
                     [cname],
                 ),
+                delete_rrset(
+                    upsert_create.name,
+                    upsert_create.type,
+                    [updated_a],
+                ),
             ])
             rrsets = yield client.list_resource_record_sets(zone.identifier)
             self.assertNotIn(Name(u"foo.{}".format(zone_name)), rrsets)
-
-            # Unrecognized change type
-            # XXX This depends on _ChangeRRSet using attrs.
-            bogus = attr.assoc(create, action=u"BOGUS")
-            error = yield self.assertFailure(
-                client.change_resource_record_sets(zone.identifier, [bogus]),
-                Route53Error,
-            )
-            self.assertEqual(BAD_REQUEST, int(error.status))
+            self.assertNotIn(upsert_create.name, rrsets)
 
             # Delete something that doesn't exist
             # Create something that already exists

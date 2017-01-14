@@ -5,9 +5,11 @@ Simple model objects related to Route53 interactions.
 """
 
 __all__ = [
-    "Name", "SOA", "NS", "CNAME",
+    "Name", "SOA", "NS", "A", "CNAME",
     "HostedZone",
 ]
+
+from ipaddress import IPv4Address
 
 from zope.interface import implementer
 
@@ -50,6 +52,19 @@ class NS(object):
 
     def to_string(self):
         return unicode(self.nameserver)
+
+
+@implementer(IResourceRecord)
+@attr.s(frozen=True)
+class A(object):
+    address = attr.ib(validator=validators.instance_of(IPv4Address))
+
+    @classmethod
+    def from_element(cls, e):
+        return cls(IPv4Address(maybe_bytes_to_unicode(e.find("Value").text)))
+
+    def to_string(self):
+        return unicode(self.address)
 
 @implementer(IResourceRecord)
 @attr.s(frozen=True)
@@ -100,7 +115,3 @@ class HostedZone(object):
     identifier = attr.ib(validator=validators.instance_of(unicode))
     rrset_count = attr.ib(validator=validators.instance_of(int))
     reference = attr.ib(validator=validators.instance_of(unicode))
-
-
-
-

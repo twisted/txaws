@@ -29,7 +29,7 @@ from txaws.service import REGION_US_EAST_1, AWSServiceEndpoint
 from txaws.util import XML
 
 from ._util import maybe_bytes_to_unicode, to_xml, tags
-from .model import HostedZone, Name, SOA, NS, CNAME
+from .model import HostedZone, Name, SOA, NS, A, CNAME
 from .interface import IRRSetChange
 
 # Route53 is has two endpoints both in us-east-1.
@@ -66,6 +66,7 @@ def get_route53_client(agent, region, cooperator=None):
 RECORD_TYPES = {
     u"SOA": SOA,
     u"NS": NS,
+    u"A": A,
     u"CNAME": CNAME,
 }
 
@@ -324,11 +325,11 @@ def delete_rrset(name, type, rrset):
     return _ChangeRRSet(u"DELETE", name, type, rrset)
 
 
-# XXX woops more work to do here
 def upsert_rrset(name, type, rrset):
-    pass
+    return _ChangeRRSet(u"UPSERT", name, type, rrset)
 
 
+# XXX woops more work to do here
 def create_alias_rrset(name, type, alias):
     pass
 
