@@ -4,14 +4,17 @@
 Integration tests for the Route53 client(s).
 """
 
+import attr
 from time import time
 from uuid import uuid4
 
 from twisted.internet.defer import inlineCallbacks, gatherResults
-
+from twisted.web.http import BAD_REQUEST
 from twisted.trial.unittest import TestCase
 
-from txaws.route53.client import CNAME, Name, create_rrset, delete_rrset
+from txaws.route53.client import (
+    Route53Error, CNAME, Name, create_rrset, delete_rrset,
+)
 
 def route53_integration_tests(get_client):
     class Route53IntegrationTests(TestCase):
@@ -43,7 +46,7 @@ def route53_integration_tests(get_client):
                     zone_names, listed_names,
                 ),
             )
-            
+
             yield gatherResults(list(
                 client.delete_hosted_zone(zone.identifier)
                 for zone in created_zones
@@ -70,13 +73,12 @@ def route53_integration_tests(get_client):
             # cleanup - but it might not!
             self.addCleanup(lambda: client.delete_hosted_zone(zone.identifier))
 
-            yield client.change_resource_record_sets(zone.identifier, [
-                create_rrset(
-                    Name(u"foo.{}".format(zone_name)),
-                    u"CNAME",
-                    [cname],
-                )
-            ])
+            create = create_rrset(
+                Name(u"foo.{}".format(zone_name)),
+                u"CNAME",
+                [cname],
+            )
+            yield client.change_resource_record_sets(zone.identifier, [create])
             rrsets = yield client.list_resource_record_sets(zone.identifier)
             self.assertEqual(
                 {cname},
@@ -92,6 +94,16 @@ def route53_integration_tests(get_client):
             rrsets = yield client.list_resource_record_sets(zone.identifier)
             self.assertNotIn(Name(u"foo.{}".format(zone_name)), rrsets)
 
-            
-            
+            # Unrecognized change type
+            # XXX This depends on _ChangeRRSet using attrs.
+            bogus = attr.assoc(create, action=u"BOGUS")
+            error = yield self.assertFailure(
+                client.change_resource_record_sets(zone.identifier, [bogus]),
+                Route53Error,
+            )
+            self.assertEqual(BAD_REQUEST, int(error.status))
+
+            # Delete something that doesn't exist
+            # Create something that already exists
+
     return Route53IntegrationTests

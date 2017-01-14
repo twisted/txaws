@@ -4,10 +4,12 @@ import attr
 
 from pyrsistent import discard, pvector, pmap, pset
 
-from twisted.internet.defer import succeed
+from twisted.internet.defer import succeed, fail
+from twisted.web.http import BAD_REQUEST
 
 from txaws.testing.base import MemoryClient, MemoryService
 from txaws.route53.model import HostedZone
+from txaws.route53.client import Route53Error
 
 class MemoryRoute53(MemoryService):
     def __init__(self):
@@ -59,8 +61,11 @@ class _MemoryRoute53Client(MemoryClient):
     def change_resource_record_sets(self, zone_id, changes):
         rrsets = self._state.rrsets.get(zone_id, pmap())
         for change in changes:
-            rrsets = _process_change(rrsets, change)
-        self._state.rrsets = self._state.rrsets.set(zone_id, rrsets)
+            try:
+                rrsets = _process_change(rrsets, change)
+            except:
+                return fail()
+            self._state.rrsets = self._state.rrsets.set(zone_id, rrsets)
         return succeed(None)
 
     def list_resource_record_sets(self, zone_id):
@@ -73,17 +78,37 @@ class _MemoryRoute53Client(MemoryClient):
 def _process_change(rrsets, change):
     key = (change.name, change.type)
     existing = rrsets.get(key, pvector())
-    if change.action == u"CREATE":
-        return rrsets.set(key, existing + change.records)
-    elif change.action == u"DELETE":
-        deleted = rrsets.set(
-            key,
-            list(rr for rr in existing if rr not in change.records),
-        )
-        if not deleted[key]:
-            deleted = deleted.remove(key)
+    try:
+        transformation = _change_processors[change.action.lower()]
+    except KeyError:
+        # The real AWS response blob has some details.  Route53Error
+        # doesn't know how to parse this XML, though, so the details
+        # get lost for now.
+        raise Route53Error(b'<?xml version="1.0"?>\n<ErrorResponse/>', BAD_REQUEST)
+    return rrsets.transform(
+        [key],
+        transformation(existing, change),
+    )
+
+
+def _process_create(existing, change):
+    return existing + change.records
+
+
+def _process_delete(existing, change):
+    deleted = list(rr for rr in existing if rr not in change.records)
+    if deleted:
         return deleted
-    else:
-        raise NotImplementedError(change.action)
+    return discard
+
+
+def _process_upsert(rrsets, key, existing, change):
+    pass
+
         
     
+_change_processors = {
+    U"create": _process_create,
+    u"delete": _process_delete,
+    u"upsert": _process_upsert,
+}
