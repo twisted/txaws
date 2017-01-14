@@ -414,7 +414,7 @@ class _Query(object):
         """
         request = _auth_v4._CanonicalRequest.from_request_components(
             method=method,
-            url=url_context.get_encoded_path(),
+            url=url_context.get_encoded_path() + b"?" + url_context.get_encoded_query(),
             # _CanonicalRequest should work harder to do case
             # canonicalization so we don't have to do this
             # lowercasing.
