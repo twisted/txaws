@@ -268,22 +268,6 @@ class _Op(object):
     extract_result = attr.ib(default=lambda document: None)
 
 
-# XXX no longer used, eliot is better anyway
-def annotate_request_uri(uri):
-    def annotate(reason):
-        # Hard to make a copy of a Failure with only minor changes.
-        # In particular, there's no way to be sure to replicate the
-        # traceback.  Failure.cleanFailure() may have thrown the real
-        # traceback object and the fake stuff that it gets replaced
-        # with isn't acceptable to Failure.__init__.  So ... mutate
-        # this one in place.  What could go wrong?  XXX TODO Replace
-        # this with Eliot!
-        reason.value = Exception("while requesting", uri, reason.value)
-        reason.type = Exception
-        return reason
-    return annotate
-
-
 def hostedzone_from_element(zone):
     return HostedZone(
         name=maybe_bytes_to_unicode(zone.find("Name").text),
