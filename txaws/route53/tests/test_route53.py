@@ -6,7 +6,6 @@ from twisted.internet.task import Cooperator
 from txaws.service import AWSServiceRegion
 from txaws.testing.integration import get_live_service
 from txaws.testing.base import TXAWSTestCase
-from txaws.testing.memoryagent import MemoryAgent
 from txaws.testing.route53_tests import route53_integration_tests
 
 from txaws.route53.model import HostedZone
@@ -14,6 +13,8 @@ from txaws.route53.client import (
     NS, SOA, CNAME, Name, get_route53_client,
     create_rrset, delete_rrset, upsert_rrset,
 )
+
+from treq.testing import RequestTraversalAgent
 
 def uncooperator(started=True):
     return Cooperator(
@@ -110,7 +111,7 @@ class ListHostedZonesTestCase(TXAWSTestCase):
     Tests for C{list_hosted_zones}.
     """
     def test_some_zones(self):
-        agent = MemoryAgent(static_resource({
+        agent = RequestTraversalAgent(static_resource({
             b"2013-04-01": {
                 b"hostedzone": Data(
                     sample_list_hosted_zones_result.xml,
@@ -131,7 +132,7 @@ class ListResourceRecordSetsTestCase(TXAWSTestCase):
     """
     def test_some_records(self):
         zone_id = b"ABCDEF1234"
-        agent = MemoryAgent(static_resource({
+        agent = RequestTraversalAgent(static_resource({
             b"2013-04-01": {
                 b"hostedzone": {
                     zone_id: {
@@ -169,7 +170,7 @@ class ChangeResourceRecordSetsTestCase(TXAWSTestCase):
             b"text/xml",
         )
         zone_id = u"ABCDEF1234"
-        agent = MemoryAgent(static_resource({
+        agent = RequestTraversalAgent(static_resource({
             b"2013-04-01": {
                 b"hostedzone": {
                     zone_id.encode("ascii"): {
