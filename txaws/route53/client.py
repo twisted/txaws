@@ -188,28 +188,22 @@ class _Route53Client(object):
         d.addCallback(self._op)
         return d
 
-    def list_resource_record_sets(self, zone_id, identifier=None, maxitems=None, name=None, type=None):
+    def list_resource_record_sets(self, zone_id, maxitems=None, name=None):
         """
         http://docs.aws.amazon.com/Route53/latest/APIReference/API_ListResourceRecordSets.html
 
         @type zone_id: L{unicode}
-        @type identifier: L{unicode}
         @type maxitems: L{int}
         @type name: L{Name}
-        @type type: L{unicode}
 
         @return: A L{Deferred} that fires with a L{dict} mapping rrset
             L{Name}s to L{set}s of resource records.
         """
         args = []
-        if identifier:
-            args.append(("identifier", identifier))
         if maxitems:
             args.append(("maxitems", str(maxitems)))
         if name:
             args.append(("name", unicode(name)))
-        if type:
-            args.append(("type", type))
 
         d = _route53_op(
             method=b"GET",
