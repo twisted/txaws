@@ -327,20 +327,3 @@ def delete_rrset(name, type, rrset):
 
 def upsert_rrset(name, type, rrset):
     return _ChangeRRSet(u"UPSERT", name, type, rrset)
-
-
-# XXX woops more work to do here
-def create_alias_rrset(name, type, alias):
-    pass
-
-
-def create_failover_rrset(name, type, failover):
-    pass
-
-
-def create_geolocation_rrset(name, type, geolocation):
-    pass
-
-
-def create_latency_based_rrset(name, type, latency):
-    pass
