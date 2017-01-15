@@ -121,7 +121,7 @@ def route53_integration_tests(get_client):
 
             # Use the name and maxitems parameters to select exactly one resource record.
             rrsets = yield client.list_resource_record_sets(
-                zone.identifier, maxitems=1, name=upsert_create.name,
+                zone.identifier, maxitems=1, name=upsert_create.name, type=u"A",
             )
             self.assertEqual(rrsets, {upsert_create.name: {updated_a}})
 

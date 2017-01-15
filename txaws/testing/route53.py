@@ -8,7 +8,7 @@ from twisted.internet.defer import succeed, fail
 from twisted.web.http import BAD_REQUEST
 
 from txaws.testing.base import MemoryClient, MemoryService
-from txaws.route53.model import HostedZone
+from txaws.route53.model import Name, HostedZone
 from txaws.route53.client import Route53Error
 
 class MemoryRoute53(MemoryService):
@@ -68,11 +68,27 @@ class _MemoryRoute53Client(MemoryClient):
             self._state.rrsets = self._state.rrsets.set(zone_id, rrsets)
         return succeed(None)
 
-    def list_resource_record_sets(self, zone_id):
-        return succeed(pmap({
-            name: pset(rrset)
-            for (name, type), rrset in self._state.rrsets[zone_id].items()
-        }))
+    def list_resource_record_sets(self, zone_id, maxitems=None, name=None, type=None):
+        if name is None and type is not None:
+            # http://docs.aws.amazon.com/Route53/latest/APIReference/API_ListResourceRecordSets.html
+            # If you specify Type but not Name
+            #     Amazon Route 53 returns the InvalidInput error.
+            return fail(_error)
+        name_limit = lambda n: True
+        if name is not None:
+            name_limit = lambda n, v=name: n >= v
+        type_limit = lambda t: True
+        if type is not None:
+            type_limit = lambda t, v=type: t >= v
+
+        results = {}
+        # XXX Wrong sort order
+        for (name, type), rrset in sorted(self._state.rrsets[zone_id].items()):
+            if name_limit(name) and type_limit(type):
+                results[name] = pset(rrset)
+                if maxitems is not None and len(results) == maxitems:
+                    break
+        return succeed(pmap(results))
 
 
 def _process_change(rrsets, change):
@@ -81,15 +97,15 @@ def _process_change(rrsets, change):
     try:
         transformation = _change_processors[change.action.lower()]
     except KeyError:
-        # The real AWS response blob has some details.  Route53Error
-        # doesn't know how to parse this XML, though, so the details
-        # get lost for now.
-        raise Route53Error(b'<?xml version="1.0"?>\n<ErrorResponse/>', BAD_REQUEST)
+        raise _error
     return rrsets.transform(
         [key],
         transformation(existing, change),
     )
 
+# Real AWS response blobs have some details.  Route53Error doesn't
+# know how to parse this XML, though, so the details get lost for now.
+_error = Route53Error(b'<?xml version="1.0"?>\n<ErrorResponse/>', BAD_REQUEST)
 
 def _process_create(existing, change):
     return existing + change.records
