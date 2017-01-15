@@ -14,7 +14,7 @@ from twisted.web.http import BAD_REQUEST
 from twisted.trial.unittest import TestCase
 
 from txaws.route53.model import (
-    SOA, NS, A, CNAME, Name, create_rrset, upsert_rrset, delete_rrset,
+    RRSetKey, RRSet, SOA, NS, A, CNAME, Name, create_rrset, upsert_rrset, delete_rrset,
 )
 from txaws.route53.client import (
     Route53Error,
@@ -82,24 +82,32 @@ def route53_integration_tests(get_client):
             # cleanup - but it might not!
             self.addCleanup(lambda: self._cleanup(client, zone.identifier))
 
-            create = create_rrset(
-                Name(u"foo.{}".format(zone_name)),
-                u"CNAME",
-                60,
-                [cname],
-            )
+            cname_label = Name(u"foo.{}".format(zone_name))
+            create = create_rrset(RRSet(
+                label=cname_label,
+                type=u"CNAME",
+                ttl=60,
+                records={cname},
+            ))
             yield client.change_resource_record_sets(zone.identifier, [create])
             initial = yield client.list_resource_record_sets(zone.identifier)
+            cname_rrset = initial[RRSetKey(cname_label, u"CNAME")]
             self.assertEqual(
-                {cname},
-                initial[Name(u"foo.{}".format(zone_name))],
+                RRSet(label=cname_label, type=u"CNAME", ttl=60, records={cname}),
+                cname_rrset,
             )
 
             # Zones start with an SOA and some NS records.
-            soa = list(rr for rr in initial[Name(zone_name)] if isinstance(rr, SOA))
-            self.assertEqual(len(soa), 1, "Expected one SOA record, got {}".format(soa))
-            ns = list(rr for rr in initial[Name(zone_name)] if isinstance(rr, NS))
-            self.assertNotEqual([], ns, "Expected some NS records, got none")
+            soa = initial[RRSetKey(Name(zone_name), u"SOA")]
+            self.assertEqual(
+                len(soa.records), 1,
+                "Expected one SOA record, got {}".format(soa.records)
+            )
+            ns = initial[RRSetKey(Name(zone_name), u"NS")]
+            self.assertNotEqual(
+                set(), ns.records,
+                "Expected some NS records, got none"
+            )
 
             # Unrecognized change type
             # XXX This depends on _ChangeRRSet using attrs.
@@ -109,32 +117,34 @@ def route53_integration_tests(get_client):
             self.assertEqual(BAD_REQUEST, int(error.status))
 
             created_a = A(IPv4Address(u"10.0.0.1"))
-            upsert_create = upsert_rrset(
-                Name(u"upsert.{}".format(zone_name)),
+            upsert_label = Name(u"upsert.{}".format(zone_name))
+            upsert_create = upsert_rrset(RRSet(
+                upsert_label,
                 u"A",
                 60,
-                [created_a],
-            )
+                {created_a},
+            ))
             updated_a = A(IPv4Address(u"10.0.0.2"))
-            upsert_update = upsert_rrset(
-                upsert_create.name,
-                upsert_create.type,
-                60,
-                [updated_a],
-            )
+            upsert_update = upsert_rrset(RRSet(
+                upsert_create.rrset.label,
+                upsert_create.rrset.type,
+                upsert_create.rrset.ttl,
+                {updated_a},
+            ))
             yield client.change_resource_record_sets(zone.identifier, [upsert_create])
             rrsets = yield client.list_resource_record_sets(zone.identifier)
-            self.assertEqual(rrsets[upsert_create.name], {created_a})
+            self.assertEqual(rrsets[RRSetKey(upsert_label, u"A")].records, {created_a})
 
             yield client.change_resource_record_sets(zone.identifier, [upsert_update])
             rrsets = yield client.list_resource_record_sets(zone.identifier)
-            self.assertEqual(rrsets[upsert_create.name], {updated_a})
+            self.assertEqual(rrsets[RRSetKey(upsert_label, u"A")].records, {updated_a})
 
             # Use the name and maxitems parameters to select exactly one resource record.
             rrsets = yield client.list_resource_record_sets(
-                zone.identifier, maxitems=1, name=upsert_create.name, type=u"A",
+                zone.identifier, maxitems=1, name=upsert_label, type=u"A",
             )
-            self.assertEqual(rrsets, {upsert_create.name: {updated_a}})
+            self.assertEqual(1, len(rrsets), "Expected 1 rrset")
+            self.assertEqual({updated_a}, rrsets[RRSetKey(upsert_label, u"A")].records)
 
             # It's invalid to specify type without name.
             d = client.list_resource_record_sets(zone.identifier, type=u"A")
@@ -143,54 +153,29 @@ def route53_integration_tests(get_client):
 
             # It's invalid to delete the SOA record.
             d = client.change_resource_record_sets(
-                zone.identifier, [
-                    delete_rrset(
-                        Name(zone_name),
-                        u"SOA",
-                        # XXX Magically matches AWS value
-                        900,
-                        soa,
-                    ),
-                ],
+                zone.identifier, [delete_rrset(soa)],
             )
             error = yield self.assertFailure(d, Route53Error)
             self.assertEqual(BAD_REQUEST, int(error.status))
 
             # Likewise, the NS records.
             d = client.change_resource_record_sets(
-                zone.identifier, [
-                    delete_rrset(
-                        Name(zone_name),
-                        u"NS",
-                        # XXX Magically matches AWS value
-                        172800,
-                        ns,
-                    ),
-                ],
+                zone.identifier, [delete_rrset(ns)],
             )
             error = yield self.assertFailure(d, Route53Error)
             self.assertEqual(BAD_REQUEST, int(error.status))
 
             # Test deletion at the end so the zone is clean for the
             # naive cleanup logic.
-            yield client.change_resource_record_sets(zone.identifier, [
-                delete_rrset(
-                    Name(u"foo.{}".format(zone_name)),
-                    u"CNAME",
-                    # XXX Matches creation above
-                    60,
-                    [cname],
-                ),
-                delete_rrset(
-                    upsert_create.name,
-                    upsert_create.type,
-                    60,
-                    [updated_a],
-                ),
-            ])
+            yield client.change_resource_record_sets(
+                zone.identifier, [
+                    delete_rrset(cname_rrset),
+                    delete_rrset(upsert_update.rrset),
+                ],
+            )
             rrsets = yield client.list_resource_record_sets(zone.identifier)
-            self.assertNotIn(Name(u"foo.{}".format(zone_name)), rrsets)
-            self.assertNotIn(upsert_create.name, rrsets)
+            self.assertNotIn(cname_label, rrsets)
+            self.assertNotIn(upsert_label, rrsets)
 
             # Delete something that doesn't exist
             # Create something that already exists

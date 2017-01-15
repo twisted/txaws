@@ -9,7 +9,7 @@ from txaws.testing.base import TXAWSTestCase
 from txaws.testing.route53_tests import route53_integration_tests
 
 from txaws.route53.model import (
-    HostedZone,
+    HostedZone, RRSetKey, RRSet,
     create_rrset, delete_rrset, upsert_rrset,
 )
 from txaws.route53.client import (
@@ -47,7 +47,8 @@ def static_resource(hierarchy):
 
 
 class sample_list_resource_record_sets_result(object):
-    name = u"example.invalid."
+    label = Name(u"example.invalid.")
+    soa_ttl = 60
     soa = SOA(
         mname=Name(u"1.awsdns-1.net."),
         rname=Name(u"awsdns-hostmaster.amazon.com."),
@@ -57,6 +58,7 @@ class sample_list_resource_record_sets_result(object):
         expire=1209600,
         minimum=86400,
     )
+    ns_ttl = 120
     ns1 = NS(
         nameserver=Name(u"ns-1.awsdns-1.net."),
     )
@@ -64,6 +66,7 @@ class sample_list_resource_record_sets_result(object):
         nameserver=Name(u"ns-2.awsdns-2.net."),
     )
 
+    cname_ttl = 180
     # The existence of a CNAME record for example.invalid. is bogus
     # because if you have a CNAME record for a name you're not
     # supposed to have any other records for it - and we have soa, ns,
@@ -74,16 +77,25 @@ class sample_list_resource_record_sets_result(object):
     )
     xml = u"""\
 <?xml version="1.0"?>
-<ListResourceRecordSetsResponse xmlns="https://route53.amazonaws.com/doc/2013-04-01/"><ResourceRecordSets><ResourceRecordSet><Name>{name}</Name><Type>NS</Type><TTL>172800</TTL><ResourceRecords><ResourceRecord><Value>{ns1.nameserver}</Value></ResourceRecord><ResourceRecord><Value>{ns2.nameserver}</Value></ResourceRecord></ResourceRecords></ResourceRecordSet><ResourceRecordSet><Name>{name}</Name><Type>SOA</Type><TTL>900</TTL><ResourceRecords><ResourceRecord><Value>{soa.mname} {soa.rname} {soa.serial} {soa.refresh} {soa.retry} {soa.expire} {soa.minimum}</Value></ResourceRecord></ResourceRecords></ResourceRecordSet><ResourceRecordSet><Name>{name}</Name><Type>CNAME</Type><TTL>1800</TTL><ResourceRecords><ResourceRecord><Value>{cname.canonical_name}</Value></ResourceRecord></ResourceRecords></ResourceRecordSet></ResourceRecordSets><IsTruncated>false</IsTruncated><MaxItems>100</MaxItems></ListResourceRecordSetsResponse>
-""".format(name=name, soa=soa, ns1=ns1, ns2=ns2, cname=cname).encode("utf-8")
+<ListResourceRecordSetsResponse xmlns="https://route53.amazonaws.com/doc/2013-04-01/"><ResourceRecordSets><ResourceRecordSet><Name>{label}</Name><Type>NS</Type><TTL>{ns_ttl}</TTL><ResourceRecords><ResourceRecord><Value>{ns1.nameserver}</Value></ResourceRecord><ResourceRecord><Value>{ns2.nameserver}</Value></ResourceRecord></ResourceRecords></ResourceRecordSet><ResourceRecordSet><Name>{label}</Name><Type>SOA</Type><TTL>{soa_ttl}</TTL><ResourceRecords><ResourceRecord><Value>{soa.mname} {soa.rname} {soa.serial} {soa.refresh} {soa.retry} {soa.expire} {soa.minimum}</Value></ResourceRecord></ResourceRecords></ResourceRecordSet><ResourceRecordSet><Name>{label}</Name><Type>CNAME</Type><TTL>{cname_ttl}</TTL><ResourceRecords><ResourceRecord><Value>{cname.canonical_name}</Value></ResourceRecord></ResourceRecords></ResourceRecordSet></ResourceRecordSets><IsTruncated>false</IsTruncated><MaxItems>100</MaxItems></ListResourceRecordSetsResponse>
+""".format(
+    label=label,
+    soa=soa, soa_ttl=soa_ttl,
+    ns1=ns1, ns2=ns2, ns_ttl=ns_ttl,
+    cname=cname, cname_ttl=cname_ttl,
+).encode("utf-8")
 
 
 class sample_change_resource_record_sets_result(object):
-    name = u"example.invalid."
-    create_type = u"NS"
-    create_ttl = 86400
-    create_rrset = [NS(Name(u"ns1.example.invalid.")), NS(Name(u"ns2.example.invalid."))]
-
+    rrset = RRSet(
+        label=Name(u"example.invalid."),
+        type=u"NS",
+        ttl=86400,
+        records={
+            NS(Name(u"ns1.example.invalid.")),
+            NS(Name(u"ns2.example.invalid.")),
+        },
+    )
     xml = b"""\
 <?xml version="1.0" encoding="UTF-8"?>
 <ChangeResourceRecordSetsResponse>
@@ -153,12 +165,36 @@ class ListResourceRecordSetsTestCase(TXAWSTestCase):
             zone_id=zone_id,
         ))
         expected = {
-            Name(sample_list_resource_record_sets_result.name): {
-                sample_list_resource_record_sets_result.soa,
-                sample_list_resource_record_sets_result.ns1,
-                sample_list_resource_record_sets_result.ns2,
-                sample_list_resource_record_sets_result.cname,
-            }
+            RRSetKey(
+                label=sample_list_resource_record_sets_result.label,
+                type=u"SOA",
+            ): RRSet(
+                label=sample_list_resource_record_sets_result.label,
+                type=u"SOA",
+                ttl=sample_list_resource_record_sets_result.soa_ttl,
+                records={sample_list_resource_record_sets_result.soa},
+            ),
+            RRSetKey(
+                label=sample_list_resource_record_sets_result.label,
+                type=u"NS",
+            ): RRSet(
+                label=sample_list_resource_record_sets_result.label,
+                type=u"NS",
+                ttl=sample_list_resource_record_sets_result.ns_ttl,
+                records={
+                    sample_list_resource_record_sets_result.ns1,
+                    sample_list_resource_record_sets_result.ns2,
+                },
+            ),
+            RRSetKey(
+                label=sample_list_resource_record_sets_result.label,
+                type=u"CNAME",
+            ): RRSet(
+                label=sample_list_resource_record_sets_result.label,
+                type=u"CNAME",
+                ttl=sample_list_resource_record_sets_result.cname_ttl,
+                records={sample_list_resource_record_sets_result.cname},
+            ),
         }
         self.assertEquals(rrsets, expected)
 
@@ -187,12 +223,7 @@ class ChangeResourceRecordSetsTestCase(TXAWSTestCase):
         self.successResultOf(client.change_resource_record_sets(
             zone_id=zone_id,
             changes=[
-                create_rrset(
-                    Name(sample_change_resource_record_sets_result.name),
-                    sample_change_resource_record_sets_result.create_type,
-                    sample_change_resource_record_sets_result.create_ttl,
-                    sample_change_resource_record_sets_result.create_rrset,
-                ),
+                create_rrset(sample_change_resource_record_sets_result.rrset),
                 # delete_rrset(
                 #     Name(sample_change_resource_record_sets_result.name),
                 #     sample_change_resource_record_sets_result.delete_type,

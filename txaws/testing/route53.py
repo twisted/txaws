@@ -8,7 +8,7 @@ from twisted.internet.defer import succeed, fail
 from twisted.web.http import BAD_REQUEST
 
 from txaws.testing.base import MemoryClient, MemoryService
-from txaws.route53.model import Name, SOA, NS, HostedZone, create_rrset
+from txaws.route53.model import Name, RRSetKey, RRSet, SOA, NS, HostedZone, create_rrset
 from txaws.route53.client import Route53Error
 
 class MemoryRoute53(MemoryService):
@@ -21,6 +21,15 @@ class MemoryRoute53(MemoryService):
 
 @attr.s
 class Route53ClientState(object):
+    """
+    @ivar zones: A sequence of HostedZone instances representing the
+        zones known to exist.
+
+    @ivar rrsets: A mapping from zone identifiers to further mappings.
+        The further mappings map an L{RRSetKey} instance to an L{RRSet}
+        instance and represent the rrsets belonging to the
+        corresponding zone.
+    """
     _id = attr.ib(default=attr.Factory(count), init=False)
 
     zones = attr.ib(default=pvector())
@@ -29,9 +38,19 @@ class Route53ClientState(object):
     def next_id(self):
         return u"/hostedzone/{:014d}".format(next(self._id))
 
+    def get_rrsets(self, zone_id):
+        if any(zone.identifier == zone_id for zone in self.zones):
+            return self.rrsets.get(zone_id, pmap())
+        # You cannot interact with rrsets unless a zone exists.
+        return None
+
+    def set_rrsets(self, zone_id, rrsets):
+        self.rrsets = self.rrsets.set(zone_id, rrsets)
+
 
 def _value_transform(pv, pred, transform):
     return pv.transform([lambda i: pred(pv[i])], transform)
+
 
 @attr.s
 class _MemoryRoute53Client(MemoryClient):
@@ -49,29 +68,33 @@ class _MemoryRoute53Client(MemoryClient):
         self.change_resource_record_sets(
             zone.identifier, [
                 create_rrset(
-                    name=Name(name),
-                    type=u"SOA",
-                    ttl=900,
-                    records={
-                        SOA(
-                            mname=Name(text=u'ns-698.awsdns-23.net.example.invalid.'),
-                            rname=Name(text=u'awsdns-hostmaster.amazon.com.example.invalid.'),
-                            serial=1,
-                            refresh=7200,
-                            retry=900,
-                            expire=1209600,
-                            minimum=86400,
-                        ),
-                    },
+                    RRSet(
+                        label=Name(name),
+                        type=u"SOA",
+                        ttl=900,
+                        records={
+                            SOA(
+                                mname=Name(text=u'ns-698.awsdns-23.net.example.invalid.'),
+                                rname=Name(text=u'awsdns-hostmaster.amazon.com.example.invalid.'),
+                                serial=1,
+                                refresh=7200,
+                                retry=900,
+                                expire=1209600,
+                                minimum=86400,
+                            ),
+                        },
+                    ),
                 ),
                 create_rrset(
-                    name=Name(name),
-                    type=u"NS",
-                    ttl=172800,
-                    records={
-                        NS(nameserver=Name(text=u'ns-698.awsdns-23.net.example.invalid.')),
-                        NS(nameserver=Name(text=u'ns-1188.awsdns-20.org.examplie.invalid.')),
-                    },
+                    RRSet(
+                        label=Name(name),
+                        type=u"NS",
+                        ttl=172800,
+                        records={
+                            NS(nameserver=Name(text=u'ns-698.awsdns-23.net.example.invalid.')),
+                            NS(nameserver=Name(text=u'ns-1188.awsdns-20.org.examplie.invalid.')),
+                        },
+                    ),
                 ),
             ],
         )
@@ -89,7 +112,10 @@ class _MemoryRoute53Client(MemoryClient):
         return succeed(None)
 
     def change_resource_record_sets(self, zone_id, changes):
-        rrsets = self._state.rrsets.get(zone_id, pmap())
+        rrsets = self._state.get_rrsets(zone_id)
+        if rrsets is None:
+            return fail(_error)
+
         for change in changes:
             try:
                 rrsets = _process_change(rrsets, change)
@@ -100,7 +126,7 @@ class _MemoryRoute53Client(MemoryClient):
         # When using the Amazon Route 53 API to change resource record
         # sets, Amazon Route 53 either makes all or none of the
         # changes in a change batch request.
-        self._state.rrsets = self._state.rrsets.set(zone_id, rrsets)
+        self._state.set_rrsets(zone_id, rrsets)
         return succeed(None)
 
     def list_resource_record_sets(self, zone_id, maxitems=None, name=None, type=None):
@@ -121,28 +147,26 @@ class _MemoryRoute53Client(MemoryClient):
         if type is not None:
             type_limit = lambda t, v=type: t >= v
 
-        count = 0
         results = {}
         # XXX Wrong sort order
-        for (name, type), rrset in sorted(self._state.rrsets[zone_id].items()):
-            if name_limit(name) and type_limit(type):
-                results[name] = results.get(name, pset()) | pset(rrset)
-                count += 1
-                if maxitems_limit(count):
+        for key, rrset in sorted(self._state.rrsets[zone_id].items()):
+            if name_limit(key.label) and type_limit(key.type):
+                results[key] = rrset
+                if maxitems_limit(len(results)):
                     break
         return succeed(pmap(results))
 
 
 def _process_change(rrsets, change):
-    key = (change.name, change.type)
-    existing = rrsets.get(key, pvector())
+    key = RRSetKey(change.rrset.label, change.rrset.type)
+    existing = rrsets.get(key, None)
     try:
         transformation = _change_processors[change.action.lower()]
     except KeyError:
         raise _error
     return rrsets.transform(
         [key],
-        transformation(existing, change),
+        transformation(existing, change.rrset),
     )
 
 # Real AWS response blobs have some details.  Route53Error doesn't
@@ -150,7 +174,10 @@ def _process_change(rrsets, change):
 _error = Route53Error(b'<?xml version="1.0"?>\n<ErrorResponse/>', BAD_REQUEST)
 
 def _process_create(existing, change):
-    return existing + change.records
+    if existing is not None:
+        # You cannot create if it exists a already.
+        raise _error
+    return change
 
 
 def _process_delete(existing, change):
@@ -158,14 +185,15 @@ def _process_delete(existing, change):
         # You cannot delete the SOA record or the NS records.
         # XXX
         raise _error
-    deleted = list(rr for rr in existing if rr not in change.records)
-    if deleted:
-        return deleted
-    return discard
+    if existing == change:
+        return discard
+    # You must specify the rrset exactly to delete it.
+    raise _error
 
 
 def _process_upsert(existing, change):
-    return change.records
+    # Replace whatever was there with whatever was specified.
+    return change
 
 
 

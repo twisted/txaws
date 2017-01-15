@@ -18,7 +18,7 @@ from attr import validators
 
 from ._util import maybe_bytes_to_unicode
 from .interface import IResourceRecord, IRRSetChange
-
+from ..client._validators import set_of
 
 def _all(*vs):
     def validator(*a, **kw):
@@ -41,26 +41,40 @@ class Name(object):
         return self.text.encode("idna")
 
 
+@attr.s(frozen=True)
+class RRSetKey(object):
+    label = attr.ib()
+    type = attr.ib()
+
+
+@attr.s(frozen=True)
+class RRSet(object):
+    """
+    https://tools.ietf.org/html/rfc2181#section-5
+    """
+    label = attr.ib(validator=validators.instance_of(Name))
+    type = attr.ib()
+    ttl = attr.ib(validator=validators.instance_of(int))
+    records = attr.ib(validator=set_of(validators.provides(IResourceRecord)))
+
+
 @implementer(IRRSetChange)
 @attr.s(frozen=True)
 class _ChangeRRSet(object):
     action = attr.ib()
-    name = attr.ib(validator=validators.instance_of(Name))
-    type = attr.ib()
-    ttl = attr.ib(validator=validators.instance_of(int))
-    records = attr.ib()
+    rrset = attr.ib(validator=validators.instance_of(RRSet))
 
 
-def create_rrset(name, type, ttl, records):
-    return _ChangeRRSet(u"CREATE", name, type, ttl, records)
+def create_rrset(rrset):
+    return _ChangeRRSet(u"CREATE", rrset)
 
 
-def delete_rrset(name, type, ttl, records):
-    return _ChangeRRSet(u"DELETE", name, type, ttl, records)
+def delete_rrset(rrset):
+    return _ChangeRRSet(u"DELETE", rrset)
 
 
-def upsert_rrset(name, type, ttl, records):
-    return _ChangeRRSet(u"UPSERT", name, type, ttl, records)
+def upsert_rrset(rrset):
+    return _ChangeRRSet(u"UPSERT", rrset)
 
 
 @implementer(IResourceRecord)

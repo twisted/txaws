@@ -29,7 +29,7 @@ from txaws.service import REGION_US_EAST_1, AWSServiceEndpoint
 from txaws.util import XML
 
 from ._util import maybe_bytes_to_unicode, to_xml, tags
-from .model import HostedZone, Name, SOA, NS, A, CNAME, _ChangeRRSet
+from .model import HostedZone, RRSetKey, RRSet, Name, SOA, NS, A, CNAME, _ChangeRRSet
 
 # Route53 is has two endpoints both in us-east-1.
 # http://docs.aws.amazon.com/general/latest/gr/rande.html#r53_region
@@ -196,8 +196,8 @@ class _Route53Client(object):
         @type name: L{Name}
         @type type: L{unicode}
 
-        @return: A L{Deferred} that fires with a L{dict} mapping rrset
-            L{Name}s to L{set}s of resource records.
+        @return: A L{Deferred} that fires with a L{dict} mapping
+            L{RRSetKey} instances to corresponding L{RRSet} instances.
         """
         args = []
         if maxitems:
@@ -220,14 +220,20 @@ class _Route53Client(object):
         result = {}
         rrsets = document.iterfind("./ResourceRecordSets/ResourceRecordSet")
         for rrset in rrsets:
-            name = Name(maybe_bytes_to_unicode(rrset.find("Name").text))
+            label = Name(maybe_bytes_to_unicode(rrset.find("Name").text))
             type = rrset.find("Type").text
+            ttl = int(rrset.find("TTL").text)
             records = rrset.iterfind("./ResourceRecords/ResourceRecord")
-            result.setdefault(name, set()).update({
-                RECORD_TYPES[type].from_element(element)
-                for element
-                in records
-            })
+            result[RRSetKey(label, type)] = RRSet(
+                label=label,
+                type=type,
+                ttl=ttl,
+                records={
+                    RECORD_TYPES[type].from_element(element)
+                    for element
+                    in records
+                },
+            )
         return result
 
 
@@ -287,18 +293,18 @@ def to_element(change):
         ),
         tags.ResourceRecordSet(
             tags.Name(
-                unicode(change.name),
+                unicode(change.rrset.label),
             ),
             tags.Type(
-                change.type,
+                change.rrset.type,
             ),
             tags.TTL(
-                unicode(60 * 60 * 24),
+                u"{}".format(change.rrset.ttl),
             ),
             tags.ResourceRecords(list(
                 tags.ResourceRecord(tags.Value(rr.to_string()))
                 for rr
-                in change.records
+                in sorted(change.rrset.records)
             ))
         ),
     )
