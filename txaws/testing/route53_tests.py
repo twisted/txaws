@@ -13,9 +13,11 @@ from twisted.internet.defer import inlineCallbacks, gatherResults
 from twisted.web.http import BAD_REQUEST
 from twisted.trial.unittest import TestCase
 
-from txaws.route53.model import A, CNAME, Name
+from txaws.route53.model import (
+    SOA, NS, A, CNAME, Name, create_rrset, upsert_rrset, delete_rrset,
+)
 from txaws.route53.client import (
-    Route53Error, create_rrset, upsert_rrset, delete_rrset,
+    Route53Error,
 )
 
 def route53_integration_tests(get_client):
@@ -83,14 +85,21 @@ def route53_integration_tests(get_client):
             create = create_rrset(
                 Name(u"foo.{}".format(zone_name)),
                 u"CNAME",
+                60,
                 [cname],
             )
             yield client.change_resource_record_sets(zone.identifier, [create])
-            rrsets = yield client.list_resource_record_sets(zone.identifier)
+            initial = yield client.list_resource_record_sets(zone.identifier)
             self.assertEqual(
                 {cname},
-                rrsets[Name(u"foo.{}".format(zone_name))],
+                initial[Name(u"foo.{}".format(zone_name))],
             )
+
+            # Zones start with an SOA and some NS records.
+            soa = list(rr for rr in initial[Name(zone_name)] if isinstance(rr, SOA))
+            self.assertEqual(len(soa), 1, "Expected one SOA record, got {}".format(soa))
+            ns = list(rr for rr in initial[Name(zone_name)] if isinstance(rr, NS))
+            self.assertNotEqual([], ns, "Expected some NS records, got none")
 
             # Unrecognized change type
             # XXX This depends on _ChangeRRSet using attrs.
@@ -103,12 +112,14 @@ def route53_integration_tests(get_client):
             upsert_create = upsert_rrset(
                 Name(u"upsert.{}".format(zone_name)),
                 u"A",
+                60,
                 [created_a],
             )
             updated_a = A(IPv4Address(u"10.0.0.2"))
             upsert_update = upsert_rrset(
                 upsert_create.name,
                 upsert_create.type,
+                60,
                 [updated_a],
             )
             yield client.change_resource_record_sets(zone.identifier, [upsert_create])
@@ -125,17 +136,55 @@ def route53_integration_tests(get_client):
             )
             self.assertEqual(rrsets, {upsert_create.name: {updated_a}})
 
+            # It's invalid to specify type without name.
+            d = client.list_resource_record_sets(zone.identifier, type=u"A")
+            error = yield self.assertFailure(d, Route53Error)
+            self.assertEqual(BAD_REQUEST, int(error.status))
+
+            # It's invalid to delete the SOA record.
+            d = client.change_resource_record_sets(
+                zone.identifier, [
+                    delete_rrset(
+                        Name(zone_name),
+                        u"SOA",
+                        # XXX Magically matches AWS value
+                        900,
+                        soa,
+                    ),
+                ],
+            )
+            error = yield self.assertFailure(d, Route53Error)
+            self.assertEqual(BAD_REQUEST, int(error.status))
+
+            # Likewise, the NS records.
+            d = client.change_resource_record_sets(
+                zone.identifier, [
+                    delete_rrset(
+                        Name(zone_name),
+                        u"NS",
+                        # XXX Magically matches AWS value
+                        172800,
+                        ns,
+                    ),
+                ],
+            )
+            error = yield self.assertFailure(d, Route53Error)
+            self.assertEqual(BAD_REQUEST, int(error.status))
+
             # Test deletion at the end so the zone is clean for the
             # naive cleanup logic.
             yield client.change_resource_record_sets(zone.identifier, [
                 delete_rrset(
                     Name(u"foo.{}".format(zone_name)),
                     u"CNAME",
+                    # XXX Matches creation above
+                    60,
                     [cname],
                 ),
                 delete_rrset(
                     upsert_create.name,
                     upsert_create.type,
+                    60,
                     [updated_a],
                 ),
             ])

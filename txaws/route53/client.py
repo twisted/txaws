@@ -29,8 +29,7 @@ from txaws.service import REGION_US_EAST_1, AWSServiceEndpoint
 from txaws.util import XML
 
 from ._util import maybe_bytes_to_unicode, to_xml, tags
-from .model import HostedZone, Name, SOA, NS, A, CNAME
-from .interface import IRRSetChange
+from .model import HostedZone, Name, SOA, NS, A, CNAME, _ChangeRRSet
 
 # Route53 is has two endpoints both in us-east-1.
 # http://docs.aws.amazon.com/general/latest/gr/rande.html#r53_region
@@ -171,7 +170,7 @@ class _Route53Client(object):
 
         @type zone_id: L{unicode}
 
-        @param changes: An iterable of L{IRRSetChange} providers.
+        @param changes: An iterable of L{txaws.route53.interface.IRRSetChange} providers.
         """
         d = _route53_op(
             method=b"POST",
@@ -277,7 +276,7 @@ def hostedzone_from_element(zone):
 
 def to_element(change):
     """
-    @param change: An L{IRRSetChange} provider.
+    @param change: An L{txaws.route53.interface.IRRSetChange} provider.
 
     @return: The L{twisted.web.template} element which describes this
         change.
@@ -303,24 +302,3 @@ def to_element(change):
             ))
         ),
     )
-
-
-@implementer(IRRSetChange)
-@attr.s(frozen=True)
-class _ChangeRRSet(object):
-    action = attr.ib()
-    name = attr.ib(validator=validators.instance_of(Name))
-    type = attr.ib()
-    records = attr.ib()
-
-
-def create_rrset(name, type, rrset):
-    return _ChangeRRSet(u"CREATE", name, type, rrset)
-
-
-def delete_rrset(name, type, rrset):
-    return _ChangeRRSet(u"DELETE", name, type, rrset)
-
-
-def upsert_rrset(name, type, rrset):
-    return _ChangeRRSet(u"UPSERT", name, type, rrset)

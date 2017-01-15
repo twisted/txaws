@@ -17,7 +17,7 @@ import attr
 from attr import validators
 
 from ._util import maybe_bytes_to_unicode
-from .interface import IResourceRecord
+from .interface import IResourceRecord, IRRSetChange
 
 
 def _all(*vs):
@@ -39,6 +39,28 @@ class Name(object):
 
     def __str__(self):
         return self.text.encode("idna")
+
+
+@implementer(IRRSetChange)
+@attr.s(frozen=True)
+class _ChangeRRSet(object):
+    action = attr.ib()
+    name = attr.ib(validator=validators.instance_of(Name))
+    type = attr.ib()
+    ttl = attr.ib(validator=validators.instance_of(int))
+    records = attr.ib()
+
+
+def create_rrset(name, type, ttl, records):
+    return _ChangeRRSet(u"CREATE", name, type, ttl, records)
+
+
+def delete_rrset(name, type, ttl, records):
+    return _ChangeRRSet(u"DELETE", name, type, ttl, records)
+
+
+def upsert_rrset(name, type, ttl, records):
+    return _ChangeRRSet(u"UPSERT", name, type, ttl, records)
 
 
 @implementer(IResourceRecord)
@@ -103,7 +125,9 @@ class SOA(object):
         )
 
     def to_string(self):
-        return u"{mname} {rname} {serial} {refresh} {retry} {expire} {minimum}".format(vars(self))
+        return u"{mname} {rname} {serial} {refresh} {retry} {expire} {minimum}".format(
+            **attr.asdict(self)
+        )
 
 
 @attr.s

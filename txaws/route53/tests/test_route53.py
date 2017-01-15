@@ -8,10 +8,12 @@ from txaws.testing.integration import get_live_service
 from txaws.testing.base import TXAWSTestCase
 from txaws.testing.route53_tests import route53_integration_tests
 
-from txaws.route53.model import HostedZone
+from txaws.route53.model import (
+    HostedZone,
+    create_rrset, delete_rrset, upsert_rrset,
+)
 from txaws.route53.client import (
     NS, SOA, CNAME, Name, get_route53_client,
-    create_rrset, delete_rrset, upsert_rrset,
 )
 
 from treq.testing import RequestTraversalAgent
@@ -79,6 +81,7 @@ class sample_list_resource_record_sets_result(object):
 class sample_change_resource_record_sets_result(object):
     name = u"example.invalid."
     create_type = u"NS"
+    create_ttl = 86400
     create_rrset = [NS(Name(u"ns1.example.invalid.")), NS(Name(u"ns2.example.invalid."))]
 
     xml = b"""\
@@ -187,6 +190,7 @@ class ChangeResourceRecordSetsTestCase(TXAWSTestCase):
                 create_rrset(
                     Name(sample_change_resource_record_sets_result.name),
                     sample_change_resource_record_sets_result.create_type,
+                    sample_change_resource_record_sets_result.create_ttl,
                     sample_change_resource_record_sets_result.create_rrset,
                 ),
                 # delete_rrset(
