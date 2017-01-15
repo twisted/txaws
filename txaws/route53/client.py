@@ -205,7 +205,7 @@ class _Route53Client(object):
             args.append(("maxitems", u"{}".format(maxitems)))
         if name:
             args.append(("name", unicode(name)))
-        if name:
+        if type:
             args.append(("type", type))
 
         d = _route53_op(
