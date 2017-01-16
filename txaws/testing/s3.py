@@ -99,6 +99,10 @@ class _MemoryS3Client(MemoryClient):
         return pieces["listing"]
 
     @_rate_limited
+    def get_bucket_location(self, bucket):
+        return b""
+
+    @_rate_limited
     def put_object(
             self, bucket, object_name,
             data=None, content_type=None,

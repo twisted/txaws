@@ -33,9 +33,10 @@ from txaws.service import REGION_US_EAST_1
 from txaws.credentials import AWSCredentials
 from txaws.client import base, ssl
 from txaws.client.base import (
-    BaseClient, BaseQuery, error_wrapper,
+    RequestDetails, BaseClient, BaseQuery, error_wrapper,
     StreamingBodyReceiver, _URLContext, url_context,
 )
+from txaws._auth_v4 import _CanonicalRequest
 from txaws.service import AWSServiceEndpoint
 from txaws.testing.base import TXAWSTestCase
 from txaws.testing.producers import StringBodyProducer
@@ -355,63 +356,106 @@ class QueryTestCase(TXAWSTestCase):
         self.credentials = AWSCredentials(
             "access key id", "secret access key",
         )
-        self.url_context = base.url_context(
-            scheme=u"https",
-            host=u"example.invalid",
-            port=80,
-            path=[],
-        )
-        self.content_sha256 = sha256(b"").hexdigest().decode("ascii")
-        self.details = base.RequestDetails(
-            region=REGION_US_EAST_1,
-            service=b"iam",
-            method=b"GET",
-            url_context=self.url_context,
-            content_sha256=self.content_sha256,
-        )
         self.agent = StubAgent()
         self.now = datetime.utcfromtimestamp(1234567890)
 
     def utcnow(self):
         return self.now
 
+    def test_canonical_request(self):
+        """
+        L{_Query._canonical_request} is the canonical request which should
+        be signed according to the AWS SigV4 rules.
+        """
+        url_context = base.url_context(
+            scheme=u"https",
+            host=u"example.invalid",
+            port=443,
+            path=[u"foo", u"bar"],
+            query=[(u"baz",), (u"quux", u"thud")],
+        )
+        content_sha256 = sha256(b"random whatever").hexdigest().decode("ascii")
+        details = RequestDetails(
+            region=REGION_US_EAST_1,
+            service=b"iam",
+            method=b"GET",
+            url_context=url_context,
+            content_sha256=content_sha256,
+        )
+
+        query = base.query(
+            credentials=self.credentials,
+            details=details,
+        )
+        self.assertEqual(
+            attr.asdict(_CanonicalRequest(
+                method=b"GET",
+                canonical_uri=b"/foo/bar",
+                # Amazon docs don't make it clear that no-argument
+                # query parameters (like "baz" in this case) should be
+                # transformed into empty-value query parameters for
+                # the canonical request.  They should.
+                canonical_query_string=b"baz=&quux=thud",
+                canonical_headers=b"host:example.invalid\nx-amz-date:20090213T233130Z\n",
+                signed_headers=b"host;x-amz-date",
+                payload_hash=content_sha256,
+            )),
+            attr.asdict(query._canonical_request(Headers({
+                b"host": [b"example.invalid"],
+                u"x-amz-date": [b"20090213T233130Z"],
+            }))),
+        )
+
     def test_submit(self):
         """
         C{submit} uses the given L{IAgent} to issue a request as described
         by the query's credentials and request details.
         """
+        url_context = base.url_context(
+            scheme=u"https",
+            host=u"example.invalid",
+            port=443,
+            path=[],
+        )
+        content_sha256 = sha256(b"").hexdigest().decode("ascii")
+        details = RequestDetails(
+            region=REGION_US_EAST_1,
+            service=b"iam",
+            method=b"GET",
+            url_context=url_context,
+            content_sha256=content_sha256,
+        )
         query = base.query(
             credentials=self.credentials,
-            details=self.details,
+            details=details,
         )
 
         self.assertNoResult(query.submit(self.agent, utcnow=self.utcnow))
         [(method, url, headers, _, _)] = self.agent._requests
 
         date = b"20090213T233130Z"
-        host = self.url_context.get_encoded_host()
+        host = b"example.invalid"
 
         authorization = query._sign(
             self.now,
             self.credentials,
-            self.details.service,
-            self.details.region,
-            self.details.method,
-            self.url_context,
-            Headers({
-                b"host": [host],
-                b"x-amz-date": [date],
-            }),
-            content_sha256=self.content_sha256,
+            details.service,
+            details.region,
+            query._canonical_request(
+                Headers({
+                    b"host": [host],
+                    b"x-amz-date": [date],
+                }),
+            )
         )
 
-        self.assertEqual(self.details.method, method)
-        self.assertEqual(self.url_context.get_encoded_url(), url)
+        self.assertEqual(details.method, method)
+        self.assertEqual(b"https://example.invalid:443/", url)
         self.assertEqual(
             Headers({
                 b"host": [host],
                 b"x-amz-date": [date],
-                b"x-amz-content-sha256": [self.content_sha256],
+                b"x-amz-content-sha256": [content_sha256],
                 b"authorization": [authorization],
             }), headers,
         )

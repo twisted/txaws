@@ -209,21 +209,21 @@ def url_context(**kw):
     @type scheme: L{unicode}
 
     @param host: The host portion of the URL, eg ``u"example.com"``.
-    @type scheme: L{unicode}
+    @type host: L{unicode}
 
     @param port: A non-default port for the URL or ``None`` for the
         scheme default.
-    @type scheme: L{int} or L{NoneType}
+    @type port: L{int} or L{NoneType}
 
     @param path: The path portion of the URL as a list of unicode path
         segments.
-    @type scheme: L{list} of L{unicode}
+    @type path: L{list} of L{unicode}
 
     @param query: The query arguments of the URL as a list of tuples.
         Each tuple is length one (a unicode string representing a
         no-value argument) or two (two unicode strings representing an
         argument name and value).
-    @type scheme: L{list} of L{tuple} of L{unicode}
+    @type query: L{list} of L{tuple} of L{unicode}
     """
     # It would be nice if we could use twisted.python.url.URL instead.
     # However, the way "subresources" are represented using
@@ -275,7 +275,6 @@ class _URLContext(object):
         @return: The encoded query component.
         @rtype: L{bytes}
         """
-
         return b"&".join(arg.url_encode() for arg in self.query)
 
 
@@ -408,21 +407,28 @@ class _Query(object):
     _reactor = attr.ib(default=attr.Factory(lambda: namedAny("twisted.internet.reactor")))
     _ok_status = attr.ib(default=(OK,), validator=validators.instance_of(tuple))
 
-    def _sign(self, instant, credentials, service, region, method, url_context, headers, content_sha256):
-        """
-        Sign this query using its built in credentials.
-        """
-        request = _auth_v4._CanonicalRequest.from_request_components(
-            method=method,
-            url=url_context.get_encoded_path() + b"?" + url_context.get_encoded_query(),
+    def _canonical_request(self, headers):
+        return _auth_v4._CanonicalRequest.from_request_components(
+            method=self._details.method,
+            url=(
+                self._details.url_context.get_encoded_path() +
+                b"?" +
+                self._details.url_context.get_encoded_query()
+            ),
             # _CanonicalRequest should work harder to do case
             # canonicalization so we don't have to do this
             # lowercasing.
             headers={k.lower(): vs for (k, vs) in headers.getAllRawHeaders()},
             headers_to_sign=(b"host", b"x-amz-date"),
-            payload_hash=content_sha256,
+            payload_hash=self._details.content_sha256,
         )
 
+    def _sign(self, instant, credentials, service, region, request):
+        """
+        Sign this query using its built in credentials.
+
+        @type request: L{_CanonicalRequest}
+        """
         return _auth_v4._make_authorization_header(
             region=region,
             service=service,
@@ -520,10 +526,7 @@ class _Query(object):
                 self._credentials,
                 self._details.service,
                 self._details.region,
-                method,
-                url_context,
-                headers,
-                self._details.content_sha256,
+                self._canonical_request(headers),
             )])
 
         url = url_context.get_encoded_url()
