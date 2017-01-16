@@ -98,6 +98,65 @@ def route53_integration_tests(get_client):
             d.addCallback(got_error)
             return d
 
+        def test_create_existing_rrset(self):
+            """
+            It is an error to attempt to create a rrset which already exists.
+            """
+            zone_name = u"{}.test_create_existing_rrset.invalid.".format(uuid4())
+            rrset = RRSet(
+                label=Name(u"foo.{}".format(zone_name)),
+                type=u"CNAME",
+                ttl=60,
+                records={CNAME(canonical_name=Name(u"bar.example.invalid."))},
+            )
+
+            client = get_client(self)
+            d = client.create_hosted_zone(u"{}".format(time()), zone_name)
+            def created_zone(zone):
+                self.addCleanup(lambda: self._cleanup(client, zone.identifier))
+                d = client.change_resource_record_sets(zone.identifier, [create_rrset(rrset)])
+                d.addCallback(lambda ignored: zone)
+                return d
+            d.addCallback(created_zone)
+
+            def created_rrset(zone):
+                d = client.change_resource_record_sets(zone.identifier, [create_rrset(rrset)])
+                self.assertFailure(d, Route53Error)
+                return d
+            d.addCallback(created_rrset)
+
+            def got_error(error):
+                self.assertEqual(BAD_REQUEST, int(error.status))
+            d.addCallback(got_error)
+
+            return d
+
+        def test_delete_missing_rrset(self):
+            """
+            It is an error to attempt to delete an rrset which does not exist.
+            """
+            zone_name = u"{}.test_delete_missing_rrset.invalid.".format(uuid4())
+            rrset = RRSet(
+                label=Name(u"foo.{}".format(zone_name)),
+                type=u"CNAME",
+                ttl=60,
+                records={CNAME(canonical_name=Name(u"bar.example.invalid."))},
+            )
+
+            client = get_client(self)
+            d = client.create_hosted_zone(u"{}".format(time()), zone_name)
+            def created_zone(zone):
+                self.addCleanup(lambda: self._cleanup(client, zone.identifier))
+                d = client.change_resource_record_sets(zone.identifier, [delete_rrset(rrset)])
+                self.assertFailure(d, Route53Error)
+                return d
+            d.addCallback(created_zone)
+
+            def got_error(error):
+                self.assertEqual(BAD_REQUEST, int(error.status))
+            d.addCallback(got_error)
+
+            return d
 
         def _cleanup(self, client, zone_identifier):
             d = client.delete_hosted_zone(zone_identifier)
