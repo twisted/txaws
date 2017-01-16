@@ -423,7 +423,24 @@ class _Query(object):
         """
         Sign this query using its built in credentials.
 
+        @param instant: The time to sign into the request.
+        @type instant: L{datetime.datetime}
+
+        @param credentials: The credentials to use to sign the request.
+        @type credentials: L{AWSCredentials}
+
+        @param service: The AWS service name the request is for.
+        @type service: L{bytes}
+
+        @param region: The AWS region name the request is for.
+        @type region: L{bytes}
+
+        @param request: The request to sign.
         @type request: L{_CanonicalRequest}
+
+        @return: A value for the I{Authorization} header of the
+            request.
+        @rtype: L{bytes}
         """
         return _auth_v4._make_authorization_header(
             region=region,
@@ -465,7 +482,8 @@ class _Query(object):
         """
         Send this request to AWS.
 
-        @param IAgent agent: The agent to use to issue the request.
+        @param agent: The agent to use to issue the request.
+        @type agent: L{IAgent} provider
 
         @param receiver_factory: Backwards compatibility only.  The
             value is ignored.
