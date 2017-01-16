@@ -403,21 +403,24 @@ class _Query(object):
     _details = attr.ib()
     _reactor = attr.ib(default=attr.Factory(lambda: namedAny("twisted.internet.reactor")))
 
-    def _sign(self, instant, credentials, service, region, method, url_context, headers, content_sha256):
-        """
-        Sign this query using its built in credentials.
-        """
-        request = _auth_v4._CanonicalRequest.from_request_components(
-            method=method,
-            url=url_context.get_encoded_path(),
+    def _canonical_request(self, headers):
+        return _auth_v4._CanonicalRequest.from_request_components(
+            method=self._details.method,
+            url=self._details.url_context.get_encoded_path(),
             # _CanonicalRequest should work harder to do case
             # canonicalization so we don't have to do this
             # lowercasing.
             headers={k.lower(): vs for (k, vs) in headers.getAllRawHeaders()},
             headers_to_sign=(b"host", b"x-amz-date"),
-            payload_hash=content_sha256,
+            payload_hash=self._details.content_sha256,
         )
 
+    def _sign(self, instant, credentials, service, region, request):
+        """
+        Sign this query using its built in credentials.
+
+        @type request: L{_CanonicalRequest}
+        """
         return _auth_v4._make_authorization_header(
             region=region,
             service=service,
@@ -515,10 +518,7 @@ class _Query(object):
                 self._credentials,
                 self._details.service,
                 self._details.region,
-                method,
-                url_context,
-                headers,
-                self._details.content_sha256,
+                self._canonical_request(headers),
             )])
 
         url = url_context.get_encoded_url()
