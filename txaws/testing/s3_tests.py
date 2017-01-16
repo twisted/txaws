@@ -101,6 +101,25 @@ def s3_integration_tests(get_client):
                 "Expected to not find deleted objects in listing {}".format(objects),
             )
 
+        def test_get_bucket_location_empty(self):
+            """
+            When called for a bucket with no explicit location,
+            C{get_bucket_location} returns a L{Deferred} that fires
+            C{b""}.
+            """
+            bucket_name = str(uuid4())
+            client = get_client(self)
+            d = client.create_bucket(bucket_name)
+            def created_bucket(ignored):
+                return client.get_bucket_location(bucket_name)
+            d.addCallback(created_bucket)
+            def got_location(location):
+                # Without a location set explicitly at creation time,
+                # it has no location.
+                self.assertEqual(b"", location)
+            d.addCallback(got_location)
+            return d
+
         def test_put_object_errors(self):
             """
             C{put_object} raises L{ValueError} if called with two conflicting

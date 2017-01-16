@@ -209,21 +209,21 @@ def url_context(**kw):
     @type scheme: L{unicode}
 
     @param host: The host portion of the URL, eg ``u"example.com"``.
-    @type scheme: L{unicode}
+    @type host: L{unicode}
 
     @param port: A non-default port for the URL or ``None`` for the
         scheme default.
-    @type scheme: L{int} or L{NoneType}
+    @type port: L{int} or L{NoneType}
 
     @param path: The path portion of the URL as a list of unicode path
         segments.
-    @type scheme: L{list} of L{unicode}
+    @type path: L{list} of L{unicode}
 
     @param query: The query arguments of the URL as a list of tuples.
         Each tuple is length one (a unicode string representing a
         no-value argument) or two (two unicode strings representing an
         argument name and value).
-    @type scheme: L{list} of L{tuple} of L{unicode}
+    @type query: L{list} of L{tuple} of L{unicode}
     """
     # It would be nice if we could use twisted.python.url.URL instead.
     # However, the way "subresources" are represented using
@@ -275,7 +275,6 @@ class _URLContext(object):
         @return: The encoded query component.
         @rtype: L{bytes}
         """
-
         return b"&".join(arg.url_encode() for arg in self.query)
 
 
@@ -404,21 +403,45 @@ class _Query(object):
     _details = attr.ib()
     _reactor = attr.ib(default=attr.Factory(lambda: namedAny("twisted.internet.reactor")))
 
-    def _sign(self, instant, credentials, service, region, method, url_context, headers, content_sha256):
-        """
-        Sign this query using its built in credentials.
-        """
-        request = _auth_v4._CanonicalRequest.from_request_components(
-            method=method,
-            url=url_context.get_encoded_path(),
+    def _canonical_request(self, headers):
+        return _auth_v4._CanonicalRequest.from_request_components(
+            method=self._details.method,
+            url=(
+                self._details.url_context.get_encoded_path() +
+                b"?" +
+                self._details.url_context.get_encoded_query()
+            ),
             # _CanonicalRequest should work harder to do case
             # canonicalization so we don't have to do this
             # lowercasing.
             headers={k.lower(): vs for (k, vs) in headers.getAllRawHeaders()},
             headers_to_sign=(b"host", b"x-amz-date"),
-            payload_hash=content_sha256,
+            payload_hash=self._details.content_sha256,
         )
 
+    def _sign(self, instant, credentials, service, region, request):
+        """
+        Sign this query using its built in credentials.
+
+        @param instant: The time to sign into the request.
+        @type instant: L{datetime.datetime}
+
+        @param credentials: The credentials to use to sign the request.
+        @type credentials: L{AWSCredentials}
+
+        @param service: The AWS service name the request is for.
+        @type service: L{bytes}
+
+        @param region: The AWS region name the request is for.
+        @type region: L{bytes}
+
+        @param request: The request to sign.
+        @type request: L{_CanonicalRequest}
+
+        @return: A value for the I{Authorization} header of the
+            request.
+        @rtype: L{bytes}
+        """
         return _auth_v4._make_authorization_header(
             region=region,
             service=service,
@@ -459,7 +482,8 @@ class _Query(object):
         """
         Send this request to AWS.
 
-        @param IAgent agent: The agent to use to issue the request.
+        @param agent: The agent to use to issue the request.
+        @type agent: L{IAgent} provider
 
         @param receiver_factory: Backwards compatibility only.  The
             value is ignored.
@@ -516,10 +540,7 @@ class _Query(object):
                 self._credentials,
                 self._details.service,
                 self._details.region,
-                method,
-                url_context,
-                headers,
-                self._details.content_sha256,
+                self._canonical_request(headers),
             )])
 
         url = url_context.get_encoded_url()
