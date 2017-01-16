@@ -209,21 +209,21 @@ def url_context(**kw):
     @type scheme: L{unicode}
 
     @param host: The host portion of the URL, eg ``u"example.com"``.
-    @type scheme: L{unicode}
+    @type host: L{unicode}
 
     @param port: A non-default port for the URL or ``None`` for the
         scheme default.
-    @type scheme: L{int} or L{NoneType}
+    @type port: L{int} or L{NoneType}
 
     @param path: The path portion of the URL as a list of unicode path
         segments.
-    @type scheme: L{list} of L{unicode}
+    @type path: L{list} of L{unicode}
 
     @param query: The query arguments of the URL as a list of tuples.
         Each tuple is length one (a unicode string representing a
         no-value argument) or two (two unicode strings representing an
         argument name and value).
-    @type scheme: L{list} of L{tuple} of L{unicode}
+    @type query: L{list} of L{tuple} of L{unicode}
     """
     # It would be nice if we could use twisted.python.url.URL instead.
     # However, the way "subresources" are represented using
