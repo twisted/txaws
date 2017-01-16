@@ -5,7 +5,7 @@ import attr
 from pyrsistent import discard, pvector, pmap, pset
 
 from twisted.internet.defer import succeed, fail
-from twisted.web.http import BAD_REQUEST
+from twisted.web.http import BAD_REQUEST, NOT_FOUND
 
 from txaws.testing.base import MemoryClient, MemoryService
 from txaws.route53.model import Name, RRSetKey, RRSet, SOA, NS, HostedZone, create_rrset
@@ -114,7 +114,7 @@ class _MemoryRoute53Client(MemoryClient):
     def change_resource_record_sets(self, zone_id, changes):
         rrsets = self._state.get_rrsets(zone_id)
         if rrsets is None:
-            return fail(_error)
+            return fail(_not_found)
 
         for change in changes:
             try:
@@ -137,6 +137,10 @@ class _MemoryRoute53Client(MemoryClient):
             #     Amazon Route 53 returns the InvalidInput error.
             return fail(_error)
 
+        rrsets = self._state.get_rrsets(zone_id)
+        if rrsets is None:
+            return fail(_not_found)
+
         maxitems_limit = lambda n: not True
         if maxitems is not None:
             maxitems_limit = lambda n, v=maxitems: n == v
@@ -149,7 +153,7 @@ class _MemoryRoute53Client(MemoryClient):
 
         results = {}
         # XXX Wrong sort order
-        for key, rrset in sorted(self._state.rrsets[zone_id].items()):
+        for key, rrset in sorted(rrsets.items()):
             if name_limit(key.label) and type_limit(key.type):
                 results[key] = rrset
                 if maxitems_limit(len(results)):
@@ -172,6 +176,7 @@ def _process_change(rrsets, change):
 # Real AWS response blobs have some details.  Route53Error doesn't
 # know how to parse this XML, though, so the details get lost for now.
 _error = Route53Error(b'<?xml version="1.0"?>\n<ErrorResponse/>', BAD_REQUEST)
+_not_found = Route53Error(b'<?xml version="1.0"?>\n<ErrorResponse/>', NOT_FOUND)
 
 def _process_create(existing, change):
     if existing is not None:

@@ -10,7 +10,7 @@ from uuid import uuid4
 from ipaddress import IPv4Address
 
 from twisted.internet.defer import inlineCallbacks, gatherResults
-from twisted.web.http import BAD_REQUEST
+from twisted.web.http import BAD_REQUEST, NOT_FOUND
 from twisted.trial.unittest import TestCase
 
 from txaws.route53.model import (
@@ -65,6 +65,40 @@ def route53_integration_tests(get_client):
                 ),
             )
 
+        def test_list_resource_record_sets_nonexistent_zone(self):
+            """
+            You cannot interact with resource record sets for a non-existent
+            zone.
+            """
+            client = get_client(self)
+            d = client.list_resource_record_sets(u"abcdefg12345678")
+            self.assertFailure(d, Route53Error)
+            def got_error(error):
+                self.assertEqual(NOT_FOUND, int(error.status))
+            d.addCallback(got_error)
+            return d
+
+
+        def test_change_resource_record_sets_nonexistent_zone(self):
+            """
+            You cannot interact with resource record sets for a non-existent
+            zone.
+            """
+            rrset = RRSet(
+                label=Name(u"foo.example.invalid."),
+                type=u"CNAME",
+                ttl=60,
+                records={CNAME(canonical_name=Name(u"bar.example.invalid."))},
+            )
+            client = get_client(self)
+            d = client.change_resource_record_sets(u"abcdefg12345678", [create_rrset(rrset)])
+            self.assertFailure(d, Route53Error)
+            def got_error(error):
+                self.assertEqual(NOT_FOUND, int(error.status))
+            d.addCallback(got_error)
+            return d
+
+
         def _cleanup(self, client, zone_identifier):
             d = client.delete_hosted_zone(zone_identifier)
             d.addErrback(lambda err: None)
@@ -75,6 +109,7 @@ def route53_integration_tests(get_client):
             zone_name = u"{}.example.invalid.".format(uuid4())
             cname = CNAME(canonical_name=Name(u"example.invalid."))
             client = get_client(self)
+
             zone = yield client.create_hosted_zone(u"{}".format(time()), zone_name)
 
             # At least try to clean up, to be as nice as possible.
