@@ -362,6 +362,50 @@ class QueryTestCase(TXAWSTestCase):
     def utcnow(self):
         return self.now
 
+    def test_canonical_request(self):
+        """
+        L{_Query._canonical_request} is the canonical request which should
+        be signed according to the AWS SigV4 rules.
+        """
+        url_context = base.url_context(
+            scheme=u"https",
+            host=u"example.invalid",
+            port=443,
+            path=[u"foo", u"bar"],
+            query=[(u"baz",), (u"quux", u"thud")],
+        )
+        content_sha256 = sha256(b"random whatever").hexdigest().decode("ascii")
+        details = RequestDetails(
+            region=REGION_US_EAST_1,
+            service=b"iam",
+            method=b"GET",
+            url_context=url_context,
+            content_sha256=content_sha256,
+        )
+
+        query = base.query(
+            credentials=self.credentials,
+            details=details,
+        )
+        self.assertEqual(
+            attr.asdict(_CanonicalRequest(
+                method=b"GET",
+                canonical_uri=b"/foo/bar",
+                # Amazon docs don't make it clear that no-argument
+                # query parameters (like "baz" in this case) should be
+                # transformed into empty-value query parameters for
+                # the canonical request.  They should.
+                canonical_query_string=b"baz=&quux=thud",
+                canonical_headers=b"host:example.invalid\nx-amz-date:20090213T233130Z\n",
+                signed_headers=b"host;x-amz-date",
+                payload_hash=content_sha256,
+            )),
+            attr.asdict(query._canonical_request(Headers({
+                b"host": [b"example.invalid"],
+                u"x-amz-date": [b"20090213T233130Z"],
+            }))),
+        )
+
     def test_submit(self):
         """
         C{submit} uses the given L{IAgent} to issue a request as described
