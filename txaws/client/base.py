@@ -275,7 +275,6 @@ class _URLContext(object):
         @return: The encoded query component.
         @rtype: L{bytes}
         """
-
         return b"&".join(arg.url_encode() for arg in self.query)
 
 
