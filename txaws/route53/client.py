@@ -15,9 +15,6 @@ from hashlib import sha256
 from operator import itemgetter
 
 import attr
-from attr import validators
-
-from zope.interface import implementer
 
 from twisted.web.http import OK, CREATED
 from twisted.web.client import FileBodyProducer
@@ -30,7 +27,7 @@ from txaws.service import REGION_US_EAST_1, AWSServiceEndpoint
 from txaws.util import XML
 
 from ._util import maybe_bytes_to_unicode, to_xml, tags
-from .model import HostedZone, RRSetKey, RRSet, Name, SOA, NS, A, CNAME, _ChangeRRSet
+from .model import HostedZone, RRSetKey, RRSet, Name, SOA, NS, A, CNAME
 
 # Route53 is has two endpoints both in us-east-1.
 # http://docs.aws.amazon.com/general/latest/gr/rande.html#r53_region
