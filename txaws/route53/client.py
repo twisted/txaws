@@ -22,6 +22,7 @@ from zope.interface import implementer
 from twisted.web.http import OK, CREATED
 from twisted.web.client import FileBodyProducer
 from twisted.internet.defer import succeed
+from twisted.internet import task
 
 from txaws.exception import AWSError
 from txaws.client.base import RequestDetails, url_context, query, error_wrapper
@@ -51,7 +52,7 @@ def get_route53_client(agent, region, cooperator=None):
     Get a non-registration Route53 client.
     """
     if cooperator is None:
-        from twisted.internet import task as cooperator
+        cooperator = task
     return region.get_client(
         _Route53Client,
         agent=agent,
