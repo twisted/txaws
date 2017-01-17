@@ -271,7 +271,4 @@ def route53_integration_tests(get_client):
             self.assertNotIn(cname_label, rrsets)
             self.assertNotIn(upsert_label, rrsets)
 
-            # Delete something that doesn't exist
-            # Create something that already exists
-
     return Route53IntegrationTests
