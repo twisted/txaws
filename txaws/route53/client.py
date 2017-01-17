@@ -73,6 +73,22 @@ RECORD_TYPES = {
 
 @attr.s(frozen=True)
 class _Route53Client(object):
+    """
+    @ivar agent: An agent to use to issue HTTP(S) requests.
+    @type agent: L{IAgent} provider
+
+    @ivar creds: The AWS credentials to use to authenticate requests.
+    @type creds: L{AWSCredentials}
+
+    @ivar region: The name of the AWS region to which to issue requests.
+    @type region: L{bytes}
+
+    @ivar endpoint: The AWS service endpoint to which to issue requests.
+    @type endpoint: L{AWSServiceEndpoint}
+
+    @ivar cooperator: The scheduler to use for streaming large request bodies.
+    @type cooperator: L{twisted.internet.task.Cooperator}
+    """
     agent = attr.ib()
     creds = attr.ib()
     region = attr.ib()
@@ -202,11 +218,11 @@ class _Route53Client(object):
         """
         args = []
         if maxitems:
-            args.append(("maxitems", u"{}".format(maxitems)))
+            args.append((u"maxitems", u"{}".format(maxitems)))
         if name:
-            args.append(("name", unicode(name)))
+            args.append((u"name", unicode(name)))
         if type:
-            args.append(("type", type))
+            args.append((u"type", type))
 
         d = _route53_op(
             method=b"GET",
@@ -254,7 +270,10 @@ class _Route53Client(object):
         return d
 
 def _route53_op(body=None, **kw):
-    op = _Op(service=b"route53", **kw)
+    """
+    Construct an L{_Operation} representing a I{Route53} service API call.
+    """
+    op = _Operation(service=b"route53", **kw)
     if body is None:
         return succeed(op)
     d = to_xml(body)
@@ -262,7 +281,33 @@ def _route53_op(body=None, **kw):
     return d
 
 @attr.s
-class _Op(object):
+class _Operation(object):
+    """
+    Supply the details necessary to make an API call.
+
+    @ivar service: The name of the AWS service the operation belongs to.
+    @type service: L{bytes}
+
+    @ivar method: The HTTP method of the operatiom.
+    @type method: L{bytes}
+
+    @ivar path: The path component of the request URI.
+    @type path: L{list} opf L{unicode}
+
+    @ivar query: The query parameters of the request.
+    @type query: L{list} of L{tuple} of L{unicode}
+
+    @ivar body: A document to serialize into the request body.
+    @type body: L{twisted.web.template.Tag}
+
+    @ivar ok_status: The HTTP response status codes which are considered
+        successes for this operation.
+    @type ok_status: L{tuple} of L{int}
+
+    @ivar extract_result: A one-argument callable which is passed the parsed
+        response document and can extract results and restructure them to be
+        returned to application code.
+    """
     service = attr.ib()
     method = attr.ib()
     path = attr.ib()
@@ -273,6 +318,9 @@ class _Op(object):
 
 
 def hostedzone_from_element(zone):
+    """
+    Construct a L{HostedZone} instance from a I{HostedZone} XML element.
+    """
     return HostedZone(
         name=maybe_bytes_to_unicode(zone.find("Name").text),
         identifier=maybe_bytes_to_unicode(zone.find("Id").text).replace(u"/hostedzone/", u""),
