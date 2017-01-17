@@ -187,8 +187,14 @@ def _process_create(existing, change):
 
 def _process_delete(existing, change):
     if change.type in (u"SOA", u"NS"):
-        # You cannot delete the SOA record or the NS records.
-        # XXX
+        # The hosted zone itself must always have an SOA and an NS.  It is an
+        # error to attempt to delete either of those.
+        #
+        # However, there may be NS records for subdomains of the hosted zone
+        # (ie, delegations).  It's okay to delete those.  We're not quite
+        # smart enough to recognize that case here.
+        #
+        # https://github.com/twisted/txaws/issues/40
         raise _error
     if existing == change:
         return discard
