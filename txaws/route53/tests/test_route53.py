@@ -119,7 +119,7 @@ class sample_list_hosted_zones_result(object):
 <?xml version="1.0"?>
 <ListHostedZonesResponse xmlns="https://route53.amazonaws.com/doc/2013-04-01/"><HostedZones><HostedZone><Id>/hostedzone/{identifier}</Id><Name>{name}</Name><CallerReference>{reference}</CallerReference><Config><PrivateZone>false</PrivateZone></Config><ResourceRecordSetCount>{rrset_count}</ResourceRecordSetCount></HostedZone></HostedZones><IsTruncated>false</IsTruncated><MaxItems>100</MaxItems></ListHostedZonesResponse>
 """.format(**details).encode("utf-8")
-    
+
 
 class ListHostedZonesTestCase(TXAWSTestCase):
     """
@@ -224,22 +224,20 @@ class ChangeResourceRecordSetsTestCase(TXAWSTestCase):
             zone_id=zone_id,
             changes=[
                 create_rrset(sample_change_resource_record_sets_result.rrset),
-                # delete_rrset(
-                #     Name(sample_change_resource_record_sets_result.name),
-                #     sample_change_resource_record_sets_result.delete_type,
-                #     sample_change_resource_record_sets_result.delete_rrset,
-                # ),
-                # upsert_rrset(
-                #     Name(sample_change_resource_record_sets_result.name),
-                #     sample_change_resource_record_sets_result.upsert_type,
-                #     sample_change_resource_record_sets_result.upsert_rrset,
-                # ),
+                delete_rrset(sample_change_resource_record_sets_result.rrset),
+                upsert_rrset(sample_change_resource_record_sets_result.rrset),
             ],
         ))
         # Ack, what a pathetic assertion.
-        expected = b"""\
+        change_template = u"<Change><Action>{action}</Action><ResourceRecordSet><Name>example.invalid.</Name><Type>NS</Type><TTL>86400</TTL><ResourceRecords><ResourceRecord><Value>ns1.example.invalid.</Value></ResourceRecord><ResourceRecord><Value>ns2.example.invalid.</Value></ResourceRecord></ResourceRecords></ResourceRecordSet></Change>"
+        changes = [
+            change_template.format(action=u"CREATE"),
+            change_template.format(action=u"DELETE"),
+            change_template.format(action=u"UPSERT"),
+        ]
+        expected = u"""\
 <?xml version="1.0" encoding="UTF-8"?>
-<ChangeResourceRecordSetsRequest xmlns="https://route53.amazonaws.com/doc/2013-04-01/"><ChangeBatch><Changes><Change><Action>CREATE</Action><ResourceRecordSet><Name>example.invalid.</Name><Type>NS</Type><TTL>86400</TTL><ResourceRecords><ResourceRecord><Value>ns1.example.invalid.</Value></ResourceRecord><ResourceRecord><Value>ns2.example.invalid.</Value></ResourceRecord></ResourceRecords></ResourceRecordSet></Change></Changes></ChangeBatch></ChangeResourceRecordSetsRequest>"""
+<ChangeResourceRecordSetsRequest xmlns="https://route53.amazonaws.com/doc/2013-04-01/"><ChangeBatch><Changes>{changes}</Changes></ChangeBatch></ChangeResourceRecordSetsRequest>""".format(changes=u"".join(changes)).encode("utf-8")
         self.assertEqual((expected,), change_resource.posted)
 
 
