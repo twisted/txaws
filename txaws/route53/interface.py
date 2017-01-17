@@ -1,12 +1,41 @@
+# Licenced under the txaws licence available at /LICENSE in the txaws source.
+
+"""
+Route53-related interface definitions.
+"""
+
 from zope.interface import Attribute, Interface
 
-class IResourceRecord(Interface):
-    # XXX from_string instead
-    def from_element(element):
-        pass
+class IResourceRecordLoader(Interface):
+    """
+    An L{IResourceRecordLoader} provider can interpret the AWS Route53
+    I{ResourceRecord} representation of a DNS resource record and construct an
+    L{IBasicResourceRecord} provider from it.
+    """
+    def basic_from_element(element):
+        """
+        Convert an XML element representing a resource record into a Python object
+        describing it.
 
-    def to_string():
-        pass
+        @param element: An ElementTree XML element representing an AWS Route53
+            I{ResourceRecord} element.
+
+        @return: An L{IBasicResourceRecord} provider.
+        """
+
+class IBasicResourceRecord(Interface):
+    """
+    An L{IBasicResourceRecord} provider represents a single `DNS resource
+    record <https://tools.ietf.org/html/rfc2929#section-3>`_.
+    """
+    def to_text():
+        """
+        @return: The AWS Route53 I{ResourceRecord} I{Value} data representing this
+            record.
+        @rtype: L{bytes}
+
+        @see: http://docs.aws.amazon.com/Route53/latest/APIReference/API_ResourceRecord.html
+        """
 
 
 class IRRSetChange(Interface):

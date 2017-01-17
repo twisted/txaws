@@ -243,7 +243,7 @@ class _Route53Client(object):
                 type=type,
                 ttl=ttl,
                 records={
-                    RECORD_TYPES[type].from_element(element)
+                    RECORD_TYPES[type].basic_from_element(element)
                     for element
                     in records
                 },
@@ -348,7 +348,7 @@ def to_element(change):
                 u"{}".format(change.rrset.ttl),
             ),
             tags.ResourceRecords(list(
-                tags.ResourceRecord(tags.Value(rr.to_string()))
+                tags.ResourceRecord(tags.Value(rr.to_text()))
                 for rr
                 in sorted(change.rrset.records)
             ))

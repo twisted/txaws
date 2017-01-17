@@ -11,13 +11,13 @@ __all__ = [
 
 from ipaddress import IPv4Address
 
-from zope.interface import implementer
+from zope.interface import implementer, provider
 
 import attr
 from attr import validators
 
 from ._util import maybe_bytes_to_unicode
-from .interface import IResourceRecord, IRRSetChange
+from .interface import IResourceRecordLoader, IBasicResourceRecord, IRRSetChange
 from ..client._validators import set_of
 
 def _all(*vs):
@@ -32,7 +32,6 @@ def _not_empty(attr, inst, value):
         raise ValueError("Value must have length greater than 0")
 
 
-@implementer(IResourceRecord)
 @attr.s(frozen=True)
 class Name(object):
     text = attr.ib(validator=_all(validators.instance_of(unicode), _not_empty))
@@ -55,7 +54,7 @@ class RRSet(object):
     label = attr.ib(validator=validators.instance_of(Name))
     type = attr.ib()
     ttl = attr.ib(validator=validators.instance_of(int))
-    records = attr.ib(validator=set_of(validators.provides(IResourceRecord)))
+    records = attr.ib(validator=set_of(validators.provides(IBasicResourceRecord)))
 
 
 @implementer(IRRSetChange)
@@ -77,44 +76,48 @@ def upsert_rrset(rrset):
     return _ChangeRRSet(u"UPSERT", rrset)
 
 
-@implementer(IResourceRecord)
+@provider(IResourceRecordLoader)
+@implementer(IBasicResourceRecord)
 @attr.s(frozen=True)
 class NS(object):
     nameserver = attr.ib(validator=validators.instance_of(Name))
 
     @classmethod
-    def from_element(cls, e):
+    def basic_from_element(cls, e):
         return cls(Name(maybe_bytes_to_unicode(e.find("Value").text)))
 
-    def to_string(self):
+    def to_text(self):
         return unicode(self.nameserver)
 
 
-@implementer(IResourceRecord)
+@provider(IResourceRecordLoader)
+@implementer(IBasicResourceRecord)
 @attr.s(frozen=True)
 class A(object):
     address = attr.ib(validator=validators.instance_of(IPv4Address))
 
     @classmethod
-    def from_element(cls, e):
+    def basic_from_element(cls, e):
         return cls(IPv4Address(maybe_bytes_to_unicode(e.find("Value").text)))
 
-    def to_string(self):
+    def to_text(self):
         return unicode(self.address)
 
-@implementer(IResourceRecord)
+@provider(IResourceRecordLoader)
+@implementer(IBasicResourceRecord)
 @attr.s(frozen=True)
 class CNAME(object):
     canonical_name = attr.ib(validator=validators.instance_of(Name))
 
     @classmethod
-    def from_element(cls, e):
+    def basic_from_element(cls, e):
         return cls(Name(maybe_bytes_to_unicode(e.find("Value").text)))
 
-    def to_string(self):
+    def to_text(self):
         return unicode(self.canonical_name)
 
-@implementer(IResourceRecord)
+@provider(IResourceRecordLoader)
+@implementer(IBasicResourceRecord)
 @attr.s(frozen=True)
 class SOA(object):
     mname = attr.ib(validator=validators.instance_of(Name))
@@ -126,7 +129,7 @@ class SOA(object):
     minimum = attr.ib(validator=validators.instance_of(int))
 
     @classmethod
-    def from_element(cls, e):
+    def basic_from_element(cls, e):
         mname, rname, serial, refresh, retry, expire, minimum = maybe_bytes_to_unicode(e.find("Value").text).split()
         return cls(
             mname=Name(mname),
@@ -138,9 +141,9 @@ class SOA(object):
             minimum=int(minimum),
         )
 
-    def to_string(self):
+    def to_text(self):
         return u"{mname} {rname} {serial} {refresh} {retry} {expire} {minimum}".format(
-            **attr.asdict(self)
+            **attr.asdict(self, recurse=False)
         )
 
 
