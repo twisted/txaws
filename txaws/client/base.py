@@ -385,8 +385,9 @@ def query(**kw):
     @param details: The specifics of the query/request to construct.
     @type details: L{RequestDetails}
 
-    @param ok_status: Stuff
-    @type ok_status: L{tuple}
+    @param ok_status: The HTTP status codes which are considered success
+        results for this query.
+    @type ok_status: L{tuple} of L{int}
 
     @param cooperator: A cooperator to use for large uploads or
         C{None} for the global cooperator (recommended).
