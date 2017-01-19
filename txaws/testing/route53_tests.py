@@ -163,6 +163,7 @@ def route53_integration_tests(get_client):
             d.addErrback(lambda err: None)
             return d
 
+
         @inlineCallbacks
         def test_resource_record_sets(self):
             zone_name = u"{}.example.invalid.".format(uuid4())
@@ -176,7 +177,7 @@ def route53_integration_tests(get_client):
             # cleanup - but it might not!
             self.addCleanup(lambda: self._cleanup(client, zone.identifier))
 
-            cname_label = Name(u"foo.{}".format(zone_name))
+            cname_label = Name(u"foo.\N{SNOWMAN}.{}".format(zone_name))
             create = create_rrset(RRSet(
                 label=cname_label,
                 type=u"CNAME",
@@ -185,19 +186,27 @@ def route53_integration_tests(get_client):
             ))
             yield client.change_resource_record_sets(zone.identifier, [create])
             initial = yield client.list_resource_record_sets(zone.identifier)
-            cname_rrset = initial[RRSetKey(cname_label, u"CNAME")]
+
+            key = RRSetKey(cname_label, u"CNAME")
+            self.assertIn(key, initial)
+            cname_rrset = initial[key]
             self.assertEqual(
                 RRSet(label=cname_label, type=u"CNAME", ttl=60, records={cname}),
                 cname_rrset,
             )
 
             # Zones start with an SOA and some NS records.
-            soa = initial[RRSetKey(Name(zone_name), u"SOA")]
+            key = RRSetKey(Name(zone_name), u"SOA")
+            self.assertIn(key, initial)
+            soa = initial[key]
             self.assertEqual(
                 len(soa.records), 1,
                 "Expected one SOA record, got {}".format(soa.records)
             )
-            ns = initial[RRSetKey(Name(zone_name), u"NS")]
+
+            key = RRSetKey(Name(zone_name), u"NS")
+            self.assertIn(key, initial)
+            ns = initial[key]
             self.assertNotEqual(
                 set(), ns.records,
                 "Expected some NS records, got none"
