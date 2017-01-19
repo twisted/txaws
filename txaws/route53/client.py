@@ -37,7 +37,10 @@ _OTHER_ENDPOINT = "https://route53.amazonaws.com/"
 _NS = "https://route53.amazonaws.com/doc/2013-04-01/"
 
 class Route53Error(AWSError):
-    pass
+    """
+    L{Route53Error} is the base exception type for all errors returned from
+    the AWS Route53 service.
+    """
 
 
 def route53_error_wrapper(error):
