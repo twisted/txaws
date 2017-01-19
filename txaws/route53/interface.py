@@ -51,16 +51,11 @@ class IRRSetChange(Interface):
         "The kind of change this represents as a unicode string.  "
         "Either CREATE, DELETE, or UPSERT."
     )
-    name = Attribute(
-        "The name of the resource record set involved in the change "
-        "as a Name instance."
-    )
-    type = Attribute(
-        "The type of the resource record set as a unicode string.  "
-        "For example, NS, SOA, AAAA, etc."
-    )
-
-    records = Attribute(
-        "The resource records involved in the change as a list of "
-        "IResourceRecord providers."
+    rrset = Attribute(
+        """
+        The L{RRSet} to operate on.  For creation, this is the rrset that will be
+        created in the zone.  For deletion, this must exactly match the rrset
+        that already exists in the zone.  For replacement (upsert), this will
+        be the new value of the rrset.
+        """
     )

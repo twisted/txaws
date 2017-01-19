@@ -50,6 +50,18 @@ class RRSetKey(object):
 class RRSet(object):
     """
     https://tools.ietf.org/html/rfc2181#section-5
+
+    @ivar name: The label (name) of the resource record set involved in the change.
+    @type name: L{Name}
+
+    @ivar type: The type of the resource record set. For example, NS, SOA, AAAA, etc.
+    @type type: L{unicode}
+
+    @ivar ttl: The time-to-live for this resource record set.
+    @type ttl: L{int}
+
+    @ivar records: The resource records involved in the change.
+    @type records: L{list} of L{IResourceRecord} providers
     """
     label = attr.ib(validator=validators.instance_of(Name))
     type = attr.ib(validator=validators.instance_of(unicode))
