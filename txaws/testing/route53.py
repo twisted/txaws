@@ -39,6 +39,12 @@ class Route53ClientState(object):
     share state while hiding one account's state from other accounts (just as
     AWS does).
 
+    @ivar soa_records: The SOA records (1) which will be put in all newly
+        created hosted zones.
+
+    @ivar ns_records: The NS records which will be put in all newly created
+        hosted zones.
+
     @ivar zones: A sequence of HostedZone instances representing the
         zones known to exist.
     @type zones: L{pyrsistent.PVector}
@@ -49,11 +55,27 @@ class Route53ClientState(object):
         corresponding zone.
     @type rrsets: L{pyrsistent.PMap}
     """
+    soa_records = {
+        SOA(
+            mname=Name(text=u'ns-698.awsdns-23.net.example.invalid.'),
+            rname=Name(text=u'awsdns-hostmaster.amazon.com.example.invalid.'),
+            serial=1,
+            refresh=7200,
+            retry=900,
+            expire=1209600,
+            minimum=86400,
+        ),
+    }
+
+    ns_records = {
+        NS(nameserver=Name(text=u'ns-698.awsdns-23.net.example.invalid.')),
+        NS(nameserver=Name(text=u'ns-1188.awsdns-20.org.examplie.invalid.')),
+    }
+
     _id = attr.ib(default=attr.Factory(count), init=False)
 
     zones = attr.ib(default=pvector())
     rrsets = attr.ib(default=pmap())
-
     def next_id(self):
         """
         Assign and return a new, unique hosted zone identifier.
@@ -144,17 +166,7 @@ class _MemoryRoute53Client(MemoryClient):
                         label=Name(name),
                         type=u"SOA",
                         ttl=900,
-                        records={
-                            SOA(
-                                mname=Name(text=u'ns-698.awsdns-23.net.example.invalid.'),
-                                rname=Name(text=u'awsdns-hostmaster.amazon.com.example.invalid.'),
-                                serial=1,
-                                refresh=7200,
-                                retry=900,
-                                expire=1209600,
-                                minimum=86400,
-                            ),
-                        },
+                        records=self._state.soa_records,
                     ),
                 ),
                 create_rrset(
@@ -162,10 +174,7 @@ class _MemoryRoute53Client(MemoryClient):
                         label=Name(name),
                         type=u"NS",
                         ttl=172800,
-                        records={
-                            NS(nameserver=Name(text=u'ns-698.awsdns-23.net.example.invalid.')),
-                            NS(nameserver=Name(text=u'ns-1188.awsdns-20.org.examplie.invalid.')),
-                        },
+                        records=self._state.ns_records,
                     ),
                 ),
             ],
