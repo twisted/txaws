@@ -15,15 +15,17 @@ class MaybeBytesToUnicodeTestCase(TXAWSTestCase):
     """
     def test_bytes(self):
         """
-        When called with an instance of L{bytes},
-        L{maybe_bytes_to_unicode} decodes its input using I{utf-8} and
-        returns the resulting unicode string as an instance of
-        L{unicode}.
+        When called with an instance of L{bytes}, L{maybe_bytes_to_unicode}
+        decodes its input using I{ascii} and returns the resulting unicode
+        string as an instance of L{unicode}.
         """
-        self.assertEqual(
-            u"\N{SNOWMAN}",
-            maybe_bytes_to_unicode(u"\N{SNOWMAN}".encode("utf-8")),
+        self.assertRaises(
+            UnicodeDecodeError,
+            lambda: maybe_bytes_to_unicode(u"\N{SNOWMAN}".encode("utf-8")),
         )
+        decoded = maybe_bytes_to_unicode(b"hello world")
+        self.assertIsInstance(decoded, unicode)
+        self.assertEqual(decoded, u"hello world")
 
     def test_unicode(self):
         """

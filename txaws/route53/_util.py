@@ -12,8 +12,19 @@ from twisted.internet.defer import succeed
 from twisted.web.template import Tag, flattenString
 
 def maybe_bytes_to_unicode(bytes_or_text):
+    """
+    Take a byte string in ASCII or unicode and give back a unicode string,
+    decoding the bytes if necessary.
+
+    This is primarily a helper for libraries like ElementTree which take the
+    position that it's better to represent ASCII-only text as bytes (to save
+    memory or processing or both) rather than present a consistent type in its
+    data structured.  txAWS takes the opposite position which is that
+    consistent types are more valuable and the runtime will eventually fix any
+    performance problems with this.
+    """
     if isinstance(bytes_or_text, bytes):
-        return bytes_or_text.decode("utf-8")
+        return bytes_or_text.decode("ascii")
     return bytes_or_text
 
 def to_xml(body_element):
