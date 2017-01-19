@@ -27,13 +27,19 @@ def maybe_bytes_to_unicode(bytes_or_text):
         return bytes_or_text.decode("ascii")
     return bytes_or_text
 
+
 def to_xml(body_element):
+    """
+    Serialize a L{twisted.web.template.Tag} to a UTF-8 encoded XML document
+    with an XML doctype header.
+    """
     doctype = b"""<?xml version="1.0" encoding="UTF-8"?>\n"""
     if body_element is None:
         return succeed(b"")
     d = flattenString(None, body_element)
     d.addCallback(lambda flattened: doctype + flattened)
     return d
+
 
 class _TagFactory(object):
     """
