@@ -39,6 +39,14 @@ class IBasicResourceRecord(Interface):
 
 
 class IRRSetChange(Interface):
+    """
+    An L{IRRSetChange} describes a change to one resource record set (rrset) in a
+    Route53 hosted zone.  The change can be creation, deletion, or replacement
+    ("upsert").
+
+    Completely replacing an rrset is the only kind of change to an existing
+    rrset that is allowed.
+    """
     action = Attribute(
         "The kind of change this represents as a unicode string.  "
         "Either CREATE, DELETE, or UPSERT."
