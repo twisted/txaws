@@ -20,21 +20,12 @@ from ._util import maybe_bytes_to_unicode
 from .interface import IResourceRecordLoader, IBasicResourceRecord, IRRSetChange
 from ..client._validators import set_of
 
-def _all(*vs):
-    def validator(*a, **kw):
-        for v in vs:
-            v(*a, **kw)
-    return validator
-
-
-def _not_empty(attr, inst, value):
-    if 0 == len(value):
-        raise ValueError("Value must have length greater than 0")
-
-
 @attr.s(frozen=True)
 class Name(object):
-    text = attr.ib(validator=_all(validators.instance_of(unicode), _not_empty))
+    text = attr.ib(
+        convert=lambda v: v + u"." if not v.endswith(u".") else v,
+        validator=validators.instance_of(unicode),
+    )
 
     def __str__(self):
         return self.text.encode("idna")

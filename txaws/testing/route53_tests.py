@@ -22,6 +22,8 @@ from txaws.route53.client import (
 
 def route53_integration_tests(get_client):
     class Route53IntegrationTests(TestCase):
+        maxDiff = 100000
+
         @inlineCallbacks
         def test_hosted_zones(self):
             """
@@ -65,6 +67,7 @@ def route53_integration_tests(get_client):
                 ),
             )
 
+
         def test_list_resource_record_sets_nonexistent_zone(self):
             """
             You cannot interact with resource record sets for a non-existent
@@ -97,6 +100,7 @@ def route53_integration_tests(get_client):
                 self.assertEqual(NOT_FOUND, int(error.status))
             d.addCallback(got_error)
             return d
+
 
         def test_create_existing_rrset(self):
             """
@@ -131,6 +135,7 @@ def route53_integration_tests(get_client):
 
             return d
 
+
         def test_delete_missing_rrset(self):
             """
             It is an error to attempt to delete an rrset which does not exist.
@@ -157,6 +162,7 @@ def route53_integration_tests(get_client):
             d.addCallback(got_error)
 
             return d
+
 
         def _cleanup(self, client, zone_identifier):
             d = client.delete_hosted_zone(zone_identifier)
@@ -279,5 +285,58 @@ def route53_integration_tests(get_client):
             rrsets = yield client.list_resource_record_sets(zone.identifier)
             self.assertNotIn(cname_label, rrsets)
             self.assertNotIn(upsert_label, rrsets)
+
+
+        def test_list_resource_record_sets_maxitems(self):
+            """
+            If C{maxitems} is used to limit the number of records returned by
+            C{list_resource_record_sets}, the records returned are those that
+            sort first according to the rules given by
+            U{http://docs.aws.amazon.com/Route53/latest/APIReference/API_ListResourceRecordSets.html#API_ListResourceRecordSets_RequestSyntax}.
+            """
+            zone_name = u"{}.example.invalid.".format(uuid4())
+            client = get_client(self)
+
+            # extra sorts _after_ expected according to the AWS Route53
+            # ordering rules but it sorts _before_ according to more naive
+            # (incorrect) string ordering rules.
+            extra = RRSet(
+                Name(u"a.z.{}".format(zone_name)),
+                u"A",
+                60,
+                {A(IPv4Address(u"10.0.0.1"))},
+            )
+            expected = RRSet(
+                Name(u"b.y.{}".format(zone_name)),
+                u"A",
+                60,
+                {A(IPv4Address(u"10.0.0.2"))},
+            )
+
+            d = client.create_hosted_zone(u"{}".format(time()), zone_name)
+            def created_zone(zone):
+                self.addCleanup(lambda: self._cleanup(client, zone.identifier))
+                d = client.change_resource_record_sets(zone.identifier, [
+                    create_rrset(extra),
+                    create_rrset(expected),
+                ])
+                d.addCallback(lambda ignored: zone)
+                return d
+            d.addCallback(created_zone)
+            def created_rrsets(zone):
+                return client.list_resource_record_sets(
+                    zone.identifier,
+                    name=Name(u"a.{}".format(zone_name)),
+                    type=u"A",
+                    maxitems=1,
+                )
+            d.addCallback(created_rrsets)
+            def listed_rrsets(rrsets):
+                self.assertEqual(
+                    {RRSetKey(expected.label, expected.type): expected},
+                    rrsets,
+                )
+            d.addCallback(listed_rrsets)
+            return d
 
     return Route53IntegrationTests

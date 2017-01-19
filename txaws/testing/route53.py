@@ -239,19 +239,29 @@ class _MemoryRoute53Client(MemoryClient):
             maxitems_limit = lambda n, v=maxitems: n == v
         name_limit = lambda n: True
         if name is not None:
-            name_limit = lambda n, v=name: n >= v
+            start_value = _reverse_dns_labels(name)
+            name_limit = lambda n, v=start_value: _reverse_dns_labels(n) >= v
         type_limit = lambda t: True
         if type is not None:
             type_limit = lambda t, v=type: t >= v
 
         results = {}
-        # XXX Wrong sort order
-        for key, rrset in sorted(rrsets.items()):
+        for key, rrset in sorted(rrsets.items(), key=_reverse_dns_labels):
             if name_limit(key.label) and type_limit(key.type):
                 results[key] = rrset
                 if maxitems_limit(len(results)):
                     break
         return succeed(pmap(results))
+
+
+def _reverse_dns_labels(name):
+    """
+    Helper to sort L{Name} instances according to the AWS Route53 rules.
+
+    @type name: L{Name}
+    @rtype: L{unicode}
+    """
+    return u"".join(unicode(name).split(u".")[-2::-1]) + u"."
 
 
 def _process_change(rrsets, change):
