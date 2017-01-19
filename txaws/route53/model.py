@@ -142,21 +142,24 @@ class SOA(object):
 
     @classmethod
     def basic_from_element(cls, e):
-        mname, rname, serial, refresh, retry, expire, minimum = maybe_bytes_to_unicode(e.find("Value").text).split()
+        text = maybe_bytes_to_unicode(e.find("Value").text)
+        parts = dict(zip(_SOA_FIELDS, text.split()))
         return cls(
-            mname=Name(mname),
-            rname=Name(rname),
-            serial=int(serial),
-            refresh=int(refresh),
-            retry=int(retry),
-            expire=int(expire),
-            minimum=int(minimum),
+            Name(parts["mname"]),
+            Name(parts["rname"]),
+            int(parts["serial"]),
+            int(parts["refresh"]),
+            int(parts["retry"]),
+            int(parts["expire"]),
+            int(parts["minimum"]),
         )
 
     def to_text(self):
         return u"{mname} {rname} {serial} {refresh} {retry} {expire} {minimum}".format(
             **attr.asdict(self, recurse=False)
         )
+
+_SOA_FIELDS = list(field.name for field in attr.fields(SOA))
 
 
 @attr.s
