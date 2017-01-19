@@ -145,7 +145,7 @@ class _Route53Client(object):
             path=[u"2013-04-01", u"hostedzone"],
             body=tags.CreateHostedZoneRequest(xmlns=_NS)(
                 tags.CallerReference(caller_reference),
-                tags.Name(name),
+                tags.Name(name.encode("idna").decode("ascii")),
                 ),
             ok_status=(CREATED,),
             extract_result=self._handle_create_hosted_zone_response,
@@ -322,7 +322,7 @@ def hostedzone_from_element(zone):
     Construct a L{HostedZone} instance from a I{HostedZone} XML element.
     """
     return HostedZone(
-        name=maybe_bytes_to_unicode(zone.find("Name").text),
+        name=maybe_bytes_to_unicode(zone.find("Name").text).encode("ascii").decode("idna"),
         identifier=maybe_bytes_to_unicode(zone.find("Id").text).replace(u"/hostedzone/", u""),
         rrset_count=int(zone.find("ResourceRecordSetCount").text),
         reference=maybe_bytes_to_unicode(zone.find("CallerReference").text),
