@@ -52,7 +52,7 @@ class RRSet(object):
     https://tools.ietf.org/html/rfc2181#section-5
     """
     label = attr.ib(validator=validators.instance_of(Name))
-    type = attr.ib()
+    type = attr.ib(validator=validators.instance_of(unicode))
     ttl = attr.ib(validator=validators.instance_of(int))
     records = attr.ib(validator=set_of(validators.provides(IBasicResourceRecord)))
 

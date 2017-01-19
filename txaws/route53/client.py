@@ -238,7 +238,7 @@ class _Route53Client(object):
         rrsets = document.iterfind("./ResourceRecordSets/ResourceRecordSet")
         for rrset in rrsets:
             label = Name(maybe_bytes_to_unicode(rrset.find("Name").text))
-            type = rrset.find("Type").text
+            type = maybe_bytes_to_unicode(rrset.find("Type").text)
             ttl = int(rrset.find("TTL").text)
             records = rrset.iterfind("./ResourceRecords/ResourceRecord")
             result[RRSetKey(label, type)] = RRSet(
