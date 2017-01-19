@@ -27,10 +27,9 @@ def route53_integration_tests(get_client):
         @inlineCallbacks
         def test_hosted_zones(self):
             """
-            Route53 hosted zones exist in a collection which can be
-            manipulated in the obvious ways using
-            ``create_hosted_zone``, ``list_hosted_zones``, and
-            ``delete_hosted_zone``.
+            Route53 hosted zones exist in a collection which can be created, listed,
+            and deleted using ``create_hosted_zone``, ``list_hosted_zones``,
+            and ``delete_hosted_zone`` respectively.
             """
             zone_names = {
                 u"{}.example.invalid.".format(unicode(uuid4())),
