@@ -33,8 +33,8 @@ class MemoryS3(MemoryService):
     """
     def __init__(self):
         super(MemoryS3, self).__init__(
-            clientFactory=_MemoryS3Client,
-            stateFactory=S3ClientState,
+            client_factory=_MemoryS3Client,
+            state_factory=S3ClientState,
         )
 
 class S3ClientState(object):
