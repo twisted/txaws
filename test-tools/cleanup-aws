@@ -20,35 +20,56 @@ def main():
 def cleanup_route53():
     route53 = boto3.client("route53")
     for zone in all_hosted_zones(route53):
-        delete_hosted_zone(route53, zone)
+        try:
+            delete_hosted_zone(route53, zone)
+        except Exception as e:
+            print("Failed to delete Route53 hosted zone {}: {}".format(
+                zone[u"Name"], e
+            ))
+        else:
+            print("Deleted Route53 zone {}".format(zone[u"Name"]))
+
 
 def all_hosted_zones(route53):
     return route53.list_hosted_zones()[u"HostedZones"]
 
+
 def delete_hosted_zone(route53, zone):
     delete_all_rrsets(route53, zone)
     route53.delete_hosted_zone(Id=zone[u"Id"])
-    print("Deleted route53 zone {}".format(zone[u"Name"]))
+
 
 def delete_all_rrsets(route53, zone):
     rrsets = route53.list_resource_record_sets(HostedZoneId=zone[u"Id"])[u"ResourceRecordSets"]
-    route53.change_resource_record_sets(
-        HostedZoneId=zone[u"Id"],
-        ChangeBatch={
-            u"Comment": u"cleanup-aws",
-            u"Changes": list(
-                {u"Action": u"DELETE", u"ResourceRecordSet": rrset}
-                for rrset in rrsets
-                if rrset[u"Type"] not in {u"SOA", u"NS"}
-            ),
-        },
+    changes = list(
+        {u"Action": u"DELETE", u"ResourceRecordSet": rrset}
+        for rrset in rrsets
+        if rrset[u"Type"] != u"SOA"
+        and not (rrset[u"Type"] == u"NS" and rrset[u"Name"] == zone[u"Name"])
     )
-    print("Deleted route53 zone {}'s {} rrsets".format(zone[u"Name"], len(rrsets)))
+    if len(changes):
+        route53.change_resource_record_sets(
+            HostedZoneId=zone[u"Id"],
+            ChangeBatch={
+                u"Comment": u"cleanup-aws",
+                u"Changes": changes,
+            },
+        )
+        print("Deleted Route53 zone {}'s {} rrsets".format(zone[u"Name"], len(rrsets)))
+    else:
+        print("Route53 zone {} has no rrsets to delete".format(zone[u"Name"]))
+
 
 def cleanup_s3():
     s3 = boto3.client("s3")
     for bucket in all_buckets(s3):
-        delete_bucket(s3, bucket)
+        try:
+            delete_bucket(s3, bucket)
+        except Exception as e:
+            print("Failed to delete S3 bucket {}: {}".format(bucket, e))
+        else:
+            print("Deleted S3 bucket {}".format(bucket))
+
 
 def all_buckets(s3):
     # Apparently pagination isn't required for buckets - perhaps
@@ -59,10 +80,11 @@ def all_buckets(s3):
         in s3.list_buckets()[u"Buckets"]
     )
 
+
 def delete_bucket(s3, bucket):
     delete_objects(s3, bucket)
     s3.delete_bucket(Bucket=bucket)
-    print("Deleted S3 bucket {}".format(bucket))
+
 
 def delete_objects(s3, bucket):
     keys = []
@@ -74,6 +96,7 @@ def delete_objects(s3, bucket):
     if keys:
         delete_some_objects(s3, bucket, keys)
 
+
 def list_objects(s3, bucket):
     paginator = s3.get_paginator("list_objects")
     result = list(paginator.paginate(Bucket=bucket))
@@ -82,6 +105,7 @@ def list_objects(s3, bucket):
         for page in result
         for content in page.get(u"Contents", [])
     )
+
 
 def delete_some_objects(s3, bucket, keys):
     keys = list(keys)
