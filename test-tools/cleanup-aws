@@ -13,10 +13,62 @@ def main():
         environ["AWS_SECRET_ACCESS_KEY"] = environ["TXAWS_INTEGRATION_AWS_SECRET_ACCESS_KEY"]
     except KeyError as e:
         raise SystemExit("Could not clean up: {} missing from environment".format(e))
+    cleanup_s3()
+    cleanup_route53()
 
+
+def cleanup_route53():
+    route53 = boto3.client("route53")
+    for zone in all_hosted_zones(route53):
+        try:
+            delete_hosted_zone(route53, zone)
+        except Exception as e:
+            print("Failed to delete Route53 hosted zone {}: {}".format(
+                zone[u"Name"], e
+            ))
+        else:
+            print("Deleted Route53 zone {}".format(zone[u"Name"]))
+
+
+def all_hosted_zones(route53):
+    return route53.list_hosted_zones()[u"HostedZones"]
+
+
+def delete_hosted_zone(route53, zone):
+    delete_all_rrsets(route53, zone)
+    route53.delete_hosted_zone(Id=zone[u"Id"])
+
+
+def delete_all_rrsets(route53, zone):
+    rrsets = route53.list_resource_record_sets(HostedZoneId=zone[u"Id"])[u"ResourceRecordSets"]
+    changes = list(
+        {u"Action": u"DELETE", u"ResourceRecordSet": rrset}
+        for rrset in rrsets
+        if rrset[u"Type"] != u"SOA"
+        and not (rrset[u"Type"] == u"NS" and rrset[u"Name"] == zone[u"Name"])
+    )
+    if len(changes):
+        route53.change_resource_record_sets(
+            HostedZoneId=zone[u"Id"],
+            ChangeBatch={
+                u"Comment": u"cleanup-aws",
+                u"Changes": changes,
+            },
+        )
+        print("Deleted Route53 zone {}'s {} rrsets".format(zone[u"Name"], len(rrsets)))
+    else:
+        print("Route53 zone {} has no rrsets to delete".format(zone[u"Name"]))
+
+
+def cleanup_s3():
     s3 = boto3.client("s3")
     for bucket in all_buckets(s3):
-        delete_bucket(s3, bucket)
+        try:
+            delete_bucket(s3, bucket)
+        except Exception as e:
+            print("Failed to delete S3 bucket {}: {}".format(bucket, e))
+        else:
+            print("Deleted S3 bucket {}".format(bucket))
 
 
 def all_buckets(s3):
@@ -32,7 +84,6 @@ def all_buckets(s3):
 def delete_bucket(s3, bucket):
     delete_objects(s3, bucket)
     s3.delete_bucket(Bucket=bucket)
-    print("Deleted {}".format(bucket))
 
 
 def delete_objects(s3, bucket):
@@ -67,7 +118,6 @@ def delete_some_objects(s3, bucket, keys):
             ),
         },
     )
-    print("Deleted {}".format(keys))
-
+    print("Deleted S3 object {}".format(keys))
 
 main()

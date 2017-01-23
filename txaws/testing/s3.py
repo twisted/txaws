@@ -8,7 +8,6 @@ __all__ = [
 ]
 
 from datetime import datetime
-from weakref import WeakKeyDictionary
 
 import attr
 
@@ -18,6 +17,7 @@ from twisted.internet.defer import succeed, fail
 
 from txaws.s3.model import Bucket, BucketListing, BucketItem
 from txaws.s3.exception import S3Error
+from txaws.testing.base import MemoryClient, MemoryService
 
 def _rate_limited(f):
     def g(self, *a, **kw):
@@ -27,20 +27,15 @@ def _rate_limited(f):
     return g
 
 
-class MemoryS3(object):
+class MemoryS3(MemoryService):
     """
     ``MemoryS3`` is a factory for new S3 clients.
     """
     def __init__(self):
-        self._state = WeakKeyDictionary()
-
-    def get_state(self, client):
-        return self._state.setdefault(client, S3ClientState())
-
-    def client(self, *a, **kw):
-        client = _MemoryS3Client(self, *a, **kw)
-        return client, self.get_state(client)
-
+        super(MemoryS3, self).__init__(
+            client_factory=_MemoryS3Client,
+            state_factory=S3ClientState,
+        )
 
 class S3ClientState(object):
     """
@@ -66,17 +61,9 @@ class S3ClientState(object):
         return self.rate_limit_exceeded
 
 
-class _ControllerState(object):
-    def __get__(self, oself, type):
-        return oself._controller.get_state(oself)
-
-
-class _MemoryS3Client(object):
-    _state = _ControllerState()
-
+class _MemoryS3Client(MemoryClient):
     def __init__(self, controller, creds, endpoint):
-        self._controller = controller
-        self.creds = creds
+        super(_MemoryS3Client, self).__init__(controller=controller, creds=creds)
         self.endpoint = endpoint
 
     @_rate_limited

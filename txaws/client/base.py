@@ -28,10 +28,10 @@ from twisted.internet.defer import Deferred, succeed, fail
 from twisted.python import failure
 from twisted.web import http
 from twisted.web.iweb import UNKNOWN_LENGTH, IBodyProducer
-from twisted.web.client import Agent, ProxyAgent
-from twisted.web.client import ResponseDone
-from twisted.web.client import FileBodyProducer
-from twisted.web.http import NO_CONTENT, PotentialDataLoss
+from twisted.web.client import (
+    Agent, ProxyAgent, ResponseDone, FileBodyProducer,
+)
+from twisted.web.http import OK, NO_CONTENT, PotentialDataLoss
 from twisted.web.http_headers import Headers
 from twisted.web.error import Error as TwistedWebError
 
@@ -385,6 +385,10 @@ def query(**kw):
     @param details: The specifics of the query/request to construct.
     @type details: L{RequestDetails}
 
+    @param ok_status: The HTTP status codes which are considered success
+        results for this query.
+    @type ok_status: L{tuple} of L{int}
+
     @param cooperator: A cooperator to use for large uploads or
         C{None} for the global cooperator (recommended).
     @type cooperator: L{Cooperator}.
@@ -402,6 +406,7 @@ class _Query(object):
     _credentials = attr.ib()
     _details = attr.ib()
     _reactor = attr.ib(default=attr.Factory(lambda: namedAny("twisted.internet.reactor")))
+    _ok_status = attr.ib(default=(OK,), validator=validators.instance_of(tuple))
 
     def _canonical_request(self, headers):
         return _auth_v4._CanonicalRequest.from_request_components(
@@ -572,7 +577,7 @@ class _Query(object):
         return d
 
     def _check_response(self, data, response):
-        if response.code >= 400:
+        if response.code not in self._ok_status:
             return failure.Failure(TwistedWebError(response.code, response=data))
         return (response, data)
 
