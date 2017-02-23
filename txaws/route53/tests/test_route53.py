@@ -189,14 +189,13 @@ class ListResourceRecordSetsTestCase(TXAWSTestCase):
     """
     Tests for C{list_resource_record_sets}.
     """
-    def test_some_records(self):
-        zone_id = b"ABCDEF1234"
+    def _client_for_rrsets(self, zone_id, rrsets_xml):
         agent = RequestTraversalAgent(static_resource({
             b"2013-04-01": {
                 b"hostedzone": {
                     zone_id: {
                         b"rrset": Data(
-                            sample_list_resource_record_sets_result.xml,
+                            rrsets_xml,
                             b"text/xml",
                         )
                     }
@@ -204,7 +203,14 @@ class ListResourceRecordSetsTestCase(TXAWSTestCase):
             }
         }))
         aws = AWSServiceRegion(access_key="abc", secret_key="def")
-        client = get_route53_client(agent, aws, uncooperator())
+        return get_route53_client(agent, aws, uncooperator())
+
+
+    def test_some_records(self):
+        zone_id = b"ABCDEF1234"
+        client = self._client_for_rrsets(
+            zone_id, sample_list_resource_record_sets_result.xml,
+        )
         rrsets = self.successResultOf(client.list_resource_record_sets(
             zone_id=zone_id,
         ))
@@ -249,20 +255,9 @@ class ListResourceRecordSetsTestCase(TXAWSTestCase):
         represented in the result as ``AliasRRSet`` instances.
         """
         zone_id = b"ABCDEF1234"
-        agent = RequestTraversalAgent(static_resource({
-            b"2013-04-01": {
-                b"hostedzone": {
-                    zone_id: {
-                        b"rrset": Data(
-                            sample_list_resource_records_with_alias_result.xml,
-                            b"text/xml",
-                        )
-                    }
-                }
-            }
-        }))
-        aws = AWSServiceRegion(access_key="abc", secret_key="def")
-        client = get_route53_client(agent, aws, uncooperator())
+        client = self._client_for_rrsets(
+            zone_id, sample_list_resource_records_with_alias_result.xml,
+        )
         rrsets = self.successResultOf(client.list_resource_record_sets(
             zone_id=zone_id,
         ))
@@ -276,6 +271,25 @@ class ListResourceRecordSetsTestCase(TXAWSTestCase):
                 type=sample_list_resource_records_with_alias_result.alias.type,
             ): sample_list_resource_records_with_alias_result.alias,
         }
+        self.assertEquals(rrsets, expected)
+
+
+    def test_unsupported_records(self):
+        """
+        If there are resource record sets of unsupported type in the response,
+        they are dropped.
+        """
+        zone_id = b"ABCDEF1234"
+        crazy_xml = sample_list_resource_records_with_alias_result.xml.replace(
+            b"ResourceRecords>", b"XXResourceRecords>",
+        ).replace(
+            b"AliasTarget>", b"XXAliasTarget>"
+        )
+        client = self._client_for_rrsets(zone_id, crazy_xml)
+        rrsets = self.successResultOf(client.list_resource_record_sets(
+            zone_id=zone_id,
+        ))
+        expected = {}
         self.assertEquals(rrsets, expected)
 
 
