@@ -8,10 +8,9 @@ from txaws import version
 # declare our dependency on python-dateutil.
 extra_setup_args = {}
 try:
-    import setuptools
     from setuptools import find_packages
     extra_setup_args['install_requires'] = [
-        'attrs', 'python-dateutil', 'twisted[tls]>=15.5.0', 'venusian', 'lxml',
+        'attrs', 'python-dateutil', 'twisted[tls]>=15.5.0,!=17.1.0', 'venusian', 'lxml',
         'incremental', 'pyrsistent',
     ]
 except ImportError:
