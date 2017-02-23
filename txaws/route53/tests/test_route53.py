@@ -121,6 +121,30 @@ class sample_list_hosted_zones_result(object):
 """.format(**details).encode("utf-8")
 
 
+class sample_list_resource_records_with_alias_result(object):
+    label = Name(u"foo.example.invalid.")
+    type = u"CNAME"
+    ttl = 60
+    value = Name(u"bar.example.invalid.")
+    details = dict(
+        label=label,
+        type=type,
+        ttl=60,
+        value=value,
+    )
+    normal = u"""\
+<ResourceRecordSet><Name>{label}</Name><Type>{type}</Type><TTL>{ttl}</TTL><ResourceRecords><ResourceRecord><Value>{value}</Value></ResourceRecord></ResourceRecords></ResourceRecordSet>
+""".format(**details)
+
+    alias = u"""\
+<ResourceRecordSet><Name>staging.leastauthority.com.</Name><Type>A</Type><AliasTarget><HostedZoneId>Z35SXDOTRQ7X7K</HostedZoneId><DNSName>dualstack.a9572f361b59011e6b3c812e507f5438-2017925525.us-east-1.elb.amazonaws.com.</DNSName><EvaluateTargetHealth>false</EvaluateTargetHealth></AliasTarget></ResourceRecordSet>
+"""
+    xml = u"""\
+<?xml version="1.0"?>\n
+<ListResourceRecordSetsResponse xmlns="https://route53.amazonaws.com/doc/2013-04-01/"><ResourceRecordSets>{normal}{alias}</ResourceRecordSets><IsTruncated>false</IsTruncated><MaxItems>100</MaxItems></ListResourceRecordSetsResponse>
+""".format(normal=normal, alias=alias).encode("utf-8")
+
+
 class ListHostedZonesTestCase(TXAWSTestCase):
     """
     Tests for C{list_hosted_zones}.
@@ -197,6 +221,46 @@ class ListResourceRecordSetsTestCase(TXAWSTestCase):
             ),
         }
         self.assertEquals(rrsets, expected)
+
+
+    def test_alias_records(self):
+        """
+        Until they are properly supported (txaws#35), alias records are dropped
+        and normal records can be retrieved.
+        """
+        zone_id = b"ABCDEF1234"
+        agent = RequestTraversalAgent(static_resource({
+            b"2013-04-01": {
+                b"hostedzone": {
+                    zone_id: {
+                        b"rrset": Data(
+                            sample_list_resource_records_with_alias_result.xml,
+                            b"text/xml",
+                        )
+                    }
+                }
+            }
+        }))
+        aws = AWSServiceRegion(access_key="abc", secret_key="def")
+        client = get_route53_client(agent, aws, uncooperator())
+        rrsets = self.successResultOf(client.list_resource_record_sets(
+            zone_id=zone_id,
+        ))
+        expected = {
+            RRSetKey(
+                label=sample_list_resource_records_with_alias_result.label,
+                type=sample_list_resource_records_with_alias_result.type,
+            ): RRSet(
+                label=sample_list_resource_records_with_alias_result.label,
+                type=sample_list_resource_records_with_alias_result.type,
+                ttl=sample_list_resource_records_with_alias_result.ttl,
+                records={CNAME(
+                    canonical_name=sample_list_resource_records_with_alias_result.value,
+                )},
+            ),
+        }
+        self.assertEquals(rrsets, expected)
+
 
 
 class ChangeResourceRecordSetsTestCase(TXAWSTestCase):
