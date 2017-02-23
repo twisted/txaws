@@ -239,7 +239,10 @@ class _Route53Client(object):
         for rrset in rrsets:
             label = Name(maybe_bytes_to_unicode(rrset.find("Name").text).encode("ascii").decode("idna"))
             type = maybe_bytes_to_unicode(rrset.find("Type").text)
-            ttl = int(rrset.find("TTL").text)
+            ttl_element = rrset.find("TTL")
+            if ttl_element is None:
+                continue
+            ttl = int(ttl_element.text)
             records = rrset.iterfind("./ResourceRecords/ResourceRecord")
             result[RRSetKey(label, type)] = RRSet(
                 label=label,
