@@ -16,6 +16,7 @@ from operator import itemgetter
 
 import attr
 
+from twisted.python.log import msg
 from twisted.web.http import OK, CREATED
 from twisted.web.client import FileBodyProducer
 from twisted.internet.defer import succeed
@@ -27,7 +28,9 @@ from txaws.service import REGION_US_EAST_1, AWSServiceEndpoint
 from txaws.util import XML
 
 from ._util import maybe_bytes_to_unicode, to_xml, tags
-from .model import HostedZone, RRSetKey, RRSet, Name, SOA, NS, A, CNAME
+from .model import (
+    HostedZone, RRSetType, RRSetKey, RRSet, AliasRRSet, Name, SOA, NS, A, CNAME,
+)
 
 # Route53 is has two endpoints both in us-east-1.
 # http://docs.aws.amazon.com/general/latest/gr/rande.html#r53_region
@@ -239,22 +242,66 @@ class _Route53Client(object):
         for rrset in rrsets:
             label = Name(maybe_bytes_to_unicode(rrset.find("Name").text).encode("ascii").decode("idna"))
             type = maybe_bytes_to_unicode(rrset.find("Type").text)
-            ttl_element = rrset.find("TTL")
-            if ttl_element is None:
-                continue
-            ttl = int(ttl_element.text)
-            records = rrset.iterfind("./ResourceRecords/ResourceRecord")
-            result[RRSetKey(label, type)] = RRSet(
-                label=label,
-                type=type,
-                ttl=ttl,
-                records={
-                    RECORD_TYPES[type].basic_from_element(element)
-                    for element
-                    in records
-                },
-            )
+
+            for kind in RRSetType.iterconstants():
+                value = self._get_rrset(kind, label, type, rrset)
+                if value is not None:
+                    key = RRSetKey(label, type)
+                    result[key] = value
+                    break
+            else:
+                # We didn't find anything we recognize.
+                msg(
+                    format=(
+                        u"list_resource_record_sets() dropping unsupported "
+                        u"ResourceRecordSet type in result "
+                        u"(children=%(children)s)"
+                    ),
+                    children=rrset.getchildren(),
+                )
         return result
+
+    def _get_rrset(self, kind, label, type, rrset):
+        return getattr(self, "_get_rrset_" + kind.name)(label, type, rrset)
+
+
+    def _get_rrset_RESOURCE(self, label, type, rrset):
+        # http://docs.aws.amazon.com/Route53/latest/APIReference/API_ResourceRecord.html
+        resourcerecords = rrset.find("./ResourceRecords")
+        if resourcerecords is None:
+            return None
+        records = resourcerecords.iterfind("./ResourceRecord")
+        # The docs say TTL is optional but I think that means rrsets that
+        # contain something other than ResourceRecord may not have it.
+        # Hopefully it's always present for ResourceRecord-tyle
+        # ResourceRecordSets?
+        ttl = int(rrset.find("TTL").text)
+        return RRSet(
+            label=label,
+            type=type,
+            ttl=ttl,
+            records={
+                RECORD_TYPES[type].basic_from_element(element)
+                for element
+                in records
+            },
+        )
+
+
+    def _get_rrset_ALIAS(self, label, type, rrset):
+        # http://docs.aws.amazon.com/Route53/latest/APIReference/API_AliasTarget.html
+        aliastarget = rrset.find("./AliasTarget")
+        if aliastarget is None:
+            return None
+        return AliasRRSet(
+            label=label,
+            type=type,
+            dns_name=Name(maybe_bytes_to_unicode(aliastarget.find("DNSName").text)),
+            evaluate_target_health={
+                "true": True, "false": False,
+            }.get(aliastarget.find("EvaluateTargetHealth").text),
+            hosted_zone_id=maybe_bytes_to_unicode(aliastarget.find("HostedZoneId").text),
+        )
 
 
     def delete_hosted_zone(self, zone_id):
