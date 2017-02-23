@@ -9,7 +9,7 @@ from txaws.testing.base import TXAWSTestCase
 from txaws.testing.route53_tests import route53_integration_tests
 
 from txaws.route53.model import (
-    HostedZone, RRSetKey, RRSet,
+    HostedZone, RRSetKey, RRSet, AliasRRSet,
     create_rrset, delete_rrset, upsert_rrset,
 )
 from txaws.route53.client import (
@@ -121,6 +121,50 @@ class sample_list_hosted_zones_result(object):
 """.format(**details).encode("utf-8")
 
 
+class sample_list_resource_records_with_alias_result(object):
+    normal_target = Name(u"bar.example.invalid.")
+    normal = RRSet(
+        label=Name(u"foo.example.invalid."),
+        type=u"CNAME",
+        ttl=60,
+        records={CNAME(canonical_name=normal_target)},
+    )
+
+    normal_xml = u"""\
+<ResourceRecordSet><Name>{label}</Name><Type>{type}</Type><TTL>{ttl}</TTL><ResourceRecords><ResourceRecord><Value>{value}</Value></ResourceRecord></ResourceRecords></ResourceRecordSet>
+""".format(
+    label=normal.label,
+    type=normal.type,
+    ttl=normal.ttl,
+    value=normal_target,
+)
+
+    alias = AliasRRSet(
+        label=Name(u"bar.example.invalid."),
+        type=u"A",
+        dns_name=Name(
+            u"dualstack.a952f315901e6b3c812e57076f5b4138-0795221525.us-east-1.elb.amazonaws.com.",
+        ),
+        evaluate_target_health=False,
+        hosted_zone_id=u"ZSXD5Q7O3X7TRK",
+    )
+
+    alias_xml = u"""\
+<ResourceRecordSet><Name>{label}</Name><Type>{type}</Type><AliasTarget><HostedZoneId>{hosted_zone_id}</HostedZoneId><DNSName>{dns_name}</DNSName><EvaluateTargetHealth>{evaluate_target_health}</EvaluateTargetHealth></AliasTarget></ResourceRecordSet>
+""".format(
+    label=alias.label,
+    type=alias.type,
+    hosted_zone_id=alias.hosted_zone_id,
+    dns_name=alias.dns_name,
+    evaluate_target_health=[u"false", u"true"][alias.evaluate_target_health],
+)
+
+    xml = u"""\
+<?xml version="1.0"?>\n
+<ListResourceRecordSetsResponse xmlns="https://route53.amazonaws.com/doc/2013-04-01/"><ResourceRecordSets>{normal}{alias}</ResourceRecordSets><IsTruncated>false</IsTruncated><MaxItems>100</MaxItems></ListResourceRecordSetsResponse>
+""".format(normal=normal_xml, alias=alias_xml).encode("utf-8")
+
+
 class ListHostedZonesTestCase(TXAWSTestCase):
     """
     Tests for C{list_hosted_zones}.
@@ -145,14 +189,13 @@ class ListResourceRecordSetsTestCase(TXAWSTestCase):
     """
     Tests for C{list_resource_record_sets}.
     """
-    def test_some_records(self):
-        zone_id = b"ABCDEF1234"
+    def _client_for_rrsets(self, zone_id, rrsets_xml):
         agent = RequestTraversalAgent(static_resource({
             b"2013-04-01": {
                 b"hostedzone": {
                     zone_id: {
                         b"rrset": Data(
-                            sample_list_resource_record_sets_result.xml,
+                            rrsets_xml,
                             b"text/xml",
                         )
                     }
@@ -160,7 +203,14 @@ class ListResourceRecordSetsTestCase(TXAWSTestCase):
             }
         }))
         aws = AWSServiceRegion(access_key="abc", secret_key="def")
-        client = get_route53_client(agent, aws, uncooperator())
+        return get_route53_client(agent, aws, uncooperator())
+
+
+    def test_some_records(self):
+        zone_id = b"ABCDEF1234"
+        client = self._client_for_rrsets(
+            zone_id, sample_list_resource_record_sets_result.xml,
+        )
         rrsets = self.successResultOf(client.list_resource_record_sets(
             zone_id=zone_id,
         ))
@@ -197,6 +247,51 @@ class ListResourceRecordSetsTestCase(TXAWSTestCase):
             ),
         }
         self.assertEquals(rrsets, expected)
+
+
+    def test_alias_records(self):
+        """
+        If there are special AWS-custom "alias" records in the response, they are
+        represented in the result as ``AliasRRSet`` instances.
+        """
+        zone_id = b"ABCDEF1234"
+        client = self._client_for_rrsets(
+            zone_id, sample_list_resource_records_with_alias_result.xml,
+        )
+        rrsets = self.successResultOf(client.list_resource_record_sets(
+            zone_id=zone_id,
+        ))
+        expected = {
+            RRSetKey(
+                label=sample_list_resource_records_with_alias_result.normal.label,
+                type=sample_list_resource_records_with_alias_result.normal.type,
+            ): sample_list_resource_records_with_alias_result.normal,
+            RRSetKey(
+                label=sample_list_resource_records_with_alias_result.alias.label,
+                type=sample_list_resource_records_with_alias_result.alias.type,
+            ): sample_list_resource_records_with_alias_result.alias,
+        }
+        self.assertEquals(rrsets, expected)
+
+
+    def test_unsupported_records(self):
+        """
+        If there are resource record sets of unsupported type in the response,
+        they are dropped.
+        """
+        zone_id = b"ABCDEF1234"
+        crazy_xml = sample_list_resource_records_with_alias_result.xml.replace(
+            b"ResourceRecords>", b"XXResourceRecords>",
+        ).replace(
+            b"AliasTarget>", b"XXAliasTarget>"
+        )
+        client = self._client_for_rrsets(zone_id, crazy_xml)
+        rrsets = self.successResultOf(client.list_resource_record_sets(
+            zone_id=zone_id,
+        ))
+        expected = {}
+        self.assertEquals(rrsets, expected)
+
 
 
 class ChangeResourceRecordSetsTestCase(TXAWSTestCase):

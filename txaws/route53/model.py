@@ -16,6 +16,8 @@ from zope.interface import implementer, provider
 import attr
 from attr import validators
 
+from constantly import Names, NamedConstant
+
 from ._util import maybe_bytes_to_unicode
 from .interface import IResourceRecordLoader, IBasicResourceRecord, IRRSetChange
 from ..client._validators import set_of
@@ -37,10 +39,18 @@ class RRSetKey(object):
     type = attr.ib()
 
 
+
+class RRSetType(Names):
+    RESOURCE = NamedConstant()
+    ALIAS = NamedConstant()
+
+
+
 @attr.s(frozen=True)
 class RRSet(object):
     """
     https://tools.ietf.org/html/rfc2181#section-5
+    http://docs.aws.amazon.com/Route53/latest/APIReference/API_ResourceRecord.html
 
     @ivar name: The label (name) of the resource record set involved in the change.
     @type name: L{Name}
@@ -54,10 +64,39 @@ class RRSet(object):
     @ivar records: The resource records involved in the change.
     @type records: L{list} of L{IResourceRecord} providers
     """
+    type = RRSetType.RESOURCE
+
     label = attr.ib(validator=validators.instance_of(Name))
     type = attr.ib(validator=validators.instance_of(unicode))
     ttl = attr.ib(validator=validators.instance_of(int))
     records = attr.ib(validator=set_of(validators.provides(IBasicResourceRecord)))
+
+
+
+@attr.s(frozen=True)
+class AliasRRSet(object):
+    """
+    http://docs.aws.amazon.com/Route53/latest/APIReference/API_AliasTarget.html
+
+    @ivar dns_name: The target of the alias (of variable meaning; see AWS
+        docs).
+    @type dns_name: L{Name}
+
+    @ivar evaluate_target_health: Inherit health of the target.
+    @type evaluate_target_health: L{bool}
+
+    @ivar hosted_zone_id: Scope information for interpreting C{dns_name} (of
+        variable meaning; see AWS docs).
+    @type hosted_zone_id: L{unicode}
+    """
+    type = type = RRSetType.ALIAS
+
+    label = attr.ib(validator=validators.instance_of(Name))
+    type = attr.ib(validator=validators.instance_of(unicode))
+    dns_name = attr.ib(validator=validators.instance_of(Name))
+    evaluate_target_health = attr.ib(validator=validators.instance_of(bool))
+    hosted_zone_id = attr.ib(validator=validators.instance_of(unicode))
+
 
 
 @implementer(IRRSetChange)
@@ -65,6 +104,7 @@ class RRSet(object):
 class _ChangeRRSet(object):
     action = attr.ib()
     rrset = attr.ib(validator=validators.instance_of(RRSet))
+
 
 
 def create_rrset(rrset):
