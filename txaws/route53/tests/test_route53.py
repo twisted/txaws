@@ -310,6 +310,14 @@ class ListResourceRecordSetsTestCase(TXAWSTestCase):
         )
 
 
+    def test_cname(self):
+        self._simple_record_test(
+            u"CNAME",
+            CNAME(Name(u"bar")),
+            u"<Value>bar</Value>",
+        )
+
+
     def test_alias_records(self):
         """
         If there are special AWS-custom "alias" records in the response, they are
