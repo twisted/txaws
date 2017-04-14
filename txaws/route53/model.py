@@ -292,6 +292,22 @@ class NAPTR(object):
 @provider(IResourceRecordLoader)
 @implementer(IBasicResourceRecord)
 @attr.s(frozen=True)
+class PTR(object):
+    name = attr.ib(validator=validators.instance_of(Name))
+
+    @classmethod
+    def basic_from_element(cls, e):
+        return cls(Name(maybe_bytes_to_unicode(e.find("Value").text)))
+
+
+    def to_text(self):
+        return unicode(self.name)
+
+
+
+@provider(IResourceRecordLoader)
+@implementer(IBasicResourceRecord)
+@attr.s(frozen=True)
 class SOA(object):
     mname = attr.ib(validator=validators.instance_of(Name))
     rname = attr.ib(validator=validators.instance_of(Name))
