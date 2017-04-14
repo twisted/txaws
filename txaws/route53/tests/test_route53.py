@@ -20,7 +20,8 @@ from txaws.route53.model import (
     create_rrset, delete_rrset, upsert_rrset,
 )
 from txaws.route53.client import (
-    A, AAAA, NAPTR, PTR, MX, NS, SOA, CNAME, Name, get_route53_client,
+    A, AAAA, NAPTR, PTR, SPF, MX, NS, SOA, CNAME,
+    Name, get_route53_client,
 )
 
 from treq.testing import RequestTraversalAgent
@@ -354,6 +355,13 @@ class ListResourceRecordSetsTestCase(TXAWSTestCase):
         self._simple_record_test(
             u"PTR",
             PTR(Name(u"foo.example.com")),
+        )
+
+
+    def test_spf(self):
+        self._simple_record_test(
+            u"SPF",
+            SPF(u"v=spf1 ip4:192.168.0.1/16 -all"),
         )
 
 

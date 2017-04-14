@@ -308,6 +308,28 @@ class PTR(object):
 @provider(IResourceRecordLoader)
 @implementer(IBasicResourceRecord)
 @attr.s(frozen=True)
+class SPF(object):
+    value = attr.ib(validator=validators.instance_of(unicode))
+
+    @classmethod
+    def basic_from_element(cls, e):
+        return cls(
+            _split_quoted(
+                maybe_bytes_to_unicode(
+                    e.find("Value").text
+                )
+            )[0]
+        )
+
+
+    def to_text(self):
+        return _quote(self.value)
+
+
+
+@provider(IResourceRecordLoader)
+@implementer(IBasicResourceRecord)
+@attr.s(frozen=True)
 class SOA(object):
     mname = attr.ib(validator=validators.instance_of(Name))
     rname = attr.ib(validator=validators.instance_of(Name))
