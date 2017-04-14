@@ -20,7 +20,7 @@ from txaws.route53.model import (
     create_rrset, delete_rrset, upsert_rrset,
 )
 from txaws.route53.client import (
-    A, AAAA, MX, NS, SOA, CNAME, Name, get_route53_client,
+    A, AAAA, NAPTR, MX, NS, SOA, CNAME, Name, get_route53_client,
 )
 
 from treq.testing import RequestTraversalAgent
@@ -256,7 +256,7 @@ class ListResourceRecordSetsTestCase(TXAWSTestCase):
         self.assertEquals(rrsets, expected)
 
 
-    def _simple_record_test(self, record_type, record, xml):
+    def _simple_record_test(self, record_type, record):
         zone_id = b"ABCDEF1234"
         template = u"""\
 <?xml version="1.0"?>
@@ -267,7 +267,7 @@ class ListResourceRecordSetsTestCase(TXAWSTestCase):
       <Type>{type}</Type>
       <TTL>{ttl}</TTL>
       <ResourceRecords>
-        <ResourceRecord>{record}</ResourceRecord>
+        <ResourceRecord><Value>{record}</Value></ResourceRecord>
       </ResourceRecords>
     </ResourceRecordSet>
   </ResourceRecordSets>
@@ -280,7 +280,7 @@ class ListResourceRecordSetsTestCase(TXAWSTestCase):
             zone_id, template.format(
                 label=label,
                 type=record_type,
-                ttl=60, record=xml,
+                ttl=60, record=record.to_text(),
             ).encode("utf-8")
         )
         expected = {
@@ -298,7 +298,6 @@ class ListResourceRecordSetsTestCase(TXAWSTestCase):
         self._simple_record_test(
             u"A",
             A(IPv4Address(u"10.0.0.1")),
-            u"<Value>10.0.0.1</Value>",
         )
 
 
@@ -306,7 +305,6 @@ class ListResourceRecordSetsTestCase(TXAWSTestCase):
         self._simple_record_test(
             u"AAAA",
             AAAA(IPv6Address(u"::1")),
-            u"<Value>::1</Value>",
         )
 
 
@@ -314,7 +312,6 @@ class ListResourceRecordSetsTestCase(TXAWSTestCase):
         self._simple_record_test(
             u"CNAME",
             CNAME(Name(u"bar")),
-            u"<Value>bar</Value>",
         )
 
 
@@ -322,8 +319,37 @@ class ListResourceRecordSetsTestCase(TXAWSTestCase):
         self._simple_record_test(
             u"MX",
             MX(Name(u"bar"), 15),
-            u"<Value>15 bar</Value>",
         )
+
+
+    def test_naptr_with_regexp(self):
+        self._simple_record_test(
+            u"NAPTR",
+            NAPTR(
+                order=3,
+                preference=7,
+                flag=u"SUP",
+                service=u"E2U+sip",
+                regexp=u"!^(\\+441632960083)$!sip:\\1@example.com!",
+                replacement=Name(u"."),
+            ),
+        )
+
+
+    def test_naptr_with_replacement(self):
+        self._simple_record_test(
+            u"NAPTR",
+            NAPTR(
+                order=3,
+                preference=7,
+                flag=u"SUP",
+                service=u"E2U+sip",
+                regexp=u"",
+                replacement=Name(u"foo.example.com."),
+            ),
+        )
+
+    maxDiff = 1000
 
 
     def test_alias_records(self):

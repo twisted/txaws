@@ -202,6 +202,93 @@ class CNAME(object):
 
 
 
+def _split_quoted(text):
+    """
+    Split a unicode string on *SPACE* characters.
+
+    Splitting is not done at *SPACE* characters occurring within matched
+    *QUOTATION MARK*s.  *REVERSE SOLIDUS* can be used to remove all
+    interpretation from the following character.
+
+    :param unicode text: The string to split.
+
+    :return: A two-tuple of unicode giving the two split pieces.
+    """
+    quoted = False
+    escaped = False
+    result = []
+    for i, ch in enumerate(text):
+        if escaped:
+            escaped = False
+            result.append(ch)
+        elif ch == u'\\':
+            escaped = True
+        elif ch == u'"':
+            quoted = not quoted
+        elif not quoted and ch == u' ':
+            return u"".join(result), text[i:].lstrip()
+        else:
+            result.append(ch)
+    return u"".join(result), u""
+
+
+
+def _quote(text):
+    """
+    Quote the given string so ``_split_quoted`` will not split it up.
+
+    :param unicode text: The string to quote:
+
+    :return: A unicode string representing ``text`` as protected from
+        splitting.
+    """
+    return (
+        '"' +
+        text.replace("\\", "\\\\").replace('"', '\\"') +
+        '"'
+    )
+
+
+@provider(IResourceRecordLoader)
+@implementer(IBasicResourceRecord)
+@attr.s(frozen=True)
+class NAPTR(object):
+    order = attr.ib(validator=validators.instance_of(int))
+    preference = attr.ib(validator=validators.instance_of(int))
+    flag = attr.ib(validator=validators.instance_of(unicode))
+    service = attr.ib(validator=validators.instance_of(unicode))
+    regexp = attr.ib(validator=validators.instance_of(unicode))
+    replacement = attr.ib(validator=validators.instance_of(Name))
+
+    @classmethod
+    def basic_from_element(cls, e):
+        value = maybe_bytes_to_unicode(e.find("Value").text)
+        order, preference, rest = value.split(None, 2)
+        flag, rest = _split_quoted(rest)
+        service, rest = _split_quoted(rest)
+        regexp, replacement = _split_quoted(rest)
+        return cls(
+            int(order),
+            int(preference),
+            flag, service, regexp, Name(replacement),
+        )
+
+
+    def to_text(self):
+        replacement = self.replacement
+        if replacement == Name(u"."):
+            replacement = u"."
+
+        return u"{} {} {} {} {} {}".format(
+            self.order, self.preference,
+            _quote(self.flag),
+            _quote(self.service),
+            _quote(self.regexp),
+            replacement,
+        )
+
+
+
 @provider(IResourceRecordLoader)
 @implementer(IBasicResourceRecord)
 @attr.s(frozen=True)

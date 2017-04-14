@@ -30,7 +30,7 @@ from txaws.util import XML
 from ._util import maybe_bytes_to_unicode, to_xml, tags
 from .model import (
     HostedZone, RRSetType, RRSetKey, RRSet, AliasRRSet, Name, SOA, NS, A, CNAME,
-    AAAA, MX
+    AAAA, MX, NAPTR,
 )
 
 # Route53 is has two endpoints both in us-east-1.
@@ -75,6 +75,7 @@ RECORD_TYPES = {
     u"AAAA": AAAA,
     u"MX": MX,
     u"CNAME": CNAME,
+    u"NAPTR": NAPTR,
 }
 
 
