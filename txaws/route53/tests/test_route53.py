@@ -405,6 +405,13 @@ class ListResourceRecordSetsTestCase(TXAWSTestCase):
         # )
 
 
+    def test_unknown_record_type_roundtrip(self):
+        self.assertEqual(
+            u"foo bar baz",
+            UnknownRecordType(u"foo bar baz").to_text(),
+        )
+
+
     def test_unknown_record_type(self):
         zone_id = b"ABCDEF1234"
         template = u"""\
