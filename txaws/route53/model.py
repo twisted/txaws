@@ -330,6 +330,31 @@ class SPF(object):
 @provider(IResourceRecordLoader)
 @implementer(IBasicResourceRecord)
 @attr.s(frozen=True)
+class SRV(object):
+    priority = attr.ib(validator=validators.instance_of(int))
+    weight = attr.ib(validator=validators.instance_of(int))
+    port = attr.ib(validator=validators.instance_of(int))
+    name = attr.ib(validator=validators.instance_of(Name))
+
+
+    @classmethod
+    def basic_from_element(cls, e):
+        priority, weight, port, name = maybe_bytes_to_unicode(
+            e.find("Value").text
+        ).split()
+        return cls(int(priority), int(weight), int(port), Name(name))
+
+
+    def to_text(self):
+        return "{} {} {} {}".format(
+            self.priority, self.weight, self.port, self.name,
+        )
+
+
+
+@provider(IResourceRecordLoader)
+@implementer(IBasicResourceRecord)
+@attr.s(frozen=True)
 class SOA(object):
     mname = attr.ib(validator=validators.instance_of(Name))
     rname = attr.ib(validator=validators.instance_of(Name))
