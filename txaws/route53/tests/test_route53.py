@@ -20,7 +20,7 @@ from txaws.route53.model import (
     create_rrset, delete_rrset, upsert_rrset,
 )
 from txaws.route53.client import (
-    A, AAAA, NAPTR, PTR, SPF, SRV, MX, NS, SOA, CNAME,
+    A, AAAA, NAPTR, PTR, SPF, SRV, TXT, MX, NS, SOA, CNAME,
     Name, get_route53_client,
 )
 
@@ -370,6 +370,38 @@ class ListResourceRecordSetsTestCase(TXAWSTestCase):
             u"SRV",
             SRV(1, 2, 3, Name("example.invalid")),
         )
+
+
+    def test_txt(self):
+        self._simple_record_test(
+            u"TXT",
+            TXT([
+                u"foo bar baz quux",
+                u"bzzzzzt",
+                u"\"",
+                u"\N{LATIN SMALL LETTER E WITH ACUTE}",
+            ]),
+        )
+
+
+    def test_txt_encoding(self):
+        self.assertEqual(
+            u'"foo bar baz quux" "bzzzzzt" "\\""',
+            TXT([
+                u"foo bar baz quux",
+                u"bzzzzzt",
+                u"\"",
+            ]).to_text(),
+        )
+
+        # TODO: Proper octal encoding/decoding for special characters.
+        # self.assertEqual(
+        #     u'"octal encoding example" "\\351"',
+        #     TXT([
+        #         u"octal encoding example",
+        #         u"\N{LATIN SMALL LETTER E WITH ACUTE}",
+        #     ]).to_text(),
+        # )
 
 
     def test_alias_records(self):

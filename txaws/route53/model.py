@@ -9,6 +9,8 @@ __all__ = [
     "HostedZone",
 ]
 
+from string import ascii_letters, digits
+
 from ipaddress import IPv4Address, IPv6Address
 
 from zope.interface import implementer, provider
@@ -348,6 +350,34 @@ class SRV(object):
     def to_text(self):
         return "{} {} {} {}".format(
             self.priority, self.weight, self.port, self.name,
+        )
+
+
+
+@provider(IResourceRecordLoader)
+@implementer(IBasicResourceRecord)
+@attr.s(frozen=True)
+class TXT(object):
+    texts = attr.ib(
+        convert=tuple,
+        validator=validators.instance_of(tuple),
+    )
+
+    @classmethod
+    def basic_from_element(cls, e):
+        pieces = []
+        value = maybe_bytes_to_unicode(e.find("Value").text)
+        while value:
+            piece, value = _split_quoted(value)
+            pieces.append(piece)
+        return cls(pieces)
+
+
+    def to_text(self):
+        return u" ".join(
+            _quote(value)
+            for value
+            in self.texts
         )
 
 
