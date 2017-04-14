@@ -21,6 +21,7 @@ from txaws.route53.model import (
 )
 from txaws.route53.client import (
     A, AAAA, NAPTR, PTR, SPF, SRV, TXT, MX, NS, SOA, CNAME,
+    UnknownRecordType,
     Name, get_route53_client,
 )
 
@@ -402,6 +403,45 @@ class ListResourceRecordSetsTestCase(TXAWSTestCase):
         #         u"\N{LATIN SMALL LETTER E WITH ACUTE}",
         #     ]).to_text(),
         # )
+
+
+    def test_unknown_record_type(self):
+        zone_id = b"ABCDEF1234"
+        template = u"""\
+<?xml version="1.0"?>
+<ListResourceRecordSetsResponse xmlns="https://route53.amazonaws.com/doc/2013-04-01/">
+  <ResourceRecordSets>
+    <ResourceRecordSet>
+      <Name>{label}</Name>
+      <Type>{type}</Type>
+      <TTL>{ttl}</TTL>
+      <ResourceRecords>
+        <ResourceRecord><Value>{record}</Value></ResourceRecord>
+      </ResourceRecords>
+    </ResourceRecordSet>
+  </ResourceRecordSets>
+  <IsTruncated>false</IsTruncated>
+  <MaxItems>100</MaxItems>
+</ListResourceRecordSetsResponse>
+"""
+        label = Name(u"foo")
+        client = self._client_for_rrsets(
+            zone_id, template.format(
+                label=label,
+                type=u"X-TXAWS-FICTIONAL",
+                ttl=60, record=u"good luck interpreting this",
+            ).encode("utf-8")
+        )
+        expected = {
+            RRSetKey(label=label, type=u"X-TXAWS-FICTIONAL"): RRSet(
+                label=label, type=u"X-TXAWS-FICTIONAL", ttl=60,
+                records={UnknownRecordType(u"good luck interpreting this")},
+            ),
+        }
+        rrsets = self.successResultOf(
+            client.list_resource_record_sets(zone_id=zone_id),
+        )
+        self.assertEquals(expected, rrsets)
 
 
     def test_alias_records(self):

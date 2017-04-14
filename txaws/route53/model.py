@@ -9,8 +9,6 @@ __all__ = [
     "HostedZone",
 ]
 
-from string import ascii_letters, digits
-
 from ipaddress import IPv4Address, IPv6Address
 
 from zope.interface import implementer, provider
@@ -414,6 +412,22 @@ class SOA(object):
         )
 
 _SOA_FIELDS = list(field.name for field in attr.fields(SOA))
+
+
+@provider(IResourceRecordLoader)
+@implementer(IBasicResourceRecord)
+@attr.s(frozen=True)
+class UnknownRecordType(object):
+    value = attr.ib(validator=validators.instance_of(unicode))
+
+    @classmethod
+    def basic_from_element(cls, e):
+        return cls(maybe_bytes_to_unicode(e.find("Value").text))
+
+
+    def to_text(self):
+        return unicode(self.value)
+
 
 
 @attr.s
