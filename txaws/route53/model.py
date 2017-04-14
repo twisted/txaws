@@ -9,7 +9,7 @@ __all__ = [
     "HostedZone",
 ]
 
-from ipaddress import IPv4Address
+from ipaddress import IPv4Address, IPv6Address
 
 from zope.interface import implementer, provider
 
@@ -145,6 +145,24 @@ class A(object):
 
     def to_text(self):
         return unicode(self.address)
+
+
+
+@provider(IResourceRecordLoader)
+@implementer(IBasicResourceRecord)
+@attr.s(frozen=True)
+class AAAA(object):
+    address = attr.ib(validator=validators.instance_of(IPv6Address))
+
+    @classmethod
+    def basic_from_element(cls, e):
+        return cls(IPv6Address(maybe_bytes_to_unicode(e.find("Value").text)))
+
+    def to_text(self):
+        return unicode(self.address)
+
+
+
 
 @provider(IResourceRecordLoader)
 @implementer(IBasicResourceRecord)

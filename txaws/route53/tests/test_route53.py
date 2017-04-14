@@ -1,3 +1,10 @@
+# Licenced under the txaws licence available at /LICENSE in the txaws source.
+
+"""
+Tests for ``txaws.route53``.
+"""
+
+from ipaddress import IPv4Address, IPv6Address
 
 from twisted.web.static import Data
 from twisted.web.resource import IResource, Resource
@@ -13,7 +20,7 @@ from txaws.route53.model import (
     create_rrset, delete_rrset, upsert_rrset,
 )
 from txaws.route53.client import (
-    NS, SOA, CNAME, Name, get_route53_client,
+    A, AAAA, NS, SOA, CNAME, Name, get_route53_client,
 )
 
 from treq.testing import RequestTraversalAgent
@@ -206,7 +213,7 @@ class ListResourceRecordSetsTestCase(TXAWSTestCase):
         return get_route53_client(agent, aws, uncooperator())
 
 
-    def test_some_records(self):
+    def test_soa_ns_cname(self):
         zone_id = b"ABCDEF1234"
         client = self._client_for_rrsets(
             zone_id, sample_list_resource_record_sets_result.xml,
@@ -247,6 +254,60 @@ class ListResourceRecordSetsTestCase(TXAWSTestCase):
             ),
         }
         self.assertEquals(rrsets, expected)
+
+
+    def _simple_record_test(self, record_type, record, xml):
+        zone_id = b"ABCDEF1234"
+        template = u"""\
+<?xml version="1.0"?>
+<ListResourceRecordSetsResponse xmlns="https://route53.amazonaws.com/doc/2013-04-01/">
+  <ResourceRecordSets>
+    <ResourceRecordSet>
+      <Name>{label}</Name>
+      <Type>{type}</Type>
+      <TTL>{ttl}</TTL>
+      <ResourceRecords>
+        <ResourceRecord>{record}</ResourceRecord>
+      </ResourceRecords>
+    </ResourceRecordSet>
+  </ResourceRecordSets>
+  <IsTruncated>false</IsTruncated>
+  <MaxItems>100</MaxItems>
+</ListResourceRecordSetsResponse>
+"""
+        label = Name(u"foo")
+        client = self._client_for_rrsets(
+            zone_id, template.format(
+                label=label,
+                type=record_type,
+                ttl=60, record=xml,
+            ).encode("utf-8")
+        )
+        expected = {
+            RRSetKey(label=label, type=record_type): RRSet(
+                label=label, type=record_type, ttl=60, records={record},
+            ),
+        }
+        rrsets = self.successResultOf(
+            client.list_resource_record_sets(zone_id=zone_id),
+        )
+        self.assertEquals(expected, rrsets)
+
+
+    def test_a(self):
+        self._simple_record_test(
+            u"A",
+            A(IPv4Address(u"10.0.0.1")),
+            u"<Value>10.0.0.1</Value>",
+        )
+
+
+    def test_aaaa(self):
+        self._simple_record_test(
+            u"AAAA",
+            AAAA(IPv6Address(u"::1")),
+            u"<Value>::1</Value>",
+        )
 
 
     def test_alias_records(self):

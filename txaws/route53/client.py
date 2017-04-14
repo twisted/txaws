@@ -30,6 +30,7 @@ from txaws.util import XML
 from ._util import maybe_bytes_to_unicode, to_xml, tags
 from .model import (
     HostedZone, RRSetType, RRSetKey, RRSet, AliasRRSet, Name, SOA, NS, A, CNAME,
+    AAAA,
 )
 
 # Route53 is has two endpoints both in us-east-1.
@@ -66,10 +67,12 @@ def get_route53_client(agent, region, cooperator=None):
     )
 
 
+# http://docs.aws.amazon.com/Route53/latest/DeveloperGuide/ResourceRecordTypes.html
 RECORD_TYPES = {
     u"SOA": SOA,
     u"NS": NS,
     u"A": A,
+    u"AAAA": AAAA,
     u"CNAME": CNAME,
 }
 
