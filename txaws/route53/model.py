@@ -129,8 +129,10 @@ class NS(object):
     def basic_from_element(cls, e):
         return cls(Name(maybe_bytes_to_unicode(e.find("Value").text)))
 
+
     def to_text(self):
         return unicode(self.nameserver)
+
 
 
 @provider(IResourceRecordLoader)
@@ -142,6 +144,7 @@ class A(object):
     @classmethod
     def basic_from_element(cls, e):
         return cls(IPv4Address(maybe_bytes_to_unicode(e.find("Value").text)))
+
 
     def to_text(self):
         return unicode(self.address)
@@ -158,9 +161,29 @@ class AAAA(object):
     def basic_from_element(cls, e):
         return cls(IPv6Address(maybe_bytes_to_unicode(e.find("Value").text)))
 
+
     def to_text(self):
         return unicode(self.address)
 
+
+
+@provider(IResourceRecordLoader)
+@implementer(IBasicResourceRecord)
+@attr.s(frozen=True)
+class MX(object):
+    name = attr.ib(validator=validators.instance_of(Name))
+    preference = attr.ib(validator=validators.instance_of(int))
+
+    @classmethod
+    def basic_from_element(cls, e):
+        parts = maybe_bytes_to_unicode(e.find("Value").text).split()
+        preference = int(parts[0])
+        name = parts[1]
+        return cls(Name(name), preference)
+
+
+    def to_text(self):
+        return u"{} {}".format(self.preference, self.name)
 
 
 
@@ -176,6 +199,8 @@ class CNAME(object):
 
     def to_text(self):
         return unicode(self.canonical_name)
+
+
 
 @provider(IResourceRecordLoader)
 @implementer(IBasicResourceRecord)

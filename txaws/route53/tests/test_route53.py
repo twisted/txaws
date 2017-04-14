@@ -20,7 +20,7 @@ from txaws.route53.model import (
     create_rrset, delete_rrset, upsert_rrset,
 )
 from txaws.route53.client import (
-    A, AAAA, NS, SOA, CNAME, Name, get_route53_client,
+    A, AAAA, MX, NS, SOA, CNAME, Name, get_route53_client,
 )
 
 from treq.testing import RequestTraversalAgent
@@ -315,6 +315,14 @@ class ListResourceRecordSetsTestCase(TXAWSTestCase):
             u"CNAME",
             CNAME(Name(u"bar")),
             u"<Value>bar</Value>",
+        )
+
+
+    def test_mx(self):
+        self._simple_record_test(
+            u"MX",
+            MX(Name(u"bar"), 15),
+            u"<Value>15 bar</Value>",
         )
 
 
