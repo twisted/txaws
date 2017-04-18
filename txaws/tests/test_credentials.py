@@ -2,7 +2,8 @@
 # Licenced under the txaws licence available at /LICENSE in the txaws source.
 
 from textwrap import dedent
-import os
+
+from twisted.trial.unittest import TestCase
 
 from txaws.credentials import (
     AWSCredentials,
@@ -12,45 +13,48 @@ from txaws.credentials import (
     ENV_SHARED_CREDENTIALS_FILE,
 )
 from txaws.exception import CredentialsNotFoundError
-from txaws.testing.base import TXAWSTestCase
 
 
-class CredentialsTestCase(TXAWSTestCase):
+class CredentialsTestCase(TestCase):
 
-    def test_no_access_errors(self):
+    def test_no_access_key(self):
         # Without anything in os.environ or in the shared credentials file,
         # AWSService() blows up
-        os.environ[ENV_SECRET_KEY] = "bar"
-        self.assertRaises(CredentialsNotFoundError, AWSCredentials)
+        with self.assertRaises(CredentialsNotFoundError):
+            AWSCredentials(environ={ENV_SECRET_KEY: "bar"})
 
-    def test_no_secret_errors(self):
+    def test_no_secret_key(self):
         # Without anything in os.environ or in the shared credentials file,
         # AWSService() blows up
-        os.environ[ENV_ACCESS_KEY] = "foo"
-        self.assertRaises(CredentialsNotFoundError, AWSCredentials)
+        with self.assertRaises(CredentialsNotFoundError):
+            AWSCredentials(environ={ENV_ACCESS_KEY: "foo"})
 
     def test_errors_are_valueerrors_for_backwards_compat(self):
         # For unfortunate backwards compatibility reasons, we raise an
         # exception that ValueError will catch
-        os.environ[ENV_SECRET_KEY] = "bar"
-        self.assertRaises(ValueError, AWSCredentials)
+        with self.assertRaises(ValueError):
+            AWSCredentials(environ={ENV_ACCESS_KEY: "foo"})
 
     def test_found_values_used(self):
-        os.environ[ENV_ACCESS_KEY] = "foo"
-        os.environ[ENV_SECRET_KEY] = "bar"
-        service = AWSCredentials()
+        service = AWSCredentials(
+            environ={ENV_ACCESS_KEY: "foo", ENV_SECRET_KEY: "bar"},
+        )
         self.assertEqual("foo", service.access_key)
         self.assertEqual("bar", service.secret_key)
 
     def test_explicit_access_key(self):
-        os.environ[ENV_SECRET_KEY] = "foo"
-        service = AWSCredentials(access_key="bar")
+        service = AWSCredentials(
+            access_key="bar",
+            environ={ENV_SECRET_KEY: "foo"},
+        )
         self.assertEqual("foo", service.secret_key)
         self.assertEqual("bar", service.access_key)
 
     def test_explicit_secret_key(self):
-        os.environ[ENV_ACCESS_KEY] = "bar"
-        service = AWSCredentials(secret_key="foo")
+        service = AWSCredentials(
+            secret_key="foo",
+            environ={ENV_ACCESS_KEY: "bar"},
+        )
         self.assertEqual("foo", service.secret_key)
         self.assertEqual("bar", service.access_key)
 
@@ -65,8 +69,9 @@ class CredentialsTestCase(TXAWSTestCase):
                     """
                 ),
             )
-        os.environ[ENV_SHARED_CREDENTIALS_FILE] = credentials_file.name
-        service = AWSCredentials()
+        service = AWSCredentials(
+            environ={ENV_SHARED_CREDENTIALS_FILE: credentials_file.name},
+        )
         self.assertEqual("foo", service.access_key)
         self.assertEqual("bar", service.secret_key)
 
@@ -81,11 +86,14 @@ class CredentialsTestCase(TXAWSTestCase):
                     """
                 ),
             )
-        os.environ[ENV_SHARED_CREDENTIALS_FILE] = credentials_file.name
-        os.environ[ENV_ACCESS_KEY] = "baz"
-        os.environ[ENV_SECRET_KEY] = "quux"
 
-        service = AWSCredentials()
+        service = AWSCredentials(
+            environ={
+                ENV_SHARED_CREDENTIALS_FILE: credentials_file.name,
+                ENV_ACCESS_KEY: "baz",
+                ENV_SECRET_KEY: "quux",
+            },
+        )
         self.assertEqual("baz", service.access_key)
         self.assertEqual("quux", service.secret_key)
 
@@ -100,10 +108,13 @@ class CredentialsTestCase(TXAWSTestCase):
                     """
                 ),
             )
-        os.environ[ENV_SHARED_CREDENTIALS_FILE] = credentials_file.name
-        os.environ[ENV_PROFILE] = "another"
 
-        service = AWSCredentials()
+        service = AWSCredentials(
+            environ={
+                ENV_SHARED_CREDENTIALS_FILE: credentials_file.name,
+                ENV_PROFILE: "another",
+            },
+        )
         self.assertEqual("foo", service.access_key)
         self.assertEqual("bar", service.secret_key)
 
@@ -118,11 +129,14 @@ class CredentialsTestCase(TXAWSTestCase):
                     """
                 ),
             )
-        os.environ[ENV_SHARED_CREDENTIALS_FILE] = credentials_file.name
-        os.environ[ENV_PROFILE] = "another"
 
         with self.assertRaises(CredentialsNotFoundError) as e:
-            AWSCredentials()
+            AWSCredentials(
+                environ={
+                    ENV_SHARED_CREDENTIALS_FILE: credentials_file.name,
+                    ENV_PROFILE: "another",
+                },
+            )
 
         self.assertIn("'another'", str(e.exception))
 
@@ -136,9 +150,10 @@ class CredentialsTestCase(TXAWSTestCase):
                     """
                 ),
             )
-        os.environ[ENV_SHARED_CREDENTIALS_FILE] = credentials_file.name
 
         with self.assertRaises(CredentialsNotFoundError) as e:
-            AWSCredentials()
+            AWSCredentials(
+                environ={ENV_SHARED_CREDENTIALS_FILE: credentials_file.name},
+            )
 
         self.assertIn("'aws_secret_access_key'", str(e.exception))
