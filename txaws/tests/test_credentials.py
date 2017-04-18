@@ -1,9 +1,12 @@
 # Copyright (C) 2009 Robert Collins <robertc@robertcollins.net>
 # Licenced under the txaws licence available at /LICENSE in the txaws source.
 
+from textwrap import dedent
 import os
 
-from txaws.credentials import AWSCredentials, ENV_ACCESS_KEY, ENV_SECRET_KEY
+from txaws.credentials import (
+    AWSCredentials, ENV_ACCESS_KEY, ENV_SECRET_KEY, ENV_SHARED_CREDENTIALS_FILE
+)
 from txaws.testing.base import TXAWSTestCase
 
 
@@ -37,3 +40,38 @@ class CredentialsTestCase(TXAWSTestCase):
         service = AWSCredentials(secret_key="foo")
         self.assertEqual("foo", service.secret_key)
         self.assertEqual("bar", service.access_key)
+
+    def test_explicit_shared_credentials_file(self):
+        with open(self.mktemp(), "w") as credentials_file:
+            credentials_file.write(
+                dedent(
+                    """
+                    [default]
+                    aws_access_key_id = foo
+                    aws_secret_access_key = bar
+                    """
+                ),
+            )
+        os.environ[ENV_SHARED_CREDENTIALS_FILE] = credentials_file.name
+        service = AWSCredentials()
+        self.assertEqual("foo", service.access_key)
+        self.assertEqual("bar", service.secret_key)
+
+    def test_explicit_shared_credentials_file_overridden(self):
+        with open(self.mktemp(), "w") as credentials_file:
+            credentials_file.write(
+                dedent(
+                    """
+                    [default]
+                    aws_access_key_id = foo
+                    aws_secret_access_key = bar
+                    """
+                ),
+            )
+        os.environ[ENV_SHARED_CREDENTIALS_FILE] = credentials_file.name
+        os.environ[ENV_ACCESS_KEY] = "baz"
+        os.environ[ENV_SECRET_KEY] = "quux"
+
+        service = AWSCredentials()
+        self.assertEqual("baz", service.access_key)
+        self.assertEqual("quux", service.secret_key)

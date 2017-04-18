@@ -3,6 +3,7 @@
 
 """Credentials for accessing AWS services."""
 
+from ConfigParser import SafeConfigParser
 import os
 
 from txaws.util import hmac_sha256, hmac_sha1
@@ -13,6 +14,7 @@ __all__ = ["AWSCredentials"]
 
 ENV_ACCESS_KEY = "AWS_ACCESS_KEY_ID"
 ENV_SECRET_KEY = "AWS_SECRET_ACCESS_KEY"
+ENV_SHARED_CREDENTIALS_FILE = "AWS_SHARED_CREDENTIALS_FILE"
 
 
 class AWSCredentials(object):
@@ -25,18 +27,21 @@ class AWSCredentials(object):
     """
 
     def __init__(self, access_key="", secret_key=""):
+        if not access_key:
+            access_key = os.environ.get(ENV_ACCESS_KEY)
+            if not access_key:
+                access_key = _load_shared_credentials().get(
+                    "default", "aws_access_key_id",
+                )
+        if not secret_key:
+            secret_key = os.environ.get(ENV_SECRET_KEY)
+            if not secret_key:
+                secret_key = _load_shared_credentials().get(
+                    "default", "aws_secret_access_key",
+                )
+
         self.access_key = access_key
         self.secret_key = secret_key
-        # perform checks for access key
-        if not self.access_key:
-            self.access_key = os.environ.get(ENV_ACCESS_KEY)
-        if not self.access_key:
-            raise ValueError("Could not find %s" % ENV_ACCESS_KEY)
-        # perform checks for secret key
-        if not self.secret_key:
-            self.secret_key = os.environ.get(ENV_SECRET_KEY)
-        if not self.secret_key:
-            raise ValueError("Could not find %s" % ENV_SECRET_KEY)
 
     def sign(self, bytes, hash_type="sha256"):
         """Sign some bytes."""
@@ -46,3 +51,16 @@ class AWSCredentials(object):
             return hmac_sha1(self.secret_key, bytes)
         else:
             raise RuntimeError("Unsupported hash type: '%s'" % hash_type)
+
+
+def _load_shared_credentials():
+    credentials_path = os.environ.get(
+        ENV_SHARED_CREDENTIALS_FILE,
+        os.path.expanduser("~/.aws/credentials"),
+    )
+    config = SafeConfigParser()
+    if not config.read([credentials_path]):
+        raise ValueError(
+            "Could not find credentials in the environment or filesystem",
+        )
+    return config

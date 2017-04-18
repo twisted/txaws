@@ -24,6 +24,7 @@ class TXAWSTestCase(TestCase):
         to_delete = [
             "AWS_ACCESS_KEY_ID",
             "AWS_SECRET_ACCESS_KEY",
+            "AWS_SHARED_CREDENTIALS_FILE",
             "AWS_ENDPOINT",
         ]
         for key in to_delete:
