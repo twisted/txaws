@@ -3,7 +3,7 @@
 
 """Credentials for accessing AWS services."""
 
-from ConfigParser import SafeConfigParser
+import ConfigParser
 import os
 
 from txaws.exception import CredentialsNotFoundError
@@ -14,6 +14,7 @@ __all__ = ["AWSCredentials"]
 
 
 ENV_ACCESS_KEY = "AWS_ACCESS_KEY_ID"
+ENV_PROFILE = "AWS_PROFILE"
 ENV_SECRET_KEY = "AWS_SECRET_ACCESS_KEY"
 ENV_SHARED_CREDENTIALS_FILE = "AWS_SHARED_CREDENTIALS_FILE"
 
@@ -43,15 +44,11 @@ class AWSCredentials(object):
         if not access_key:
             access_key = os.environ.get(ENV_ACCESS_KEY)
             if not access_key:
-                access_key = _load_shared_credentials().get(
-                    "default", "aws_access_key_id",
-                )
+                access_key, _ = _load_shared_credentials()
         if not secret_key:
             secret_key = os.environ.get(ENV_SECRET_KEY)
             if not secret_key:
-                secret_key = _load_shared_credentials().get(
-                    "default", "aws_secret_access_key",
-                )
+                _, secret_key = _load_shared_credentials()
 
         self.access_key = access_key
         self.secret_key = secret_key
@@ -66,14 +63,29 @@ class AWSCredentials(object):
             raise RuntimeError("Unsupported hash type: '%s'" % hash_type)
 
 
-def _load_shared_credentials():
+def _load_shared_credentials(profile=None):
+    if profile is None:
+        profile = os.environ.get(ENV_PROFILE, "default")
+
     credentials_path = os.environ.get(
         ENV_SHARED_CREDENTIALS_FILE,
         os.path.expanduser("~/.aws/credentials"),
     )
-    config = SafeConfigParser()
+    config = ConfigParser.SafeConfigParser()
     if not config.read([credentials_path]):
         raise _CompatCredentialsNotFoundError(
             "Could not find credentials in the environment or filesystem",
         )
-    return config
+
+    if not config.has_section(profile):
+        raise CredentialsNotFoundError("No such profile {!r}".format(profile))
+
+    try:
+        return (
+            config.get(profile, "aws_access_key_id"),
+            config.get(profile, "aws_secret_access_key"),
+        )
+    except ConfigParser.NoOptionError as error:
+        raise CredentialsNotFoundError(
+            "Profile {0.section!r} has no {0.option!r}".format(error),
+        )

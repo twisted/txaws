@@ -5,7 +5,11 @@ from textwrap import dedent
 import os
 
 from txaws.credentials import (
-    AWSCredentials, ENV_ACCESS_KEY, ENV_SECRET_KEY, ENV_SHARED_CREDENTIALS_FILE
+    AWSCredentials,
+    ENV_ACCESS_KEY,
+    ENV_PROFILE,
+    ENV_SECRET_KEY,
+    ENV_SHARED_CREDENTIALS_FILE,
 )
 from txaws.exception import CredentialsNotFoundError
 from txaws.testing.base import TXAWSTestCase
@@ -84,3 +88,57 @@ class CredentialsTestCase(TXAWSTestCase):
         service = AWSCredentials()
         self.assertEqual("baz", service.access_key)
         self.assertEqual("quux", service.secret_key)
+
+    def test_non_default_profile(self):
+        with open(self.mktemp(), "w") as credentials_file:
+            credentials_file.write(
+                dedent(
+                    """
+                    [another]
+                    aws_access_key_id = foo
+                    aws_secret_access_key = bar
+                    """
+                ),
+            )
+        os.environ[ENV_SHARED_CREDENTIALS_FILE] = credentials_file.name
+        os.environ[ENV_PROFILE] = "another"
+
+        service = AWSCredentials()
+        self.assertEqual("foo", service.access_key)
+        self.assertEqual("bar", service.secret_key)
+
+    def test_no_such_profile(self):
+        with open(self.mktemp(), "w") as credentials_file:
+            credentials_file.write(
+                dedent(
+                    """
+                    [default]
+                    aws_access_key_id = foo
+                    aws_secret_access_key = bar
+                    """
+                ),
+            )
+        os.environ[ENV_SHARED_CREDENTIALS_FILE] = credentials_file.name
+        os.environ[ENV_PROFILE] = "another"
+
+        with self.assertRaises(CredentialsNotFoundError) as e:
+            AWSCredentials()
+
+        self.assertIn("'another'", str(e.exception))
+
+    def test_missing_option(self):
+        with open(self.mktemp(), "w") as credentials_file:
+            credentials_file.write(
+                dedent(
+                    """
+                    [default]
+                    aws_access_key_id = foo
+                    """
+                ),
+            )
+        os.environ[ENV_SHARED_CREDENTIALS_FILE] = credentials_file.name
+
+        with self.assertRaises(CredentialsNotFoundError) as e:
+            AWSCredentials()
+
+        self.assertIn("'aws_secret_access_key'", str(e.exception))
