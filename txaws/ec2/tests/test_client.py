@@ -20,6 +20,7 @@ from txaws.credentials import AWSCredentials
 from txaws.ec2 import client
 from txaws.ec2 import model
 from txaws.ec2.exception import EC2Error
+from txaws.exception import CredentialsNotFoundError
 from txaws.service import AWSServiceEndpoint, EC2_ENDPOINT_US
 from txaws.testing import payload
 from txaws.testing.base import TXAWSTestCase
@@ -94,7 +95,7 @@ class EC2ClientTestCase(TXAWSTestCase):
         return ec2.describe_instances()
 
     def test_init_no_creds_non_available_errors(self):
-        self.assertRaises(ValueError, client.EC2Client)
+        self.assertRaises(CredentialsNotFoundError, client.EC2Client)
 
     def test_init_explicit_creds(self):
         creds = AWSCredentials("foo", "bar")
