@@ -189,9 +189,12 @@ class CertsFilesTestCase(TestCase):
         return full_path
 
     def test_get_ca_certs_no_certs(self):
-        os.environ["TXAWS_CERTS_PATH"] = self.no_certs_dir
         self.patch(ssl, "DEFAULT_CERTS_PATH", self.no_certs_dir)
-        self.assertRaises(exception.CertsNotFoundError, ssl.get_ca_certs)
+        self.assertRaises(
+            exception.CertsNotFoundError,
+            ssl.get_ca_certs,
+            environ={"TXAWS_CERTS_PATH": self.no_certs_dir},
+        )
 
     def test_get_ca_certs_with_default_path(self):
         self.patch(ssl, "DEFAULT_CERTS_PATH", self.two_certs_dir)
@@ -199,20 +202,29 @@ class CertsFilesTestCase(TestCase):
         self.assertEqual(len(certs), 2)
 
     def test_get_ca_certs_with_env_path(self):
-        os.environ["TXAWS_CERTS_PATH"] = self.one_cert_dir
-        certs = ssl.get_ca_certs()
+        certs = ssl.get_ca_certs(
+            environ={"TXAWS_CERTS_PATH": self.one_cert_dir},
+        )
         self.assertEqual(len(certs), 1)
 
     def test_get_ca_certs_multiple_paths(self):
-        os.environ["TXAWS_CERTS_PATH"] = "%s:%s" % (
-            self.one_cert_dir, self.two_certs_dir)
-        certs = ssl.get_ca_certs()
+        certs = ssl.get_ca_certs(
+            environ={
+                "TXAWS_CERTS_PATH": "%s:%s" % (
+                    self.one_cert_dir, self.two_certs_dir,
+                ),
+            },
+        )
         self.assertEqual(len(certs), 3)
 
     def test_get_ca_certs_one_empty_path(self):
-        os.environ["TXAWS_CERTS_PATH"] = "%s:%s" % (
-            self.no_certs_dir, self.one_cert_dir)
-        certs = ssl.get_ca_certs()
+        certs = ssl.get_ca_certs(
+            environ={
+                "TXAWS_CERTS_PATH": "%s:%s" % (
+                    self.no_certs, self.one_cert_dir,
+                ),
+            },
+        )
         self.assertEqual(len(certs), 1)
 
     def test_get_ca_certs_no_current_dir(self):
@@ -222,5 +234,8 @@ class CertsFilesTestCase(TestCase):
         """
         self.addCleanup(os.chdir, os.getcwd())
         os.chdir(self.one_cert_dir)
-        os.environ["TXAWS_CERTS_PATH"] = "%s:" % self.no_certs_dir
-        self.assertRaises(exception.CertsNotFoundError, ssl.get_ca_certs)
+        self.assertRaises(
+            exception.CertsNotFoundError,
+            ssl.get_ca_certs,
+            environ={"TXAWS_CERTS_PATH": "%s:" % self.no_certs_dir},
+        )

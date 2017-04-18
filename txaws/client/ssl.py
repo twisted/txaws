@@ -83,7 +83,7 @@ class VerifyingContextFactory(CertificateOptions):
         return context
 
 
-def get_ca_certs():
+def get_ca_certs(environ=os.environ):
     """
     Retrieve a list of CAs at either the DEFAULT_CERTS_PATH or the env
     override, TXAWS_CERTS_PATH.
@@ -96,7 +96,7 @@ def get_ca_certs():
     Note that both of these variables have have multiple paths in them, just
     like the familiar PATH environment variable (separated by colons).
     """
-    cert_paths = os.getenv("TXAWS_CERTS_PATH", DEFAULT_CERTS_PATH).split(":")
+    cert_paths = environ.get("TXAWS_CERTS_PATH", DEFAULT_CERTS_PATH).split(":")
     certificate_authority_map = {}
     for path in cert_paths:
         if not path:
