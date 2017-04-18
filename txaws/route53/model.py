@@ -253,6 +253,14 @@ def _quote(text):
 @implementer(IBasicResourceRecord)
 @attr.s(frozen=True)
 class NAPTR(object):
+    """
+    Represent a Name Authority Pointer record.
+
+    See AWS API documentation for this type for restrictions on field values.
+    This object does not enforce these restrictions beyond simple type
+    constraints but attempting to send out-of-bounds values to the AWS Route53
+    API may provoke an error.
+    """
     order = attr.ib(validator=validators.instance_of(int))
     preference = attr.ib(validator=validators.instance_of(int))
     flag = attr.ib(validator=validators.instance_of(unicode))
