@@ -7,12 +7,13 @@ from cStringIO import StringIO
 import os
 import sys
 
+from twisted.trial.unittest import TestCase
+
 from txaws.client.discover.entry_point import (
     OptionError, UsageError, get_command, main, parse_options, USAGE_MESSAGE)
-from txaws.testing.base import TXAWSTestCase
 
 
-class ParseOptionsTestCase(TXAWSTestCase):
+class ParseOptionsTestCase(TestCase):
 
     def test_parse_options(self):
         """
@@ -165,7 +166,7 @@ class ParseOptionsTestCase(TXAWSTestCase):
                            "--action", "action", "--help"])
 
 
-class GetCommandTestCase(TXAWSTestCase):
+class GetCommandTestCase(TestCase):
 
     def test_get_command_without_arguments(self):
         """An L{OptionError} is raised if no arguments are provided."""
@@ -223,7 +224,7 @@ class GetCommandTestCase(TXAWSTestCase):
         self.assertEqual({"Region.Name.0": "us-west-1"}, command.parameters)
 
 
-class MainTestCase(TXAWSTestCase):
+class MainTestCase(TestCase):
 
     def test_usage_message(self):
         """

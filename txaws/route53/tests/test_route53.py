@@ -6,13 +6,13 @@ Tests for ``txaws.route53``.
 
 from ipaddress import IPv4Address, IPv6Address
 
+from twisted.internet.task import Cooperator
+from twisted.trial.unittest import TestCase
 from twisted.web.static import Data
 from twisted.web.resource import IResource, Resource
-from twisted.internet.task import Cooperator
 
 from txaws.service import AWSServiceRegion
 from txaws.testing.integration import get_live_service
-from txaws.testing.base import TXAWSTestCase
 from txaws.testing.route53_tests import route53_integration_tests
 
 from txaws.route53.model import (
@@ -174,7 +174,7 @@ class sample_list_resource_records_with_alias_result(object):
 """.format(normal=normal_xml, alias=alias_xml).encode("utf-8")
 
 
-class ListHostedZonesTestCase(TXAWSTestCase):
+class ListHostedZonesTestCase(TestCase):
     """
     Tests for C{list_hosted_zones}.
     """
@@ -194,7 +194,7 @@ class ListHostedZonesTestCase(TXAWSTestCase):
         self.assertEquals(expected, zones)
 
 
-class ListResourceRecordSetsTestCase(TXAWSTestCase):
+class ListResourceRecordSetsTestCase(TestCase):
     """
     Tests for C{list_resource_record_sets}.
     """
@@ -499,7 +499,7 @@ class ListResourceRecordSetsTestCase(TXAWSTestCase):
 
 
 
-class ChangeResourceRecordSetsTestCase(TXAWSTestCase):
+class ChangeResourceRecordSetsTestCase(TestCase):
     """
     Tests for C{change_resource_record_sets}.
     """

@@ -11,6 +11,7 @@ from twisted.protocols.policies import WrappingFactory
 from twisted.python import log
 from twisted.python.filepath import FilePath
 from twisted.test.test_sslverify import makeCertificate
+from twisted.trial.unittest import TestCase
 from twisted.web import server, static
 
 try:
@@ -22,7 +23,6 @@ from txaws import exception
 from txaws.client import ssl
 from txaws.client.base import BaseQuery
 from txaws.service import AWSServiceEndpoint
-from txaws.testing.base import TXAWSTestCase
 
 
 def sibpath(path):
@@ -42,7 +42,7 @@ class WebDefaultOpenSSLContextFactory(DefaultOpenSSLContextFactory):
         return DefaultOpenSSLContextFactory.getContext(self)
 
 
-class BaseQuerySSLTestCase(TXAWSTestCase):
+class BaseQuerySSLTestCase(TestCase):
 
     def setUp(self):
         self.cleanupServerConnections = 0
@@ -153,7 +153,7 @@ class BaseQuerySSLTestCase(TXAWSTestCase):
             "subjectAltName not supported by older PyOpenSSL")
 
 
-class CertsFilesTestCase(TXAWSTestCase):
+class CertsFilesTestCase(TestCase):
 
     def setUp(self):
         super(CertsFilesTestCase, self).setUp()

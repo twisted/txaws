@@ -6,14 +6,15 @@ Tests for L{txaws.route53.model}.
 
 from ipaddress import IPv4Address
 
-from txaws.util import XML
-from txaws.testing.base import TXAWSTestCase
+from twisted.trial.unittest import TestCase
 
 from txaws.route53.model import (
     Name, SOA, NS, CNAME, A,
 )
+from txaws.util import XML
 
-class BasicResourceRecordTestCase(TXAWSTestCase):
+
+class BasicResourceRecordTestCase(TestCase):
     """
     Tests for L{IBasicResourceRecord} model objects.
     """
