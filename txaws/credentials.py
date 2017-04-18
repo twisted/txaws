@@ -6,6 +6,8 @@
 import ConfigParser
 import os
 
+import attr
+
 from txaws.exception import CredentialsNotFoundError
 from txaws.util import hmac_sha256, hmac_sha1
 
@@ -26,6 +28,7 @@ class _CompatCredentialsNotFoundError(CredentialsNotFoundError, ValueError):
     """
 
 
+@attr.s(init=False)
 class AWSCredentials(object):
     """Create an AWSCredentials object.
 
@@ -40,6 +43,9 @@ class AWSCredentials(object):
         I{An L{ValueError} was previously raised in this case, but this
         usage is deprecated and will be removed.}
     """
+
+    access_key = attr.ib()
+    secret_key = attr.ib(repr=False)
 
     def __init__(self, access_key="", secret_key="", environ=os.environ):
         if not access_key:
