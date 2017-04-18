@@ -68,6 +68,7 @@ def get_route53_client(agent, region, cooperator=None):
 
 
 # http://docs.aws.amazon.com/Route53/latest/DeveloperGuide/ResourceRecordTypes.html
+# API Version 2013-04-01
 RECORD_TYPES = {
     u"SOA": SOA,
     u"NS": NS,
