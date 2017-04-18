@@ -299,14 +299,16 @@ class ListResourceRecordSetsTestCase(TXAWSTestCase):
     def test_a(self):
         self._simple_record_test(
             u"A",
-            A(IPv4Address(u"10.0.0.1")),
+            # RFC 5737 suggests an address like this one.
+            A(IPv4Address(u"192.0.2.1")),
         )
 
 
     def test_aaaa(self):
         self._simple_record_test(
             u"AAAA",
-            AAAA(IPv6Address(u"::1")),
+            # RFC 3849 suggests an address like this one.
+            AAAA(IPv6Address(u"2001:DB8::d0c")),
         )
 
 
@@ -362,7 +364,8 @@ class ListResourceRecordSetsTestCase(TXAWSTestCase):
     def test_spf(self):
         self._simple_record_test(
             u"SPF",
-            SPF(u"v=spf1 ip4:192.168.0.1/16 -all"),
+            # RFC 5737 suggests an address like this one.
+            SPF(u"v=spf1 ip4:192.0.2.1/16 -all"),
         )
 
 
