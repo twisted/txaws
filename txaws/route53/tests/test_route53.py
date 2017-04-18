@@ -1,3 +1,10 @@
+# Licenced under the txaws licence available at /LICENSE in the txaws source.
+
+"""
+Tests for ``txaws.route53``.
+"""
+
+from ipaddress import IPv4Address, IPv6Address
 
 from twisted.web.static import Data
 from twisted.web.resource import IResource, Resource
@@ -13,7 +20,9 @@ from txaws.route53.model import (
     create_rrset, delete_rrset, upsert_rrset,
 )
 from txaws.route53.client import (
-    NS, SOA, CNAME, Name, get_route53_client,
+    A, AAAA, NAPTR, PTR, SPF, SRV, TXT, MX, NS, SOA, CNAME,
+    UnknownRecordType,
+    Name, get_route53_client,
 )
 
 from treq.testing import RequestTraversalAgent
@@ -206,7 +215,7 @@ class ListResourceRecordSetsTestCase(TXAWSTestCase):
         return get_route53_client(agent, aws, uncooperator())
 
 
-    def test_some_records(self):
+    def test_soa_ns_cname(self):
         zone_id = b"ABCDEF1234"
         client = self._client_for_rrsets(
             zone_id, sample_list_resource_record_sets_result.xml,
@@ -247,6 +256,202 @@ class ListResourceRecordSetsTestCase(TXAWSTestCase):
             ),
         }
         self.assertEquals(rrsets, expected)
+
+
+    def _simple_record_test(self, record_type, record):
+        zone_id = b"ABCDEF1234"
+        template = u"""\
+<?xml version="1.0"?>
+<ListResourceRecordSetsResponse xmlns="https://route53.amazonaws.com/doc/2013-04-01/">
+  <ResourceRecordSets>
+    <ResourceRecordSet>
+      <Name>{label}</Name>
+      <Type>{type}</Type>
+      <TTL>{ttl}</TTL>
+      <ResourceRecords>
+        <ResourceRecord><Value>{record}</Value></ResourceRecord>
+      </ResourceRecords>
+    </ResourceRecordSet>
+  </ResourceRecordSets>
+  <IsTruncated>false</IsTruncated>
+  <MaxItems>100</MaxItems>
+</ListResourceRecordSetsResponse>
+"""
+        label = Name(u"foo")
+        client = self._client_for_rrsets(
+            zone_id, template.format(
+                label=label,
+                type=record_type,
+                ttl=60, record=record.to_text(),
+            ).encode("utf-8")
+        )
+        expected = {
+            RRSetKey(label=label, type=record_type): RRSet(
+                label=label, type=record_type, ttl=60, records={record},
+            ),
+        }
+        rrsets = self.successResultOf(
+            client.list_resource_record_sets(zone_id=zone_id),
+        )
+        self.assertEquals(expected, rrsets)
+
+
+    def test_a(self):
+        self._simple_record_test(
+            u"A",
+            # RFC 5737 suggests an address like this one.
+            A(IPv4Address(u"192.0.2.1")),
+        )
+
+
+    def test_aaaa(self):
+        self._simple_record_test(
+            u"AAAA",
+            # RFC 3849 suggests an address like this one.
+            AAAA(IPv6Address(u"2001:DB8::d0c")),
+        )
+
+
+    def test_cname(self):
+        self._simple_record_test(
+            u"CNAME",
+            CNAME(Name(u"bar")),
+        )
+
+
+    def test_mx(self):
+        self._simple_record_test(
+            u"MX",
+            MX(Name(u"bar"), 15),
+        )
+
+
+    def test_naptr_with_regexp(self):
+        self._simple_record_test(
+            u"NAPTR",
+            NAPTR(
+                order=3,
+                preference=7,
+                flag=u"SUP",
+                service=u"E2U+sip",
+                regexp=u"!^(\\+441632960083)$!sip:\\1@example.test!",
+                replacement=Name(u"."),
+            ),
+        )
+
+
+    def test_naptr_with_replacement(self):
+        self._simple_record_test(
+            u"NAPTR",
+            NAPTR(
+                order=3,
+                preference=7,
+                flag=u"SUP",
+                service=u"E2U+sip",
+                regexp=u"",
+                replacement=Name(u"foo.example.test."),
+            ),
+        )
+
+
+    def test_ptr(self):
+        self._simple_record_test(
+            u"PTR",
+            PTR(Name(u"foo.example.test")),
+        )
+
+
+    def test_spf(self):
+        self._simple_record_test(
+            u"SPF",
+            # RFC 5737 suggests an address like this one.
+            SPF(u"v=spf1 ip4:192.0.2.1/24 -all"),
+        )
+
+
+    def test_srv(self):
+        self._simple_record_test(
+            u"SRV",
+            SRV(1, 2, 3, Name("example.test")),
+        )
+
+
+    def test_txt(self):
+        self._simple_record_test(
+            u"TXT",
+            TXT([
+                u"foo bar baz quux",
+                u"bzzzzzt",
+                u"\"",
+                u"\N{LATIN SMALL LETTER E WITH ACUTE}",
+            ]),
+        )
+
+
+    def test_txt_encoding(self):
+        self.assertEqual(
+            u'"foo bar baz quux" "bzzzzzt" "\\""',
+            TXT([
+                u"foo bar baz quux",
+                u"bzzzzzt",
+                u"\"",
+            ]).to_text(),
+        )
+
+        # TODO: Proper octal encoding/decoding for special characters.
+        # self.assertEqual(
+        #     u'"octal encoding example" "\\351"',
+        #     TXT([
+        #         u"octal encoding example",
+        #         u"\N{LATIN SMALL LETTER E WITH ACUTE}",
+        #     ]).to_text(),
+        # )
+
+
+    def test_unknown_record_type_roundtrip(self):
+        self.assertEqual(
+            u"foo bar baz",
+            UnknownRecordType(u"foo bar baz").to_text(),
+        )
+
+
+    def test_unknown_record_type(self):
+        zone_id = b"ABCDEF1234"
+        template = u"""\
+<?xml version="1.0"?>
+<ListResourceRecordSetsResponse xmlns="https://route53.amazonaws.com/doc/2013-04-01/">
+  <ResourceRecordSets>
+    <ResourceRecordSet>
+      <Name>{label}</Name>
+      <Type>{type}</Type>
+      <TTL>{ttl}</TTL>
+      <ResourceRecords>
+        <ResourceRecord><Value>{record}</Value></ResourceRecord>
+      </ResourceRecords>
+    </ResourceRecordSet>
+  </ResourceRecordSets>
+  <IsTruncated>false</IsTruncated>
+  <MaxItems>100</MaxItems>
+</ListResourceRecordSetsResponse>
+"""
+        label = Name(u"foo")
+        client = self._client_for_rrsets(
+            zone_id, template.format(
+                label=label,
+                type=u"X-TXAWS-FICTIONAL",
+                ttl=60, record=u"good luck interpreting this",
+            ).encode("utf-8")
+        )
+        expected = {
+            RRSetKey(label=label, type=u"X-TXAWS-FICTIONAL"): RRSet(
+                label=label, type=u"X-TXAWS-FICTIONAL", ttl=60,
+                records={UnknownRecordType(u"good luck interpreting this")},
+            ),
+        }
+        rrsets = self.successResultOf(
+            client.list_resource_record_sets(zone_id=zone_id),
+        )
+        self.assertEquals(expected, rrsets)
 
 
     def test_alias_records(self):
