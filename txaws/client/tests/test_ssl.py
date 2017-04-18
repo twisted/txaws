@@ -221,7 +221,7 @@ class CertsFilesTestCase(TestCase):
         certs = ssl.get_ca_certs(
             environ={
                 "TXAWS_CERTS_PATH": "%s:%s" % (
-                    self.no_certs, self.one_cert_dir,
+                    self.no_certs_dir, self.one_cert_dir,
                 ),
             },
         )

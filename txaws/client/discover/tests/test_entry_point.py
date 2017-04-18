@@ -75,7 +75,7 @@ class ParseOptionsTestCase(TestCase):
         If the C{AWS_ACCESS_KEY_ID} environment variable is present, it will
         be used if the C{--key} command-line argument isn't specified.
         """
-        os.environ["AWS_ACCESS_KEY_ID"] = "key"
+        self.patch(os, "environ", {"AWS_ACCESS_KEY_ID": "key"})
         options = parse_options([
             "txaws-discover", "--secret", "secret", "--endpoint", "endpoint",
             "--action", "action"])
@@ -89,7 +89,7 @@ class ParseOptionsTestCase(TestCase):
         preferred over the value specified in the C{AWS_ACCESS_KEY_ID}
         environment variable.
         """
-        os.environ["AWS_ACCESS_KEY_ID"] = "fail"
+        self.patch(os, "environ", {"AWS_ACCESS_KEY_ID": "fail"})
         options = parse_options([
             "txaws-discover", "--key", "key", "--secret", "secret",
             "--endpoint", "endpoint", "--action", "action"])
@@ -102,7 +102,7 @@ class ParseOptionsTestCase(TestCase):
         If the C{AWS_SECRET_ACCESS_KEY} environment variable is present, it
         will be used if the C{--secret} command-line argument isn't specified.
         """
-        os.environ["AWS_SECRET_ACCESS_KEY"] = "secret"
+        self.patch(os, "environ", {"AWS_SECRET_ACCESS_KEY": "secret"})
         options = parse_options([
             "txaws-discover", "--key", "key", "--endpoint", "endpoint",
             "--action", "action"])
@@ -116,7 +116,7 @@ class ParseOptionsTestCase(TestCase):
         be preferred over the value specified in the C{AWS_SECRET_ACCESS_KEY}
         environment variable.
         """
-        os.environ["AWS_SECRET_ACCESS_KEY"] = "fail"
+        self.patch(os, "environ", {"AWS_SECRET_ACCESS_KEY": "fail"})
         options = parse_options([
             "txaws-discover", "--key", "key", "--secret", "secret",
             "--endpoint", "endpoint", "--action", "action"])
@@ -129,7 +129,7 @@ class ParseOptionsTestCase(TestCase):
         If the C{AWS_ENDPOINT} environment variable is present, it will be
         used if the C{--endpoint} command-line argument isn't specified.
         """
-        os.environ["AWS_ENDPOINT"] = "endpoint"
+        self.patch(os, "environ", {"AWS_ENDPOINT": "endpoint"})
         options = parse_options([
             "txaws-discover", "--key", "key", "--secret", "secret",
             "--action", "action"])
@@ -143,7 +143,7 @@ class ParseOptionsTestCase(TestCase):
         will be preferred over the value specified in the C{AWS_ENDPOINT}
         environment variable.
         """
-        os.environ["AWS_ENDPOINT"] = "fail"
+        self.patch(os, "environ", {"AWS_ENDPOINT": "fail"})
         options = parse_options([
             "txaws-discover", "--key", "key", "--secret", "secret",
             "--endpoint", "endpoint", "--action", "action"])

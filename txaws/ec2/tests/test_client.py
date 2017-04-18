@@ -64,8 +64,12 @@ class InstanceTestCase(TestCase):
 class EC2ClientTestCase(TestCase):
 
     def test_init_no_creds(self):
-        os.environ["AWS_SECRET_ACCESS_KEY"] = "foo"
-        os.environ["AWS_ACCESS_KEY_ID"] = "bar"
+        self.patch(
+            os, "environ", {
+                "AWS_SECRET_ACCESS_KEY": "foo",
+                "AWS_ACCESS_KEY_ID": "bar",
+            },
+        )
         ec2 = client.EC2Client()
         self.assertNotEqual(None, ec2.creds)
 
