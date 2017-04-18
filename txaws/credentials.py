@@ -6,6 +6,7 @@
 from ConfigParser import SafeConfigParser
 import os
 
+from txaws.exception import CredentialsNotFoundError
 from txaws.util import hmac_sha256, hmac_sha1
 
 
@@ -60,7 +61,7 @@ def _load_shared_credentials():
     )
     config = SafeConfigParser()
     if not config.read([credentials_path]):
-        raise ValueError(
+        raise CredentialsNotFoundError(
             "Could not find credentials in the environment or filesystem",
         )
     return config
