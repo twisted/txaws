@@ -334,7 +334,7 @@ class ListResourceRecordSetsTestCase(TXAWSTestCase):
                 preference=7,
                 flag=u"SUP",
                 service=u"E2U+sip",
-                regexp=u"!^(\\+441632960083)$!sip:\\1@example.com!",
+                regexp=u"!^(\\+441632960083)$!sip:\\1@example.test!",
                 replacement=Name(u"."),
             ),
         )
@@ -349,7 +349,7 @@ class ListResourceRecordSetsTestCase(TXAWSTestCase):
                 flag=u"SUP",
                 service=u"E2U+sip",
                 regexp=u"",
-                replacement=Name(u"foo.example.com."),
+                replacement=Name(u"foo.example.test."),
             ),
         )
 
@@ -357,7 +357,7 @@ class ListResourceRecordSetsTestCase(TXAWSTestCase):
     def test_ptr(self):
         self._simple_record_test(
             u"PTR",
-            PTR(Name(u"foo.example.com")),
+            PTR(Name(u"foo.example.test")),
         )
 
 
@@ -372,7 +372,7 @@ class ListResourceRecordSetsTestCase(TXAWSTestCase):
     def test_srv(self):
         self._simple_record_test(
             u"SRV",
-            SRV(1, 2, 3, Name("example.invalid")),
+            SRV(1, 2, 3, Name("example.test")),
         )
 
 
