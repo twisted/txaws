@@ -365,7 +365,7 @@ class ListResourceRecordSetsTestCase(TXAWSTestCase):
         self._simple_record_test(
             u"SPF",
             # RFC 5737 suggests an address like this one.
-            SPF(u"v=spf1 ip4:192.0.2.1/16 -all"),
+            SPF(u"v=spf1 ip4:192.0.2.1/24 -all"),
         )
 
 
