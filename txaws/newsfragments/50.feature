@@ -1,0 +1,1 @@
+The Route53 client now recognizes all of the basic resource record types.
