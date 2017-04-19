@@ -17,7 +17,7 @@ from twisted.web import server, static, util
 from twisted.web.error import Error as TwistedWebError
 
 from txaws.util import iso8601time
-from txaws.credentials import AWSCredentials
+from txaws.credentials import ENV_ACCESS_KEY, ENV_SECRET_KEY, AWSCredentials
 from txaws.ec2 import client
 from txaws.ec2 import model
 from txaws.ec2.exception import EC2Error
@@ -64,14 +64,13 @@ class InstanceTestCase(TestCase):
 class EC2ClientTestCase(TestCase):
 
     def test_init_no_creds(self):
-        self.patch(
-            os, "environ", {
-                "AWS_SECRET_ACCESS_KEY": "foo",
-                "AWS_ACCESS_KEY_ID": "bar",
-            },
-        )
+        self.addCleanup(os.environ.clear)
+        self.addCleanup(os.environ.update, os.environ.copy())
+        os.environ.clear()
+        os.environ.update([(ENV_ACCESS_KEY, "foo"), (ENV_SECRET_KEY, "bar")])
+
         ec2 = client.EC2Client()
-        self.assertNotEqual(None, ec2.creds)
+        self.assertIsNotNone(ec2.creds)
 
     def test_post_method(self):
         """
