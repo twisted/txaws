@@ -32,6 +32,11 @@ class AWSCredentials(object):
         AWS_ACCESS_KEY_ID is consulted.
     @param secret_key: The secret key to use. If None the environment variable
         AWS_SECRET_ACCESS_KEY is consulted.
+    @raise CredentialsNotFoundError: No access key or secret was provided, nor
+        could they be found in the environment or filesystem.
+
+        I{An L{ValueError} was previously raised in this case, but this
+        usage is deprecated and will be removed.}
     """
 
     def __init__(self, access_key="", secret_key=""):
