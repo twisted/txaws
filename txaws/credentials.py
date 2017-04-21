@@ -18,6 +18,13 @@ ENV_SECRET_KEY = "AWS_SECRET_ACCESS_KEY"
 ENV_SHARED_CREDENTIALS_FILE = "AWS_SHARED_CREDENTIALS_FILE"
 
 
+class _CompatCredentialsNotFoundError(CredentialsNotFoundError, ValueError):
+    """
+    To nudge external code from ValueErrors, we raise a compatibility subclass.
+
+    """
+
+
 class AWSCredentials(object):
     """Create an AWSCredentials object.
 
@@ -61,7 +68,7 @@ def _load_shared_credentials():
     )
     config = SafeConfigParser()
     if not config.read([credentials_path]):
-        raise CredentialsNotFoundError(
+        raise _CompatCredentialsNotFoundError(
             "Could not find credentials in the environment or filesystem",
         )
     return config

@@ -25,6 +25,12 @@ class CredentialsTestCase(TXAWSTestCase):
         os.environ[ENV_ACCESS_KEY] = "foo"
         self.assertRaises(CredentialsNotFoundError, AWSCredentials)
 
+    def test_errors_are_valueerrors_for_backwards_compat(self):
+        # For unfortunate backwards compatibility reasons, we raise an
+        # exception that ValueError will catch
+        os.environ[ENV_SECRET_KEY] = "bar"
+        self.assertRaises(ValueError, AWSCredentials)
+
     def test_found_values_used(self):
         os.environ[ENV_ACCESS_KEY] = "foo"
         os.environ[ENV_SECRET_KEY] = "bar"
