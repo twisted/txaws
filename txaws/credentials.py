@@ -21,7 +21,6 @@ ENV_SHARED_CREDENTIALS_FILE = "AWS_SHARED_CREDENTIALS_FILE"
 class _CompatCredentialsNotFoundError(CredentialsNotFoundError, ValueError):
     """
     To nudge external code from ValueErrors, we raise a compatibility subclass.
-
     """
 
 
@@ -35,7 +34,7 @@ class AWSCredentials(object):
     @raise CredentialsNotFoundError: No access key or secret was provided, nor
         could they be found in the environment or filesystem.
 
-        I{An L{ValueError} was previously raised in this case, but this
+        I{A L{ValueError} was previously raised in this case, but this
         usage is deprecated and will be removed.}
     """
 
