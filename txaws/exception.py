@@ -132,3 +132,9 @@ class CertsNotFoundError(Exception):
     """
     txAWS was not able to find any SSL certificates.
     """
+
+
+class CredentialsNotFoundError(Exception):
+    """
+    txAWS failed to locate access credentials, and none were explicitly given.
+    """

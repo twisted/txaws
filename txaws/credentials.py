@@ -6,6 +6,7 @@
 from ConfigParser import SafeConfigParser
 import os
 
+from txaws.exception import CredentialsNotFoundError
 from txaws.util import hmac_sha256, hmac_sha1
 
 
@@ -17,6 +18,12 @@ ENV_SECRET_KEY = "AWS_SECRET_ACCESS_KEY"
 ENV_SHARED_CREDENTIALS_FILE = "AWS_SHARED_CREDENTIALS_FILE"
 
 
+class _CompatCredentialsNotFoundError(CredentialsNotFoundError, ValueError):
+    """
+    To nudge external code from ValueErrors, we raise a compatibility subclass.
+    """
+
+
 class AWSCredentials(object):
     """Create an AWSCredentials object.
 
@@ -24,6 +31,11 @@ class AWSCredentials(object):
         AWS_ACCESS_KEY_ID is consulted.
     @param secret_key: The secret key to use. If None the environment variable
         AWS_SECRET_ACCESS_KEY is consulted.
+    @raise CredentialsNotFoundError: No access key or secret was provided, nor
+        could they be found in the environment or filesystem.
+
+        I{A L{ValueError} was previously raised in this case, but this
+        usage is deprecated and will be removed.}
     """
 
     def __init__(self, access_key="", secret_key=""):
@@ -60,7 +72,7 @@ def _load_shared_credentials():
     )
     config = SafeConfigParser()
     if not config.read([credentials_path]):
-        raise ValueError(
+        raise _CompatCredentialsNotFoundError(
             "Could not find credentials in the environment or filesystem",
         )
     return config

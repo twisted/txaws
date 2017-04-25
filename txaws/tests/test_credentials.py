@@ -7,19 +7,28 @@ import os
 from txaws.credentials import (
     AWSCredentials, ENV_ACCESS_KEY, ENV_SECRET_KEY, ENV_SHARED_CREDENTIALS_FILE
 )
+from txaws.exception import CredentialsNotFoundError
 from txaws.testing.base import TXAWSTestCase
 
 
 class CredentialsTestCase(TXAWSTestCase):
 
     def test_no_access_errors(self):
-        # Without anything in os.environ, AWSService() blows up
+        # Without anything in os.environ or in the shared credentials file,
+        # AWSService() blows up
         os.environ[ENV_SECRET_KEY] = "bar"
-        self.assertRaises(ValueError, AWSCredentials)
+        self.assertRaises(CredentialsNotFoundError, AWSCredentials)
 
     def test_no_secret_errors(self):
-        # Without anything in os.environ, AWSService() blows up
+        # Without anything in os.environ or in the shared credentials file,
+        # AWSService() blows up
         os.environ[ENV_ACCESS_KEY] = "foo"
+        self.assertRaises(CredentialsNotFoundError, AWSCredentials)
+
+    def test_errors_are_valueerrors_for_backwards_compat(self):
+        # For unfortunate backwards compatibility reasons, we raise an
+        # exception that ValueError will catch
+        os.environ[ENV_SECRET_KEY] = "bar"
         self.assertRaises(ValueError, AWSCredentials)
 
     def test_found_values_used(self):
