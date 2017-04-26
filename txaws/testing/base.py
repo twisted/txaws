@@ -7,9 +7,11 @@ Basic functionality to aid in the definition of in-memory test doubles.
 import os
 from weakref import WeakKeyDictionary
 
+from twisted.trial.unittest import TestCase
 import attr
 
-from twisted.trial.unittest import TestCase
+import txaws.credentials
+
 
 class TXAWSTestCase(TestCase):
     """Support for isolation of txaws tests."""
@@ -22,10 +24,11 @@ class TXAWSTestCase(TestCase):
         self.orig_environ = dict(os.environ)
         self.addCleanup(self._restore_environ)
         to_delete = [
-            "AWS_ACCESS_KEY_ID",
-            "AWS_SECRET_ACCESS_KEY",
-            "AWS_SHARED_CREDENTIALS_FILE",
+            txaws.credentials.ENV_ACCESS_KEY,
+            txaws.credentials.ENV_SECRET_KEY,
+            txaws.credentials.ENV_SHARED_CREDENTIALS_FILE,
             "AWS_ENDPOINT",
+            txaws.credentials.ENV_PROFILE,
         ]
         for key in to_delete:
             if key in os.environ:
