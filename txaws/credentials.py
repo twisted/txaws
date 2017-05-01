@@ -32,6 +32,7 @@ class AWSCredentials(object):
         AWS_ACCESS_KEY_ID is consulted.
     @param secret_key: The secret key to use. If None the environment variable
         AWS_SECRET_ACCESS_KEY is consulted.
+    @param environ: The environment. If unspecified, L{os.environ} is used.
     @raise CredentialsNotFoundError: No access key or secret was provided, nor
         could they be found in the environment or filesystem.
 
@@ -39,15 +40,15 @@ class AWSCredentials(object):
         usage is deprecated and will be removed.}
     """
 
-    def __init__(self, access_key="", secret_key=""):
+    def __init__(self, access_key="", secret_key="", environ=os.environ):
         if not access_key:
-            access_key = os.environ.get(ENV_ACCESS_KEY)
+            access_key = environ.get(ENV_ACCESS_KEY)
             if not access_key:
-                access_key, _ = _load_shared_credentials()
+                access_key, _ = _load_shared_credentials(environ=environ)
         if not secret_key:
-            secret_key = os.environ.get(ENV_SECRET_KEY)
+            secret_key = environ.get(ENV_SECRET_KEY)
             if not secret_key:
-                _, secret_key = _load_shared_credentials()
+                _, secret_key = _load_shared_credentials(environ=environ)
 
         self.access_key = access_key
         self.secret_key = secret_key
@@ -62,11 +63,11 @@ class AWSCredentials(object):
             raise RuntimeError("Unsupported hash type: '%s'" % hash_type)
 
 
-def _load_shared_credentials(profile=None):
+def _load_shared_credentials(environ, profile=None):
     if profile is None:
-        profile = os.environ.get(ENV_PROFILE, "default")
+        profile = environ.get(ENV_PROFILE, "default")
 
-    credentials_path = os.environ.get(
+    credentials_path = environ.get(
         ENV_SHARED_CREDENTIALS_FILE,
         os.path.expanduser("~/.aws/credentials"),
     )
