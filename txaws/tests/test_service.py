@@ -1,5 +1,6 @@
 # Copyright (C) 2009 Duncan McGreggor <duncan@canonical.com>
 # Licenced under the txaws licence available at /LICENSE in the txaws source.
+from twisted.trial.unittest import TestCase
 
 from txaws.credentials import AWSCredentials
 from txaws.ec2.client import EC2Client
@@ -13,10 +14,9 @@ else:
 
 from txaws.service import (AWSServiceEndpoint, AWSServiceRegion,
                            EC2_ENDPOINT_EU, EC2_ENDPOINT_US, REGION_EU)
-from txaws.testing.base import TXAWSTestCase
 
 
-class AWSServiceEndpointTestCase(TXAWSTestCase):
+class AWSServiceEndpointTestCase(TestCase):
 
     def setUp(self):
         self.endpoint = AWSServiceEndpoint(uri="http://my.service/da_endpoint")
@@ -141,7 +141,7 @@ class AWSServiceEndpointTestCase(TXAWSTestCase):
         self.assertEquals(self.endpoint.method, "PUT")
 
 
-class AWSServiceRegionTestCase(TXAWSTestCase):
+class AWSServiceRegionTestCase(TestCase):
 
     def setUp(self):
         self.creds = AWSCredentials("foo", "bar")

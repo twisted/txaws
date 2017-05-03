@@ -68,24 +68,27 @@ class CredentialsTestCase(TestCase):
         service = AWSCredentials(
             environ={ENV_ACCESS_KEY: "foo", ENV_SECRET_KEY: "bar"},
         )
-        self.assertEqual("foo", service.access_key)
-        self.assertEqual("bar", service.secret_key)
+        self.assertEqual(
+            service, AWSCredentials(access_key="foo", secret_key="bar"),
+        )
 
     def test_explicit_access_key(self):
         service = self.credentials(
-            access_key="bar",
-            environ={ENV_SECRET_KEY: "foo"},
+            access_key="foo",
+            environ={ENV_SECRET_KEY: "bar"},
         )
-        self.assertEqual("foo", service.secret_key)
-        self.assertEqual("bar", service.access_key)
+        self.assertEqual(
+            service, AWSCredentials(access_key="foo", secret_key="bar"),
+        )
 
     def test_explicit_secret_key(self):
         service = self.cedentials(
-            secret_key="foo",
-            environ={ENV_ACCESS_KEY: "bar"},
+            secret_key="bar",
+            environ={ENV_ACCESS_KEY: "foo"},
         )
-        self.assertEqual("foo", service.secret_key)
-        self.assertEqual("bar", service.access_key)
+        self.assertEqual(
+            service, AWSCredentials(access_key="foo", secret_key="bar"),
+        )
 
     def test_explicit_shared_credentials_file(self):
         with open(self.mktemp(), "w") as credentials_file:
@@ -104,8 +107,9 @@ class CredentialsTestCase(TestCase):
         service = AWSCredentials(
             environ={ENV_SHARED_CREDENTIALS_FILE: credentials_file.name},
         )
-        self.assertEqual("foo", service.access_key)
-        self.assertEqual("bar", service.secret_key)
+        self.assertEqual(
+            service, AWSCredentials(access_key="foo", secret_key="bar"),
+        )
 
     def test_explicit_shared_credentials_file_overridden(self):
         with open(self.mktemp(), "w") as credentials_file:
@@ -127,8 +131,9 @@ class CredentialsTestCase(TestCase):
                 ENV_SECRET_KEY: "quux",
             },
         )
-        self.assertEqual("baz", service.access_key)
-        self.assertEqual("quux", service.secret_key)
+        self.assertEqual(
+            service, AWSCredentials(access_key="baz", secret_key="quux"),
+        )
 
     def test_non_default_profile(self):
         with open(self.mktemp(), "w") as credentials_file:
@@ -149,8 +154,9 @@ class CredentialsTestCase(TestCase):
                 ENV_PROFILE: "another",
             },
         )
-        self.assertEqual("foo", service.access_key)
-        self.assertEqual("bar", service.secret_key)
+        self.assertEqual(
+            service, AWSCredentials(access_key="foo", secret_key="bar"),
+        )
 
     def test_no_such_profile(self):
         with open(self.mktemp(), "w") as credentials_file:

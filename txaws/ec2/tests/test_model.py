@@ -1,11 +1,11 @@
 # Copyright (C) 2009 Canonical Ltd
 # Licenced under the txaws licence available at /LICENSE in the txaws source.
+from twisted.trial.unittest import TestCase
 
 from txaws.ec2 import model
-from txaws.testing.base import TXAWSTestCase
 
 
-class SecurityGroupTestCase(TXAWSTestCase):
+class SecurityGroupTestCase(TestCase):
 
     def test_creation_defaults(self):
         group = model.SecurityGroup("sg-a3f2", "name", "desc")
@@ -38,7 +38,7 @@ class SecurityGroupTestCase(TXAWSTestCase):
         self.assertEquals(group.allowed_ips[0].cidr_ip, "10.0.1.0/24")
 
 
-class UserIDGroupPairTestCase(TXAWSTestCase):
+class UserIDGroupPairTestCase(TestCase):
 
     def test_creation(self):
         user_id = "cowboy22"
