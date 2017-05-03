@@ -1,3 +1,4 @@
-_trial_temp/
+*.egg-info/
 .testrepository
 .venv-*
+_trial_temp/
