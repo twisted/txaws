@@ -70,7 +70,9 @@ class EC2ClientTestCase(TestCase):
         os.environ.update([(ENV_ACCESS_KEY, "foo"), (ENV_SECRET_KEY, "bar")])
 
         ec2 = client.EC2Client()
-        self.assertIsNotNone(ec2.creds)
+        self.assertEqual(
+            ec2.creds, AWSCredentials(access_key="foo", secret_key="bar"),
+        )
 
     def test_post_method(self):
         """
