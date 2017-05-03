@@ -63,6 +63,15 @@ class InstanceTestCase(TestCase):
 
 class EC2ClientTestCase(TestCase):
 
+    def setUp(self):
+        print("setUp")
+        pprint(os.environ)
+
+
+    def tearDown(self):
+        print("tearDown")
+        pprint(os.environ)
+
     def test_init_no_creds(self):
         self.addCleanup(os.environ.clear)
         self.addCleanup(os.environ.update, os.environ.copy())
