@@ -50,19 +50,19 @@ class CredentialsTestCase(TestCase):
         # Without anything in os.environ or in the shared credentials file,
         # AWSService() blows up
         with self.assertRaises(CredentialsNotFoundError):
-            AWSCredentials(environ={ENV_SECRET_KEY: "bar"})
+            self.credentials(environ=self.environ({ENV_SECRET_KEY: "bar"}))
 
     def test_no_secret_key(self):
         # Without anything in os.environ or in the shared credentials file,
         # AWSService() blows up
         with self.assertRaises(CredentialsNotFoundError):
-            AWSCredentials(environ={ENV_ACCESS_KEY: "foo"})
+            self.credentials(environ={ENV_ACCESS_KEY: "foo"})
 
     def test_errors_are_valueerrors_for_backwards_compat(self):
         # For unfortunate backwards compatibility reasons, we raise an
         # exception that ValueError will catch
         with self.assertRaises(ValueError):
-            AWSCredentials(environ={ENV_ACCESS_KEY: "foo"})
+            self.credentials(environ={ENV_ACCESS_KEY: "foo"})
 
     def test_found_values_used(self):
         service = AWSCredentials(
@@ -72,7 +72,7 @@ class CredentialsTestCase(TestCase):
         self.assertEqual("bar", service.secret_key)
 
     def test_explicit_access_key(self):
-        service = AWSCredentials(
+        service = self.credentials(
             access_key="bar",
             environ={ENV_SECRET_KEY: "foo"},
         )
@@ -80,7 +80,7 @@ class CredentialsTestCase(TestCase):
         self.assertEqual("bar", service.access_key)
 
     def test_explicit_secret_key(self):
-        service = AWSCredentials(
+        service = self.cedentials(
             secret_key="foo",
             environ={ENV_ACCESS_KEY: "bar"},
         )
@@ -98,6 +98,9 @@ class CredentialsTestCase(TestCase):
                     """
                 ),
             )
+        # Construct AWSCredentials here instead of using the self.credentials
+        # helper because we're interested in testing exactly what happens when
+        # this env var is set.
         service = AWSCredentials(
             environ={ENV_SHARED_CREDENTIALS_FILE: credentials_file.name},
         )
@@ -116,6 +119,7 @@ class CredentialsTestCase(TestCase):
                 ),
             )
 
+        # See comment in test_explicit_shared_credentials_file
         service = AWSCredentials(
             environ={
                 ENV_SHARED_CREDENTIALS_FILE: credentials_file.name,
@@ -138,6 +142,7 @@ class CredentialsTestCase(TestCase):
                 ),
             )
 
+        # See comment in test_explicit_shared_credentials_file
         service = AWSCredentials(
             environ={
                 ENV_SHARED_CREDENTIALS_FILE: credentials_file.name,
@@ -160,6 +165,7 @@ class CredentialsTestCase(TestCase):
             )
 
         with self.assertRaises(CredentialsNotFoundError) as e:
+            # See comment in test_explicit_shared_credentials_file
             AWSCredentials(
                 environ={
                     ENV_SHARED_CREDENTIALS_FILE: credentials_file.name,
@@ -181,6 +187,7 @@ class CredentialsTestCase(TestCase):
             )
 
         with self.assertRaises(CredentialsNotFoundError) as e:
+            # See comment in test_explicit_shared_credentials_file
             AWSCredentials(
                 environ={ENV_SHARED_CREDENTIALS_FILE: credentials_file.name},
             )
