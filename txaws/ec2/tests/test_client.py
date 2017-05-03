@@ -3,6 +3,7 @@
 # Copyright (C) 2009 Duncan McGreggor <oubiwann@adytum.us>
 # Licenced under the txaws licence available at /LICENSE in the txaws source.
 
+from pprint import pprint
 from datetime import datetime
 import os
 
