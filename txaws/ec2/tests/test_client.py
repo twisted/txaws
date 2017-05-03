@@ -64,8 +64,8 @@ class InstanceTestCase(TestCase):
 class EC2ClientTestCase(TestCase):
 
     def test_init_no_creds(self):
-        self.addCleanup(os.environ.clear)
         self.addCleanup(os.environ.update, os.environ.copy())
+        self.addCleanup(os.environ.clear)
         os.environ.clear()
         os.environ.update([(ENV_ACCESS_KEY, "foo"), (ENV_SECRET_KEY, "bar")])
 
