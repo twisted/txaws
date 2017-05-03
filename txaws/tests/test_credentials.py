@@ -82,7 +82,7 @@ class CredentialsTestCase(TestCase):
         )
 
     def test_explicit_secret_key(self):
-        service = self.cedentials(
+        service = self.credentials(
             secret_key="bar",
             environ={ENV_ACCESS_KEY: "foo"},
         )
