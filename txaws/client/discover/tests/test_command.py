@@ -6,11 +6,11 @@
 from cStringIO import StringIO
 
 from twisted.internet.defer import succeed, fail
+from twisted.trial.unittest import TestCase
 from twisted.web.error import Error
 
 from txaws.client.discover.command import Command
 from txaws.ec2.client import Query
-from txaws.testing.base import TXAWSTestCase
 
 
 class FakeHTTPClient(object):
@@ -20,7 +20,7 @@ class FakeHTTPClient(object):
         self.url = url
 
 
-class CommandTestCase(TXAWSTestCase):
+class CommandTestCase(TestCase):
 
     def prepare_command(self, response, status, action, parameters={},
                         get_page=None, error=None):

@@ -4,12 +4,12 @@
 Tests for L{txaws.route53._util}.
 """
 
-from txaws.testing.base import TXAWSTestCase
+from twisted.trial.unittest import TestCase
 
 from txaws.route53._util import maybe_bytes_to_unicode, to_xml, tags
 
 
-class MaybeBytesToUnicodeTestCase(TXAWSTestCase):
+class MaybeBytesToUnicodeTestCase(TestCase):
     """
     Tests for L{maybe_bytes_to_unicode}.
     """
@@ -38,7 +38,7 @@ class MaybeBytesToUnicodeTestCase(TXAWSTestCase):
         )
 
 
-class ToXMLTestCase(TXAWSTestCase):
+class ToXMLTestCase(TestCase):
     """
     Tests for L{to_xml}.
     """

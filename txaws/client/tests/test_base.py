@@ -22,6 +22,7 @@ from twisted.python import log
 from twisted.python.filepath import FilePath
 from twisted.python.failure import Failure
 from twisted.test.test_sslverify import makeCertificate
+from twisted.trial.unittest import TestCase
 from twisted.web import server, static
 from twisted.web.http_headers import Headers
 from twisted.web.client import ResponseDone
@@ -38,11 +39,10 @@ from txaws.client.base import (
 )
 from txaws._auth_v4 import _CanonicalRequest
 from txaws.service import AWSServiceEndpoint
-from txaws.testing.base import TXAWSTestCase
 from txaws.testing.producers import StringBodyProducer
 
 
-class URLContextTests(TXAWSTestCase):
+class URLContextTests(TestCase):
     """
     Tests for L{txaws.client.base.url_context}.
     """
@@ -63,7 +63,7 @@ class URLContextTests(TXAWSTestCase):
         )
 
 
-class ErrorWrapperTestCase(TXAWSTestCase):
+class ErrorWrapperTestCase(TestCase):
 
     def test_204_no_content(self):
         failure = Failure(TwistedWebError(204, "No content"))
@@ -99,7 +99,7 @@ class ErrorWrapperTestCase(TXAWSTestCase):
         self.assertTrue(isinstance(error, ConnectionRefusedError))
 
 
-class BaseClientTestCase(TXAWSTestCase):
+class BaseClientTestCase(TestCase):
 
     def test_creation(self):
         client = BaseClient("creds", "endpoint", "query factory", "parser")
@@ -115,7 +115,7 @@ class PuttableResource(Resource):
         return ''
 
 
-class BaseQueryTestCase(TXAWSTestCase):
+class BaseQueryTestCase(TestCase):
 
     def setUp(self):
         self.cleanupServerConnections = 0
@@ -289,7 +289,7 @@ class BaseQueryTestCase(TXAWSTestCase):
         self.assertEqual(443, port)
 
 
-class StreamingBodyReceiverTestCase(TXAWSTestCase):
+class StreamingBodyReceiverTestCase(TestCase):
 
     def test_readback_mode_on(self):
         """
@@ -348,7 +348,7 @@ class StubAgent(object):
         return result
 
 
-class QueryTestCase(TXAWSTestCase):
+class QueryTestCase(TestCase):
     """
     Tests for L{query}.
     """

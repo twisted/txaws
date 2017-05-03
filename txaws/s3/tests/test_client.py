@@ -1,13 +1,13 @@
 import datetime
 from hashlib import sha256
 import warnings
-from os import environ
 from urllib import quote
 
 from attr import assoc
 
-from twisted.web.http_headers import Headers
 from twisted.internet.defer import succeed
+from twisted.trial.unittest import TestCase
+from twisted.web.http_headers import Headers
 
 from txaws.credentials import AWSCredentials
 from txaws.client.base import RequestDetails
@@ -19,13 +19,14 @@ from txaws.testing.producers import StringBodyProducer
 from txaws.testing.s3_tests import s3_integration_tests
 from txaws.service import AWSServiceEndpoint, AWSServiceRegion, REGION_US_EAST_1
 from txaws.testing import payload
-from txaws.testing.base import TXAWSTestCase
 from txaws.testing.integration import get_live_service
 from txaws.util import calculate_md5
 
+
 EMPTY_CONTENT_SHA256 = sha256(b"").hexdigest().decode("ascii")
 
-class URLContextTestCase(TXAWSTestCase):
+
+class URLContextTestCase(TestCase):
 
     endpoint = AWSServiceEndpoint("https://s3.amazonaws.com/")
 
@@ -108,7 +109,8 @@ class URLContextTestCase(TXAWSTestCase):
         self.assertEquals(context.get_host(), b'0.0.0.0')
         self.assertEquals(context.get_url(), test_uri + b'foo/bar')
 
-class S3URLContextTestCase(TXAWSTestCase):
+
+class S3URLContextTestCase(TestCase):
     """
     Tests for L{s3_url_context}.
     """
@@ -159,10 +161,9 @@ def mock_query_factory(response_body):
     return MockQuery
 
 
-class S3ClientTestCase(TXAWSTestCase):
+class S3ClientTestCase(TestCase):
 
     def setUp(self):
-        TXAWSTestCase.setUp(self)
         self.endpoint = AWSServiceEndpoint()
 
     def test_list_buckets(self):
@@ -1125,7 +1126,7 @@ class S3ClientTestCase(TXAWSTestCase):
 
 
 
-class QueryTestCase(TXAWSTestCase):
+class QueryTestCase(TestCase):
 
     creds = AWSCredentials(access_key="fookeyid", secret_key="barsecretkey")
     endpoint = AWSServiceEndpoint("https://choopy.s3.amazonaws.com/")
@@ -1315,7 +1316,7 @@ class QueryTestCase(TXAWSTestCase):
 
 
 
-class MiscellaneousTestCase(TXAWSTestCase):
+class MiscellaneousTestCase(TestCase):
 
     def test_content_md5(self):
         self.assertEqual(calculate_md5("somedata"), "rvr3UC1SmUw7AZV2NqPN0g==")
