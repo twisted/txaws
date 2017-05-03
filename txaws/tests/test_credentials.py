@@ -3,6 +3,7 @@
 
 from textwrap import dedent
 
+from twisted.python.filepath import FilePath
 from twisted.trial.unittest import TestCase
 
 from txaws.credentials import (
@@ -16,6 +17,34 @@ from txaws.exception import CredentialsNotFoundError
 
 
 class CredentialsTestCase(TestCase):
+    def setUp(self):
+        self.credentials_path = FilePath(self.mktemp())
+
+    def environ(self, items):
+        """
+        Create an environment pointing at a credentials file that belongs to this
+        test method run.
+
+        @param items: An environment dictionary.
+        @type items: L{dict}
+
+        @return: An environment dictionary like C{items} but with an item
+            added or changed so that C{self.credentials_path} will be used as
+            the credentials file instead of the default.
+        @rtype: L{dict}
+        """
+        items = items.copy()
+        items[ENV_SHARED_CREDENTIALS_FILE] = self.credentials_path.path
+        return items
+
+    def credentials(self, *a, **kw):
+        """
+        Construct an L{AWSCredentials} instance with the given parameters but
+        pointing at C{self.credentials_path} instead of the default
+        credentials file.
+        """
+        kw["environ"] = self.environ(kw.get("environ", {}))
+        return AWSCredentials(*a, **kw)
 
     def test_no_access_key(self):
         # Without anything in os.environ or in the shared credentials file,
