@@ -22,7 +22,6 @@ from pyrsistent import PMap, freeze, pmap
 from twisted.python.reflect import namedAny
 from twisted.logger import Logger
 from twisted.internet.endpoints import TCP4ClientEndpoint
-from twisted.internet.ssl import ClientContextFactory
 from twisted.internet.protocol import Protocol
 from twisted.internet.defer import Deferred, succeed, fail
 from twisted.python import failure
@@ -39,7 +38,6 @@ from txaws.util import parse
 from txaws.credentials import AWSCredentials
 from txaws.exception import AWSResponseParseError
 from txaws.service import AWSServiceEndpoint
-from txaws.client.ssl import VerifyingContextFactory
 from txaws.client._validators import list_of as _list_of
 from txaws import _auth_v4
 
@@ -160,18 +158,6 @@ class StreamingBodyReceiver(Protocol):
             f = failure.Failure(StreamingError("Connection lost before "
                 "receiving all data"))
             d.errback(f)
-
-
-class WebClientContextFactory(ClientContextFactory):
-
-    def getContext(self, hostname, port):
-        return ClientContextFactory.getContext(self)
-
-
-class WebVerifyingContextFactory(VerifyingContextFactory):
-
-    def getContext(self, hostname, port):
-        return VerifyingContextFactory.getContext(self)
 
 
 @attr.s(frozen=True)
@@ -512,7 +498,7 @@ class _Query(object):
         body_producer = self._details.body_producer
 
         if agent is None:
-            agent = _get_agent(url_context.scheme, url_context.get_encoded_host(), self._reactor)
+            agent = _get_agent(self._reactor)
         instant = utcnow()
 
         extra_headers = self._get_headers(
@@ -582,28 +568,16 @@ class _Query(object):
         return (response, data)
 
 
-# Something like this belongs in Twisted, perhaps.  At least, the
-# "give me an Agent and respect the OS conventions for proxy
-# configuration" logic.
-def _get_agent(scheme, host, reactor, contextFactory=None):
-    if scheme == b"https":
-        proxy_endpoint = os.environ.get("https_proxy")
-        if proxy_endpoint:
-            proxy_url = urlparse.urlparse(proxy_endpoint)
-            endpoint = TCP4ClientEndpoint(reactor, proxy_url.hostname, proxy_url.port)
-            return ProxyAgent(endpoint)
-        else:
-            if contextFactory is None:
-                contextFactory = WebVerifyingContextFactory(host)
-            return Agent(reactor, contextFactory)
+# Something like this belongs in Twisted, perhaps.  "Give me an
+# Agent and respect the OS conventions for proxy configuration".
+def _get_agent(reactor):
+    proxy_endpoint = os.environ.get("https_proxy")
+    if proxy_endpoint:
+        proxy_url = urlparse.urlparse(proxy_endpoint)
+        endpoint = TCP4ClientEndpoint(reactor, proxy_url.hostname, proxy_url.port)
+        return ProxyAgent(endpoint)
     else:
-        proxy_endpoint = os.environ.get("http_proxy")
-        if proxy_endpoint:
-            proxy_url = urlparse.urlparse(proxy_endpoint)
-            endpoint = TCP4ClientEndpoint(reactor, proxy_url.hostname, proxy_url.port)
-            return ProxyAgent(endpoint)
-        else:
-            return Agent(reactor)
+        return Agent(reactor)
 
 
 class FakeClient(object):
@@ -658,18 +632,13 @@ class BaseQuery(object):
             * twisted.web.client.getPage
             * twisted.web.client._makeGetterFactory
         """
-        contextFactory = None
         scheme, host, port, path = parse(url)
         data = kwds.get('postdata', None)
         self._method = method = kwds.get('method', 'GET')
         self.request_headers = self._headers(kwds.get('headers', {}))
         if (self.body_producer is None) and (data is not None):
             self.body_producer = FileBodyProducer(StringIO(data))
-        if self.endpoint.ssl_hostname_verification:
-            contextFactory = None
-        else:
-            contextFactory = WebClientContextFactory()
-        agent = _get_agent(scheme, host, self.reactor, contextFactory)
+        agent = _get_agent(self.reactor)
         if scheme == "https":
             self.client.url = url
         d = agent.request(method, url, self.request_headers, self.body_producer)

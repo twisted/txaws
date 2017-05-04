@@ -1,3 +1,12 @@
+import warnings
+warnings.warn(
+    (
+        "{} is deprecated. Use Twisted's improved internal "
+        "SSL support instead, which txaws will do by default."
+    ).format(__name__),
+    category=DeprecationWarning,
+)
+
 from glob import glob
 import os
 import re

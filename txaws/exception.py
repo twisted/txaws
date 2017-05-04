@@ -1,6 +1,8 @@
 # Copyright (c) 2009 Canonical Ltd <duncan.mcgreggor@canonical.com>
 # Licenced under the txaws licence available at /LICENSE in the txaws source.
 
+from incremental import Version
+from twisted.python.deprecate import deprecatedModuleAttribute
 from twisted.web.error import Error
 
 from txaws.util import XML
@@ -128,13 +130,21 @@ class AWSResponseParseError(Exception):
     """
 
 
+class CredentialsNotFoundError(Exception):
+    """
+    txAWS failed to locate access credentials, and none were explicitly given.
+    """
+
+
 class CertsNotFoundError(Exception):
     """
     txAWS was not able to find any SSL certificates.
     """
 
 
-class CredentialsNotFoundError(Exception):
-    """
-    txAWS failed to locate access credentials, and none were explicitly given.
-    """
+deprecatedModuleAttribute(
+    Version("txAWS", 0, 4, 0),
+    "See twisted.web.client.Agent, with its improved SSL support.",
+    __name__,
+    "CertsNotFoundError",
+)
