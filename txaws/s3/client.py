@@ -772,7 +772,7 @@ class Query(BaseQuery):
         if data is None:
             request = _auth_v4._CanonicalRequest.from_request_components(
                 method=method,
-                url=url_context.get_joined_path(),
+                url=url_context.get_encoded_path(),
                 headers=headers,
                 headers_to_sign=('host', 'x-amz-date'),
                 payload_hash=None,
@@ -780,7 +780,7 @@ class Query(BaseQuery):
         else:
             request = _auth_v4._CanonicalRequest.from_request_components_and_payload(
                 method=method,
-                url=url_context.get_joined_path(),
+                url=url_context.get_encoded_path(),
                 headers=headers,
                 headers_to_sign=('host', 'x-amz-date'),
                 payload=data,
