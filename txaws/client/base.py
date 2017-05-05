@@ -270,14 +270,6 @@ class _URLContext(object):
         )
 
 
-    def get_joined_path(self):
-        """
-        @return: The path component, un-urlencoded, but joined by slashes.
-        @rtype: L{bytes}
-        """
-        return b'/' + b'/'.join(seg.encode('utf-8') for seg in self.path)
-
-
     def get_encoded_query(self):
         """
         @return: The encoded query component.
@@ -304,6 +296,17 @@ class _URLContext(object):
             return b"%(scheme)s://%(host)s%(path)s%(query)s" % params
         params["port"] = self.port
         return b"%(scheme)s://%(host)s:%(port)d%(path)s%(query)s" % params
+
+
+def _get_joined_path(ctx):
+    """
+    @type ctx: L{_URLContext}
+    @param ctx: A URL context.
+
+    @return: The path component, un-urlencoded, but joined by slashes.
+    @rtype: L{bytes}
+    """
+    return b'/' + b'/'.join(seg.encode('utf-8') for seg in ctx.path)
 
 
 @attr.s
@@ -420,7 +423,7 @@ class _Query(object):
         return _auth_v4._CanonicalRequest.from_request_components(
             method=self._details.method,
             url=(
-                self._details.url_context.get_joined_path() +
+                _get_joined_path(self._details.url_context) +
                 b"?" +
                 self._details.url_context.get_encoded_query()
             ),
