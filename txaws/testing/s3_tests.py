@@ -179,7 +179,7 @@ def s3_integration_tests(get_client):
         @inlineCallbacks
         def test_object_encoded_chars(self):
             """
-            C{get_object} and C{put_object} suceed with an object name that
+            C{get_object} and C{put_object} succeed with an object name that
             requires encoding.
             """
             bucket_name = str(uuid4())
