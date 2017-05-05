@@ -197,8 +197,11 @@ def s3_integration_tests(get_client):
                 yield client.put_object(
                     bucket_name, object_name, object_data,
                     content_type=object_type)
-                retrieved = yield client.get_object(bucket_name, object_name)
-                self.assertEqual(object_data, retrieved)
+            retrieved = yield gatherResults(
+                [client.get_object(bucket_name, object_name)
+                 for object_name in object_names],
+                consumeErrors=True)
+            self.assertEqual([object_data] * len(object_names), retrieved)
 
 
     return S3IntegrationTests
