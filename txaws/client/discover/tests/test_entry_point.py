@@ -7,12 +7,13 @@ from cStringIO import StringIO
 import os
 import sys
 
+from twisted.trial.unittest import TestCase
+
 from txaws.client.discover.entry_point import (
     OptionError, UsageError, get_command, main, parse_options, USAGE_MESSAGE)
-from txaws.testing.base import TXAWSTestCase
 
 
-class ParseOptionsTestCase(TXAWSTestCase):
+class ParseOptionsTestCase(TestCase):
 
     def test_parse_options(self):
         """
@@ -74,7 +75,7 @@ class ParseOptionsTestCase(TXAWSTestCase):
         If the C{AWS_ACCESS_KEY_ID} environment variable is present, it will
         be used if the C{--key} command-line argument isn't specified.
         """
-        os.environ["AWS_ACCESS_KEY_ID"] = "key"
+        self.patch(os, "environ", {"AWS_ACCESS_KEY_ID": "key"})
         options = parse_options([
             "txaws-discover", "--secret", "secret", "--endpoint", "endpoint",
             "--action", "action"])
@@ -88,7 +89,7 @@ class ParseOptionsTestCase(TXAWSTestCase):
         preferred over the value specified in the C{AWS_ACCESS_KEY_ID}
         environment variable.
         """
-        os.environ["AWS_ACCESS_KEY_ID"] = "fail"
+        self.patch(os, "environ", {"AWS_ACCESS_KEY_ID": "fail"})
         options = parse_options([
             "txaws-discover", "--key", "key", "--secret", "secret",
             "--endpoint", "endpoint", "--action", "action"])
@@ -101,7 +102,7 @@ class ParseOptionsTestCase(TXAWSTestCase):
         If the C{AWS_SECRET_ACCESS_KEY} environment variable is present, it
         will be used if the C{--secret} command-line argument isn't specified.
         """
-        os.environ["AWS_SECRET_ACCESS_KEY"] = "secret"
+        self.patch(os, "environ", {"AWS_SECRET_ACCESS_KEY": "secret"})
         options = parse_options([
             "txaws-discover", "--key", "key", "--endpoint", "endpoint",
             "--action", "action"])
@@ -115,7 +116,7 @@ class ParseOptionsTestCase(TXAWSTestCase):
         be preferred over the value specified in the C{AWS_SECRET_ACCESS_KEY}
         environment variable.
         """
-        os.environ["AWS_SECRET_ACCESS_KEY"] = "fail"
+        self.patch(os, "environ", {"AWS_SECRET_ACCESS_KEY": "fail"})
         options = parse_options([
             "txaws-discover", "--key", "key", "--secret", "secret",
             "--endpoint", "endpoint", "--action", "action"])
@@ -128,7 +129,7 @@ class ParseOptionsTestCase(TXAWSTestCase):
         If the C{AWS_ENDPOINT} environment variable is present, it will be
         used if the C{--endpoint} command-line argument isn't specified.
         """
-        os.environ["AWS_ENDPOINT"] = "endpoint"
+        self.patch(os, "environ", {"AWS_ENDPOINT": "endpoint"})
         options = parse_options([
             "txaws-discover", "--key", "key", "--secret", "secret",
             "--action", "action"])
@@ -142,7 +143,7 @@ class ParseOptionsTestCase(TXAWSTestCase):
         will be preferred over the value specified in the C{AWS_ENDPOINT}
         environment variable.
         """
-        os.environ["AWS_ENDPOINT"] = "fail"
+        self.patch(os, "environ", {"AWS_ENDPOINT": "fail"})
         options = parse_options([
             "txaws-discover", "--key", "key", "--secret", "secret",
             "--endpoint", "endpoint", "--action", "action"])
@@ -165,7 +166,7 @@ class ParseOptionsTestCase(TXAWSTestCase):
                            "--action", "action", "--help"])
 
 
-class GetCommandTestCase(TXAWSTestCase):
+class GetCommandTestCase(TestCase):
 
     def test_get_command_without_arguments(self):
         """An L{OptionError} is raised if no arguments are provided."""
@@ -223,7 +224,7 @@ class GetCommandTestCase(TXAWSTestCase):
         self.assertEqual({"Region.Name.0": "us-west-1"}, command.parameters)
 
 
-class MainTestCase(TXAWSTestCase):
+class MainTestCase(TestCase):
 
     def test_usage_message(self):
         """

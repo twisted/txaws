@@ -9,25 +9,25 @@ import os
 from twisted.internet import reactor
 from twisted.internet.defer import succeed, fail
 from twisted.internet.error import ConnectionRefusedError
+from twisted.protocols.policies import WrappingFactory
 from twisted.python.failure import Failure
 from twisted.python.filepath import FilePath
+from twisted.trial.unittest import TestCase
 from twisted.web import server, static, util
 from twisted.web.error import Error as TwistedWebError
-from twisted.protocols.policies import WrappingFactory
 
 from txaws.util import iso8601time
-from txaws.credentials import AWSCredentials
+from txaws.credentials import ENV_ACCESS_KEY, ENV_SECRET_KEY, AWSCredentials
 from txaws.ec2 import client
 from txaws.ec2 import model
 from txaws.ec2.exception import EC2Error
 from txaws.exception import CredentialsNotFoundError
 from txaws.service import AWSServiceEndpoint, EC2_ENDPOINT_US
 from txaws.testing import payload
-from txaws.testing.base import TXAWSTestCase
 from txaws.testing.ec2 import FakePageGetter
 
 
-class ReservationTestCase(TXAWSTestCase):
+class ReservationTestCase(TestCase):
 
     def test_reservation_creation(self):
         reservation = model.Reservation(
@@ -37,7 +37,7 @@ class ReservationTestCase(TXAWSTestCase):
         self.assertEquals(reservation.groups, ["one", "two"])
 
 
-class InstanceTestCase(TXAWSTestCase):
+class InstanceTestCase(TestCase):
 
     def test_instance_creation(self):
         instance = model.Instance(
@@ -61,13 +61,18 @@ class InstanceTestCase(TXAWSTestCase):
         self.assertEquals(instance.ramdisk_id, "id4")
 
 
-class EC2ClientTestCase(TXAWSTestCase):
+class EC2ClientTestCase(TestCase):
 
     def test_init_no_creds(self):
-        os.environ["AWS_SECRET_ACCESS_KEY"] = "foo"
-        os.environ["AWS_ACCESS_KEY_ID"] = "bar"
+        self.addCleanup(os.environ.update, os.environ.copy())
+        self.addCleanup(os.environ.clear)
+        os.environ.clear()
+        os.environ.update([(ENV_ACCESS_KEY, "foo"), (ENV_SECRET_KEY, "bar")])
+
         ec2 = client.EC2Client()
-        self.assertNotEqual(None, ec2.creds)
+        self.assertEqual(
+            ec2.creds, AWSCredentials(access_key="foo", secret_key="bar"),
+        )
 
     def test_post_method(self):
         """
@@ -162,7 +167,7 @@ class EC2ClientTestCase(TXAWSTestCase):
         return d
 
 
-class EC2ClientInstancesTestCase(TXAWSTestCase):
+class EC2ClientInstancesTestCase(TestCase):
 
     def check_parsed_instances(self, results):
         instance = results[0]
@@ -435,7 +440,7 @@ class EC2ClientInstancesTestCase(TXAWSTestCase):
         )
 
 
-class EC2ClientSecurityGroupsTestCase(TXAWSTestCase):
+class EC2ClientSecurityGroupsTestCase(TestCase):
 
     def test_describe_security_groups(self):
         """
@@ -1117,10 +1122,9 @@ class EC2ClientSecurityGroupsTestCase(TXAWSTestCase):
         return self.assertTrue(d)
 
 
-class EC2ClientEBSTestCase(TXAWSTestCase):
+class EC2ClientEBSTestCase(TestCase):
 
     def setUp(self):
-        TXAWSTestCase.setUp(self)
         self.creds = AWSCredentials("foo", "bar")
         self.endpoint = AWSServiceEndpoint(uri=EC2_ENDPOINT_US)
 
@@ -1625,10 +1629,7 @@ class EC2ClientEBSTestCase(TXAWSTestCase):
         return d
 
 
-class EC2ErrorWrapperTestCase(TXAWSTestCase):
-
-    def setUp(self):
-        TXAWSTestCase.setUp(self)
+class EC2ErrorWrapperTestCase(TestCase):
 
     def make_failure(self, status=None, type=None, message="", response=""):
         if not response:
@@ -1724,10 +1725,9 @@ class EC2ErrorWrapperTestCase(TXAWSTestCase):
         self.assertEquals(str(error), "400 Bad Request")
 
 
-class QueryTestCase(TXAWSTestCase):
+class QueryTestCase(TestCase):
 
     def setUp(self):
-        TXAWSTestCase.setUp(self)
         self.creds = AWSCredentials("foo", "bar")
         self.endpoint = AWSServiceEndpoint(uri=EC2_ENDPOINT_US)
 
@@ -1905,10 +1905,9 @@ class QueryTestCase(TXAWSTestCase):
         return d
 
 
-class SignatureTestCase(TXAWSTestCase):
+class SignatureTestCase(TestCase):
 
     def setUp(self):
-        TXAWSTestCase.setUp(self)
         self.creds = AWSCredentials("foo", "bar")
         self.endpoint = AWSServiceEndpoint(uri=EC2_ENDPOINT_US)
         self.params = {}
@@ -2006,10 +2005,9 @@ class SignatureTestCase(TXAWSTestCase):
             ], signature.sorted_params())
 
 
-class QueryPageGetterTestCase(TXAWSTestCase):
+class QueryPageGetterTestCase(TestCase):
 
     def setUp(self):
-        TXAWSTestCase.setUp(self)
         self.creds = AWSCredentials("foo", "bar")
         self.endpoint = AWSServiceEndpoint(uri=EC2_ENDPOINT_US)
         self.twisted_client_test_setup()
@@ -2059,10 +2057,9 @@ class QueryPageGetterTestCase(TXAWSTestCase):
         return deferred
 
 
-class EC2ClientAddressTestCase(TXAWSTestCase):
+class EC2ClientAddressTestCase(TestCase):
 
     def setUp(self):
-        TXAWSTestCase.setUp(self)
         self.creds = AWSCredentials("foo", "bar")
         self.endpoint = AWSServiceEndpoint(uri=EC2_ENDPOINT_US)
 
@@ -2195,7 +2192,7 @@ class EC2ClientAddressTestCase(TXAWSTestCase):
         return d
 
 
-class EC2ParserTestCase(TXAWSTestCase):
+class EC2ParserTestCase(TestCase):
 
     def setUp(self):
         self.parser = client.Parser()
