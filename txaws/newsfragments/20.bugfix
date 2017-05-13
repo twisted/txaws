@@ -1,0 +1,1 @@
+txaws now correctly signs requests with paths that require urlencoding.
