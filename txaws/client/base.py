@@ -423,6 +423,8 @@ class _Query(object):
         return _auth_v4._CanonicalRequest.from_request_components(
             method=self._details.method,
             url=(
+                # We need to pass an unfortunate version of the path here: see
+                # https://github.com/twisted/txaws/issues/70
                 _get_joined_path(self._details.url_context) +
                 b"?" +
                 self._details.url_context.get_encoded_query()
