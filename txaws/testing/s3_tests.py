@@ -176,4 +176,32 @@ def s3_integration_tests(get_client):
             self.assertEqual(object_data, retrieved)
 
 
+        @inlineCallbacks
+        def test_object_encoded_chars(self):
+            """
+            C{get_object} and C{put_object} succeed with an object name that
+            requires encoding.
+            """
+            bucket_name = str(uuid4())
+            object_names = [
+                b'object:with:colons',
+                b'object with spaces',
+                u'\N{SNOWMAN}'.encode('utf-8'),
+                ]
+            object_data = b'some text'
+            object_type = b'application/x-txaws-integration-testing'
+
+            client = get_client(self)
+            yield client.create_bucket(bucket_name)
+            for object_name in object_names:
+                yield client.put_object(
+                    bucket_name, object_name, object_data,
+                    content_type=object_type)
+            retrieved = yield gatherResults(
+                [client.get_object(bucket_name, object_name)
+                 for object_name in object_names],
+                consumeErrors=True)
+            self.assertEqual([object_data] * len(object_names), retrieved)
+
+
     return S3IntegrationTests

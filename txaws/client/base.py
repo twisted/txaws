@@ -298,6 +298,17 @@ class _URLContext(object):
         return b"%(scheme)s://%(host)s:%(port)d%(path)s%(query)s" % params
 
 
+def _get_joined_path(ctx):
+    """
+    @type ctx: L{_URLContext}
+    @param ctx: A URL context.
+
+    @return: The path component, un-urlencoded, but joined by slashes.
+    @rtype: L{bytes}
+    """
+    return b'/' + b'/'.join(seg.encode('utf-8') for seg in ctx.path)
+
+
 @attr.s
 class RequestDetails(object):
     """
@@ -412,7 +423,9 @@ class _Query(object):
         return _auth_v4._CanonicalRequest.from_request_components(
             method=self._details.method,
             url=(
-                self._details.url_context.get_encoded_path() +
+                # We need to pass an unfortunate version of the path here: see
+                # https://github.com/twisted/txaws/issues/70
+                _get_joined_path(self._details.url_context) +
                 b"?" +
                 self._details.url_context.get_encoded_query()
             ),

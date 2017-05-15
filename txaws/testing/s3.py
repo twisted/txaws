@@ -96,11 +96,11 @@ class _MemoryS3Client(MemoryClient):
             pieces = self._state.buckets[bucket]
         except KeyError:
             return fail(S3Error("<nosuchbucket/>", 400))
-        return pieces["listing"]
+        return succeed(pieces["listing"])
 
     @_rate_limited
     def get_bucket_location(self, bucket):
-        return b""
+        return succeed(b"")
 
     @_rate_limited
     def put_object(
@@ -144,11 +144,12 @@ class _MemoryS3Client(MemoryClient):
 
     def _store_object(self, bucket, obj, data):
         self._state.objects[bucket, obj] = data
+        return succeed(None)
 
 
     @_rate_limited
     def get_object(self, bucket, object_name):
-        return self._state.objects[bucket, object_name]
+        return succeed(self._state.objects[bucket, object_name])
 
     @_rate_limited
     def delete_object(self, bucket, object_name):
@@ -158,6 +159,7 @@ class _MemoryS3Client(MemoryClient):
             if item.key == object_name:
                 contents.remove(item)
                 break
+        return succeed(None)
 
 
 @attr.s

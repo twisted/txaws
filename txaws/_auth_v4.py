@@ -284,7 +284,7 @@ class _CanonicalRequest(object):
             request.
         @rtype: L{str}
         """
-        return '\n'.join(attr.astuple(self))
+        return b'\n'.join(attr.astuple(self))
 
     def hash(self):
         """
