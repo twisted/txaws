@@ -3,6 +3,7 @@
 # Copyright (C) 2009 Duncan McGreggor <oubiwann@adytum.us>
 # Licenced under the txaws licence available at /LICENSE in the txaws source.
 
+from pprint import pprint
 from datetime import datetime
 import os
 
@@ -62,6 +63,15 @@ class InstanceTestCase(TestCase):
 
 
 class EC2ClientTestCase(TestCase):
+
+    def setUp(self):
+        print("setUp")
+        pprint(os.environ)
+
+
+    def tearDown(self):
+        print("tearDown")
+        pprint(os.environ)
 
     def test_init_no_creds(self):
         self.addCleanup(os.environ.update, os.environ.copy())
