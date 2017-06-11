@@ -14,7 +14,7 @@ from zope.interface import implementer
 
 import attr
 
-from twisted.internet import reactor
+from twisted.internet import reactor, ssl
 from twisted.internet.defer import Deferred
 from twisted.internet.error import ConnectionRefusedError
 from twisted.protocols.policies import WrappingFactory
@@ -40,6 +40,8 @@ from txaws.client.base import (
 from txaws._auth_v4 import _CanonicalRequest
 from txaws.service import AWSServiceEndpoint
 from txaws.testing.producers import StringBodyProducer
+
+from zope.interface.verify import verifyClass
 
 
 class URLContextTests(TestCase):
@@ -268,25 +270,30 @@ class BaseQueryTestCase(TestCase):
         sets to C{True}, a L{VerifyingContextFactory} is passed to
         C{connectSSL}.
         """
+        agent_creations = []
 
-        class FakeReactor(object):
+        @implementer(IAgent)
+        class FakeAgent(object):
+            def __init__(self, reactor, contextFactory,
+                         connectTimeout=None, bindAddress=None, pool=None):
+                agent_creations.append((reactor, contextFactory,
+                                        connectTimeout, bindAddress, pool))
 
-            def __init__(self):
-                self.connects = []
+            def request(self, method, uri, headers=None, bodyProducer=None):
+                return Deferred()
 
-            def connectSSL(self, host, port, factory, contextFactory, timeout,
-                bindAddress):
-                self.connects.append((host, port, factory, contextFactory))
+        verifyClass(IAgent, FakeAgent)
 
         certs = [makeCertificate(O="Test Certificate", CN="something")[1]]
+        self.patch(base, "Agent", FakeAgent)
         self.patch(ssl, "_ca_certs", certs)
-        fake_reactor = FakeReactor()
         endpoint = AWSServiceEndpoint(ssl_hostname_verification=True)
-        query = BaseQuery("an action", "creds", endpoint, fake_reactor)
+        query = BaseQuery("an action", "creds", endpoint, reactor="ignored")
         query.get_page("https://example.com/file")
-        [(host, port, factory, contextFactory)] = fake_reactor.connects
-        self.assertEqual("example.com", host)
-        self.assertEqual(443, port)
+
+        self.assertEqual(len(agent_creations), 1)
+        [(_, contextFactory, _, _, _)] = agent_creations
+        self.assertIsInstance(contextFactory, ssl.VerifyingContextFactory)
 
 
 class StreamingBodyReceiverTestCase(TestCase):
