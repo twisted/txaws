@@ -101,6 +101,21 @@ def s3_integration_tests(get_client):
                 "Expected to not find deleted objects in listing {}".format(objects),
             )
 
+        @inlineCallbacks
+        def test_get_bucket_prefix(self):
+            """
+            A subset of S3 objects in a bucket can be retrieved by specifying a value
+            for the ``prefix`` argument to ``get_bucket``.
+            """
+            bucket_name = str(uuid4())
+            client = get_client(self)
+            yield client.create_bucket(bucket_name)
+            yield client.put_object(bucket_name, b"a", b"foo")
+            yield client.put_object(bucket_name, b"b", b"bar")
+
+            objects = yield client.get_bucket(bucket_name, prefix=b"a")
+            self.assertEqual([b"a"], list(obj.key for obj in objects.contents))
+
         def test_get_bucket_location_empty(self):
             """
             When called for a bucket with no explicit location,

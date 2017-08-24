@@ -42,6 +42,9 @@ class S3ClientState(object):
     ``S3ClientState`` instances hold the ``_MemoryS3Client`` instance
     state that is specific to testing and does not exist on
     ``txaws.s3.S3Client`` instances.
+
+    @ivar buckets: A ``dict`` mapping bucket identifiers to ``dict`` of
+        ``Bucket`` and ``BucketListing`` details.
     """
     from time import time
 
@@ -91,12 +94,24 @@ class _MemoryS3Client(MemoryClient):
         return succeed(None)
 
     @_rate_limited
-    def get_bucket(self, bucket):
+    def get_bucket(self, bucket, prefix=None):
         try:
             pieces = self._state.buckets[bucket]
         except KeyError:
             return fail(S3Error("<nosuchbucket/>", 400))
-        return succeed(pieces["listing"])
+        listing = pieces["listing"]
+        if prefix is not None:
+            listing = attr.assoc(
+                listing,
+                contents=list(
+                    content
+                    for content
+                    in listing.contents
+                    if content.key.startswith(prefix)
+                ),
+                prefix=prefix,
+            )
+        return succeed(listing)
 
     @_rate_limited
     def get_bucket_location(self, bucket):
