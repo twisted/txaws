@@ -191,7 +191,7 @@ class S3Client(BaseClient):
         query = self._query_factory(details)
         return self._submit(query)
 
-    def get_bucket(self, bucket, marker=None, max_keys=None):
+    def get_bucket(self, bucket, marker=None, max_keys=None, prefix=None):
         """
         Get a list of all the objects in a bucket.
 
@@ -205,6 +205,10 @@ class S3Client(BaseClient):
             return.
         @type max_keys: L{int} or L{NoneType}
 
+        @param prefix: If given, indicate that only objects with keys
+            beginning with this value should be returned.
+        @type prefix: L{bytes} or L{NoneType}
+
         @return: A L{Deferred} that fires with a L{BucketListing}
             describing the result.
 
@@ -215,6 +219,8 @@ class S3Client(BaseClient):
             args.append(("marker", marker))
         if max_keys is not None:
             args.append(("max-keys", "%d" % (max_keys,)))
+        if prefix is not None:
+            args.append(("prefix", prefix))
         if args:
             object_name = "?" + urlencode(args)
         else:
