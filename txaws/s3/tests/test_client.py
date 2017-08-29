@@ -292,6 +292,25 @@ class S3ClientTestCase(TestCase):
         d.addCallback(check_query_args)
         return d
 
+    def test_get_bucket_prefix(self):
+        """
+        L{S3Client.get_bucket} accepts a C{prefix} argument to ask the server to
+        limit its response to objects beginning with a certain prefix.
+        """
+        query_factory = mock_query_factory(payload.sample_get_bucket_result)
+        def check_query_args(passthrough):
+            self.assertEqual(
+                b"http:///mybucket/?prefix=foobar",
+                query_factory.details.url_context.get_encoded_url(),
+            )
+            return passthrough
+
+        creds = AWSCredentials("foo", "bar")
+        s3 = client.S3Client(creds, query_factory=query_factory)
+        d = s3.get_bucket("mybucket", prefix=b"foobar")
+        d.addCallback(check_query_args)
+        return d
+
     def test_get_bucket_location(self):
         """
         L{S3Client.get_bucket_location} creates a L{Query} to get a bucket's
