@@ -537,17 +537,13 @@ class EC2ClientSecurityGroupsTestCase(TestCase):
         eventually fires with a list of L{SecurityGroup} instances created
         using XML data received from the cloud.
         """
-        class StubQuery(object):
-
-            def __init__(stub, action="", creds=None, endpoint=None,
-                         other_params={}):
-                self.assertEqual(action, "DescribeSecurityGroups")
-                self.assertEqual(creds.access_key, "foo")
-                self.assertEqual(creds.secret_key, "bar")
-                self.assertEqual(other_params, {})
-
-            def submit(self):
-                return succeed(payload.sample_describe_security_groups_result)
+        query_factory = make_query_factory(
+            payload.sample_describe_security_groups_result,
+            "DescribeSecurityGroups",
+            "foo",
+            "bar",
+            {},
+        )
 
         def check_results(security_groups):
             [security_group] = security_groups
@@ -563,7 +559,7 @@ class EC2ClientSecurityGroupsTestCase(TestCase):
                 [("tcp", 80, 80, "0.0.0.0/0")])
 
         creds = AWSCredentials("foo", "bar")
-        ec2 = client.EC2Client(creds, query_factory=StubQuery)
+        ec2 = client.EC2Client(creds, query_factory=query_factory)
         d = ec2.describe_security_groups()
         return d.addCallback(check_results)
 
@@ -573,18 +569,13 @@ class EC2ClientSecurityGroupsTestCase(TestCase):
         L{EC2Client.describe_security_groups} is called can contain
         information about more than one L{SecurityGroup}.
         """
-        class StubQuery(object):
-
-            def __init__(stub, action="", creds=None, endpoint=None,
-                         other_params={}):
-                self.assertEqual(action, "DescribeSecurityGroups")
-                self.assertEqual(creds.access_key, "foo")
-                self.assertEqual(creds.secret_key, "bar")
-                self.assertEqual(other_params, {})
-
-            def submit(self):
-                return succeed(
-                    payload.sample_describe_security_groups_multiple_result)
+        query_factory = make_query_factory(
+            payload.sample_describe_security_groups_multiple_result,
+            "DescribeSecurityGroups",
+            "foo",
+            "bar",
+            {},
+        )
 
         def check_results(security_groups):
             self.assertEquals(len(security_groups), 2)
@@ -617,7 +608,7 @@ class EC2ClientSecurityGroupsTestCase(TestCase):
                 [("tcp", 80, 80, "0.0.0.0/0")])
 
         creds = AWSCredentials("foo", "bar")
-        ec2 = client.EC2Client(creds, query_factory=StubQuery)
+        ec2 = client.EC2Client(creds, query_factory=query_factory)
         d = ec2.describe_security_groups()
         return d.addCallback(check_results)
 
@@ -626,18 +617,13 @@ class EC2ClientSecurityGroupsTestCase(TestCase):
         Several groups can be contained in a single ip permissions content, and
         there are recognized by the group parser.
         """
-        class StubQuery(object):
-
-            def __init__(stub, action="", creds=None, endpoint=None,
-                         other_params={}):
-                self.assertEqual(action, "DescribeSecurityGroups")
-                self.assertEqual(creds.access_key, "foo")
-                self.assertEqual(creds.secret_key, "bar")
-                self.assertEqual(other_params, {})
-
-            def submit(self):
-                return succeed(
-                    payload.sample_describe_security_groups_multiple_groups)
+        query_factory = make_query_factory(
+            payload.sample_describe_security_groups_multiple_groups,
+            "DescribeSecurityGroups",
+            "foo",
+            "bar",
+            {},
+        )
 
         def check_results(security_groups):
             self.assertEquals(len(security_groups), 1)
@@ -654,7 +640,7 @@ class EC2ClientSecurityGroupsTestCase(TestCase):
                 [('tcp', 22, 22, '0.0.0.0/0'), ("tcp", 80, 80, "0.0.0.0/0")])
 
         creds = AWSCredentials("foo", "bar")
-        ec2 = client.EC2Client(creds, query_factory=StubQuery)
+        ec2 = client.EC2Client(creds, query_factory=query_factory)
         d = ec2.describe_security_groups()
         return d.addCallback(check_results)
 
@@ -663,24 +649,20 @@ class EC2ClientSecurityGroupsTestCase(TestCase):
         L{EC2Client.describe_security_groups} optionally takes a list of
         security group names to limit results to.
         """
-        class StubQuery(object):
-
-            def __init__(stub, action="", creds=None, endpoint=None,
-                         other_params={}):
-                self.assertEqual(action, "DescribeSecurityGroups")
-                self.assertEqual(creds.access_key, "foo")
-                self.assertEqual(creds.secret_key, "bar")
-                self.assertEqual(other_params, {"GroupName.1": "WebServers"})
-
-            def submit(self):
-                return succeed(payload.sample_describe_security_groups_result)
+        query_factory = make_query_factory(
+            payload.sample_describe_security_groups_result,
+            "DescribeSecurityGroups",
+            "foo",
+            "bar",
+            {"GroupName.1": "WebServers"},
+        )
 
         def check_result(security_groups):
             [security_group] = security_groups
             self.assertEquals(security_group.name, "WebServers")
 
         creds = AWSCredentials("foo", "bar")
-        ec2 = client.EC2Client(creds, query_factory=StubQuery)
+        ec2 = client.EC2Client(creds, query_factory=query_factory)
         d = ec2.describe_security_groups("WebServers")
         return d.addCallback(check_result)
 
@@ -692,18 +674,13 @@ class EC2ClientSecurityGroupsTestCase(TestCase):
         cause an internal error, workaround for nova launchpad bug
         #829609.
         """
-        class StubQuery(object):
-
-            def __init__(stub, action="", creds=None, endpoint=None,
-                         other_params={}):
-                self.assertEqual(action, "DescribeSecurityGroups")
-                self.assertEqual(creds.access_key, "foo")
-                self.assertEqual(creds.secret_key, "bar")
-                self.assertEqual(other_params, {"GroupName.1": "WebServers"})
-
-            def submit(self):
-                return succeed(
-                    payload.sample_describe_security_groups_with_openstack)
+        query_factory = make_query_factory(
+            payload.sample_describe_security_groups_with_openstack,
+            "DescribeSecurityGroups",
+            "foo",
+            "bar",
+            {"GroupName.1": "WebServers"},
+        )
 
         def check_result(security_groups):
             [security_group] = security_groups
@@ -712,7 +689,7 @@ class EC2ClientSecurityGroupsTestCase(TestCase):
                 security_group.allowed_groups[0].group_name, "WebServers")
 
         creds = AWSCredentials("foo", "bar")
-        ec2 = client.EC2Client(creds, query_factory=StubQuery)
+        ec2 = client.EC2Client(creds, query_factory=query_factory)
         d = ec2.describe_security_groups("WebServers")
         return d.addCallback(check_result)
 
@@ -722,53 +699,45 @@ class EC2ClientSecurityGroupsTestCase(TestCase):
         eventually fires with a true value, indicating the success of the
         operation.
         """
-        class StubQuery(object):
-
-            def __init__(stub, action="", creds=None, endpoint=None,
-                         other_params={}):
-                self.assertEqual(action, "CreateSecurityGroup")
-                self.assertEqual(creds.access_key, "foo")
-                self.assertEqual(creds.secret_key, "bar")
-                self.assertEqual(other_params, {
-                    "GroupName": "WebServers",
-                    "GroupDescription": "The group for the web server farm.",
-                    })
-
-            def submit(self):
-                return succeed(payload.sample_create_security_group)
+        query_factory = make_query_factory(
+            payload.sample_create_security_group,
+            "CreateSecurityGroup",
+            "foo",
+            "bar",
+            {
+                "GroupName": "WebServers",
+                "GroupDescription": "The group for the web server farm.",
+            },
+        )
 
         def check_result(id):
             self.assertEquals(id, "sg-1a2b3c4d")
 
         creds = AWSCredentials("foo", "bar")
-        ec2 = client.EC2Client(creds, query_factory=StubQuery)
+        ec2 = client.EC2Client(creds, query_factory=query_factory)
         d = ec2.create_security_group(
             "WebServers",
             "The group for the web server farm.")
         return d.addCallback(check_result)
 
     def test_create_security_group_with_VPC(self):
-        class StubQuery(object):
-
-            def __init__(stub, action="", creds=None, endpoint=None,
-                         other_params={}):
-                self.assertEqual(action, "CreateSecurityGroup")
-                self.assertEqual(creds.access_key, "foo")
-                self.assertEqual(creds.secret_key, "bar")
-                self.assertEqual(other_params, {
-                    "GroupName": "WebServers",
-                    "GroupDescription": "The group for the web server farm.",
-                    "VpcId": "vpc-a4f2",
-                    })
-
-            def submit(self):
-                return succeed(payload.sample_create_security_group)
+        query_factory = make_query_factory(
+            payload.sample_create_security_group,
+            "CreateSecurityGroup",
+            "foo",
+            "bar",
+            {
+                "GroupName": "WebServers",
+                "GroupDescription": "The group for the web server farm.",
+                "VpcId": "vpc-a4f2",
+            },
+        )
 
         def check_result(id):
             self.assertEquals(id, "sg-1a2b3c4d")
 
         creds = AWSCredentials("foo", "bar")
-        ec2 = client.EC2Client(creds, query_factory=StubQuery)
+        ec2 = client.EC2Client(creds, query_factory=query_factory)
         d = ec2.create_security_group(
             "WebServers",
             "The group for the web server farm.",
@@ -781,22 +750,16 @@ class EC2ClientSecurityGroupsTestCase(TestCase):
         eventually fires with a true value, indicating the success of the
         operation.
         """
-        class StubQuery(object):
-
-            def __init__(stub, action="", creds=None, endpoint=None,
-                         other_params={}):
-                self.assertEqual(action, "DeleteSecurityGroup")
-                self.assertEqual(creds.access_key, "foo")
-                self.assertEqual(creds.secret_key, "bar")
-                self.assertEqual(other_params, {
-                    "GroupName": "WebServers",
-                    })
-
-            def submit(self):
-                return succeed(payload.sample_delete_security_group)
+        query_factory = make_query_factory(
+            payload.sample_delete_security_group,
+            "DeleteSecurityGroup",
+            "foo",
+            "bar",
+            {"GroupName": "WebServers"},
+        )
 
         creds = AWSCredentials("foo", "bar")
-        ec2 = client.EC2Client(creds, query_factory=StubQuery)
+        ec2 = client.EC2Client(creds, query_factory=query_factory)
         d = ec2.delete_security_group("WebServers")
         return self.assertTrue(d)
 
@@ -806,22 +769,16 @@ class EC2ClientSecurityGroupsTestCase(TestCase):
         eventually fires with a true value, indicating the success of the
         operation.
         """
-        class StubQuery(object):
-
-            def __init__(stub, action="", creds=None, endpoint=None,
-                         other_params={}):
-                self.assertEqual(action, "DeleteSecurityGroup")
-                self.assertEqual(creds.access_key, "foo")
-                self.assertEqual(creds.secret_key, "bar")
-                self.assertEqual(other_params, {
-                    "GroupId": "sg-a1a1a1",
-                    })
-
-            def submit(self):
-                return succeed(payload.sample_delete_security_group)
+        query_factory = make_query_factory(
+            payload.sample_delete_security_group,
+            "DeleteSecurityGroup",
+            "foo",
+            "bar",
+            {"GroupId": "sg-a1a1a1"},
+        )
 
         creds = AWSCredentials("foo", "bar")
-        ec2 = client.EC2Client(creds, query_factory=StubQuery)
+        ec2 = client.EC2Client(creds, query_factory=query_factory)
         d = ec2.delete_security_group(id="sg-a1a1a1")
         return self.assertTrue(d)
 
@@ -840,21 +797,15 @@ class EC2ClientSecurityGroupsTestCase(TestCase):
         eventually fires with a failure when EC2 is asked to delete a group
         that another group uses in that other group's policy.
         """
-        class StubQuery(object):
-
-            def __init__(stub, action="", creds=None, endpoint=None,
-                         other_params={}):
-                self.assertEqual(action, "DeleteSecurityGroup")
-                self.assertEqual(creds.access_key, "foo")
-                self.assertEqual(creds.secret_key, "bar")
-                self.assertEqual(other_params, {
-                    "GroupName": "GroupReferredTo",
-                    })
-
-            def submit(self):
-                error = EC2Error(
-                    payload.sample_delete_security_group_failure, 400)
-                return fail(error)
+        query_factory = make_query_factory(
+            Failure(EC2Error(
+                payload.sample_delete_security_group_failure, 400,
+            )),
+            "DeleteSecurityGroup",
+            "foo",
+            "bar",
+            {"GroupName": "GroupReferredTo"},
+        )
 
         def check_error(error):
             self.assertEquals(
@@ -863,7 +814,7 @@ class EC2ClientSecurityGroupsTestCase(TestCase):
                  "groups: groupID2:UsingGroup"))
 
         creds = AWSCredentials("foo", "bar")
-        ec2 = client.EC2Client(creds, query_factory=StubQuery)
+        ec2 = client.EC2Client(creds, query_factory=query_factory)
         failure = ec2.delete_security_group("GroupReferredTo")
         d = self.assertFailure(failure, EC2Error)
         return d.addCallback(check_error)
