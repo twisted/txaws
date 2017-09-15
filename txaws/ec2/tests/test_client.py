@@ -6,6 +6,8 @@
 from datetime import datetime
 import os
 
+from dateutil.zoneinfo import gettz
+
 from twisted.internet import reactor
 from twisted.internet.defer import succeed, fail
 from twisted.internet.error import ConnectionRefusedError
@@ -438,6 +440,93 @@ class EC2ClientInstancesTestCase(TestCase):
             ("You must specify either the subnet_id and "
              "security_group_ids or security_groups")
         )
+
+
+def make_query_factory(result, action, key_id, secret_key, params):
+    class FakeQuery(object):
+        def __init__(
+                self, action, creds=None, endpoint=None,
+                other_params={},
+        ):
+            self.action = action
+            self.creds = creds
+            self.endpoint = endpoint
+            self.other_params = other_params
+
+        def submit(self):
+            mismatch = self._mismatches()
+            if mismatch is None:
+                return succeed(result)
+            return fail(Exception(mismatch))
+
+        def _mismatches(self):
+            mismatches = []
+            to_check = [
+                ("action", self.action, action),
+                ("key_id", self.creds.access_key, key_id),
+                ("secret_key", self.creds.secret_key, secret_key),
+                ("params", self.other_params, params),
+            ]
+            for label, actual, expected in to_check:
+                if actual != expected:
+                    mismatches.append(
+                        "{}: got {}, expected {}".format(
+                            label,
+                            actual,
+                            expected,
+                        ),
+                    )
+            if mismatches:
+                return "\n".join(mismatches)
+            return None
+
+    return FakeQuery
+
+
+
+class EC2ClientConsoleOutputTestCase(TestCase):
+    def test_get_console_output(self):
+        """
+        L{EC2Client.get_console_output} returns a L{Deferred} that eventually
+        fires with a L{ConsoleOutput} instance created using XML data received
+        from the cloud.
+        """
+        creds = AWSCredentials("foo", "bar")
+        instance_id = u"i-abcdef0123456789"
+        query_factory = make_query_factory(
+            payload.sample_get_console_output_result,
+            "GetConsoleOutput",
+            creds.access_key,
+            creds.secret_key,
+            {"InstanceId": instance_id},
+        )
+
+        ec2 = client.EC2Client(creds, query_factory=query_factory)
+        d = ec2.get_console_output(instance_id)
+        console_output = self.successResultOf(d)
+
+        utc = gettz("UTC")
+        self.assertEqual(
+            console_output,
+            model.ConsoleOutput(
+                instance_id,
+                # Take from hard-coded payload
+                datetime(2010, 10, 14, 01, 12, 41, tzinfo=utc),
+                u"""\
+Linux version 2.6.16-xenU (builder@patchbat.amazonsa) (gcc version 4.0.1 20050727 (Red Hat 4.0.1-5)) #1 SMP Thu Oct 26 08:41:26 SAST 2006
+BIOS-provided physical RAM map:
+Xen: 0000000000000000 - 000000006a400000 (usable)
+980MB HIGHMEM available.
+727MB LOWMEM available.
+NX (Execute Disable) protection: active
+IRQ lockup detection disabled
+Built 1 zonelists
+Kernel command line: root=/dev/sda1 ro 4
+Enabling fast FPU save and restore... done.
+""",
+            ),
+        )
+
 
 
 class EC2ClientSecurityGroupsTestCase(TestCase):
