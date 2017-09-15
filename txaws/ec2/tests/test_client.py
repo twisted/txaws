@@ -511,7 +511,7 @@ class EC2ClientConsoleOutputTestCase(TestCase):
             model.ConsoleOutput(
                 instance_id,
                 # Take from hard-coded payload
-                datetime(2010, 10, 14, 01, 12, 41, tzinfo=utc),
+                datetime(2010, 10, 14, 1, 12, 41, tzinfo=utc),
                 u"""\
 Linux version 2.6.16-xenU (builder@patchbat.amazonsa) (gcc version 4.0.1 20050727 (Red Hat 4.0.1-5)) #1 SMP Thu Oct 26 08:41:26 SAST 2006
 BIOS-provided physical RAM map:
