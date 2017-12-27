@@ -9,6 +9,8 @@ from datetime import datetime
 from urllib import quote
 from base64 import b64encode
 
+from dateutil.parser import parse as parse_timestamp
+
 from txaws import version
 from txaws.client.base import BaseClient, BaseQuery, error_wrapper
 from txaws.ec2 import model
@@ -103,6 +105,15 @@ class EC2Client(BaseClient):
             endpoint=self.endpoint, other_params=instances)
         d = query.submit()
         return d.addCallback(self.parser.terminate_instances)
+
+    def get_console_output(self, instance_id):
+        """Get the console output for a single instance."""
+        InstanceIDParam = {"InstanceId": instance_id}
+        query = self.query_factory(
+            action="GetConsoleOutput", creds=self.creds,
+            endpoint=self.endpoint, other_params=InstanceIDParam)
+        d = query.submit()
+        return d.addCallback(self.parser.get_console_output)
 
     def describe_security_groups(self, *names):
         """Describe security groups.
@@ -690,6 +701,18 @@ class Parser(object):
                     "name")
                 result.append((instanceId, previousState, currentState))
         return result
+
+    def get_console_output(self, xml_bytes):
+        root = XML(xml_bytes)
+        output_node = root.find("output")
+        instance_id = root.find("instanceId").text.decode("ascii").strip()
+        timestamp = parse_timestamp(root.find("timestamp").text)
+        console_text = output_node.text.decode("base64").decode("utf-8")
+        return model.ConsoleOutput(
+            instance_id,
+            timestamp,
+            console_text,
+        )
 
     def describe_security_groups(self, xml_bytes):
         """Parse the XML returned by the C{DescribeSecurityGroups} function.

@@ -5,6 +5,10 @@
 
 """EC2 client support."""
 
+from datetime import datetime
+
+import attr
+from attr.validators import instance_of
 
 class Reservation(object):
     """An Amazon EC2 Reservation.
@@ -67,6 +71,26 @@ class Instance(object):
         self.kernel_id = kernel_id
         self.ramdisk_id = ramdisk_id
         self.reservation = reservation
+
+
+@attr.s(frozen=True)
+class ConsoleOutput(object):
+    """The console output of an EC2 instance.
+
+    @ivar instance_id: The identifier of the instance the console text belongs
+        to.
+    @type instance_id: L{unicode}
+
+    @ivar timestamp: The time the output was last updated (prior to the
+        creation of this object).
+    @type timestamp: L{datetime.datetime}
+
+    @ivar output: The text from the console.
+    @type output: L{unicode}
+    """
+    instance_id = attr.ib(validator=instance_of(unicode))
+    timestamp = attr.ib(validator=instance_of(datetime))
+    output = attr.ib(validator=instance_of(unicode))
 
 
 class SecurityGroup(object):

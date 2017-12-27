@@ -3,12 +3,17 @@
 # Licenced under the txaws licence available at /LICENSE in the txaws source.
 
 from datetime import datetime
+from dateutil.zoneinfo import gettz
 
 from twisted.internet.defer import succeed, fail
 from twisted.python.failure import Failure
 from twisted.web.error import Error
 
-from txaws.ec2.model import Keypair, SecurityGroup
+from txaws.ec2.model import (
+    Keypair,
+    SecurityGroup,
+    ConsoleOutput,
+)
 
 
 class FakeEC2Client(object):
@@ -49,6 +54,13 @@ class FakeEC2Client(object):
         result = [(instance.instance_id, instance.instance_state,
                    u"shutting-down") for instance in self.instances]
         return succeed(result)
+
+    def get_console_output(self, instance_id):
+        return ConsoleOutput(
+            instance_id,
+            datetime(2017, 9, 15, 8, 43, 20, tzinfo=gettz("UTC")),
+            u"Booting or whatever ...",
+        )
 
     def describe_keypairs(self):
         return succeed(self.keypairs)
