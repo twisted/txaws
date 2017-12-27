@@ -483,6 +483,19 @@ def make_query_factory(result, action, key_id, secret_key, params):
     return FakeQuery
 
 
+class FakeQueryTests(TestCase):
+    """
+    Tests for L{make_query_factory}.
+    """
+    def test_mismatch_action(self):
+        """
+        If there is a mismatch between the expected and presented action,
+        submiting the query results in an error.
+        """
+        factory = make_query_factory(object(), b"GET", b"id", b"key", {})
+        query = factory(b"POST", AWSCredentials(b"id", b"key"), other_params={})
+        self.assertFailure(query.submit(), Exception)
+
 
 class EC2ClientConsoleOutputTestCase(TestCase):
     def test_get_console_output(self):
