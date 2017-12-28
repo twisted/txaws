@@ -1,0 +1,4 @@
+[tool.towncrier]
+    package = "txaws"
+    package_dir = "."
+    filename = "NEWS.rst"
