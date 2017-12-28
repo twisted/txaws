@@ -1,3 +1,15 @@
+Txaws 0.5.0 (2017-12-27)
+========================
+
+Features
+--------
+
+- txaws.s3.client.S3Client.get_bucket now accepts a ``prefix`` parameter for
+  selecting a subset of S3 objects. (#78)
+- txaws.ec2.client.EC2Client now has a ``get_console_output`` method binding
+  the ``GetConsoleOutput`` API. (#82)
+
+
 Txaws 0.4.0 (2017-07-04)
 ========================
 
