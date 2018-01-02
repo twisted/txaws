@@ -86,6 +86,8 @@ def s3_integration_tests(get_client):
                 1, len(created),
                 "Expected to find created object in listing {}".format(objects),
             )
+            self.assertEqual(objects.is_truncated, u"false")
+
             self.assertEqual(str(len(object_data)), created[0].size)
 
             data = yield client.get_object(bucket_name, object_name)
@@ -158,6 +160,7 @@ def s3_integration_tests(get_client):
             d.addCallback(put_objects)
             def got_objects(listing):
                 self.assertEqual(2, len(listing.contents))
+                self.assertEqual(listing.is_truncated, u"true")
             d.addCallback(got_objects)
             return d
 

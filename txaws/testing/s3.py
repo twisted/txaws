@@ -83,7 +83,7 @@ class _MemoryS3Client(MemoryClient):
         assert bucket not in self._state.buckets
         self._state.buckets[bucket] = dict(
             bucket=Bucket(bucket, self._state.time()),
-            listing=BucketListing(bucket, None, None, None, False),
+            listing=BucketListing(bucket, None, None, None, u"false"),
         )
         return succeed(None)
 
@@ -109,16 +109,24 @@ class _MemoryS3Client(MemoryClient):
             prefix = b""
 
         contents = (
+        prefixed_contents = (
             content
             for content
             in listing.contents
             if content.key.startswith(prefix)
         )
 
+        contents = list(islice(prefixed_contents, max_keys))
+        is_truncated = u"false"
+        for ignored in prefixed_contents:
+            is_truncated = u"true"
+            break
+
         listing = attr.assoc(
             listing,
-            contents=list(islice(contents, max_keys)),
+            contents=contents,
             prefix=prefix,
+            is_truncated=is_truncated,
         )
         return succeed(listing)
 
