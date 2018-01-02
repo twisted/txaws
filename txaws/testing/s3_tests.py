@@ -247,7 +247,6 @@ def s3_integration_tests(get_client):
         # It takes some while to create the thousand-plus objects.  Give the
         # test some extra time.
         test_get_bucket_default_max_keys.timeout = 300
-        test_get_bucket_default_max_keys.skip = True
 
 
         def test_put_object_errors(self):
