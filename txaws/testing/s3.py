@@ -8,6 +8,7 @@ __all__ = [
 ]
 
 from datetime import datetime
+from itertools import islice
 
 import attr
 
@@ -94,23 +95,31 @@ class _MemoryS3Client(MemoryClient):
         return succeed(None)
 
     @_rate_limited
-    def get_bucket(self, bucket, prefix=None):
+    def get_bucket(self, bucket, max_keys=None, prefix=None):
         try:
             pieces = self._state.buckets[bucket]
         except KeyError:
             return fail(S3Error("<nosuchbucket/>", 400))
         listing = pieces["listing"]
-        if prefix is not None:
-            listing = attr.assoc(
-                listing,
-                contents=list(
-                    content
-                    for content
-                    in listing.contents
-                    if content.key.startswith(prefix)
-                ),
-                prefix=prefix,
-            )
+
+        if max_keys is None:
+            max_keys = 1000
+
+        if prefix is None:
+            prefix = b""
+
+        contents = (
+            content
+            for content
+            in listing.contents
+            if content.key.startswith(prefix)
+        )
+
+        listing = attr.assoc(
+            listing,
+            contents=list(islice(contents, max_keys)),
+            prefix=prefix,
+        )
         return succeed(listing)
 
     @_rate_limited

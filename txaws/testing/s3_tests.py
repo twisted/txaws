@@ -7,6 +7,7 @@ Integration tests for the S3 client(s).
 from io import BytesIO
 from uuid import uuid4
 
+from twisted.python.compat import unicode
 from twisted.trial.unittest import TestCase
 from twisted.internet.defer import inlineCallbacks, gatherResults
 from twisted.web.client import FileBodyProducer
@@ -134,6 +135,56 @@ def s3_integration_tests(get_client):
                 self.assertEqual(b"", location)
             d.addCallback(got_location)
             return d
+
+
+        def test_get_bucket_max_keys(self):
+            """
+            C{max_keys} can be passed to C{get_bucket} to limit the number of
+            results.
+            """
+            bucket_name = str(uuid4())
+            client = get_client(self)
+            d = client.create_bucket(bucket_name)
+            def created_bucket(ignored):
+                # Put a few objects in it so we can retrieve some of them.
+                return gatherResults(list(
+                    client.put_object(bucket_name, unicode(i).encode("ascii"))
+                    for i in range(3)
+                ))
+            d.addCallback(created_bucket)
+            def put_objects(ignored):
+                return client.get_bucket(bucket_name, max_keys=2)
+            d.addCallback(put_objects)
+            def got_objects(listing):
+                self.assertEqual(2, len(listing.contents))
+            d.addCallback(got_objects)
+            return d
+
+
+        def test_get_bucket_default_max_keys(self):
+            """
+            C{get_bucket} returns a limited number of results even if C{max_keys} is
+            not specified.
+            """
+            max_keys = 1000
+            bucket_name = str(uuid4())
+            client = get_client(self)
+            d = client.create_bucket(bucket_name)
+            def created_bucket(ignored):
+                # Put a bunch ofobjects.  The default limit is 1000.
+                return gatherResults(list(
+                    client.put_object(bucket_name, unicode(i).encode("ascii"))
+                    for i in range(max_keys + 3)
+                ))
+            d.addCallback(created_bucket)
+            def put_objects(ignored):
+                return client.get_bucket(bucket_name)
+            d.addCallback(put_objects)
+            def got_objects(listing):
+                self.assertEqual(max_keys, len(listing.contents))
+            d.addCallback(got_objects)
+            return d
+
 
         def test_put_object_errors(self):
             """
