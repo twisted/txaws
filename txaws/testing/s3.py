@@ -116,7 +116,7 @@ class _MemoryS3Client(MemoryClient):
         prefixed_contents = (
             content
             for content
-            in listing.contents
+            in sorted(listing.contents, key=lambda item: item.key)
             if content.key.startswith(prefix)
             and content.key > keys_after
         )

@@ -105,6 +105,32 @@ def s3_integration_tests(get_client):
                 "Expected to not find deleted objects in listing {}".format(objects),
             )
 
+        def test_get_bucket_object_order(self):
+            """
+            The objects returned by C{get_bucket} are sorted lexicographically by their
+            key.
+            """
+            bucket_name = str(uuid4())
+            client = get_client(self)
+            d = client.create_bucket(bucket_name)
+            def created_bucket(ignored):
+                return gatherResults([
+                    client.put_object(bucket_name, u"b"),
+                    client.put_object(bucket_name, u"a"),
+                    client.put_object(bucket_name, u"c"),
+            ])
+            d.addCallback(created_bucket)
+            def created_objects(ignored):
+                return client.get_bucket(bucket_name)
+            d.addCallback(created_objects)
+            def got_objects(listing):
+                self.assertEqual(
+                    [u"a", u"b", u"c"],
+                    list(item.key for item in listing.contents),
+                )
+            d.addCallback(got_objects)
+            return d
+
         @inlineCallbacks
         def test_get_bucket_prefix(self):
             """
