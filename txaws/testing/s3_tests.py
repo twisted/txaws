@@ -10,6 +10,7 @@ from uuid import uuid4
 from twisted.python.compat import unicode
 from twisted.trial.unittest import TestCase
 from twisted.internet.defer import inlineCallbacks, gatherResults
+from twisted.internet.task import cooperate
 from twisted.web.client import FileBodyProducer
 
 def s3_integration_tests(get_client):
@@ -172,10 +173,15 @@ def s3_integration_tests(get_client):
             d = client.create_bucket(bucket_name)
             def created_bucket(ignored):
                 # Put a bunch ofobjects.  The default limit is 1000.
-                return gatherResults(list(
+                work = (
                     client.put_object(bucket_name, unicode(i).encode("ascii"))
                     for i in range(max_keys + 3)
-                ))
+                )
+                return gatherResults([
+                    cooperate(work).whenDone(),
+                    cooperate(work).whenDone(),
+                    cooperate(work).whenDone(),
+                ])
             d.addCallback(created_bucket)
             def put_objects(ignored):
                 return client.get_bucket(bucket_name)
@@ -184,6 +190,9 @@ def s3_integration_tests(get_client):
                 self.assertEqual(max_keys, len(listing.contents))
             d.addCallback(got_objects)
             return d
+        # It takes some while to create the thousand-plus objects.  Give the
+        # test some extra time.
+        test_get_bucket_default_max_keys.timeout = 300
 
 
         def test_put_object_errors(self):
