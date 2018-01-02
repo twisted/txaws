@@ -95,7 +95,7 @@ class _MemoryS3Client(MemoryClient):
         return succeed(None)
 
     @_rate_limited
-    def get_bucket(self, bucket, max_keys=None, prefix=None):
+    def get_bucket(self, bucket, marker=None, max_keys=None, prefix=None):
         try:
             pieces = self._state.buckets[bucket]
         except KeyError:
@@ -108,12 +108,17 @@ class _MemoryS3Client(MemoryClient):
         if prefix is None:
             prefix = b""
 
-        contents = (
+        if marker is None:
+            keys_after = u""
+        else:
+            keys_after = marker
+
         prefixed_contents = (
             content
             for content
             in listing.contents
             if content.key.startswith(prefix)
+            and content.key > keys_after
         )
 
         contents = list(islice(prefixed_contents, max_keys))
@@ -127,6 +132,7 @@ class _MemoryS3Client(MemoryClient):
             contents=contents,
             prefix=prefix,
             is_truncated=is_truncated,
+            marker=marker,
         )
         return succeed(listing)
 

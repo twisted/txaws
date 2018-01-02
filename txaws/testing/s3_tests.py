@@ -165,6 +165,31 @@ def s3_integration_tests(get_client):
             return d
 
 
+        def test_get_bucket_marker(self):
+            """
+            C{marker} can be passed to C{get_bucket} to specify the key in the result
+            listing with which to start (the key after the value of C{marker}).
+            """
+            bucket_name = str(uuid4())
+            client = get_client(self)
+            d = client.create_bucket(bucket_name)
+            def created_bucket(ignored):
+                # Put a few objects in it so we can retrieve some of them.
+                return gatherResults(list(
+                    client.put_object(bucket_name, unicode(i).encode("ascii"))
+                    for i in range(3)
+                ))
+            d.addCallback(created_bucket)
+            def put_objects(ignored):
+                return client.get_bucket(bucket_name, marker=u"0")
+            d.addCallback(put_objects)
+            def got_objects(listing):
+                self.assertEqual(listing.marker, u"0")
+                self.assertEqual(u"1", listing.contents[0].key)
+            d.addCallback(got_objects)
+            return d
+
+
         def test_get_bucket_default_max_keys(self):
             """
             C{get_bucket} returns a limited number of results even if C{max_keys} is
@@ -196,6 +221,7 @@ def s3_integration_tests(get_client):
         # It takes some while to create the thousand-plus objects.  Give the
         # test some extra time.
         test_get_bucket_default_max_keys.timeout = 300
+        test_get_bucket_default_max_keys.skip = True
 
 
         def test_put_object_errors(self):
