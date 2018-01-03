@@ -226,7 +226,7 @@ def s3_integration_tests(get_client):
             client = get_client(self)
             d = client.create_bucket(bucket_name)
             def created_bucket(ignored):
-                # Put a bunch ofobjects.  The default limit is 1000.
+                # Put a bunch of objects.  The default limit is 1000.
                 work = (
                     client.put_object(bucket_name, unicode(i).encode("ascii"))
                     for i in range(max_keys + 3)
