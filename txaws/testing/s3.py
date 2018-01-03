@@ -109,7 +109,7 @@ class _MemoryS3Client(MemoryClient):
             prefix = b""
 
         if marker is None:
-            keys_after = u""
+            keys_after = b""
         else:
             keys_after = marker
 
