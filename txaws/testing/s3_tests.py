@@ -206,9 +206,9 @@ def s3_integration_tests(get_client):
                     for i in range(3)
                 ))
             d.addCallback(created_bucket)
-            def put_objects(ignored):
+            def created_objects(ignored):
                 return client.get_bucket(bucket_name, marker=u"0")
-            d.addCallback(put_objects)
+            d.addCallback(created_objects)
             def got_objects(listing):
                 self.assertEqual(listing.marker, u"0")
                 self.assertEqual(u"1", listing.contents[0].key)
