@@ -140,8 +140,8 @@ def s3_integration_tests(get_client):
             bucket_name = unicode(uuid4())
             client = get_client(self)
             yield client.create_bucket(bucket_name)
-            yield client.put_object(bucket_name, b"a", b"foo")
-            yield client.put_object(bucket_name, b"b", b"bar")
+            yield client.put_object(bucket_name, u"a", b"foo")
+            yield client.put_object(bucket_name, u"b", b"bar")
 
             objects = yield client.get_bucket(bucket_name, prefix=b"a")
             self.assertEqual([b"a"], list(obj.key for obj in objects.contents))
@@ -177,7 +177,7 @@ def s3_integration_tests(get_client):
             def created_bucket(ignored):
                 # Put a few objects in it so we can retrieve some of them.
                 return gatherResults(list(
-                    client.put_object(bucket_name, unicode(i).encode("ascii"))
+                    client.put_object(bucket_name, unicode(i))
                     for i in range(3)
                 ))
             d.addCallback(created_bucket)
@@ -202,7 +202,7 @@ def s3_integration_tests(get_client):
             def created_bucket(ignored):
                 # Put a few objects in it so we can retrieve some of them.
                 return gatherResults(list(
-                    client.put_object(bucket_name, unicode(i).encode("ascii"))
+                    client.put_object(bucket_name, unicode(i))
                     for i in range(3)
                 ))
             d.addCallback(created_bucket)
