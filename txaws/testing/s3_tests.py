@@ -110,7 +110,7 @@ def s3_integration_tests(get_client):
             The objects returned by C{get_bucket} are sorted lexicographically by their
             key.
             """
-            bucket_name = str(uuid4())
+            bucket_name = unicode(uuid4())
             client = get_client(self)
             d = client.create_bucket(bucket_name)
             def created_bucket(ignored):
@@ -137,7 +137,7 @@ def s3_integration_tests(get_client):
             A subset of S3 objects in a bucket can be retrieved by specifying a value
             for the ``prefix`` argument to ``get_bucket``.
             """
-            bucket_name = str(uuid4())
+            bucket_name = unicode(uuid4())
             client = get_client(self)
             yield client.create_bucket(bucket_name)
             yield client.put_object(bucket_name, b"a", b"foo")
@@ -152,7 +152,7 @@ def s3_integration_tests(get_client):
             C{get_bucket_location} returns a L{Deferred} that fires
             C{b""}.
             """
-            bucket_name = str(uuid4())
+            bucket_name = unicode(uuid4())
             client = get_client(self)
             d = client.create_bucket(bucket_name)
             def created_bucket(ignored):
@@ -171,7 +171,7 @@ def s3_integration_tests(get_client):
             C{max_keys} can be passed to C{get_bucket} to limit the number of
             results.
             """
-            bucket_name = str(uuid4())
+            bucket_name = unicode(uuid4())
             client = get_client(self)
             d = client.create_bucket(bucket_name)
             def created_bucket(ignored):
@@ -196,7 +196,7 @@ def s3_integration_tests(get_client):
             C{marker} can be passed to C{get_bucket} to specify the key in the result
             listing with which to start (the key after the value of C{marker}).
             """
-            bucket_name = str(uuid4())
+            bucket_name = unicode(uuid4())
             client = get_client(self)
             d = client.create_bucket(bucket_name)
             def created_bucket(ignored):
@@ -222,7 +222,7 @@ def s3_integration_tests(get_client):
             not specified.
             """
             max_keys = 1000
-            bucket_name = str(uuid4())
+            bucket_name = unicode(uuid4())
             client = get_client(self)
             d = client.create_bucket(bucket_name)
             def created_bucket(ignored):
