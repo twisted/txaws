@@ -17,7 +17,7 @@ from txaws.s3.model import (RequestPayment, MultipartInitiationResponse,
                             MultipartCompletionResponse)
 from txaws.testing.producers import StringBodyProducer
 from txaws.testing.s3_tests import s3_integration_tests
-from txaws.service import AWSServiceEndpoint, AWSServiceRegion, REGION_US_EAST_1
+from txaws.service import AWSServiceEndpoint, REGION_US_EAST_1
 from txaws.testing import payload
 from txaws.testing.integration import get_live_service
 from txaws.util import calculate_md5

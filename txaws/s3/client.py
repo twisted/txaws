@@ -195,6 +195,9 @@ class S3Client(BaseClient):
         """
         Get a list of all the objects in a bucket.
 
+        @param bucket: The name of the bucket from which to retrieve objects.
+        @type bucket: L{unicode}
+
         @param marker: If given, indicate a position in the overall
             results where the results of this call should begin.  The
             first result is the first object that sorts greater than
@@ -426,7 +429,8 @@ class S3Client(BaseClient):
         An existing object with the same name will be replaced.
 
         @param bucket: The name of the bucket.
-        @param object: The name of the object.
+        @param object_name: The name of the object.
+        @type object_name: L{unicode}
         @param data: The data to write.
         @param content_type: The type of data being written.
         @param metadata: A C{dict} used to build C{x-amz-meta-*} headers.

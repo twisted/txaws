@@ -8,6 +8,7 @@ __all__ = [
 ]
 
 from datetime import datetime
+from itertools import islice
 
 import attr
 
@@ -82,7 +83,7 @@ class _MemoryS3Client(MemoryClient):
         assert bucket not in self._state.buckets
         self._state.buckets[bucket] = dict(
             bucket=Bucket(bucket, self._state.time()),
-            listing=BucketListing(bucket, None, None, None, False),
+            listing=BucketListing(bucket, None, None, None, u"false"),
         )
         return succeed(None)
 
@@ -94,23 +95,45 @@ class _MemoryS3Client(MemoryClient):
         return succeed(None)
 
     @_rate_limited
-    def get_bucket(self, bucket, prefix=None):
+    def get_bucket(self, bucket, marker=None, max_keys=None, prefix=None):
         try:
             pieces = self._state.buckets[bucket]
         except KeyError:
             return fail(S3Error("<nosuchbucket/>", 400))
         listing = pieces["listing"]
-        if prefix is not None:
-            listing = attr.assoc(
-                listing,
-                contents=list(
-                    content
-                    for content
-                    in listing.contents
-                    if content.key.startswith(prefix)
-                ),
-                prefix=prefix,
-            )
+
+        if max_keys is None:
+            max_keys = 1000
+
+        if prefix is None:
+            prefix = b""
+
+        if marker is None:
+            keys_after = b""
+        else:
+            keys_after = marker
+
+        prefixed_contents = (
+            content
+            for content
+            in sorted(listing.contents, key=lambda item: item.key)
+            if content.key.startswith(prefix)
+            and content.key > keys_after
+        )
+
+        contents = list(islice(prefixed_contents, max_keys))
+        is_truncated = u"false"
+        for ignored in prefixed_contents:
+            is_truncated = u"true"
+            break
+
+        listing = attr.assoc(
+            listing,
+            contents=contents,
+            prefix=prefix,
+            is_truncated=is_truncated,
+            marker=marker,
+        )
         return succeed(listing)
 
     @_rate_limited
