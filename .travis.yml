@@ -40,9 +40,10 @@ env:
 
 install:
   - "pip install --upgrade pip setuptools wheel coverage codecov"
-  # Pass --upgrade here so that if travis pre-installed any version of any of
-  # our dependencies and it happens to be an old version pip will upgrade it
-  # to a version we actually want.
+  # Travis pre-installed attrs screws with pip dependency resolution (not that
+  # it takes much...).  Explicitly upgrade attrs here to prevent old version
+  # from breaking everything.
+  - "pip install --upgrade attrs"
   - "pip install --upgrade .[dev]"
 
 script:
