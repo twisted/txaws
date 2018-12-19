@@ -40,7 +40,10 @@ env:
 
 install:
   - "pip install --upgrade pip setuptools wheel coverage codecov"
-  - "pip install .[dev]"
+  # Pass --upgrade here so that if travis pre-installed any version of any of
+  # our dependencies and it happens to be an old version pip will upgrade it
+  # to a version we actually want.
+  - "pip install --upgrade .[dev]"
 
 script:
   - "coverage run --rcfile=${PWD}/.coveragerc $(type -p trial) txaws"
