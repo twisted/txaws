@@ -45,6 +45,12 @@ class Route53Error(AWSError):
     L{Route53Error} is the base exception type for all errors returned from
     the AWS Route53 service.
     """
+    def _set_400_error(self, tree):
+        error = tree.find(".//Error")
+        if error is not None:
+            data = self._node_to_dict(error)
+            if data:
+                self.errors.append(data)
 
 
 def route53_error_wrapper(error):

@@ -8,6 +8,7 @@ from ipaddress import IPv4Address, IPv6Address
 
 from twisted.internet.task import Cooperator
 from twisted.trial.unittest import TestCase
+from twisted.web.http import OK, BAD_REQUEST
 from twisted.web.static import Data
 from twisted.web.resource import IResource, Resource
 
@@ -23,6 +24,7 @@ from txaws.route53.client import (
     A, AAAA, NAPTR, PTR, SPF, SRV, TXT, MX, NS, SOA, CNAME,
     UnknownRecordType,
     Name, get_route53_client,
+    Route53Error,
 )
 
 from treq.testing import RequestTraversalAgent
@@ -38,7 +40,12 @@ def uncooperator(started=True):
 class POSTableData(Data):
     posted = ()
 
+    def __init__(self, data, type, status=OK):
+        Data.__init__(self, data, type)
+        self._status = status
+
     def render_POST(self, request):
+        request.setResponseCode(self._status)
         self.posted += (request.content.read(),)
         return Data.render_GET(self, request)
 
@@ -53,6 +60,29 @@ def static_resource(hierarchy):
         else:
             raise NotImplementedError(v)
     return root
+
+
+class sample_create_resource_record_sets_error_result(object):
+    label = Name(u"duplicate.example.invalid.")
+    type = "CNAME"
+
+    cname = CNAME(
+        canonical_name=Name(u"somewhere.example.invalid."),
+    )
+    rrset = RRSet(
+        label=label,
+        type=u"CNAME",
+        ttl=600,
+        records={cname},
+    )
+
+    xml = """\
+<?xml version="1.0"?>
+<ErrorResponse xmlns="https://route53.amazonaws.com/doc/2013-04-01/"><Error><Type>Sender</Type><Code>InvalidChangeBatch</Code><Message>[Tried to create resource record set [name='{label}', type='{type}'] but it already exists]</Message></Error><RequestId>9197fef4-03cc-11e9-b35f-7947070744f2</RequestId></ErrorResponse>
+""".format(
+    label=label,
+    type=type,
+)
 
 
 class sample_list_resource_record_sets_result(object):
@@ -503,6 +533,37 @@ class ChangeResourceRecordSetsTestCase(TestCase):
     """
     Tests for C{change_resource_record_sets}.
     """
+    def test_error_changes(self):
+        duplicate_resource = POSTableData(
+            sample_create_resource_record_sets_error_result.xml,
+            b"text/xml",
+            BAD_REQUEST,
+        )
+        zone_id = u"1234ABCDEF"
+        agent = RequestTraversalAgent(static_resource({
+            b"2013-04-01": {
+                b"hostedzone": {
+                    zone_id.encode("ascii"): {
+                        b"rrset": duplicate_resource,
+                    },
+                },
+            },
+        }))
+        aws = AWSServiceRegion(access_key="abc", secret_key="def")
+        client = get_route53_client(agent, aws, uncooperator())
+        err = self.failureResultOf(client.change_resource_record_sets(
+            zone_id=zone_id,
+            changes=[create_rrset(sample_create_resource_record_sets_error_result.rrset)],
+        ), Route53Error)
+
+        expected =  {
+            u'Code': 'InvalidChangeBatch',
+            u'Message': "[Tried to create resource record set [name='duplicate.example.invalid.', type='CNAME'] but it already exists]",
+            u'Type': 'Sender',
+        }
+        self.assertEqual(err.value.errors, [expected])
+
+
     def test_some_changes(self):
         change_resource = POSTableData(
             sample_change_resource_record_sets_result.xml,

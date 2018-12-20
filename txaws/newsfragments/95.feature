@@ -1,0 +1,1 @@
+The Route53 client now includes more information in `Route53Error` exceptions it raises.

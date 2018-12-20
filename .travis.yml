@@ -40,7 +40,11 @@ env:
 
 install:
   - "pip install --upgrade pip setuptools wheel coverage codecov"
-  - "pip install .[dev]"
+  # Travis pre-installed attrs screws with pip dependency resolution (not that
+  # it takes much...).  Explicitly upgrade attrs here to prevent old version
+  # from breaking everything.
+  - "pip install --upgrade attrs"
+  - "pip install --upgrade .[dev]"
 
 script:
   - "coverage run --rcfile=${PWD}/.coveragerc $(type -p trial) txaws"
