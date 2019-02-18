@@ -152,8 +152,8 @@ def mock_query_factory(response_body):
         responseHeaders = Headers()
 
     class MockQuery(object):
-        def __init__(self, credentials, details):
-            self.__class__.credentials = credentials
+        def __init__(self, creds, details):
+            self.__class__.creds = creds
             self.__class__.details = details
 
         def submit(self, agent, receiver_factory, utcnow):
@@ -170,8 +170,8 @@ class S3ClientTestCase(TestCase):
         query_factory = mock_query_factory(payload.sample_list_buckets_result)
 
         def check_query_args(passthrough):
-            self.assertEqual(query_factory.credentials.access_key, "foo")
-            self.assertEqual(query_factory.credentials.secret_key, "bar")
+            self.assertEqual(query_factory.creds.access_key, "foo")
+            self.assertEqual(query_factory.creds.secret_key, "bar")
             self.assertEqual(
                 RequestDetails(
                     service=b"s3",
@@ -205,8 +205,8 @@ class S3ClientTestCase(TestCase):
     def test_create_bucket(self):
         query_factory = mock_query_factory(None)
         def check_query_args(passthrough):
-            self.assertEqual(query_factory.credentials.access_key, "foo")
-            self.assertEqual(query_factory.credentials.secret_key, "bar")
+            self.assertEqual(query_factory.creds.access_key, "foo")
+            self.assertEqual(query_factory.creds.secret_key, "bar")
             self.assertEqual(
                 RequestDetails(
                     service=b"s3",
@@ -230,8 +230,8 @@ class S3ClientTestCase(TestCase):
         query_factory = mock_query_factory(payload.sample_get_bucket_result)
 
         def check_query_args(passthrough):
-            self.assertEqual(query_factory.credentials.access_key, "foo")
-            self.assertEqual(query_factory.credentials.secret_key, "bar")
+            self.assertEqual(query_factory.creds.access_key, "foo")
+            self.assertEqual(query_factory.creds.secret_key, "bar")
             self.assertEqual(
                 RequestDetails(
                     service=b"s3",
@@ -320,8 +320,8 @@ class S3ClientTestCase(TestCase):
         """
         query_factory = mock_query_factory(payload.sample_get_bucket_location_result)
         def check_query_args(passthrough):
-            self.assertEqual(query_factory.credentials.access_key, "foo")
-            self.assertEqual(query_factory.credentials.secret_key, "bar")
+            self.assertEqual(query_factory.creds.access_key, "foo")
+            self.assertEqual(query_factory.creds.secret_key, "bar")
             self.assertEqual(
                 RequestDetails(
                     service=b"s3",
@@ -353,8 +353,8 @@ class S3ClientTestCase(TestCase):
         """
         query_factory = mock_query_factory(payload.sample_s3_get_bucket_lifecycle_multiple_rules_result)
         def check_query_args(passthrough):
-            self.assertEqual(query_factory.credentials.access_key, "foo")
-            self.assertEqual(query_factory.credentials.secret_key, "bar")
+            self.assertEqual(query_factory.creds.access_key, "foo")
+            self.assertEqual(query_factory.creds.secret_key, "bar")
             self.assertEqual(
                 RequestDetails(
                     service=b"s3",
@@ -391,8 +391,8 @@ class S3ClientTestCase(TestCase):
         """
         query_factory = mock_query_factory(payload.sample_s3_get_bucket_lifecycle_result)
         def check_query_args(passthrough):
-            self.assertEqual(query_factory.credentials.access_key, "foo")
-            self.assertEqual(query_factory.credentials.secret_key, "bar")
+            self.assertEqual(query_factory.creds.access_key, "foo")
+            self.assertEqual(query_factory.creds.secret_key, "bar")
             self.assertEqual(
                 RequestDetails(
                     service=b"s3",
@@ -428,8 +428,8 @@ class S3ClientTestCase(TestCase):
         """
         query_factory = mock_query_factory(payload.sample_s3_get_bucket_website_no_error_result)
         def check_query_args(passthrough):
-            self.assertEqual(query_factory.credentials.access_key, "foo")
-            self.assertEqual(query_factory.credentials.secret_key, "bar")
+            self.assertEqual(query_factory.creds.access_key, "foo")
+            self.assertEqual(query_factory.creds.secret_key, "bar")
             self.assertEqual(
                 RequestDetails(
                     service=b"s3",
@@ -462,8 +462,8 @@ class S3ClientTestCase(TestCase):
         """
         query_factory = mock_query_factory(payload.sample_s3_get_bucket_website_result)
         def check_query_args(passthrough):
-            self.assertEqual(query_factory.credentials.access_key, "foo")
-            self.assertEqual(query_factory.credentials.secret_key, "bar")
+            self.assertEqual(query_factory.creds.access_key, "foo")
+            self.assertEqual(query_factory.creds.secret_key, "bar")
             self.assertEqual(
                 RequestDetails(
                     service=b"s3",
@@ -496,8 +496,8 @@ class S3ClientTestCase(TestCase):
         """
         query_factory = mock_query_factory(payload.sample_s3_get_bucket_notification_result)
         def check_query_args(passthrough):
-            self.assertEqual(query_factory.credentials.access_key, "foo")
-            self.assertEqual(query_factory.credentials.secret_key, "bar")
+            self.assertEqual(query_factory.creds.access_key, "foo")
+            self.assertEqual(query_factory.creds.secret_key, "bar")
             self.assertEqual(
                 RequestDetails(
                     service=b"s3",
@@ -530,8 +530,8 @@ class S3ClientTestCase(TestCase):
         """
         query_factory = mock_query_factory(payload.sample_s3_get_bucket_notification_with_topic_result)
         def check_query_args(passthrough):
-            self.assertEqual(query_factory.credentials.access_key, "foo")
-            self.assertEqual(query_factory.credentials.secret_key, "bar")
+            self.assertEqual(query_factory.creds.access_key, "foo")
+            self.assertEqual(query_factory.creds.secret_key, "bar")
             self.assertEqual(
                 RequestDetails(
                     service=b"s3",
@@ -567,8 +567,8 @@ class S3ClientTestCase(TestCase):
         """
         query_factory = mock_query_factory(payload.sample_s3_get_bucket_versioning_result)
         def check_query_args(passthrough):
-            self.assertEqual(query_factory.credentials.access_key, "foo")
-            self.assertEqual(query_factory.credentials.secret_key, "bar")
+            self.assertEqual(query_factory.creds.access_key, "foo")
+            self.assertEqual(query_factory.creds.secret_key, "bar")
             self.assertEqual(
                 RequestDetails(
                     service=b"s3",
@@ -601,8 +601,8 @@ class S3ClientTestCase(TestCase):
         """
         query_factory = mock_query_factory(payload.sample_s3_get_bucket_versioning_enabled_result)
         def check_query_args(passthrough):
-            self.assertEqual(query_factory.credentials.access_key, "foo")
-            self.assertEqual(query_factory.credentials.secret_key, "bar")
+            self.assertEqual(query_factory.creds.access_key, "foo")
+            self.assertEqual(query_factory.creds.secret_key, "bar")
             self.assertEqual(
                 RequestDetails(
                     service=b"s3",
@@ -635,8 +635,8 @@ class S3ClientTestCase(TestCase):
         """
         query_factory = mock_query_factory(payload.sample_s3_get_bucket_versioning_mfa_disabled_result)
         def check_query_args(passthrough):
-            self.assertEqual(query_factory.credentials.access_key, "foo")
-            self.assertEqual(query_factory.credentials.secret_key, "bar")
+            self.assertEqual(query_factory.creds.access_key, "foo")
+            self.assertEqual(query_factory.creds.secret_key, "bar")
             self.assertEqual(
                 RequestDetails(
                     service=b"s3",
@@ -662,8 +662,8 @@ class S3ClientTestCase(TestCase):
     def test_delete_bucket(self):
         query_factory = mock_query_factory(None)
         def check_query_args(passthrough):
-            self.assertEqual(query_factory.credentials.access_key, "foo")
-            self.assertEqual(query_factory.credentials.secret_key, "bar")
+            self.assertEqual(query_factory.creds.access_key, "foo")
+            self.assertEqual(query_factory.creds.secret_key, "bar")
             self.assertEqual(
                 RequestDetails(
                     service=b"s3",
@@ -685,8 +685,8 @@ class S3ClientTestCase(TestCase):
     def test_put_bucket_acl(self):
         query_factory = mock_query_factory(payload.sample_access_control_policy_result)
         def check_query_args(passthrough):
-            self.assertEqual(query_factory.credentials.access_key, "foo")
-            self.assertEqual(query_factory.credentials.secret_key, "bar")
+            self.assertEqual(query_factory.creds.access_key, "foo")
+            self.assertEqual(query_factory.creds.secret_key, "bar")
             self.assertEqual(
                 RequestDetails(
                     service=b"s3",
@@ -716,8 +716,8 @@ class S3ClientTestCase(TestCase):
     def test_get_bucket_acl(self):
         query_factory = mock_query_factory(payload.sample_access_control_policy_result)
         def check_query_args(passthrough):
-            self.assertEqual(query_factory.credentials.access_key, "foo")
-            self.assertEqual(query_factory.credentials.secret_key, "bar")
+            self.assertEqual(query_factory.creds.access_key, "foo")
+            self.assertEqual(query_factory.creds.secret_key, "bar")
             self.assertEqual(
                 RequestDetails(
                     service=b"s3",
@@ -749,8 +749,8 @@ class S3ClientTestCase(TestCase):
         """
         query_factory = mock_query_factory(None)
         def check_query_args(passthrough):
-            self.assertEqual(query_factory.credentials.access_key, "foo")
-            self.assertEqual(query_factory.credentials.secret_key, "bar")
+            self.assertEqual(query_factory.creds.access_key, "foo")
+            self.assertEqual(query_factory.creds.secret_key, "bar")
             xml = ("<RequestPaymentConfiguration "
                    'xmlns="http://s3.amazonaws.com/doc/2006-03-01/">\n'
                    "  <Payer>Requester</Payer>\n"
@@ -782,8 +782,8 @@ class S3ClientTestCase(TestCase):
         """
         query_factory = mock_query_factory(payload.sample_request_payment)
         def check_query_args(passthrough):
-            self.assertEqual(query_factory.credentials.access_key, "foo")
-            self.assertEqual(query_factory.credentials.secret_key, "bar")
+            self.assertEqual(query_factory.creds.access_key, "foo")
+            self.assertEqual(query_factory.creds.secret_key, "bar")
             self.assertEqual(
                 RequestDetails(
                     service=b"s3",
@@ -809,8 +809,8 @@ class S3ClientTestCase(TestCase):
     def test_put_object(self):
         query_factory = mock_query_factory(None)
         def check_query_args(passthrough):
-            self.assertEqual(query_factory.credentials.access_key, "foo")
-            self.assertEqual(query_factory.credentials.secret_key, "bar")
+            self.assertEqual(query_factory.creds.access_key, "foo")
+            self.assertEqual(query_factory.creds.secret_key, "bar")
             self.assertEqual(
                 RequestDetails(
                     service=b"s3",
@@ -842,8 +842,8 @@ class S3ClientTestCase(TestCase):
     def test_put_object_with_custom_body_producer(self):
         query_factory = mock_query_factory(None)
         def check_query_args(passthrough):
-            self.assertEqual(query_factory.credentials.access_key, "foo")
-            self.assertEqual(query_factory.credentials.secret_key, "bar")
+            self.assertEqual(query_factory.creds.access_key, "foo")
+            self.assertEqual(query_factory.creds.secret_key, "bar")
             self.assertEqual(
                 RequestDetails(
                     service=b"s3",
@@ -880,8 +880,8 @@ class S3ClientTestCase(TestCase):
         """
         query_factory = mock_query_factory(None)
         def check_query_args(passthrough):
-            self.assertEqual(query_factory.credentials.access_key, "foo")
-            self.assertEqual(query_factory.credentials.secret_key, "bar")
+            self.assertEqual(query_factory.creds.access_key, "foo")
+            self.assertEqual(query_factory.creds.secret_key, "bar")
             self.assertEqual(
                 RequestDetails(
                     service=b"s3",
@@ -911,8 +911,8 @@ class S3ClientTestCase(TestCase):
     def test_get_object(self):
         query_factory = mock_query_factory(None)
         def check_query_args(passthrough):
-            self.assertEqual(query_factory.credentials.access_key, "foo")
-            self.assertEqual(query_factory.credentials.secret_key, "bar")
+            self.assertEqual(query_factory.creds.access_key, "foo")
+            self.assertEqual(query_factory.creds.secret_key, "bar")
             self.assertEqual(
                 RequestDetails(
                     service=b"s3",
@@ -934,8 +934,8 @@ class S3ClientTestCase(TestCase):
     def test_head_object(self):
         query_factory = mock_query_factory(None)
         def check_query_args(passthrough):
-            self.assertEqual(query_factory.credentials.access_key, "foo")
-            self.assertEqual(query_factory.credentials.secret_key, "bar")
+            self.assertEqual(query_factory.creds.access_key, "foo")
+            self.assertEqual(query_factory.creds.secret_key, "bar")
             self.assertEqual(
                 RequestDetails(
                     service=b"s3",
@@ -957,8 +957,8 @@ class S3ClientTestCase(TestCase):
     def test_delete_object(self):
         query_factory = mock_query_factory(None)
         def check_query_args(passthrough):
-            self.assertEqual(query_factory.credentials.access_key, "foo")
-            self.assertEqual(query_factory.credentials.secret_key, "bar")
+            self.assertEqual(query_factory.creds.access_key, "foo")
+            self.assertEqual(query_factory.creds.secret_key, "bar")
             self.assertEqual(
                 RequestDetails(
                     service=b"s3",
@@ -980,8 +980,8 @@ class S3ClientTestCase(TestCase):
     def test_put_object_acl(self):
         query_factory = mock_query_factory(payload.sample_access_control_policy_result)
         def check_query_args(passthrough):
-            self.assertEqual(query_factory.credentials.access_key, "foo")
-            self.assertEqual(query_factory.credentials.secret_key, "bar")
+            self.assertEqual(query_factory.creds.access_key, "foo")
+            self.assertEqual(query_factory.creds.secret_key, "bar")
             self.assertEqual(
                 RequestDetails(
                     service=b"s3",
@@ -1011,8 +1011,8 @@ class S3ClientTestCase(TestCase):
     def test_get_object_acl(self):
         query_factory = mock_query_factory(payload.sample_access_control_policy_result)
         def check_query_args(passthrough):
-            self.assertEqual(query_factory.credentials.access_key, "foo")
-            self.assertEqual(query_factory.credentials.secret_key, "bar")
+            self.assertEqual(query_factory.creds.access_key, "foo")
+            self.assertEqual(query_factory.creds.secret_key, "bar")
             self.assertEqual(
                 RequestDetails(
                     service=b"s3",
@@ -1038,8 +1038,8 @@ class S3ClientTestCase(TestCase):
     def test_init_multipart_upload(self):
         query_factory = mock_query_factory(payload.sample_s3_init_multipart_upload_result)
         def check_query_args(passthrough):
-            self.assertEqual(query_factory.credentials.access_key, "foo")
-            self.assertEqual(query_factory.credentials.secret_key, "bar")
+            self.assertEqual(query_factory.creds.access_key, "foo")
+            self.assertEqual(query_factory.creds.secret_key, "bar")
             self.assertEqual(
                 RequestDetails(
                     service=b"s3",
@@ -1074,8 +1074,8 @@ class S3ClientTestCase(TestCase):
     def test_upload_part(self):
         query_factory = mock_query_factory(None)
         def check_query_args(passthrough):
-            self.assertEqual(query_factory.credentials.access_key, "foo")
-            self.assertEqual(query_factory.credentials.secret_key, "bar")
+            self.assertEqual(query_factory.creds.access_key, "foo")
+            self.assertEqual(query_factory.creds.secret_key, "bar")
             self.assertEqual(
                 RequestDetails(
                     service=b"s3",
@@ -1101,8 +1101,8 @@ class S3ClientTestCase(TestCase):
     def test_complete_multipart_upload(self):
         query_factory = mock_query_factory(payload.sample_s3_complete_multipart_upload_result)
         def check_query_args(passthrough):
-            self.assertEqual(query_factory.credentials.access_key, "foo")
-            self.assertEqual(query_factory.credentials.secret_key, "bar")
+            self.assertEqual(query_factory.creds.access_key, "foo")
+            self.assertEqual(query_factory.creds.secret_key, "bar")
             xml = (
                 "<CompleteMultipartUpload>\n"
                 "<Part>\n<PartNumber>1</PartNumber>\n<ETag>a</ETag>\n"

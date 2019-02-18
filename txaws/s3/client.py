@@ -79,7 +79,7 @@ class S3Client(BaseClient):
 
 
     def _query_factory(self, details, **kw):
-        return self.query_factory(credentials=self.creds, details=details, **kw)
+        return self.query_factory(creds=self.creds, details=details, **kw)
 
 
     def _details(self, **kw):
