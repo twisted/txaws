@@ -56,6 +56,11 @@ Attempts are made to clean up these resources but there is no guarantee this wil
 After running the test suite, verify everything has been cleaned up to avoid additional costs.
 ``test-tools/aws-cleanup``\ , which will delete **all** AWS resources it finds, is provided to assist with cleanup.
 
+AI Policy
+---------
+
+txAWS follows the `Twisted AI Policy <https://docs.twisted.org/en/latest/development/ai-policy.html>`_. This means this project does not allow the inclusion of the outputs of generative AI tools.
+
 License
 -------
 
